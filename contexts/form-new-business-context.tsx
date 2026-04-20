@@ -7,6 +7,7 @@ import {
   useContext,
   useState,
 } from "react";
+import { LEGACY_UNUSED_VALUE } from "@/helper/knowledge-form";
 import { BusinessKnowledgePld } from "@/models/api/knowledge/business.type";
 import { ProductKnowledgePld } from "@/models/api/knowledge/product.type";
 import { RoleKnowledgePld } from "@/models/api/knowledge/role.type";
@@ -52,10 +53,10 @@ export function FormNewBusinessProvider({
       name: "",
       category: "",
       description: "",
-      visionMission: "",
+      visionMission: LEGACY_UNUSED_VALUE,
       website: "",
-      location: "",
-      uniqueSellingPoint: "",
+      location: LEGACY_UNUSED_VALUE,
+      uniqueSellingPoint: LEGACY_UNUSED_VALUE,
       colorTone: "",
     },
     step2: {
@@ -69,10 +70,10 @@ export function FormNewBusinessProvider({
     step3: {
       targetAudience: "",
       tone: "",
-      audiencePersona: "",
+      audiencePersona: LEGACY_UNUSED_VALUE,
       hashtags: [],
-      callToAction: "",
-      goals: "",
+      callToAction: LEGACY_UNUSED_VALUE,
+      goals: LEGACY_UNUSED_VALUE,
     },
   });
 

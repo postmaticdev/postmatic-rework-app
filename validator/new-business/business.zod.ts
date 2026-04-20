@@ -22,17 +22,11 @@ export const createBusinessKnowledgeSchema = (messages: {
   zodBrandName: string;
   zodCategory: string;
   zodDescription: string;
-  zodVisionMission: string;
-  zodUniqueSellingPoint: string;
-  zodUrlWebsite: string;
-  zodLocation: string;
+  zodPhone: string;
   zodColorTone: string;
   zodMaxLengthBrandName: string;
   zodMaxLengthDescription: string;
-  zodMaxLengthVisionMission: string;
-  zodMaxLengthUniqueSellingPoint: string;
-  zodMaxLengthLocation: string;
-
+  zodMaxLengthPhone: string;
 }) => z.object({
   primaryLogo: z.string().min(1, messages.zodLogoBrand),
   name: z
@@ -44,20 +38,14 @@ export const createBusinessKnowledgeSchema = (messages: {
     .string()
     .min(1, messages.zodDescription)
     .max(1000, messages.zodMaxLengthDescription),
-  visionMission: z
+  visionMission: z.string(),
+  website: z
     .string()
-    .min(1, messages.zodVisionMission)
-    .max(1000, messages.zodMaxLengthVisionMission),
-  website: z.string().url(messages.zodUrlWebsite).or(z.literal("")),
-  uniqueSellingPoint: z
-    .string()
-    .min(1, messages.zodUniqueSellingPoint)
-    .max(500, messages.zodMaxLengthUniqueSellingPoint),
-  location: z
-    .string()
-    .min(1, messages.zodLocation)
-    .max(200, messages.zodMaxLengthLocation),
-    colorTone: colorToneSchemaWithMsg(messages.zodColorTone),
+    .min(1, messages.zodPhone)
+    .max(50, messages.zodMaxLengthPhone),
+  uniqueSellingPoint: z.string(),
+  location: z.string(),
+  colorTone: colorToneSchemaWithMsg(messages.zodColorTone),
 });
 
 // Default schema with Indonesian messages (for backward compatibility)
@@ -72,23 +60,21 @@ export const businessKnowledgeSchema = z.object({
     .string()
     .min(1, "Harap masukkan deskripsi bisnis")
     .max(1000, "Deskripsi bisnis harus kurang dari 1000 karakter"),
-  visionMission: z
+  visionMission: z.string(),
+  website: z
     .string()
-    .min(1, "Harap masukkan visi dan misi bisnis")
-    .max(1000, "Visi dan misi bisnis harus kurang dari 1000 karakter"),
-  website: z.string().url("Harap masukkan URL yang valid (https://www.example.com) atau di kosongkan apabila tidak ada").or(z.literal("")),
-  uniqueSellingPoint: z
-    .string()
-    .min(1, "Harap masukkan unique selling point bisnis")
-    .max(500, "Unique selling point bisnis harus kurang dari 500 karakter"),
-  location: z
-    .string()
-    .min(1, "Harap masukkan lokasi bisnis")
-    .max(200, "Lokasi bisnis harus kurang dari 200 karakter"),
-    colorTone: z.preprocess(
-      (v) => color6HexPreprocess(v, "E5E7EB"),
-      z.string().regex(/^[0-9A-F]{6}$/, { message: "Harap masukkan warna tone bisnis (6 digit hex)" })
-    ),
+    .min(1, "Harap masukkan nomor telepon bisnis")
+    .max(50, "Nomor telepon bisnis harus kurang dari 50 karakter"),
+  uniqueSellingPoint: z.string(),
+  location: z.string(),
+  colorTone: z.preprocess(
+    (v) => color6HexPreprocess(v, "E5E7EB"),
+    z
+      .string()
+      .regex(/^[0-9A-F]{6}$/, {
+        message: "Harap masukkan warna tone bisnis (6 digit hex)",
+      })
+  ),
 });
 
 export type BusinessKnowledgePld = z.infer<typeof businessKnowledgeSchema>;

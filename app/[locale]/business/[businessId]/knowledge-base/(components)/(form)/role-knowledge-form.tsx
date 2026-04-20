@@ -46,19 +46,13 @@ export function RoleKnowledgeForm() {
   const defaultLabels = {
     targetAudience: r("targetAudience"),
     contentTone: r("contentTone"),
-    persona: r("persona"),
     hashtags: r("hashtags"),
-    callToAction: r("callToAction"),
-    goals: r("goals"),
   };
 
   const defaultPlaceholders = {
     targetAudience: r("targetAudiencePlaceholder"),
     contentTone: r("contentTonePlaceholder"),
-    persona: r("personaPlaceholder"),
     hashtagInput: r("hashtagsPlaceholder"),
-    callToAction: r("callToActionPlaceholder"),
-    goals: r("goalsPlaceholder"),
   };
 
   const finalLabels = { ...defaultLabels };
@@ -80,14 +74,6 @@ export function RoleKnowledgeForm() {
         onChange={(value) => updateField("tone", value)}
         placeholder={finalPlaceholders.contentTone}
         error={errors.role.tone}
-      />
-
-      <TextField
-        label={finalLabels.persona}
-        value={formKnowledge.role.audiencePersona}
-        onChange={(value) => updateField("audiencePersona", value)}
-        placeholder={finalPlaceholders.persona}
-        error={errors.role.audiencePersona}
       />
 
       <div className="space-y-2">
@@ -135,21 +121,6 @@ export function RoleKnowledgeForm() {
         )}
       </div>
 
-      <TextField
-        label={finalLabels.callToAction}
-        value={formKnowledge.role.callToAction}
-        onChange={(value) => updateField("callToAction", value)}
-        placeholder={finalPlaceholders.callToAction}
-        error={errors.role.callToAction}
-      />
-
-      <TextField
-        label={finalLabels.goals}
-        value={formKnowledge.role.goals}
-        onChange={(value) => updateField("goals", value)}
-        placeholder={finalPlaceholders.goals}
-        error={errors.role.goals}
-      />
     </div>
   );
 }

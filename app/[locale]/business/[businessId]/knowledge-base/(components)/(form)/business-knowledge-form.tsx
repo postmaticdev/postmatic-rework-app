@@ -27,10 +27,7 @@ export function BusinessKnowledgeForm() {
     brandName: b("brandName"),
     category: b("category"),
     description: b("description"),
-    visionMission: b("visionMission"),
-    uniqueSellingPoint: b("uniqueSellingPoint"),
-    urlWebsite: b("urlWebsite"),
-    location: b("location"),
+    phone: b("phone"),
     colorTone: b("colorTone"),
   };
 
@@ -38,10 +35,7 @@ export function BusinessKnowledgeForm() {
     brandName: b("brandNamePlaceholder"),
     category: b("categoryPlaceholder"),
     description: b("descriptionPlaceholder"),
-    visionMission: b("visionMissionPlaceholder"),
-    uniqueSellingPoint: b("uniqueSellingPointPlaceholder"),
-    urlWebsite: b("urlWebsitePlaceholder"),
-    location: b("locationPlaceholder"),
+    phone: b("phonePlaceholder"),
   };
 
   const finalLabels = { ...defaultLabels };
@@ -92,37 +86,11 @@ export function BusinessKnowledgeForm() {
       />
 
       <TextField
-        label={finalLabels.visionMission}
-        value={formKnowledge?.business?.visionMission}
-        onChange={(value) => updateField("visionMission", value)}
-        placeholder={finalPlaceholders.visionMission}
-        multiline
-        rows={3}
-        error={errors.business.visionMission}
-      />
-
-      <TextField
-        label={finalLabels.uniqueSellingPoint}
-        value={formKnowledge?.business?.uniqueSellingPoint}
-        onChange={(value) => updateField("uniqueSellingPoint", value)}
-        placeholder={finalPlaceholders.uniqueSellingPoint}
-        error={errors.business.uniqueSellingPoint}
-      />
-
-      <TextField
-        label={finalLabels.urlWebsite}
+        label={finalLabels.phone}
         value={formKnowledge?.business?.website}
         onChange={(value) => updateField("website", value)}
-        placeholder={finalPlaceholders.urlWebsite}
+        placeholder={finalPlaceholders.phone}
         error={errors.business.website}
-      />
-
-      <TextField
-        label={finalLabels.location}
-        value={formKnowledge?.business?.location}
-        onChange={(value) => updateField("location", value)}
-        placeholder={finalPlaceholders.location}
-        error={errors.business.location}
       />
 
       {/* <TextField

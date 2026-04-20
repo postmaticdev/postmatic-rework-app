@@ -75,19 +75,13 @@ export function RoleKnowledge() {
   const defaultLabels = {
     targetAudience: t("targetAudience"),
     contentTone: t("contentTone"),
-    persona: t("persona"),
     hashtags: t("hashtags"),
-    callToAction: t("callToAction"),
-    goals: t("goals"),
   };
 
   const defaultPlaceholders = {
     targetAudience: t("targetAudiencePlaceholder"),
     contentTone: t("contentTonePlaceholder"),
-    persona: t("personaPlaceholder"),
     hashtagInput: t("hashtagsPlaceholder"),
-    callToAction: t("callToActionPlaceholder"),
-    goals: t("goalsPlaceholder"),
   };
 
   const finalLabels = { ...defaultLabels };
@@ -109,14 +103,6 @@ export function RoleKnowledge() {
         onChange={(value) => updateField("tone", value)}
         placeholder={finalPlaceholders.contentTone}
         error={errors.step3.tone}
-      />
-
-      <TextField
-        label={finalLabels.persona}
-        value={step3.audiencePersona}
-        onChange={(value) => updateField("audiencePersona", value)}
-        placeholder={finalPlaceholders.persona}
-        error={errors.step3.audiencePersona}
       />
 
       <div className="">
@@ -202,21 +188,6 @@ export function RoleKnowledge() {
         )}
       </div>
 
-      <TextField
-        label={finalLabels.callToAction}
-        value={step3.callToAction}
-        onChange={(value) => updateField("callToAction", value)}
-        placeholder={finalPlaceholders.callToAction}
-        error={errors.step3.callToAction}
-      />
-
-      <TextField
-        label={finalLabels.goals}
-        value={step3.goals}
-        onChange={(value) => updateField("goals", value)}
-        placeholder={finalPlaceholders.goals}
-        error={errors.step3.goals}
-      />
     </div>
   );
 }

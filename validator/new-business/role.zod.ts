@@ -4,16 +4,10 @@ import z from "zod";
 export const createRoleKnowledgeSchema = (messages: {
   zodTargetAudience: string;
   zodContentTone: string;
-  zodPersona: string;
   zodHashtags: string;
-  zodCallToAction: string;
-  zodGoals: string;
   zodMaxLengthTargetAudience: string;
   zodMaxLengthContentTone: string;
-  zodMaxLengthPersona: string;
   zodMaxLengthHashtags: string;
-  zodMaxLengthCallToAction: string;
-  zodMaxLengthGoals: string;
 }) => z.object({
   targetAudience: z
     .string()
@@ -23,22 +17,13 @@ export const createRoleKnowledgeSchema = (messages: {
     .string()
     .min(1, messages.zodContentTone)
     .max(200, messages.zodMaxLengthContentTone),
-  audiencePersona: z
-    .string()
-    .min(1, messages.zodPersona)
-    .max(500, messages.zodMaxLengthPersona),
+  audiencePersona: z.string(),
   hashtags: z
     .array(z.string())
     .min(1, messages.zodHashtags)
     .max(10, messages.zodMaxLengthHashtags),
-  callToAction: z
-    .string()
-    .min(1, messages.zodCallToAction)
-    .max(200, messages.zodMaxLengthCallToAction),
-  goals: z
-    .string()
-    .min(1, messages.zodGoals)
-    .max(500, messages.zodMaxLengthGoals),
+  callToAction: z.string(),
+  goals: z.string(),
 });
 
 // Default schema with Indonesian messages (for backward compatibility)
@@ -51,22 +36,13 @@ export const roleKnowledgeSchema = z.object({
     .string()
     .min(1, "Harap masukkan content tone")
     .max(200, "Content tone harus kurang dari 200 karakter"),
-  audiencePersona: z
-    .string()
-    .min(1, "Harap masukkan audience persona")
-    .max(500, "Audience persona harus kurang dari 500 karakter"),
+  audiencePersona: z.string(),
   hashtags: z
     .array(z.string())
     .min(1, "Harap masukkan setidaknya satu hashtag")
     .max(10, "Maksimal 10 hashtags yang diizinkan"),
-  callToAction: z
-    .string()
-    .min(1, "Harap masukkan call to action")
-    .max(200, "Call to action harus kurang dari 200 karakter"),
-  goals: z
-    .string()
-    .min(1, "Harap masukkan content goals")
-    .max(500, "Content goals harus kurang dari 500 karakter"),
+  callToAction: z.string(),
+  goals: z.string(),
 });
 
 export type RoleKnowledgePld = z.infer<typeof roleKnowledgeSchema>;

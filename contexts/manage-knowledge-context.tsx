@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  normalizeBusinessKnowledge,
+  normalizeRoleKnowledge,
+} from "@/helper/knowledge-form";
 import { BusinessKnowledgePld } from "@/models/api/knowledge/business.type";
 import { RoleKnowledgePld } from "@/models/api/knowledge/role.type";
 import { useState, createContext, useContext, useEffect } from "react";
@@ -23,25 +27,8 @@ interface ValidationErrors {
 }
 
 const initialFormKnowledge: FormKnowledge = {
-  business: {
-    primaryLogo: null,
-    name: "",
-    category: "",
-    description: "",
-    visionMission: "",
-    website: "",
-    location: "",
-    uniqueSellingPoint: "",
-    colorTone: "",
-  },
-  role: {
-    targetAudience: "",
-    tone: "",
-    audiencePersona: "",
-    hashtags: [],
-    callToAction: "",
-    goals: "",
-  },
+  business: normalizeBusinessKnowledge(),
+  role: normalizeRoleKnowledge(),
 };
 
 interface ManageKnowledgeContext {
@@ -84,13 +71,13 @@ export function ManageKnowledgeProvider({
     if (businessKnowledgeData) {
       setFormKnowledge((prev) => ({
         ...prev,
-        business: businessKnowledgeData.data.data,
+        business: normalizeBusinessKnowledge(businessKnowledgeData.data.data),
       }));
     }
     if (roleKnowledgeData) {
       setFormKnowledge((prev) => ({
         ...prev,
-        role: roleKnowledgeData.data.data,
+        role: normalizeRoleKnowledge(roleKnowledgeData.data.data),
       }));
     }
   }, [businessKnowledgeData, roleKnowledgeData]);

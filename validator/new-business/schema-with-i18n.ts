@@ -13,15 +13,10 @@ export const useBusinessKnowledgeSchema = () => {
     zodBrandName: t("zodBrandName"),
     zodCategory: t("zodCategory"),
     zodDescription: t("zodDescription"),
-    zodVisionMission: t("zodVisionMission"),
-    zodUniqueSellingPoint: t("zodUniqueSellingPoint"),
-    zodUrlWebsite: t("zodUrlWebsite"),
-    zodLocation: t("zodLocation"),
+    zodPhone: t("zodPhone"),
     zodMaxLengthBrandName: t("zodMaxLengthBrandName"),
     zodMaxLengthDescription: t("zodMaxLengthDescription"),
-    zodMaxLengthVisionMission: t("zodMaxLengthVisionMission"),
-    zodMaxLengthUniqueSellingPoint: t("zodMaxLengthUniqueSellingPoint"),
-    zodMaxLengthLocation: t("zodMaxLengthLocation"),
+    zodMaxLengthPhone: t("zodMaxLengthPhone"),
   };
 
   return createBusinessKnowledgeSchema(messages);
@@ -54,16 +49,10 @@ export const useRoleKnowledgeSchema = () => {
   const messages = {
     zodTargetAudience: t("zodTargetAudience"),
     zodContentTone: t("zodContentTone"),
-    zodPersona: t("zodPersona"),
     zodHashtags: t("zodHashtags"),
-    zodCallToAction: t("zodCallToAction"),
-    zodGoals: t("zodGoals"),
     zodMaxLengthTargetAudience: t("zodMaxLengthTargetAudience"),
     zodMaxLengthContentTone: t("zodMaxLengthContentTone"),
-    zodMaxLengthPersona: t("zodMaxLengthPersona"),
     zodMaxLengthHashtags: t("zodMaxLengthHashtags"),
-    zodMaxLengthCallToAction: t("zodMaxLengthCallToAction"),
-    zodMaxLengthGoals: t("zodMaxLengthGoals"),
   };
 
   return createRoleKnowledgeSchema(messages);

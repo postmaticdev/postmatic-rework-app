@@ -27,10 +27,7 @@ export function BusinessKnowledge() {
     brandName: t("brandName"),
     category: t("category"),
     description: t("description"),
-    visionMission: t("visionMission"),
-    uniqueSellingPoint: t("uniqueSellingPoint"),
-    urlWebsite: t("urlWebsite"),
-    location: t("location"),
+    phone: t("phone"),
     colorTone: t("colorTone"),
   };
 
@@ -38,10 +35,7 @@ export function BusinessKnowledge() {
     brandName: t("brandNamePlaceholder"),
     category: t("categoryPlaceholder"),
     description: t("descriptionPlaceholder"),
-    visionMission: t("visionMissionPlaceholder"),
-    uniqueSellingPoint: t("uniqueSellingPointPlaceholder"),
-    urlWebsite: t("urlWebsitePlaceholder"),
-    location: t("locationPlaceholder"),
+    phone: t("phonePlaceholder"),
     colorTone: "FFFFFF",
   };
 
@@ -98,41 +92,12 @@ export function BusinessKnowledge() {
       />
 
       <TextField
-        label={finalLabels.visionMission}
-        value={step1.visionMission}
-        onChange={(value) => updateField("visionMission", value)}
-        placeholder={finalPlaceholders.visionMission}
-        multiline
-        rows={3}
-        error={errors.step1.visionMission}
-        onFocus={() => clearFieldError(0, "visionMission")}
-      />
-
-      <TextField
-        label={finalLabels.uniqueSellingPoint}
-        value={step1.uniqueSellingPoint}
-        onChange={(value) => updateField("uniqueSellingPoint", value)}
-        placeholder={finalPlaceholders.uniqueSellingPoint}
-        error={errors.step1.uniqueSellingPoint}
-        onFocus={() => clearFieldError(0, "uniqueSellingPoint")}
-      />
-
-      <TextField
-        label={finalLabels.urlWebsite}
+        label={finalLabels.phone}
         value={step1.website}
         onChange={(value) => updateField("website", value)}
-        placeholder={finalPlaceholders.urlWebsite}
+        placeholder={finalPlaceholders.phone}
         error={errors.step1.website}
         onFocus={() => clearFieldError(0, "website")}
-      />
-
-      <TextField
-        label={finalLabels.location}
-        value={step1.location}
-        onChange={(value) => updateField("location", value)}
-        placeholder={finalPlaceholders.location}
-        error={errors.step1.location}
-        onFocus={() => clearFieldError(0, "location")}
       />
 
       <ColorPickerField

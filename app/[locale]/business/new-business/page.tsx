@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import {
+  prepareBusinessKnowledgePayload,
+  prepareRoleKnowledgePayload,
+} from "@/helper/knowledge-form";
 import { BusinessKnowledge } from "@/app/[locale]/business/new-business/(components)/business-knowledge";
 import { ProductKnowledge } from "@/app/[locale]/business/new-business/(components)/product-knowledge";
 import { RoleKnowledge } from "@/app/[locale]/business/new-business/(components)/role-knowledge";
@@ -62,9 +66,9 @@ const steps = [
       }
 
       const business = await mBusiness.mutateAsync({
-        businessKnowledge: step1,
+        businessKnowledge: prepareBusinessKnowledgePayload(step1),
         productKnowledge: step2,
-        roleKnowledge: step3,
+        roleKnowledge: prepareRoleKnowledgePayload(step3),
       });
 
       setBusinessId(business.data.data.id);

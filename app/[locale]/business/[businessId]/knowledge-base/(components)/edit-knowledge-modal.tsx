@@ -19,6 +19,12 @@ import {
 } from "@/services/knowledge.api";
 import { useParams } from "next/navigation";
 import { useManageKnowledge } from "@/contexts/manage-knowledge-context";
+import {
+  normalizeBusinessKnowledge,
+  normalizeRoleKnowledge,
+  prepareBusinessKnowledgePayload,
+  prepareRoleKnowledgePayload,
+} from "@/helper/knowledge-form";
 import { showToast } from "@/helper/show-toast";
 import { useBusinessKnowledgeSchema, useRoleKnowledgeSchema } from "@/validator/new-business/schema-with-i18n";
 import { useTranslations } from "next-intl";
@@ -52,8 +58,8 @@ export function EditKnowledgeModal({
   useEffect(() => {
     if (isOpen && roleKnowledgeData && businessKnowledgeData) {
       setFormKnowledge({
-        role: roleKnowledgeData?.data?.data,
-        business: businessKnowledgeData?.data?.data,
+        role: normalizeRoleKnowledge(roleKnowledgeData?.data?.data),
+        business: normalizeBusinessKnowledge(businessKnowledgeData?.data?.data),
       });
       // Clear errors when modal opens
       setErrors({ business: {}, role: {} });
@@ -126,11 +132,11 @@ export function EditKnowledgeModal({
       await Promise.all([
         mBusinessKnowledge.mutateAsync({
           businessId,
-          formData: formKnowledge.business,
+          formData: prepareBusinessKnowledgePayload(formKnowledge.business),
         }),
         await mRoleKnowledge.mutateAsync({
           businessId,
-          formData: formKnowledge.role,
+          formData: prepareRoleKnowledgePayload(formKnowledge.role),
         }),
       ]);
       showToast("success", t("toast.business.knowledgeUpdated"));
