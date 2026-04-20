@@ -1,12 +1,12 @@
 // components/ColorPickerField.tsx
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Info } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 interface ColorPickerFieldProps {
   label: string;
@@ -18,11 +18,13 @@ interface ColorPickerFieldProps {
   onFocus?: () => void;
 }
 
+function normalizeHex(input?: string) {
+  const raw = (input ?? "").trim().replace(/^#/, "").toUpperCase();
+  return /^[0-9A-F]{6}$/.test(raw) ? raw : "FAFAFA";
+}
+
 function toHashHex(input?: string) {
-  const raw = (input ?? "").trim().replace(/^#/, "");
-  const isValidLen = raw.length === 3 || raw.length === 6 || raw.length === 8;
-  // fallback gray-200
-  return `#${isValidLen ? raw : "e5e7eb"}`;
+  return `#${normalizeHex(input)}`;
 }
 
 function stripHash(inputWithHash: string) {
@@ -37,64 +39,119 @@ export function ColorPickerField({
   onFocus,
 }: ColorPickerFieldProps) {
   const colorHash = useMemo(() => toHashHex(value), [value]);
-  const preview = colorHash;
-  
-  // Local state untuk input hex
-  const [hexInput, setHexInput] = useState(stripHash(preview));
+  const [hexInput, setHexInput] = useState(stripHash(colorHash));
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Sync hexInput dengan value prop (ketika color picker digunakan)
   useEffect(() => {
-    setHexInput(stripHash(preview));
-  }, [preview]);
+    setHexInput(stripHash(colorHash));
+  }, [colorHash]);
 
-  const  t  = useTranslations("colorPicker");
+  useEffect(() => {
+    if (!isPickerOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setIsPickerOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsPickerOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPickerOpen]);
+
+  const emitChange = (next: string) => {
+    const normalized = stripHash(next);
+    const current = (value ?? "").trim().replace(/^#/, "").toUpperCase();
+    if (normalized !== current) {
+      onChange(normalized);
+    }
+  };
 
   return (
-    <div className="space-y-2">
-      <Label className="text-sm font-medium text-foreground">{label}</Label>
+    <div className="space-y-2" ref={wrapperRef}>
+      <Label className="text-sm text-foreground">{label}</Label>
 
-      <div className="flex gap-4 items-start" onFocus={onFocus}>
-        <HexColorPicker
-          color={colorHash}
-          onChange={(next) => {
-            const nextNoHash = stripHash(next);
-            // Hindari update tak perlu (mencegah render storm)
-            if (nextNoHash !== (value ?? "").toUpperCase()) {
-              onChange(nextNoHash); // kirim balik TANPA '#'
-            }
-          }}
-        />
+      <div className="relative" onFocus={onFocus}>
+        <div
+          className={cn(
+            "flex h-10 items-center overflow-hidden rounded-2xl border bg-background transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20",
+            error ? "border-red-500" : "border-border"
+          )}
+        >
+          <button
+            type="button"
+            aria-label={`Open color picker for ${label}`}
+            aria-expanded={isPickerOpen}
+            aria-haspopup="dialog"
+            onClick={() => setIsPickerOpen((open) => !open)}
+            className="flex h-14 items-center justify-center border-r border-border px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-inset"
+          >
+            <span
+              className="size-6 rounded-md border border-black/5 shadow-sm"
+              style={{ backgroundColor: colorHash }}
+              title={colorHash}
+            />
+          </button>
 
-        <div className="flex flex-col items-start gap-2">
-          <Label className="text-sm font-medium text-foreground">{t("previewColor")}</Label>
-          <div
-            className="border-2 border-border rounded-md w-25 h-15"
-            style={{ backgroundColor: preview }}
-            aria-label={`preview ${preview}`}
-            title={preview}
-          />
-          <Label className="text-sm font-medium text-foreground">{t("setHex")}</Label>
-          <Input
-            type="text"
-            value={hexInput}
-            onChange={(e) => {
-              const inputValue = e.target.value.toUpperCase().replace(/[^0-9A-F]/g, "");
-              setHexInput(inputValue);
-              
-              // Validasi: harus 3, 6, atau 8 karakter
-              if (inputValue.length === 3 || inputValue.length === 6 || inputValue.length === 8) {
-                onChange(inputValue);
-              }
-            }}
-            onBlur={() => {
-              // Sinkronisasi dengan value saat blur
-              setHexInput(stripHash(preview));
-            }}
-            placeholder="FFFFFF"
-            maxLength={6}
-            className="w-24 text-xs text-center font-mono"
-          />
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+              #
+            </span>
+            <Input
+              type="text"
+              value={hexInput}
+              onChange={(e) => {
+                const inputValue = e.target.value
+                  .toUpperCase()
+                  .replace(/[^0-9A-F]/g, "")
+                  .slice(0, 6);
+
+                setHexInput(inputValue);
+
+                if (inputValue.length === 6) {
+                  emitChange(inputValue);
+                }
+              }}
+              onBlur={() => {
+                setHexInput(stripHash(colorHash));
+              }}
+              placeholder="FAFAFA"
+              maxLength={6}
+              className="h-14 border-0 bg-transparent pl-8 font-mono text-sm uppercase text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+          </div>
         </div>
+
+        {isPickerOpen && (
+          <div className="absolute left-0 top-full z-50 mt-3 rounded-2xl border border-border bg-background p-3 shadow-lg">
+            <HexColorPicker
+              color={colorHash}
+              onChange={(next) => {
+                emitChange(next);
+                setHexInput(stripHash(next));
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {error && (
