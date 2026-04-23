@@ -7,5 +7,5 @@ interface Params {
 }
 export default async function BusinessPage({ params }: Params) {
   const { businessId } = await params;
-  redirect(`/business/${businessId}/dashboard`);
+  redirect(`/business/${businessId}/settings`);
 }

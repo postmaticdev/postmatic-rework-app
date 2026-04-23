@@ -3,25 +3,27 @@
 import { useState } from "react";
 import { SettingsTabNavigation } from "@/app/[locale]/business/[businessId]/settings/(components)/settings-tab-navigation";
 import { MembersTable } from "@/app/[locale]/business/[businessId]/settings/(components)/members-table";
-import { HistoryTransactions } from "@/app/[locale]/business/[businessId]/settings/(components)/history-transactions";
-
+import { OverviewContent } from "@/app/[locale]/business/[businessId]/settings/(components)/overview-content";
+import { BillingInvoices } from "@/app/[locale]/business/[businessId]/settings/(components)/billing-invoices";
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { useTranslations } from "next-intl";
-import { ZoneTime } from "./(components)/zone-time";
+import { useAuthProfileGetProfile } from "@/services/auth.api";
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("members");
+  const [activeTab, setActiveTab] = useState("overview");
   const w = useTranslations("welcomeSection");
+  const { data: profile } = useAuthProfileGetProfile();
+  const userName = profile?.data?.data?.name;
+  const greeting = `${w("welcome")} ${userName || ""}`.trim();
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "members":
+      case "overview":
+        return <OverviewContent />;
+      case "workspace":
         return <MembersTable />;
-      case "history":
-        return <HistoryTransactions />;
-        case "timezone":
-        return <ZoneTime />;
-        
+      case "billing":
+        return <BillingInvoices />;
       default:
         return null;
     }
@@ -32,7 +34,7 @@ export default function Settings() {
       {/* Banner Header */}
 
       <WelcomeSection
-        title={w("settings")}
+        title={greeting}
         message={w("manageSocialMedia")}
       />
 

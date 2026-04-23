@@ -7,13 +7,11 @@ import { useBusinessGetAll } from "@/services/business.api";
 import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useLocale } from "next-intl";
 
 export function BusinessInformation() {
   const { data: businessesData } = useBusinessGetAll();
   const businesses = businessesData?.data?.data || [];
   const t = useTranslations("businessInformation");
-  const locale = useLocale();
   return (
     <Card className="h-fit">
       <CardContent className="py-6">
@@ -62,7 +60,7 @@ export function BusinessInformation() {
                 </div>
 
                 <Link
-                  href={`/business/${business.id}/dashboard`}
+                  href={`/business/${business.id}/settings`}
                   prefetch={false}
                 >
                   <Button

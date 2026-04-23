@@ -34,7 +34,7 @@ export function PaymentSuccess() {
       </div>
 
       <Link
-        href={`/business/${businessId}/dashboard`}
+        href={`/business/${businessId}/settings`}
         prefetch={false}
         className="inline-block bg-blue-600 dark:bg-blue-500 text-white text-sm sm:text-base lg:text-lg font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
         onClick={() => queryClient.clear()}

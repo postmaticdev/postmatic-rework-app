@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 
 import { useTheme } from "next-themes";
 import {
-  LayoutGrid,
   BookOpen,
   Sparkles,
   Send,
@@ -59,11 +58,6 @@ export function MobileMenu() {
   const userRole = currentBusiness?.userPosition?.role;
   const tSideBar = useTranslations("sideBar");
   const navigationItems = [
-    {
-      name: tSideBar("dashboard"),
-      href: "dashboard",
-      icon: LayoutGrid,
-    },
     {
       name: tSideBar("basicKnowledge"),
       href: "knowledge-base",

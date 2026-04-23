@@ -4,7 +4,6 @@ import { useRouter, usePathname } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 
 import {
-  LayoutGrid,
   BookOpen,
   Sparkles,
   Send,
@@ -37,11 +36,6 @@ export function Sidebar() {
   const t = useTranslations("sideBar");
 
   const navigationItems = [
-    {
-      name: t("dashboard"),
-      href: "dashboard",
-      icon: LayoutGrid,
-    },
     {
       name: t("basicKnowledge"),
       href: "knowledge-base",
