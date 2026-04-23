@@ -9,11 +9,15 @@ import { usePathname } from "@/i18n/navigation";
 const SKIP_HEADER_PATHS = [
   "/business/[businessId]/pricing/checkout",
   "/business/new-business",
+  "/business/new-business/manual",
+  "/business/new-business/website",
 ];
 
 const SKIP_SIDEBAR_PATHS = [
   "/profile",
   "/business/new-business",
+  "/business/new-business/manual",
+  "/business/new-business/website",
   "/business/[businessId]/pricing/checkout",
   "/business",
 ];

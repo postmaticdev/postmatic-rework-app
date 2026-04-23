@@ -1,223 +1,82 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "@/i18n/navigation";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import {
-  prepareBusinessKnowledgePayload,
-  prepareRoleKnowledgePayload,
-} from "@/helper/knowledge-form";
-import { BusinessKnowledge } from "@/app/[locale]/business/new-business/(components)/business-knowledge";
-import { ProductKnowledge } from "@/app/[locale]/business/new-business/(components)/product-knowledge";
-import { RoleKnowledge } from "@/app/[locale]/business/new-business/(components)/role-knowledge";
-import { Progress } from "@/components/ui/progress";
-import { useFormNewBusiness } from "@/contexts/form-new-business-context";
-import { showToast } from "@/helper/show-toast";
-import { useBusinessCreate } from "@/services/business.api";
-
-import { useBusinessKnowledgeSchema, useProductKnowledgeSchema, useRoleKnowledgeSchema } from "@/validator/new-business/schema-with-i18n";
+import { Card } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
+import { ArrowRight, Globe, PencilLine, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-
-
-export default function NewBusiness() {
-  const t = useTranslations("newBusiness");
-  const businessKnowledgeSchema = useBusinessKnowledgeSchema();
-  const productKnowledgeSchema = useProductKnowledgeSchema();
-  const roleKnowledgeSchema = useRoleKnowledgeSchema(); 
-
-const steps = [
-  {
-    id: 1,
-    title: t("title1"),
-    component: BusinessKnowledge,
-    backgroundImage: "/businessknowledge.PNG",
-  },
-  {
-    id: 2,
-    title: t("title2"),
-    component: ProductKnowledge,
-    backgroundImage: "/productknowledge.PNG",
-  },
-  {
-    id: 3,
-    title: t("title3"),
-    component: RoleKnowledge,
-    backgroundImage: "/roleknowledge.PNG",
-  },
-];
-
-  const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(0);
-
-  const { formData, setBusinessId, errors, setErrors } = useFormNewBusiness();
-  const { step1, step2, step3 } = formData;
-
-  const mBusiness = useBusinessCreate();
-
-  const isLoading = mBusiness.isPending;
-
-  const onSubmit = async () => {
-    try {
-      if (isLoading) {
-        throw new Error(t("isLoading"));
-      }
-
-      const business = await mBusiness.mutateAsync({
-        businessKnowledge: prepareBusinessKnowledgePayload(step1),
-        productKnowledge: step2,
-        roleKnowledge: prepareRoleKnowledgePayload(step3),
-      });
-
-      setBusinessId(business.data.data.id);
-
-      const id = business.data.data.id;
-
-      router.push(`/business/${id}/pricing?isNewBusiness=true`);
-    } catch (error) {
-      console.log(error);
-      showToast("error", error);
-    }
-  };
-
-  const currentStepData = steps[currentStep];
-  const CurrentComponent = currentStepData.component;
-
-  const validateStep = () => {
-    const validationErrors = { ...errors };
-
-    if (currentStep === 0) {
-      const result = businessKnowledgeSchema.safeParse(step1);
-      if (!result.success) {
-        const step1Errors: Record<string, string> = {};
-        result.error.issues.forEach((error) => {
-          step1Errors[error.path[0] as string] = error.message;
-        });
-        validationErrors.step1 = step1Errors;
-        setErrors(validationErrors);
-        throw new Error(t("validateBusinessKnowledge"));
-      } else {
-        validationErrors.step1 = {};
-      }
-    }
-
-    if (currentStep === 1) {
-      const result = productKnowledgeSchema.safeParse(step2);
-      if (!result.success) {
-        const step2Errors: Record<string, string> = {};
-        result.error.issues.forEach((error) => {
-          step2Errors[error.path[0] as string] = error.message;
-        });
-        validationErrors.step2 = step2Errors;
-        console.log(validationErrors);
-        setErrors(validationErrors);
-        throw new Error(t("validateProductKnowledge"));
-      } else {
-        validationErrors.step2 = {};
-      }
-    }
-
-    if (currentStep === 2) {
-      const result = roleKnowledgeSchema.safeParse(step3);
-      if (!result.success) {
-        const step3Errors: Record<string, string> = {};
-        result.error.issues.forEach((error) => {
-          step3Errors[error.path[0] as string] = error.message;
-        });
-        validationErrors.step3 = step3Errors;
-        setErrors(validationErrors);
-        throw new Error(t("validateRoleKnowledge"));
-      } else {
-        validationErrors.step3 = {};
-      }
-    }
-
-    setErrors(validationErrors);
-  };
-
-  const handleNext = () => {
-    try {
-      validateStep();
-      if (currentStep < steps.length - 1) {
-        setCurrentStep(currentStep + 1);
-      } else {
-        onSubmit();
-      }
-    } catch (error) {
-      showToast("error", error);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+export default function NewBusinessEntryPage() {
+  const t = useTranslations("newBusinessEntry");
 
   return (
-    <div className="min-h-screen bg-transparent rounded overflow-hidden flex">
-      {/* Left Panel */}
-      <div className="flex flex-col w-full md:w-2/3 lg:w-2/5  mx-auto mb-22 mt-18 md:mt-22">
-        {/* Header */}
-        <div className=" p-2 md:p-4 bg-background dark:bg-card border-b border-border fixed top-0 left-0 right-0 z-50 w-full md:w-2/3 lg:w-2/5">
-          <div className="flex items-center gap-3 mb-2">
-            <Link href="/" className="cursor-pointer">
-              <Image
-                src="/logoblue.png"
-                alt="logol"
-                width={200}
-                height={200}
-                className="w-12 h-12"
-              />
-            </Link>
-            <h1 className="text-xl font-bold">{currentStepData.title}</h1>
-          </div>
-        </div>
+    <div className="ai-glow-page relative min-h-screen overflow-hidden bg-background">
+      <div className="ai-glow-orb ai-glow-orb-1" />
+      <div className="ai-glow-orb ai-glow-orb-2" />
+      <div className="ai-glow-orb ai-glow-orb-3" />
 
-        {/* Body - Scrollable */}
-        <div className=" flex-1 bg-card dark:bg-background p-6 overflow-y-auto">
-          <CurrentComponent />
-        </div>
-
-        {/* Footer */}
-        <div className="bg-background dark:bg-card p-6 border-t border-border rounded-b-lg fixed bottom-0 left-0 right-0 z-50 w-full md:w-2/3 lg:w-2/5">
-          <div className="flex justify-between items-center gap-4 mt-2">
-            <Progress value={currentStep * 50} />
-            <div className="flex flex-row gap-4">
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentStep === 0}
-              >
-                {t("previous")}
-              </Button>
-              <Button
-                onClick={handleNext}
-                className="bg-primary text-white hover:bg-blue-700 "
-                disabled={isLoading}
-              >
-                {isLoading
-                  ? t("loading")
-                  : currentStep === steps.length - 1
-                  ? t("submit")
-                  : t("next")}
-              </Button>
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10">
+        <Card className="w-full max-w-2xl rounded-[2rem] border-white/60 bg-white/80 p-6 shadow-[0_24px_90px_rgba(37,99,235,0.16)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.8)] dark:shadow-[0_24px_120px_rgba(37,99,235,0.2)] sm:p-8">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.24em] text-blue-700 uppercase dark:text-blue-200">
+              <Sparkles className="size-3.5" />
+              {t("badge")}
             </div>
+            <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+              {t("title")}
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+              {t("subtitle")}
+            </p>
           </div>
-        </div>
-      </div>
 
-      {/* Right Panel - Background Image (Hidden on Mobile) */}
-      <div className="hidden md:block flex-1 relative">
-        <Image
-          src={currentStepData.backgroundImage}
-          alt={`${currentStepData.title} Background`}
-          fill
-          className="object-cover"
-          priority
-        />
+          <div className="grid gap-4">
+            <Button
+              asChild
+              variant="outline"
+              className="group h-auto justify-between rounded-[1.5rem] border-border/70 bg-white/70 px-5 py-5 text-left shadow-[0_10px_35px_rgba(15,23,42,0.06)] transition-transform hover:-translate-y-0.5 hover:bg-white dark:bg-white/5 dark:hover:bg-white/[0.08]"
+            >
+              <Link href="/business/new-business/manual">
+                <span className="flex items-start gap-4">
+                  <span className="flex size-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg dark:bg-blue-500/20 dark:text-blue-100">
+                    <PencilLine className="size-5" />
+                  </span>
+                  <span className="space-y-1">
+                    <span className="block text-base font-semibold text-foreground">
+                      {t("manualTitle")}
+                    </span>
+                    <span className="block text-sm leading-6 text-muted-foreground">
+                      {t("manualDescription")}
+                    </span>
+                  </span>
+                </span>
+                <ArrowRight className="size-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
+
+            <Button
+              asChild
+              className="group h-auto justify-between rounded-[1.5rem] bg-primary px-5 py-5 text-left text-white shadow-[0_18px_50px_rgba(37,99,235,0.35)] transition-transform hover:-translate-y-0.5 hover:bg-primary/90"
+            >
+              <Link href="/business/new-business/website">
+                <span className="flex items-start gap-4">
+                  <span className="flex size-12 items-center justify-center rounded-2xl bg-white/16 text-white backdrop-blur-sm">
+                    <Globe className="size-5" />
+                  </span>
+                  <span className="space-y-1">
+                    <span className="block text-base font-semibold">
+                      {t("websiteTitle")}
+                    </span>
+                    <span className="block text-sm leading-6 text-blue-100">
+                      {t("websiteDescription")}
+                    </span>
+                  </span>
+                </span>
+                <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
+          </div>
+        </Card>
       </div>
     </div>
   );
