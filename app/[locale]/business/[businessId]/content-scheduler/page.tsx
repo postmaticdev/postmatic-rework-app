@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useState } from "react";
 import { ContentLibrary } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-library";
-import { SchedulePost } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/schedule-post";
-import { AutoPosting } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/auto-posting";
 import { TabNavigation } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/tab-navigation";
+import { ContentSchedulerBoard } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-scheduler-board";
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { PlatformModal } from "../knowledge-base/(components)/platform-modal";
+import { AutoGenerate } from "../dashboard/(components)/auto-generate";
 import { useTranslations } from "next-intl";
 
 function ContentSchedulerInner() {
@@ -21,33 +21,17 @@ function ContentSchedulerInner() {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "manual":
+      case "scheduler":
         return (
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 h-full">
-            <div className="xl:col-span-2">
-              <ContentLibrary showAddtoQueue={false} type="draft" />
-            </div>
-            <div className="order-first xl:order-last">
-              <SchedulePost />
-            </div>
-          </div>
+          <ContentSchedulerBoard
+            handleIfNoPlatformConnected={handleIfNoPlatformConnected}
+          />
         );
-      case "auto":
+      case "repetition":
         return (
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 h-full">
-            <div className="xl:col-span-2">
-              <ContentLibrary
-                showPostingNow={false}
-                showScheduling={false}
-                type="draft"
-              />
-            </div>
-            <div className="order-first xl:order-last">
-              <AutoPosting
-                handleIfNoPlatformConnected={handleIfNoPlatformConnected}
-              />
-            </div>
-          </div>
+          <AutoGenerate
+            handleIfNoPlatformConnected={handleIfNoPlatformConnected}
+          />
         );
       case "history":
         return (
@@ -91,8 +75,10 @@ function ContentSchedulerInner() {
 }
 
 export default function ContentScheduler() {
-  const [activeTab, setActiveTab] = useState<"manual" | "auto" | "history">(
-    "manual"
+  const [activeTab, setActiveTab] = useState<
+    "scheduler" | "repetition" | "history"
+  >(
+    "scheduler"
   );
   return (
     <ContentSchedulerTabContext.Provider value={{ activeTab, setActiveTab }}>
@@ -102,8 +88,8 @@ export default function ContentScheduler() {
 }
 
 interface ContentSchedulerTabContext {
-  activeTab: "manual" | "auto" | "history";
-  setActiveTab: (tab: "manual" | "auto" | "history") => void;
+  activeTab: "scheduler" | "repetition" | "history";
+  setActiveTab: (tab: "scheduler" | "repetition" | "history") => void;
 }
 
 const ContentSchedulerTabContext = createContext<

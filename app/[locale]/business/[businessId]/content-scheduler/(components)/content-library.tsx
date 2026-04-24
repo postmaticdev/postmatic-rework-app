@@ -497,7 +497,7 @@ export function ContentLibrary({
             titleDescription={t("noContentDescription")}
             buttonText={t("addContent")}
             onButtonClick={() =>
-              router.push(`/business/${businessId}/content-generate`)
+              router.push(`/business/${businessId}/content-scheduler`)
             }
           />
         ) : renderItems().length === 0 ? (

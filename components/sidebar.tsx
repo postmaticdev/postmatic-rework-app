@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 
 import {
   BookOpen,
-  Sparkles,
   Send,
   Settings,
   AlertTriangle,
@@ -40,11 +39,6 @@ export function Sidebar() {
       name: t("basicKnowledge"),
       href: "knowledge-base",
       icon: BookOpen,
-    },
-    {
-      name: t("contentGenerate"),
-      href: "content-generate",
-      icon: Sparkles,
     },
     {
       name: t("contentScheduler"),

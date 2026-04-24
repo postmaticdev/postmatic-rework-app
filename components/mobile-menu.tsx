@@ -7,7 +7,6 @@ import { useParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   BookOpen,
-  Sparkles,
   Send,
   Settings,
   Menu,
@@ -62,11 +61,6 @@ export function MobileMenu() {
       name: tSideBar("basicKnowledge"),
       href: "knowledge-base",
       icon: BookOpen,
-    },
-    {
-      name: tSideBar("contentGenerate"),
-      href: "content-generate",
-      icon: Sparkles,
     },
     {
       name: tSideBar("contentScheduler"),
