@@ -8,12 +8,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
-import { GenerateFormBase } from "./generate-form-base";
 import { GenerateFormSelectRss } from "./generate-form-select-rss";
 import { SelectedArticleRss } from "./selected-article-rss";
 import { SelectedReferenceImage } from "./selected-reference-image";
 import { useTranslations } from "next-intl";
-import { Bot, Loader2, Send, Sparkles } from "lucide-react";
+import { Bot, Loader2, Send, Sparkles, Newspaper } from "lucide-react";
+import { GenerateFormAdvanced } from "./generate-form-advanced";
+import { GenerateFormBasic } from "./generate-form-basic";
 
 export function GenerationPanel() {
   const {
@@ -131,35 +132,23 @@ export function GenerationPanel() {
     <>
       <div id="generation-panel" className="h-full flex flex-col">
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          <div className="rounded-[28px] border border-border bg-background-secondary p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold">{t("plannerTitle")}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {t("plannerDescription")}
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsTrendDialogOpen(true)}
-              >
-                <Sparkles className="h-4 w-4" />
-                {t("generateByTrend")}
-              </Button>
-            </div>
-          </div>
+          
 
           <SelectedReferenceImage />
-          <SelectedArticleRss />
-          <GenerateFormBase />
-        </div>
+          <GenerateFormBasic />
 
-        <div className="border-t p-6">
-          <div className="rounded-2xl bg-background-secondary p-4 text-sm text-muted-foreground">
-            <div className="font-medium text-foreground">{t("rssOptionalTitle")}</div>
-            <div>{t("rssOptionalDescription")}</div>
-          </div>
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => setIsTrendDialogOpen(true)}
+                className="w-full h-14"
+              >
+                <Newspaper className="h-4 w-4" />
+                {t("addLatestTrend")}
+              </Button>
+
+          <SelectedArticleRss />
+          <GenerateFormAdvanced />
         </div>
       </div>
 

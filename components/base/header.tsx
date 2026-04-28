@@ -3,11 +3,10 @@
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Plus, Zap } from "lucide-react";
+import { BarChart3, ChevronDown, Plus, Users, Zap } from "lucide-react";
 import { ProfileDropdown } from "./profile-dropdown";
 import { MobileMenu } from "../mobile-menu";
 import Image from "next/image";
@@ -22,6 +21,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LanguageToggle } from "../language-toggle";
 import { useLocale } from "next-intl";
+import { cn } from "@/lib/utils";
 export function Header() {
   const router = useRouter();
   const pathname = usePathname();
@@ -51,6 +51,11 @@ export function Header() {
     [businesses, businessId]
   );
 
+  const otherBusinesses = useMemo(
+    () => businesses.filter((business) => business.id !== currentBusiness?.id),
+    [businesses, currentBusiness?.id]
+  );
+
   // Bangun path yang robust
   const buildBusinessPath = (targetId: string) => {
     const segments = pathname.split("?")[0].split("/").filter(Boolean);
@@ -75,6 +80,11 @@ export function Header() {
     router.push(buildBusinessPath(targetBusinessId));
     router.refresh(); // <- aktifkan kalau perlu refetch RSC
   };
+
+  const buildSettingsPath = (
+    targetBusinessId: string,
+    tab: "overview" | "workspace" | "billing"
+  ) => `/business/${targetBusinessId}/settings?tab=${tab}`;
 
   // Cegah redirect otomatis saat di "/business" (tanpa id)
   // Redirect hanya ketika: path "/business/[id]" TAPI id tidak valid, atau tidak ada bisnis sama sekali.
@@ -152,24 +162,102 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <Button
-                  onClick={() => router.push("/business/new-business")}
-                  className="bg-blue-600 hover:bg-blue-700 text-white w-full justify-start"
-                >
-                  <Plus className="w-4 h-4" />
-                  Buat Bisnis Baru
-                </Button>
-                {businesses.map((business) => (
-                  <DropdownMenuItem
-                    key={business.id}
-                    onClick={() => onBusinessChange(business.id)}
-                    className={
-                      currentBusiness.id === business.id ? "bg-accent" : ""
-                    }
+                <div className="w-64 p-2">
+                  <div className="flex items-start gap-3 px-2 pb-2">
+                    <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-muted">
+                      <Image
+                        src={currentBusiness.logo || "/logoblue.png"}
+                        alt={`${currentBusiness.name} logo`}
+                        fill
+                        sizes="36px"
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xl font-medium leading-6 text-foreground">
+                        {currentBusiness.name}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(
+                            buildSettingsPath(currentBusiness.id, "billing")
+                          )
+                        }
+                        className="block text-sm leading-4 text-blue-600 hover:text-blue-700"
+                      >
+                        Pay as you go
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        router.push(
+                          buildSettingsPath(currentBusiness.id, "overview")
+                        )
+                      }
+                     
+                    >
+                      <BarChart3 className="h-4 w-4 text-foreground" />
+                      Overview
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        router.push(
+                          buildSettingsPath(currentBusiness.id, "workspace")
+                        )
+                      }
+                    >
+                      <Users className="h-4 w-4 text-foreground" />
+                      People
+                    </Button>
+                  </div>
+
+                  {otherBusinesses.length > 0 && (
+                    <div className="-mx-2 mt-3 border-t border-border">
+                      {otherBusinesses.map((business) => (
+                        <button
+                          type="button"
+                          key={business.id}
+                          onClick={() => onBusinessChange(business.id)}
+                          className={cn(
+                            "flex w-full border-b items-center  gap-3 p-2 text-left font-normal text-foreground outline-none transition-colors hover:bg-accent focus:bg-accent",
+                            currentBusiness.id === business.id && "bg-accent"
+                          )}
+                        >
+                          <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-sm bg-muted">
+                            <Image
+                              src={business.logo || "/logoblue.png"}
+                              alt={`${business.name} logo`}
+                              fill
+                              sizes="28px"
+                              className="object-contain"
+                            />
+                          </span>
+                          <span className="min-w-0 truncate">
+                            {business.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={() => router.push("/business/new-business")}
+                    className="mt-2 h-9 w-full justify-center rounded-md bg-blue-600 font-normal text-white hover:bg-blue-700"
                   >
-                    {business.name}
-                  </DropdownMenuItem>
-                ))}
+                    <Plus className="h-4 w-4" />
+                    Create Workspace
+                  </Button>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (

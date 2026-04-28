@@ -498,6 +498,7 @@
   },
   "generationPanel": {
     "basicGenerate": "Basic Generate",
+    "addLatestTrend": "Add Latest Trend",
     "generateByTrend": "Generate by Trend",
     "selectedReferenceImage": "Selected Reference",
     "changeReference": "Change Reference",

@@ -225,7 +225,7 @@ export const GenerateFormBasic = () => {
       </div>
 
       {/* Category */}
-      <div>
+      {/* <div>
         <label className="block text-sm font-medium mb-2">{t("category")}</label>
         <select
           value={basic?.category}
@@ -261,10 +261,10 @@ export const GenerateFormBasic = () => {
             )}
           />
         )}
-      </div>
+      </div> */}
 
       {/* Design Style */}
-      <div>
+      {/* <div>
         <label className="block text-sm font-medium mb-2">{t("designStyle")}</label>
         <select
           value={basic.designStyle || ""}
@@ -298,7 +298,7 @@ export const GenerateFormBasic = () => {
             )}
           />
         )}
-      </div>
+      </div> */}
       <ProductSelectionModal
         isOpen={isProductModalOpen}
         onClose={() => {

@@ -16,19 +16,19 @@ export const SelectedArticleRss = () => {
   return (
     <Card className="p-4">
       <div className="space-y-3">
-        <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden relative">
-          <Image
-            src={form.rss.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-            alt={form.rss.title}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        </div>
-        <div>
+        <div className="flex gap-2 flex-row">
+          <div className="h-14 w-14 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
+            <Image
+              src={form.rss.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+              alt={form.rss.title}
+              fill
+              className="object-cover"
+            />
+          </div>
+          <div>
           <h3 className="font-medium text-sm">{form.rss.title}</h3>
           <div className="relative">
-            <p className={`text-xs text-muted-foreground mt-1 ${!expanded ? "line-clamp-4" : ""}`}>
+            <p className={`text-xs text-muted-foreground mt-1 ${!expanded ? "line-clamp-1" : ""}`}>
               {form.rss.summary}
             </p>
             <button
@@ -47,6 +47,8 @@ export const SelectedArticleRss = () => {
             </button>
           </div>
         </div>
+        </div>
+
         <div className="flex gap-2">
           <Button
             variant="outline"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SettingsTabNavigation } from "@/app/[locale]/business/[businessId]/settings/(components)/settings-tab-navigation";
 import { MembersTable } from "@/app/[locale]/business/[businessId]/settings/(components)/members-table";
 import { OverviewContent } from "@/app/[locale]/business/[businessId]/settings/(components)/overview-content";
@@ -8,13 +8,37 @@ import { BillingInvoices } from "@/app/[locale]/business/[businessId]/settings/(
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { useTranslations } from "next-intl";
 import { useAuthProfileGetProfile } from "@/services/auth.api";
+import { useSearchParams } from "next/navigation";
+
+const settingsTabs = ["overview", "workspace", "billing"] as const;
+type SettingsTab = (typeof settingsTabs)[number];
+
+function isSettingsTab(tab: string | null): tab is SettingsTab {
+  return settingsTabs.includes(tab as SettingsTab);
+}
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    isSettingsTab(requestedTab) ? requestedTab : "overview"
+  );
   const w = useTranslations("welcomeSection");
   const { data: profile } = useAuthProfileGetProfile();
   const userName = profile?.data?.data?.name;
   const greeting = `${w("welcome")} ${userName || ""}`.trim();
+
+  useEffect(() => {
+    if (isSettingsTab(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [requestedTab]);
+
+  const handleTabChange = (tab: string) => {
+    if (isSettingsTab(tab)) {
+      setActiveTab(tab);
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -44,7 +68,7 @@ export default function Settings() {
         <div className="mb-4 sm:mb-6">
           <SettingsTabNavigation
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
           />
         </div>
 
