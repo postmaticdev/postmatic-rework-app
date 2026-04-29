@@ -461,6 +461,8 @@
     "captionRequired": "Caption wajib diisi",
     "selectDateAndTime": "Silakan pilih tanggal dan waktu",
     "today": "Hari ini",
+    "showCalendarEvents": "Tampilkan event",
+    "hideCalendarEvents": "Sembunyikan event",
     "scheduledPostLabel": "Postingan Terjadwal",
     "contentRepetitionLabel": "Konten Repetition",
     "buildWithAiTitle": "Build with AI",

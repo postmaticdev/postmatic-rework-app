@@ -464,6 +464,8 @@
     "captionRequired": "Caption is required",
     "selectDateAndTime": "Please select date and time",
     "today": "Today",
+    "showCalendarEvents": "Show events",
+    "hideCalendarEvents": "Hide events",
     "scheduledPostLabel": "Scheduled Post",
     "contentRepetitionLabel": "Content Repetition",
     "buildWithAiTitle": "Build with AI",

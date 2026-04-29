@@ -64,7 +64,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
       return;
     }
 
-    router.push(`/business/${business.id}/content-generate`);
+    router.push(`/business/${business.id}/content-scheduler`);
   };
 
   const handleClickInvite = () => {

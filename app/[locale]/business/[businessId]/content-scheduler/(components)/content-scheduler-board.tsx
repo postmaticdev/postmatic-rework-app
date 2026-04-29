@@ -86,6 +86,7 @@ export function ContentSchedulerBoard({
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [showCalendarEventDetails, setShowCalendarEventDetails] = useState(false);
   const [showDateActionCard, setShowDateActionCard] = useState(false);
   const [dateActionMenuPosition, setDateActionMenuPosition] = useState<{
     top: number;
@@ -314,13 +315,16 @@ export function ContentSchedulerBoard({
     <>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card>
-          <CardContent className="p-4 sm:p-6">
+          <CardContent className="p-3 sm:p-6">
             <div className="mb-4 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <h2 className="text-2xl font-bold sm:text-3xl">{monthLabel}</h2>
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                <h2 className="min-w-0 flex-1 text-lg font-bold sm:flex-none sm:text-xl ">
+                  {monthLabel}
+                </h2>
                 <Button
                   variant="outline"
                   size="icon"
+                  className="shrink-0"
                   onClick={() => {
                     setCurrentMonth((current) => subMonths(current, 1));
                     setShowDateActionCard(false);
@@ -332,6 +336,7 @@ export function ContentSchedulerBoard({
                 <Button
                   variant="outline"
                   size="icon"
+                  className="shrink-0"
                   onClick={() => {
                     setCurrentMonth((current) => addMonths(current, 1));
                     setShowDateActionCard(false);
@@ -342,30 +347,45 @@ export function ContentSchedulerBoard({
                 </Button>
               </div>
 
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  setCurrentMonth(startOfMonth(new Date()));
-                  setSelectedDate(new Date());
-                  setShowDateActionCard(false);
-                  setDateActionMenuPosition(null);
-                }}
-              >
-                {t("today")}
-              </Button>
+              <div className="flex flex-col gap-2 sm:block">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setCurrentMonth(startOfMonth(new Date()));
+                    setSelectedDate(new Date());
+                    setShowDateActionCard(false);
+                    setDateActionMenuPosition(null);
+                  }}
+                >
+                  {t("today")}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:hidden"
+                  onClick={() =>
+                    setShowCalendarEventDetails((current) => !current)
+                  }
+                >
+                  {showCalendarEventDetails
+                    ? t("hideCalendarEvents")
+                    : t("showCalendarEvents")}
+                </Button>
+              </div>
             </div>
 
-            <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <div className="w-full overflow-visible">
               <div
                 ref={calendarContainerRef}
-                className="relative min-w-[720px] overflow-hidden rounded-[24px] border border-border sm:min-w-0 sm:rounded-[28px]"
+                className="relative w-full min-w-0 overflow-hidden rounded-2xl border border-border sm:rounded-[28px]"
               >
                 <div className="grid grid-cols-7 bg-background-secondary">
                   {weekdayLabels.map((label) => (
                     <div
                       key={label}
-                      className="px-2 py-3 text-center text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground sm:px-4 sm:py-4 sm:text-sm sm:tracking-[0.24em]"
+                      className="min-w-0 px-0.5 py-2 text-center text-[10px] font-medium uppercase text-muted-foreground sm:p-2 sm:text-sm sm:tracking-[0.24em]"
                     >
                       {label}
                     </div>
@@ -380,14 +400,18 @@ export function ContentSchedulerBoard({
                     const isCurrentMonth = isSameMonth(day, currentMonth);
                     const isSelected = isSameDay(day, selectedDate);
                     const isPast = isBefore(day, startOfDay(new Date()));
-                    const visibleEvents = dayEvents.slice(0, 3);
+                    const visibleEvents = dayEvents;
 
                     return (
                       <button
                         key={day.toISOString()}
                         type="button"
                         onClick={(event) => openDateAction(day, event)}
-                        className={`flex min-h-[92px] flex-col justify-start border-b border-r px-2 py-2 text-left align-top transition-colors sm:min-h-[116px] sm:px-2.5 sm:py-2.5 xl:min-h-[128px] ${
+                        className={`flex min-w-0 flex-col justify-start border-b border-r px-1 py-1.5 text-right align-top transition-colors sm:min-h-[116px] sm:px-2 sm:py-2 xl:min-h-[85px] ${
+                          showCalendarEventDetails
+                            ? "min-h-[104px]"
+                            : "min-h-[76px]"
+                        } ${
                           isCurrentMonth ? "bg-card" : "bg-background-secondary/50"
                         } ${isSelected ? "bg-primary/5" : ""} ${
                           isPast ? "cursor-not-allowed opacity-60" : "hover:bg-primary/5"
@@ -401,18 +425,32 @@ export function ContentSchedulerBoard({
                           {format(day, "d")}
                         </div>
 
-                        <div className="space-y-1 sm:space-y-1.5">
+                        <div className="min-w-0 space-y-1 sm:space-y-1.5">
                           {visibleEvents.map((event) => (
                             <div
                               key={event.id}
-                              className={`overflow-hidden rounded-full sm:rounded-lg ${
+                              className={`min-w-0 overflow-hidden ${
+                                showCalendarEventDetails
+                                  ? "rounded-md"
+                                  : "rounded-full sm:rounded-lg"
+                              } ${
                                 event.type === "manual"
                                   ? "bg-rose-100 text-rose-600"
                                   : "bg-violet-100 text-violet-600"
                               }`}
                             >
-                              <div className="h-1.5 sm:hidden" />
-                              <div className="hidden px-2 py-1 text-xs leading-tight sm:block">
+                              <div
+                                className={
+                                  showCalendarEventDetails
+                                    ? "hidden"
+                                    : "h-1.5 sm:hidden"
+                                }
+                              />
+                              <div
+                                className={`px-1 py-0.5 text-[9px] leading-tight sm:px-2 sm:py-1 sm:text-xs ${
+                                  showCalendarEventDetails ? "block" : "hidden sm:block"
+                                }`}
+                              >
                                 <div className="truncate font-medium">
                                   {event.title}
                                 </div>
@@ -420,11 +458,6 @@ export function ContentSchedulerBoard({
                               </div>
                             </div>
                           ))}
-                          {dayEvents.length > 3 && (
-                            <div className="hidden text-[11px] text-muted-foreground sm:block">
-                              +{dayEvents.length - 3} {t("more")}
-                            </div>
-                          )}
                         </div>
                       </button>
                     );
@@ -481,10 +514,10 @@ export function ContentSchedulerBoard({
 
         <div className="space-y-6">
           <Card>
-            <CardContent className="p-6 space-y-5">
+            <CardContent className="space-y-5 p-4 sm:p-6">
               <div className="text-2xl font-bold">{t("overview")}</div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 <div className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
                   <div className="rounded-xl bg-rose-100 p-2 text-rose-500">
                     <CalendarClock className="h-4 w-4" />
@@ -543,9 +576,9 @@ export function ContentSchedulerBoard({
           </Card>
 
           <Card>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
+            <CardContent className="space-y-4 p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
                   <div className="text-2xl font-bold">{t("scheduledListTitle")}</div>
                   <div className="text-sm text-muted-foreground">
                     {selectedDateEvents.length > 0
@@ -560,7 +593,7 @@ export function ContentSchedulerBoard({
                       : t("showingAllScheduled")}
                   </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="shrink-0 text-sm text-muted-foreground">
                   {filteredEvents.length} {t("items")}
                 </div>
               </div>
@@ -593,49 +626,53 @@ export function ContentSchedulerBoard({
                   filteredEvents.map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-center gap-3 rounded-2xl border border-border bg-background-secondary p-3"
+                      className="flex flex-col gap-3 rounded-2xl border border-border bg-background-secondary p-3 sm:flex-row sm:items-center"
                     >
-                      <Image
-                        src={event.image}
-                        alt={event.title}
-                        width={56}
-                        height={56}
-                        className="h-14 w-14 rounded-xl object-cover"
-                      />
+                      <div className="flex min-w-0 gap-3">
+                        <Image
+                          src={event.image}
+                          alt={event.title}
+                          width={56}
+                          height={56}
+                          className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                        />
 
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">{event.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Intl.DateTimeFormat(
-                            locale === "id" ? "id-ID" : "en-US",
-                            {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            }
-                          ).format(event.date)}{" "}
-                          - {event.time}
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {event.platforms.map((platform) => (
-                            <span
-                              key={platform}
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
-                                event.type === "manual"
-                                  ? "bg-rose-100 text-rose-600"
-                                  : "bg-violet-100 text-violet-600"
-                              }`}
-                            >
-                              {mapEnumPlatform.getPlatformIcon(platform, "h-3 w-3")}
-                              {mapEnumPlatform.getPlatformLabel(platform)}
-                            </span>
-                          ))}
+                        <div className="min-w-0 flex-1">
+                          <div className="break-words font-semibold sm:truncate">
+                            {event.title}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Intl.DateTimeFormat(
+                              locale === "id" ? "id-ID" : "en-US",
+                              {
+                                weekday: "long",
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              }
+                            ).format(event.date)}{" "}
+                            - {event.time}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {event.platforms.map((platform) => (
+                              <span
+                                key={platform}
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                                  event.type === "manual"
+                                    ? "bg-rose-100 text-rose-600"
+                                    : "bg-violet-100 text-violet-600"
+                                }`}
+                              >
+                                {mapEnumPlatform.getPlatformIcon(platform, "h-3 w-3")}
+                                {mapEnumPlatform.getPlatformLabel(platform)}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
                       <div
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        className={`w-fit rounded-full px-3 py-1 text-xs font-semibold sm:shrink-0 ${
                           event.type === "manual"
                             ? "bg-rose-100 text-rose-600"
                             : "bg-violet-100 text-violet-600"

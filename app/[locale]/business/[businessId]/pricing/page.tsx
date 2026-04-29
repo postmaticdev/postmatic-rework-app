@@ -82,7 +82,7 @@ export default function Pricing() {
       });
       queryClient.clear();
       showToast("success", tToast("toast.business.freeTrialClaimed"), tToast);
-      router.push(`/business/${businessId}/content-generate`);
+      router.push(`/business/${businessId}/content-scheduler`);
     } catch {}
   };
 
