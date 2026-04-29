@@ -517,54 +517,50 @@ export function ContentSchedulerBoard({
             <CardContent className="space-y-5 p-4 sm:p-6">
               <div className="text-2xl font-bold">{t("overview")}</div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-                <div className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
-                  <div className="rounded-xl bg-rose-100 p-2 text-rose-500">
-                    <CalendarClock className="h-4 w-4" />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
+                <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-2">
+                  <div className="rounded-md bg-rose-100 p-2 text-rose-500">
+                    <CalendarClock className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">
                       {t("totalScheduled")}
                     </div>
-                    <div className="text-xl font-semibold">{mergedEvents.length}</div>
+                    <div className="sm:-mt-1 font-semibold">{mergedEvents.length}</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
-                  <div className="rounded-xl bg-amber-100 p-2 text-amber-500">
-                    <Repeat2 className="h-4 w-4" />
+                <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-2">
+                  <div className="rounded-md bg-amber-100 p-2 text-amber-500">
+                    <Repeat2 className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">
                       {t("contentRepetitionShort")}
                     </div>
-                    <div className="text-xl font-semibold">{repetitionEvents.length}</div>
+                    <div className="sm:-mt-1 font-semibold">{repetitionEvents.length}</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
-                  <div className="rounded-xl bg-blue-100 p-2 text-blue-500">
-                    <FileClock className="h-4 w-4" />
+                <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-2">
+                  <div className="rounded-md bg-blue-100 p-2 text-blue-500">
+                    <FileClock className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">
                       {t("postedThisMonth")}
                     </div>
-                    <div className="text-xl font-semibold">
+                    <div className="sm:-mt-1 font-semibold">
                       {postedCountData?.data.data.total || 0}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border px-4 py-3">
+             
                 <TimezoneSelector />
-                {timezoneData?.data.data && (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    ({timezoneData.data.data.offset}) {timezoneData.data.data.timezone}
-                  </p>
-                )}
-              </div>
+              
+           
 
               <Link href={`/business/${businessId}/knowledge-base`}>
                 <Button className="w-full">
