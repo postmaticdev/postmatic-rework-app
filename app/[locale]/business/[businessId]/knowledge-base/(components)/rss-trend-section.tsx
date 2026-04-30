@@ -189,7 +189,7 @@ export function RSSTrendSection({
 
   return (
     <>
-      <Card>
+      <Card className="h-full w-full">
         <CardContent className="py-6">
           <div className="space-y-4">
             <div className="flex flex-col gap-4">

@@ -170,7 +170,7 @@ export function ProductSection() {
   const p = useTranslations("productKnowledge");
 
   return (
-    <Card>
+    <Card className="h-full w-full">
       <CardContent className="py-6">
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">{p("title")}</h2>
