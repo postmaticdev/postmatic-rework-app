@@ -11,14 +11,32 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NoContent } from "@/components/base/no-content";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { dateFormat } from "@/helper/date-format";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import { showToast } from "@/helper/show-toast";
+import { GeneratedImageContent } from "@/models/api/content/scheduler.type";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import {
   useContentAutoGenerateGetSettings,
+  useContentDraftSetReadyToPost,
+  useContentSchedulerManualRemove,
   useContentSchedulerTimezoneGetTimezone,
 } from "@/services/content/content.api";
 import {
@@ -47,12 +65,16 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Edit,
+  Eye,
   FileClock,
+  MoreVertical,
   Repeat2,
   Search,
   Sparkles,
   PencilLine,
   WandSparkles,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
@@ -68,6 +90,9 @@ type SchedulerEvent = {
   image: string;
   type: "manual" | "repetition";
   platforms: PlatformEnum[];
+  schedulerManualPostingId: number | null;
+  generatedImageContent: GeneratedImageContent | null;
+  sourceType: "manual" | "auto" | "repetition";
 };
 
 interface ContentSchedulerBoardProps {
@@ -86,6 +111,11 @@ export function ContentSchedulerBoard({
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewEvent, setViewEvent] = useState<SchedulerEvent | null>(null);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [eventToCancel, setEventToCancel] = useState<SchedulerEvent | null>(null);
   const [showCalendarEventDetails, setShowCalendarEventDetails] = useState(false);
   const [showDateActionCard, setShowDateActionCard] = useState(false);
   const [dateActionMenuPosition, setDateActionMenuPosition] = useState<{
@@ -161,6 +191,8 @@ export function ContentSchedulerBoard({
     sortBy: "name",
     sort: "asc",
   });
+  const mRemove = useContentSchedulerManualRemove();
+  const mReadyToPost = useContentDraftSetReadyToPost();
 
   const productMap = useMemo(() => {
     return new Map(
@@ -171,13 +203,16 @@ export function ContentSchedulerBoard({
   const manualEvents = useMemo<SchedulerEvent[]>(
     () =>
       (upcomingData?.data.data || []).map((item) => ({
-        id: `manual-${item.id}`,
+        id: `upcoming-${item.id}`,
         title: item.title || t("scheduledPostLabel"),
         date: new Date(item.date),
         time: dateFormat.getHhMm(new Date(item.date)),
         image: item.images[0] || DEFAULT_PLACEHOLDER_IMAGE,
-        type: "manual",
+        type: item.type === "manual" ? "manual" : "repetition",
         platforms: item.platforms,
+        schedulerManualPostingId: item.schedulerManualPostingId,
+        generatedImageContent: item.generatedImageContent,
+        sourceType: item.type,
       })),
     [t, upcomingData?.data.data]
   );
@@ -209,6 +244,9 @@ export function ContentSchedulerBoard({
               image: DEFAULT_PLACEHOLDER_IMAGE,
               type: "repetition" as const,
               platforms: schedule.platforms,
+              schedulerManualPostingId: null,
+              generatedImageContent: null,
+              sourceType: "repetition" as const,
             }))
         )
     );
@@ -272,11 +310,93 @@ export function ContentSchedulerBoard({
     year: "numeric",
   }).format(currentMonth);
 
+  const formatFullDate = (date: Date) =>
+    new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(date);
+
+  const formatDateTitle = (date: Date) =>
+    new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(date);
+
+  const handleViewEvent = (event: SchedulerEvent) => {
+    setViewEvent(event);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleEditEvent = (event: SchedulerEvent) => {
+    if (!event.generatedImageContent || !event.schedulerManualPostingId) {
+      return;
+    }
+
+    const params = new URLSearchParams({
+      scheduleDate: dateManipulation.ymd(event.date),
+      scheduleTime: event.time,
+      editSchedulerManualPostingId: String(event.schedulerManualPostingId),
+      selectedHistoryImage: event.generatedImageContent.images[0] || "",
+      platforms: event.platforms.join(","),
+    });
+
+    setIsHistoryDialogOpen(false);
+    document.body.style.pointerEvents = "";
+    window.setTimeout(() => {
+      document.body.style.pointerEvents = "";
+      router.push(`/business/${businessId}/content-generate?${params.toString()}`);
+    }, 0);
+  };
+
+  const handleAskCancelEvent = (event: SchedulerEvent) => {
+    setEventToCancel(event);
+    setIsCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancelEvent = async () => {
+    if (!eventToCancel?.generatedImageContent) return;
+
+    try {
+      if (
+        eventToCancel.sourceType === "manual" &&
+        eventToCancel.schedulerManualPostingId
+      ) {
+        const res = await mRemove.mutateAsync({
+          businessId,
+          idScheduler: eventToCancel.schedulerManualPostingId,
+        });
+        showToast("success", res.data.responseMessage);
+      } else {
+        const res = await mReadyToPost.mutateAsync({
+          businessId,
+          generatedImageContentId: eventToCancel.generatedImageContent.id,
+        });
+        showToast("success", res.data.responseMessage);
+      }
+
+      setIsCancelDialogOpen(false);
+      setEventToCancel(null);
+    } catch {}
+  };
+
   const openDateAction = (
     date: Date,
     event: ReactMouseEvent<HTMLButtonElement>
   ) => {
     if (isBefore(date, startOfDay(new Date()))) {
+      return;
+    }
+
+    const dateEvents = mergedEvents.filter((item) => isSameDay(item.date, date));
+
+    if (dateEvents.length > 0) {
+      setSelectedDate(date);
+      setShowDateActionCard(false);
+      setDateActionMenuPosition(null);
+      setIsHistoryDialogOpen(true);
       return;
     }
 
@@ -638,16 +758,7 @@ export function ContentSchedulerBoard({
                             {event.title}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {new Intl.DateTimeFormat(
-                              locale === "id" ? "id-ID" : "en-US",
-                              {
-                                weekday: "long",
-                                day: "numeric",
-                                month: "long",
-                                year: "numeric",
-                              }
-                            ).format(event.date)}{" "}
-                            - {event.time}
+                            {formatFullDate(event.date)} - {event.time}
                           </div>
                           <div className="mt-1 flex flex-wrap gap-1">
                             {event.platforms.map((platform) => (
@@ -686,6 +797,189 @@ export function ContentSchedulerBoard({
           </Card>
         </div>
       </div>
+
+      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader className="border-b-0 pb-2">
+            <div className="flex items-start justify-between gap-4 pr-8">
+              <div>
+                <DialogTitle>{formatDateTitle(selectedDate)}</DialogTitle>
+                <DialogDescription>
+                  {t("scheduledDateHistoryDescription")}
+                </DialogDescription>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button">{t("createNew")}</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setIsHistoryDialogOpen(false);
+                      setIsUploadDialogOpen(true);
+                    }}
+                  >
+                    <PencilLine className="h-4 w-4" />
+                    {t("uploadFile")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setIsHistoryDialogOpen(false);
+                      router.push(
+                        `/business/${businessId}/content-generate?scheduleDate=${chosenDate}`
+                      );
+                    }}
+                  >
+                    <WandSparkles className="h-4 w-4" />
+                    {t("buildWithAi")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 space-y-3 overflow-y-auto p-4 pt-0 sm:p-6 sm:pt-0">
+            {selectedDateEvents.map((event) => (
+              <div
+                key={event.id}
+                className="flex items-center gap-3 rounded-2xl bg-background-secondary p-3"
+              >
+                <Image
+                  src={event.image}
+                  alt={event.title}
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div className="truncate text-base font-semibold sm:text-lg">
+                      {event.title}
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        event.type === "manual"
+                          ? "bg-rose-500 text-white"
+                          : "bg-violet-600 text-white"
+                      }`}
+                    >
+                      {event.type === "manual"
+                        ? t("scheduledBadge")
+                        : t("repetitionBadge")}
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {formatFullDate(event.date)} - {event.time}{" "}
+                    {timezoneData?.data.data.offset || ""}
+                  </div>
+                </div>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                      <span className="sr-only">{t("scheduledHistoryActions")}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => handleViewEvent(event)}>
+                      <Eye className="h-4 w-4" />
+                      {t("viewPost")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={
+                        event.sourceType !== "manual" ||
+                        !event.schedulerManualPostingId
+                      }
+                      onClick={() => handleEditEvent(event)}
+                    >
+                      <Edit className="h-4 w-4" />
+                      {t("editPost")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!event.generatedImageContent}
+                      onClick={() => handleAskCancelEvent(event)}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                      {t("cancelQueue")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t("viewPost")}</DialogTitle>
+            <DialogDescription>{viewEvent && formatFullDate(viewEvent.date)}</DialogDescription>
+          </DialogHeader>
+
+          {viewEvent && (
+            <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
+              <Image
+                src={viewEvent.image}
+                alt={viewEvent.title}
+                width={720}
+                height={720}
+                className="h-auto w-full rounded-lg object-cover"
+              />
+
+              <div className="space-y-3">
+                <div>
+                  <div className="text-sm font-medium">{t("postTitle")}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {viewEvent.title}
+                  </div>
+                </div>
+                {viewEvent.generatedImageContent?.caption && (
+                  <div>
+                    <div className="text-sm font-medium">{t("caption")}</div>
+                    <div className="mt-1 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                      {viewEvent.generatedImageContent.caption}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <div className="text-sm font-medium">{t("choosePlatforms")}</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {viewEvent.platforms.map((platform) => (
+                      <span
+                        key={platform}
+                        className="inline-flex items-center gap-1 rounded-full bg-background-secondary px-2.5 py-1 text-xs font-medium"
+                      >
+                        {mapEnumPlatform.getPlatformIcon(platform, "h-3 w-3")}
+                        {mapEnumPlatform.getPlatformLabel(platform)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <DeleteConfirmationModal
+        isOpen={isCancelDialogOpen}
+        title={t("deleteScheduledPostTitle")}
+        description={t("deleteScheduledPostDescription")}
+        onClose={() => setIsCancelDialogOpen(false)}
+        onConfirm={handleConfirmCancelEvent}
+        withDetailItem={false}
+        isLoading={mRemove.isPending || mReadyToPost.isPending}
+        itemName={eventToCancel?.title || ""}
+      />
 
       <ContentSchedulerUploadDialog
         isOpen={isUploadDialogOpen}

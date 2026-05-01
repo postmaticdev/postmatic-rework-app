@@ -48,7 +48,7 @@ import {
   useLibraryTemplateGetProductCategory,
 } from "@/services/library.api";
 import { useQueryClient } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useRouter, usePathname } from "@/i18n/navigation";
 
 import {
@@ -295,6 +295,7 @@ export const ContentGenerateProvider = ({
    *
    */
   const { businessId } = useParams() as { businessId: string };
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const t = useTranslations();
@@ -310,6 +311,7 @@ export const ContentGenerateProvider = ({
   const { data: aiModelsRes, isLoading: isLoadingAiModels } = useContentAiModelGetAiModels();
 
   const [histories, setHistories] = useState<GetAllJob[]>([]);
+  const lastHistoryRouteRefetchKeyRef = useRef<string | null>(null);
 
   //DEBUG
   const flattenedHistories = useMemo(() => {
@@ -573,6 +575,65 @@ export const ContentGenerateProvider = ({
   const setIsLoading = (item: boolean) => {
     setLoadingState(item);
   };
+
+  useEffect(() => {
+    const selectedHistoryId = searchParams.get("selectedHistoryId");
+    const selectedHistoryImage = searchParams.get("selectedHistoryImage");
+    const routeKey = `${selectedHistoryId || ""}|${selectedHistoryImage || ""}`;
+
+    if (!selectedHistoryId && !selectedHistoryImage) return;
+    if (selectedHistoryId && selectedHistory?.id === selectedHistoryId) return;
+    if (
+      selectedHistoryImage &&
+      selectedHistory?.result?.images?.includes(selectedHistoryImage)
+    ) {
+      return;
+    }
+
+    const findMatchingJob = (groups: GetAllJob[] | undefined) => {
+      const jobs = groups?.flatMap((item) => item.jobs) || [];
+
+      return jobs.find((job) => {
+        if (selectedHistoryId && job.id === selectedHistoryId) return true;
+        if (!selectedHistoryImage) return false;
+
+        return job.result?.images?.some((image) => image === selectedHistoryImage);
+      });
+    };
+
+    const matchedJob = findMatchingJob(histories);
+    if (matchedJob) {
+      setLoadingState(false);
+      onSelectHistory(matchedJob);
+      return;
+    }
+
+    if (lastHistoryRouteRefetchKeyRef.current === routeKey) return;
+    lastHistoryRouteRefetchKeyRef.current = routeKey;
+
+    let isActive = true;
+
+    refetchHistories().then((result) => {
+      if (!isActive) return;
+
+      const refreshedMatch = findMatchingJob(result.data?.data?.data);
+      if (refreshedMatch) {
+        setLoadingState(false);
+        onSelectHistory(refreshedMatch);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    histories,
+    onSelectHistory,
+    refetchHistories,
+    searchParams,
+    selectedHistory?.id,
+    selectedHistory?.result?.images,
+  ]);
 
   /**
    *

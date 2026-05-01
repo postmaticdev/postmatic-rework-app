@@ -19,6 +19,7 @@ import {
   useContentCaptionEnhance,
   useContentDraftSaveDraftContent,
   useContentSchedulerManualAddToQueue,
+  useContentSchedulerManualEditQueue,
 } from "@/services/content/content.api";
 import { useBusinessGetById } from "@/services/business.api";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
@@ -63,8 +64,14 @@ export function PreviewPanel() {
   const mEnhanceCaption = useContentCaptionEnhance();
   const mSaveDraft = useContentDraftSaveDraftContent();
   const mSchedulePost = useContentSchedulerManualAddToQueue();
+  const mEditSchedulePost = useContentSchedulerManualEditQueue();
 
   const scheduleDate = searchParams.get("scheduleDate");
+  const scheduleTime = searchParams.get("scheduleTime");
+  const editSchedulerManualPostingId = searchParams.get(
+    "editSchedulerManualPostingId"
+  );
+  const initialPlatforms = searchParams.get("platforms");
   const schedulerMode = Boolean(scheduleDate);
 
   const [date, setDate] = useState(dateManipulation.ymd(new Date()));
@@ -77,6 +84,23 @@ export function PreviewPanel() {
       setDate(scheduleDate);
     }
   }, [scheduleDate]);
+
+  useEffect(() => {
+    if (scheduleTime) {
+      setTime(scheduleTime);
+    }
+  }, [scheduleTime]);
+
+  useEffect(() => {
+    if (!initialPlatforms) return;
+
+    setSelectedPlatforms(
+      initialPlatforms
+        .split(",")
+        .filter(Boolean)
+        .map((platform) => platform as PlatformEnum)
+    );
+  }, [initialPlatforms]);
 
   const connectedPlatforms = useMemo(
     () =>
@@ -171,15 +195,25 @@ export function PreviewPanel() {
         },
       });
 
-      await mSchedulePost.mutateAsync({
-        businessId,
-        formData: {
-          generatedImageContentId: savedDraft.data.data.id,
-          caption: form.basic.caption || selectedHistory.result.caption || "",
-          platforms: selectedPlatforms,
-          dateTime: new Date(`${date}T${time}`).toISOString(),
-        },
-      });
+      const formData = {
+        generatedImageContentId: savedDraft.data.data.id,
+        caption: form.basic.caption || selectedHistory.result.caption || "",
+        platforms: selectedPlatforms,
+        dateTime: new Date(`${date}T${time}`).toISOString(),
+      };
+
+      if (editSchedulerManualPostingId) {
+        await mEditSchedulePost.mutateAsync({
+          businessId,
+          idScheduler: Number(editSchedulerManualPostingId),
+          formData,
+        });
+      } else {
+        await mSchedulePost.mutateAsync({
+          businessId,
+          formData,
+        });
+      }
 
       setIsSummaryOpen(false);
       router.push(`/business/${businessId}/content-scheduler?selectedDate=${date}`);
@@ -188,7 +222,10 @@ export function PreviewPanel() {
     }
   };
 
-  const isScheduling = mSaveDraft.isPending || mSchedulePost.isPending;
+  const isScheduling =
+    mSaveDraft.isPending ||
+    mSchedulePost.isPending ||
+    mEditSchedulePost.isPending;
 
   return (
     <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6">

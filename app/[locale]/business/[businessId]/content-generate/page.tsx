@@ -5,9 +5,15 @@ import { GenerationPanel } from "@/app/[locale]/business/[businessId]/content-ge
 import { PreviewPanel } from "@/app/[locale]/business/[businessId]/content-generate/(components)/preview-panel";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 export default function ContentGenerate() {
   const { mode, isLoading } = useContentGenerate();
+
+  useEffect(() => {
+    document.body.style.pointerEvents = "";
+  }, []);
+
   return (
     <main className="flex-1 flex flex-col relative md:ml-0">
       <div className="flex-1 flex flex-col lg:flex-row lg:max-h-screen">
