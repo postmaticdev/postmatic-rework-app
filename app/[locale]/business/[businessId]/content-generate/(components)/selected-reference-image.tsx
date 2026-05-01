@@ -2,9 +2,16 @@ import { useContentGenerate } from "@/contexts/content-generate-context";
 import { SharedSelectedReferenceImage } from "@/components/shared/shared-selected-reference-image";
 
 export const SelectedReferenceImage = () => {
-  const { form, selectedHistory, isLoading, setSelectedTemplate } = useContentGenerate();
+  const {
+    form,
+    selectedHistory,
+    selectedGeneratedImageUrl,
+    isLoading,
+    setSelectedTemplate,
+  } = useContentGenerate();
   
   const imageHistory =
+    selectedGeneratedImageUrl ||
     selectedHistory?.result?.images[0] ||
     selectedHistory?.input?.referenceImage;
 

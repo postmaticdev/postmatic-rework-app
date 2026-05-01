@@ -1,0 +1,29 @@
+
+> pstmtcc@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.2 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.18.14:3001
+   - Environments: .env.local
+
+ ✓ Starting...
+Creating turbopack project {
+  dir: 'C:\\Users\\lphai\\Documents\\postmatic-rework',
+  testMode: true
+}
+ ✓ Compiled middleware in 217ms
+ ✓ Ready in 1757ms
+ ○ Compiling /[locale] ...
+ ✓ Compiled /[locale] in 4.4s
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /en 200 in 5569ms
+ ✓ Compiled /favicon.ico in 342ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 665ms

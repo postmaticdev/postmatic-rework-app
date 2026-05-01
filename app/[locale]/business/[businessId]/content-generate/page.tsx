@@ -5,13 +5,22 @@ import { GenerationPanel } from "@/app/[locale]/business/[businessId]/content-ge
 import { PreviewPanel } from "@/app/[locale]/business/[businessId]/content-generate/(components)/preview-panel";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export default function ContentGenerate() {
-  const { mode, isLoading } = useContentGenerate();
+  const { mode, isLoading, onSelectHistory } = useContentGenerate();
+  const onSelectHistoryRef = useRef(onSelectHistory);
+
+  useEffect(() => {
+    onSelectHistoryRef.current = onSelectHistory;
+  }, [onSelectHistory]);
 
   useEffect(() => {
     document.body.style.pointerEvents = "";
+    return () => {
+      document.body.style.pointerEvents = "";
+      onSelectHistoryRef.current(null);
+    };
   }, []);
 
   return (

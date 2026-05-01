@@ -168,7 +168,16 @@ interface ContentGenerateContext {
   // History
   histories: GetAllJob[];
   selectedHistory: JobData | null;
-  onSelectHistory: (item: JobData | null) => void;
+  selectedGeneratedImageUrl: string | null;
+  onSelectHistory: (
+    item: JobData | null,
+    options?: { selectedImageUrl?: string | null }
+  ) => void;
+  onSelectGeneratedImage: (
+    item: JobData,
+    imageUrl: string,
+    options?: { attachForEdit?: boolean }
+  ) => void;
 
   // AI Models
   aiModels: {
@@ -280,6 +289,62 @@ const initialPagination: Pagination = {
   hasPrevPage: false,
 };
 
+function upsertJobIntoHistory(groups: GetAllJob[], incoming: JobData) {
+  let jobWasUpdated = false;
+  let jobWasInserted = false;
+
+  const updatedGroups = groups.map((group) => {
+    const exists = group.jobs.some((job) => job.id === incoming.id);
+    if (exists) {
+      jobWasUpdated = true;
+      return {
+        ...group,
+        latestUpdate: incoming.updatedAt,
+        latestImage:
+          incoming.result?.images?.[0] ||
+          incoming.product?.images?.[0] ||
+          group.latestImage,
+        jobs: group.jobs.map((job) =>
+          job.id === incoming.id ? incoming : job
+        ),
+      };
+    }
+
+    const belongsToGroup =
+      group.productKnowledgeId === incoming.input.productKnowledgeId;
+    if (belongsToGroup && !jobWasInserted) {
+      jobWasInserted = true;
+      return {
+        ...group,
+        latestUpdate: incoming.updatedAt,
+        latestImage:
+          incoming.result?.images?.[0] ||
+          incoming.product?.images?.[0] ||
+          group.latestImage,
+        jobs: [...group.jobs, incoming],
+      };
+    }
+
+    return group;
+  });
+
+  if (jobWasUpdated || jobWasInserted) {
+    return updatedGroups;
+  }
+
+  return [
+    {
+      productKnowledgeId: incoming.input.productKnowledgeId,
+      latestUpdate: incoming.updatedAt,
+      latestImage:
+        incoming.result?.images?.[0] || incoming.product?.images?.[0] || "",
+      name: incoming.product?.name || "",
+      jobs: [incoming],
+    },
+    ...groups,
+  ];
+}
+
 const ContentGenerateContext = createContext<
   ContentGenerateContext | undefined
 >(undefined);
@@ -312,6 +377,7 @@ export const ContentGenerateProvider = ({
 
   const [histories, setHistories] = useState<GetAllJob[]>([]);
   const lastHistoryRouteRefetchKeyRef = useRef<string | null>(null);
+  const lastAppliedHistoryRouteKeyRef = useRef<string | null>(null);
 
   //DEBUG
   const flattenedHistories = useMemo(() => {
@@ -324,11 +390,32 @@ export const ContentGenerateProvider = ({
 
   useEffect(() => {
     if (historiesRes) {
-      setHistories(historiesRes?.data?.data || []);
+      const serverGroups = historiesRes?.data?.data || [];
+      setHistories((prev) => {
+        const serverJobIds = new Set(
+          serverGroups.flatMap((group) => group.jobs.map((job) => job.id))
+        );
+        const localPendingJobs = prev
+          .flatMap((group) => group.jobs)
+          .filter(
+            (job) =>
+              !serverJobIds.has(job.id) &&
+              job.status !== "done" &&
+              job.status !== "error"
+          );
+
+        return localPendingJobs.reduce(
+          (groups, job) => upsertJobIntoHistory(groups, job),
+          serverGroups
+        );
+      });
     }
   }, [historiesRes]);
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedGeneratedImageUrl, setSelectedGeneratedImageUrl] = useState<
+    string | null
+  >(null);
   const selectedHistory = useMemo(() => {
     if (!selectedJobId) return null;
     return (
@@ -364,9 +451,14 @@ export const ContentGenerateProvider = ({
     return selectedAiModel?.validRatios || [];
   }, [selectedAiModel]);
 
-  const onSelectHistory = useCallback((item: JobData | null) => {
+  const onSelectHistory = useCallback((
+    item: JobData | null,
+    options?: { selectedImageUrl?: string | null }
+  ) => {
     if (item) {
       setMode("regenerate");
+      const activeImageUrl =
+        options?.selectedImageUrl || item?.result?.images[0] || null;
       
       // Find and set the AI model from history
       const modelFromHistory = aiModelsRes?.data?.data?.find(
@@ -383,12 +475,12 @@ export const ContentGenerateProvider = ({
         caption: item?.result?.caption || "",
         productKnowledgeId: item?.input?.productKnowledgeId || "",
         productName: item?.product?.name || "",
-        productImage: item?.result?.images[0] || "",
+        productImage: activeImageUrl || "",
         category: item?.input?.category || "other",
         customCategory: item?.input?.category || "",
         designStyle: item?.input?.designStyle || "",
         customDesignStyle: item?.input?.designStyle || "",
-        referenceImage: item?.result?.images[0] || "",
+        referenceImage: activeImageUrl || "",
         ratio: (item?.result?.ratio || "1:1") as ValidRatio,
         model: item?.input?.model || "",
         imageSize:
@@ -397,6 +489,7 @@ export const ContentGenerateProvider = ({
           null,
       }));
       setSelectedJobId(item.id);
+      setSelectedGeneratedImageUrl(activeImageUrl);
       setFormAdvance(initialFormAdvance);
       setFormRss(null);
       setMode("regenerate");
@@ -414,6 +507,7 @@ export const ContentGenerateProvider = ({
       setMode("knowledge");
       setTab("knowledge");
       setSelectedJobId(null);
+      setSelectedGeneratedImageUrl(null);
       form.setBasic({
         ...initialFormBasic,
         model: defaultModel?.name || initialFormBasic.model,
@@ -426,6 +520,51 @@ export const ContentGenerateProvider = ({
     setFormRss(null);
     setIsDraftSaved(false); // Reset draft saved state when selecting new history
   }, [aiModelsRes, selectedAiModel]);
+
+  const onSelectGeneratedImage = useCallback(
+    (
+      item: JobData,
+      imageUrl: string,
+      options?: { attachForEdit?: boolean }
+    ) => {
+      const modelFromHistory = aiModelsRes?.data?.data?.find(
+        (model) => model.name === item?.input?.model
+      );
+      if (modelFromHistory) {
+        setSelectedAiModel(modelFromHistory);
+      }
+
+      setFormBasic((prev) => ({
+        ...prev,
+        prompt: options?.attachForEdit ? "" : prev.prompt,
+        referenceImageName: options?.attachForEdit ? "Selected image" : "",
+        caption: item?.result?.caption || prev.caption || "",
+        productKnowledgeId: item?.input?.productKnowledgeId || "",
+        productName: item?.product?.name || "",
+        productImage: imageUrl,
+        category: item?.input?.category || "other",
+        customCategory: item?.input?.category || "",
+        designStyle: item?.input?.designStyle || "",
+        customDesignStyle: item?.input?.designStyle || "",
+        referenceImage: imageUrl,
+        ratio: (item?.result?.ratio || "1:1") as ValidRatio,
+        model: item?.input?.model || prev.model,
+        imageSize:
+          item?.input?.imageSize ||
+          modelFromHistory?.imageSizes?.[0] ||
+          prev.imageSize ||
+          null,
+      }));
+      setSelectedJobId(item.id);
+      setSelectedGeneratedImageUrl(imageUrl);
+      setFormAdvance(initialFormAdvance);
+      setFormRss(null);
+      setMode("regenerate");
+      setTab("knowledge");
+      setIsDraftSaved(false);
+    },
+    [aiModelsRes]
+  );
 
   /**
    *
@@ -581,12 +720,15 @@ export const ContentGenerateProvider = ({
     const selectedHistoryImage = searchParams.get("selectedHistoryImage");
     const routeKey = `${selectedHistoryId || ""}|${selectedHistoryImage || ""}`;
 
-    if (!selectedHistoryId && !selectedHistoryImage) return;
-    if (selectedHistoryId && selectedHistory?.id === selectedHistoryId) return;
-    if (
-      selectedHistoryImage &&
-      selectedHistory?.result?.images?.includes(selectedHistoryImage)
-    ) {
+    if (!selectedHistoryId && !selectedHistoryImage) {
+      lastAppliedHistoryRouteKeyRef.current = null;
+      lastHistoryRouteRefetchKeyRef.current = null;
+      return;
+    }
+    setMode("regenerate");
+    setTab("knowledge");
+
+    if (lastAppliedHistoryRouteKeyRef.current === routeKey) {
       return;
     }
 
@@ -604,7 +746,8 @@ export const ContentGenerateProvider = ({
     const matchedJob = findMatchingJob(histories);
     if (matchedJob) {
       setLoadingState(false);
-      onSelectHistory(matchedJob);
+      lastAppliedHistoryRouteKeyRef.current = routeKey;
+      onSelectHistory(matchedJob, { selectedImageUrl: selectedHistoryImage });
       return;
     }
 
@@ -619,7 +762,10 @@ export const ContentGenerateProvider = ({
       const refreshedMatch = findMatchingJob(result.data?.data?.data);
       if (refreshedMatch) {
         setLoadingState(false);
-        onSelectHistory(refreshedMatch);
+        lastAppliedHistoryRouteKeyRef.current = routeKey;
+        onSelectHistory(refreshedMatch, {
+          selectedImageUrl: selectedHistoryImage,
+        });
       }
     });
 
@@ -631,8 +777,6 @@ export const ContentGenerateProvider = ({
     onSelectHistory,
     refetchHistories,
     searchParams,
-    selectedHistory?.id,
-    selectedHistory?.result?.images,
   ]);
 
   /**
@@ -1121,10 +1265,17 @@ export const ContentGenerateProvider = ({
           );
           break;
         case "regenerate":
-          if (!selectedHistory || !selectedHistory.result?.images[0]) {
+          if (
+            !selectedHistory ||
+            !(selectedGeneratedImageUrl || selectedHistory.result?.images[0])
+          ) {
             showToast("error", t("toast.validation.selectHistory"));
             return;
           }
+          const regenerateReferenceImage =
+            selectedGeneratedImageUrl || selectedHistory.result?.images[0] || "";
+          const regeneratePrompt = form.basic.prompt || "";
+          const regenerateCaption = form.basic.caption || "";
           const resRegenerate = await mGenerateRegenerate.mutateAsync({
             businessId,
             formData: {
@@ -1138,16 +1289,39 @@ export const ContentGenerateProvider = ({
                   ? form.basic.customCategory
                   : form.basic.category) || "",
               advancedGenerate: form.advance,
-              referenceImage: selectedHistory.result?.images[0],
-              caption: form.basic.caption || "",
-              prompt: form.basic.prompt || "",
+              referenceImage: regenerateReferenceImage,
+              caption: regenerateCaption,
+              prompt: regeneratePrompt,
               ratio: form.basic.ratio,
               model: form.basic.model,
               imageSize: form.basic.imageSize,
             },
           });
 
-          await afterSubmitGenerate(resRegenerate?.data?.data?.jobId);
+          const regenerateJobId = resRegenerate.data.data.jobId;
+
+          await afterSubmitGenerate(regenerateJobId, {
+            ...selectedHistory,
+            id: regenerateJobId,
+            type: "regenerate",
+            status: "queued",
+            stage: "queued",
+            progress: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            input: {
+              ...selectedHistory.input,
+              prompt: regeneratePrompt,
+              caption: regenerateCaption,
+              referenceImage: regenerateReferenceImage,
+              ratio: form.basic.ratio,
+              model: form.basic.model,
+              imageSize: form.basic.imageSize,
+            },
+            result: null,
+            error: null,
+          });
+          setFormBasic((prev) => ({ ...prev, prompt: "" }));
 
           showToast(
             "success",
@@ -1168,7 +1342,10 @@ export const ContentGenerateProvider = ({
             formData: {
               mask: form.mask || overrides?.maskUrl || "",
               prompt: form.basic.prompt || "",
-              referenceImage: selectedHistory?.result?.images[0] || "",
+              referenceImage:
+                selectedGeneratedImageUrl ||
+                selectedHistory?.result?.images[0] ||
+                "",
               caption:
                 form.basic.caption || selectedHistory?.result?.caption || "",
               ratio: form.basic.ratio,
@@ -1200,7 +1377,18 @@ export const ContentGenerateProvider = ({
     }
   };
 
-  const afterSubmitGenerate = async (jobId: string) => {
+  const afterSubmitGenerate = async (
+    jobId: string,
+    optimisticJob?: JobData
+  ) => {
+    if (optimisticJob) {
+      setHistories((prev) =>
+        upsertJobIntoHistory(prev, optimisticJob)
+      );
+      setSelectedJobId(optimisticJob.id);
+      setSelectedGeneratedImageUrl(null);
+    }
+
     const refetchHistoriesRes = await refetchHistories();
     const flattenedHistories = refetchHistoriesRes.data?.data?.data?.flatMap(
       (item) => item.jobs
@@ -1210,7 +1398,11 @@ export const ContentGenerateProvider = ({
     );
     if (findJob) {
       setSelectedJobId(findJob.id);
+      setSelectedGeneratedImageUrl(findJob.result?.images[0] || null);
       setIsDraftSaved(false); // Reset draft saved state when new content is generated
+    } else if (optimisticJob) {
+      setHistories((prev) => upsertJobIntoHistory(prev, optimisticJob));
+      setIsDraftSaved(false);
     }
   };
 
@@ -1243,7 +1435,11 @@ export const ContentGenerateProvider = ({
             selectedHistory?.result?.ratio ||
             selectedHistory?.input.ratio ||
             "",
-          images: selectedHistory?.result?.images || [],
+          images: selectedGeneratedImageUrl
+            ? [selectedGeneratedImageUrl]
+            : selectedHistory?.result?.images?.[0]
+            ? [selectedHistory.result.images[0]]
+            : selectedHistory?.result?.images || [],
           productKnowledgeId: selectedHistory?.input.productKnowledgeId || "",
           referenceImages: selectedHistory?.input.referenceImage
             ? [selectedHistory?.input.referenceImage]
@@ -1302,16 +1498,7 @@ export const ContentGenerateProvider = ({
   );
 
   const updateJobData = useCallback((incoming: JobData) => {
-    setHistories((prev) =>
-      prev.map((group) => {
-        const exists = group.jobs.some((j) => j.id === incoming.id);
-        if (!exists) return group;
-        return {
-          ...group,
-          jobs: group.jobs.map((j) => (j.id === incoming.id ? incoming : j)),
-        };
-      })
-    );
+    setHistories((prev) => upsertJobIntoHistory(prev, incoming));
   }, []);
 
   /** ===== Socket lifecycle ===== */
@@ -1404,7 +1591,9 @@ export const ContentGenerateProvider = ({
         onSubmitGenerate,
         histories,
         selectedHistory,
+        selectedGeneratedImageUrl,
         onSelectHistory,
+        onSelectGeneratedImage,
         selectedTemplate,
         setSelectedTemplate,
         isLoading,

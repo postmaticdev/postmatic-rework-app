@@ -325,6 +325,9 @@ export function ContentSchedulerBoard({
     window.setTimeout(() => {
       document.body.style.pointerEvents = "";
       router.push(`/business/${businessId}/content-generate?${params.toString()}`);
+      window.setTimeout(() => {
+        router.refresh();
+      }, 300);
     }, 0);
   };
 

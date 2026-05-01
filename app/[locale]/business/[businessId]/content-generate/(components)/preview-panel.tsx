@@ -51,6 +51,7 @@ export function PreviewPanel() {
   const {
     form,
     selectedHistory,
+    selectedGeneratedImageUrl,
     onSelectHistory,
     isLoading,
     onSubmitGenerate,
@@ -73,6 +74,8 @@ export function PreviewPanel() {
   );
   const initialPlatforms = searchParams.get("platforms");
   const schedulerMode = Boolean(scheduleDate);
+  const selectedImageUrl =
+    selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
 
   const [date, setDate] = useState(dateManipulation.ymd(new Date()));
   const [time, setTime] = useState("08:00");
@@ -129,7 +132,7 @@ export function PreviewPanel() {
   };
 
   const handleEnhanceCaption = async () => {
-    const imageUrl = selectedHistory?.result?.images?.[0];
+    const imageUrl = selectedImageUrl;
     if (!imageUrl) {
       showToast("error", schedulerT("generateFirst"));
       return;
@@ -185,7 +188,9 @@ export function PreviewPanel() {
             selectedHistory.input.designStyle ||
             "",
           ratio: selectedHistory.result.ratio || selectedHistory.input.ratio || "",
-          images: selectedHistory.result.images || [],
+          images: selectedImageUrl
+            ? [selectedImageUrl]
+            : selectedHistory.result.images || [],
           productKnowledgeId: selectedHistory.input.productKnowledgeId || "",
           referenceImages:
             selectedHistory.result.referenceImages ||
@@ -264,7 +269,7 @@ export function PreviewPanel() {
               <div className="absolute bg-black z-0 w-full h-full opacity-50 blur-sm">
                 <Image
                   src={
-                    selectedHistory?.result?.images[0] ||
+                    selectedImageUrl ||
                     form.basic.productImage ||
                     DEFAULT_PLACEHOLDER_IMAGE
                   }
@@ -278,7 +283,7 @@ export function PreviewPanel() {
           ) : (
             <Image
               src={
-                selectedHistory?.result?.images[0] ||
+                selectedImageUrl ||
                 form.basic.productImage ||
                 DEFAULT_PLACEHOLDER_IMAGE
               }
@@ -443,7 +448,7 @@ export function PreviewPanel() {
       <ScheduleSummaryModal
         isOpen={isSummaryOpen}
         imageUrl={
-          selectedHistory?.result?.images?.[0] ||
+          selectedImageUrl ||
           form.basic.productImage ||
           DEFAULT_PLACEHOLDER_IMAGE
         }

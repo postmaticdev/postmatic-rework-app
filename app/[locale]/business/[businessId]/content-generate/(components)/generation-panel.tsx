@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
@@ -12,7 +11,7 @@ import { GenerateFormSelectRss } from "./generate-form-select-rss";
 import { SelectedArticleRss } from "./selected-article-rss";
 import { SelectedReferenceImage } from "./selected-reference-image";
 import { useTranslations } from "next-intl";
-import { Bot, Loader2, Send, Sparkles, Newspaper } from "lucide-react";
+import { Bot, Check, Loader2, Newspaper, Pencil, Send } from "lucide-react";
 import { GenerateFormAdvanced } from "./generate-form-advanced";
 import { GenerateFormBasic } from "./generate-form-basic";
 
@@ -22,7 +21,9 @@ export function GenerationPanel() {
     form,
     isLoading,
     selectedHistory,
+    selectedGeneratedImageUrl,
     histories,
+    onSelectGeneratedImage,
     onSubmitGenerate,
   } = useContentGenerate();
   const t = useTranslations("generationPanel");
@@ -34,7 +35,6 @@ export function GenerationPanel() {
       item.jobs.some((job) => job.id === selectedHistory.id)
     );
     return (group?.jobs || [])
-      .filter((job) => job.status === "done" && job.result)
       .sort(
         (left, right) =>
           new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
@@ -44,6 +44,9 @@ export function GenerationPanel() {
   const handleRegenerate = () => {
     onSubmitGenerate({ mode: "regenerate" });
   };
+
+  const selectedImage =
+    selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
 
   if (mode === "regenerate" && selectedHistory) {
     return (
@@ -65,34 +68,81 @@ export function GenerationPanel() {
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           {currentThread.map((job) => (
             <div key={job.id} className="space-y-3">
-              {job.input.prompt ? (
-                <div className="ml-auto max-w-[70%] rounded-3xl bg-primary px-4 py-3 text-sm text-white">
-                  {job.input.prompt}
+              {job.input.prompt || job.input.referenceImage ? (
+                <div className="ml-auto flex max-w-[78%] flex-col items-end gap-2">
+                  {job.input.referenceImage ? (
+                    <Image
+                      src={job.input.referenceImage || DEFAULT_PLACEHOLDER_IMAGE}
+                      alt="reference image"
+                      width={160}
+                      height={160}
+                      className="h-24 w-24 rounded-lg border object-cover"
+                    />
+                  ) : null}
+                  {job.input.prompt ? (
+                    <div className="rounded-3xl bg-background-secondary px-4 py-3 text-sm">
+                      {job.input.prompt}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
-              <div className="max-w-[80%] rounded-[28px] border border-border bg-background-secondary p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  {t("generatedResult")}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(job.result?.images || []).map((image, index) => (
-                    
+              <div className="space-y-3">
+                {job.result?.images?.length ? (
+                  job.result.images.map((image, index) => {
+                  const imageUrl = image || DEFAULT_PLACEHOLDER_IMAGE;
+                  const isSelected =
+                    selectedHistory?.id === job.id && selectedImage === image;
+
+                  return (
+                    <div key={`${job.id}-${index}`} className="max-w-[82%] space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <Bot className="h-3.5 w-3.5" />
+                        {job.input.model || t("generatedResult")}
+                      </div>
                       <Image
-                      key={`${job.id}-${index}`}
-                        src={image || DEFAULT_PLACEHOLDER_IMAGE}
+                        src={imageUrl}
                         alt={`generated-${index + 1}`}
                         width={800}
                         height={800}
-                        className="aspect-square items-center justify-center rounded-lg w-40 h-40 object-cover"
+                        className="aspect-square w-full max-w-[360px] rounded-lg border object-cover"
                       />
-                   
-                  ))}
-                </div>
-                <div className="mt-3 text-sm text-muted-foreground line-clamp-2">
-                  {job.result?.caption}
-                </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={() =>
+                            onSelectGeneratedImage(job, image, {
+                              attachForEdit: true,
+                            })
+                          }
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 bg-blue-600 px-3 text-xs text-white hover:bg-blue-700"
+                          onClick={() => onSelectGeneratedImage(job, image)}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          {isSelected ? "Content Used" : "Use Content"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                  })
+                ) : (
+                  <div className="max-w-[82%] rounded-lg border bg-background-secondary p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating image...
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -102,14 +152,26 @@ export function GenerationPanel() {
           <div className="space-y-3">
             <p className="text-sm font-medium">{t("regeneratePrompt")}</p>
             <div className="flex h-full gap-3">
-              <Textarea
-                value={form.basic.prompt || ""}
-                onChange={(event) =>
-                  form.setBasic({ ...form.basic, prompt: event.target.value })
-                }
-                placeholder={t("regeneratePromptPlaceholder")}
-                className=" resize-none rounded-2xl bg-background-secondary"
-              />
+              <div className="min-w-0 flex-1 rounded-2xl border border-input bg-background-secondary p-3">
+                {selectedGeneratedImageUrl &&
+                form.basic.referenceImageName === "Selected image" ? (
+                  <Image
+                    src={selectedGeneratedImageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                    alt="selected edit reference"
+                    width={96}
+                    height={96}
+                    className="mb-3 h-16 w-16 rounded-md object-cover"
+                  />
+                ) : null}
+                <Textarea
+                  value={form.basic.prompt || ""}
+                  onChange={(event) =>
+                    form.setBasic({ ...form.basic, prompt: event.target.value })
+                  }
+                  placeholder={t("regeneratePromptPlaceholder")}
+                  className="min-h-[72px] resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                />
+              </div>
               <Button
                 onClick={handleRegenerate}
                 disabled={isLoading || !form.basic.prompt?.trim()}
