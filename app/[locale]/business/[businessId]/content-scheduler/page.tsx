@@ -6,7 +6,6 @@ import { TabNavigation } from "@/app/[locale]/business/[businessId]/content-sche
 import { ContentSchedulerBoard } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-scheduler-board";
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { PlatformModal } from "../knowledge-base/(components)/platform-modal";
-import { AutoGenerate } from "../dashboard/(components)/auto-generate";
 import { useTranslations } from "next-intl";
 
 function ContentSchedulerInner() {
@@ -24,12 +23,6 @@ function ContentSchedulerInner() {
       case "scheduler":
         return (
           <ContentSchedulerBoard
-            handleIfNoPlatformConnected={handleIfNoPlatformConnected}
-          />
-        );
-      case "repetition":
-        return (
-          <AutoGenerate
             handleIfNoPlatformConnected={handleIfNoPlatformConnected}
           />
         );
@@ -75,9 +68,7 @@ function ContentSchedulerInner() {
 }
 
 export default function ContentScheduler() {
-  const [activeTab, setActiveTab] = useState<
-    "scheduler" | "repetition" | "history"
-  >(
+  const [activeTab, setActiveTab] = useState<"scheduler" | "history">(
     "scheduler"
   );
   return (
@@ -88,8 +79,8 @@ export default function ContentScheduler() {
 }
 
 interface ContentSchedulerTabContext {
-  activeTab: "scheduler" | "repetition" | "history";
-  setActiveTab: (tab: "scheduler" | "repetition" | "history") => void;
+  activeTab: "scheduler" | "history";
+  setActiveTab: (tab: "scheduler" | "history") => void;
 }
 
 const ContentSchedulerTabContext = createContext<

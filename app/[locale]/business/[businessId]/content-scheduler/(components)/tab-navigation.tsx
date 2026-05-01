@@ -5,18 +5,17 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
 interface TabNavigationProps {
-  activeTab: "scheduler" | "repetition" | "history";
-  onTabChange: (tab: "scheduler" | "repetition" | "history") => void;
+  activeTab: "scheduler" | "history";
+  onTabChange: (tab: "scheduler" | "history") => void;
 }
 
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
   const t = useTranslations("contentScheduler");
   const tabs: {
-    id: "scheduler" | "repetition" | "history";
+    id: "scheduler" | "history";
     label: string;
   }[] = [
     { id: "scheduler", label: t("contentSchedulerTab") },
-    { id: "repetition", label: t("contentRepetitionTab") },
     { id: "history", label: t("history") },
   ];
   return (

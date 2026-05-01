@@ -98,17 +98,17 @@ export function GenerationPanel() {
           ))}
         </div>
 
-        <div className="border-t p-6">
+        <div className="border-t px-6 py-3">
           <div className="space-y-3">
-            <label className="text-sm font-medium">{t("regeneratePrompt")}</label>
-            <div className="flex items-end gap-3">
+            <p className="text-sm font-medium">{t("regeneratePrompt")}</p>
+            <div className="flex h-full gap-3">
               <Textarea
                 value={form.basic.prompt || ""}
                 onChange={(event) =>
                   form.setBasic({ ...form.basic, prompt: event.target.value })
                 }
                 placeholder={t("regeneratePromptPlaceholder")}
-                className="min-h-28 resize-none rounded-2xl bg-background-secondary"
+                className=" resize-none rounded-2xl bg-background-secondary"
               />
               <Button
                 onClick={handleRegenerate}

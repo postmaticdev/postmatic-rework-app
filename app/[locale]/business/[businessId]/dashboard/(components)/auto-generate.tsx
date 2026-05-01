@@ -15,7 +15,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { AutoGenerateModal } from "./auto-generate-modal";
 import { AutoGenerateHistoryModal } from "./auto-generate-history-modal";
-import { Clock, Plus, Edit, History } from "lucide-react";
+import { Clock, Edit, History, Send } from "lucide-react";
 import Image from "next/image";
 import {
   Dialog,
@@ -27,15 +27,19 @@ import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { AutoGenerateSchedule } from "@/models/api/content/auto-generate";
 import { showToast } from "@/helper/show-toast";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
-import { TimeInput } from "@/components/ui/time-input";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
+import { cn } from "@/lib/utils";
 
 interface AutoGenerateProps {
   handleIfNoPlatformConnected: () => void;
+  cardClassName?: string;
+  scheduleListClassName?: string;
 }
 
 export function AutoGenerate({
   handleIfNoPlatformConnected,
+  cardClassName,
+  scheduleListClassName = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4",
 }: AutoGenerateProps) {
   const {
     enabled: globalEnabled,
@@ -59,9 +63,6 @@ export function AutoGenerate({
   );
   const [editingSchedule, setEditingSchedule] =
     useState<AutoGenerateSchedule | null>(null);
-  const [dayInputs, setDayInputs] = useState<{
-    [key: number]: { hour: string; minute: string };
-  }>({});
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState<{
@@ -86,72 +87,9 @@ export function AutoGenerate({
     { value: 6, label: t("saturday") },
   ];
 
-  const handleDayHourChange = (day: number, hour: string) => {
-    if (hour === "")
-      return setDayInputs((prev) => ({
-        ...prev,
-        [day]: {
-          ...prev[day],
-          hour,
-        },
-      }));
-    const n = Number(hour);
-    if (!Number.isNaN(n) && n >= 0 && n <= 23) {
-      setDayInputs((prev) => ({
-        ...prev,
-        [day]: {
-          ...prev[day],
-          hour,
-        },
-      }));
-    }
-  };
-
-  const handleDayMinuteChange = (day: number, minute: string) => {
-    if (minute === "")
-      return setDayInputs((prev) => ({
-        ...prev,
-        [day]: {
-          ...prev[day],
-          minute,
-        },
-      }));
-    const n = Number(minute);
-    if (!Number.isNaN(n) && n >= 0 && n <= 59) {
-      setDayInputs((prev) => ({
-        ...prev,
-        [day]: {
-          ...prev[day],
-          minute,
-        },
-      }));
-    }
-  };
-
-  const handleAddScheduleToDay = async (day: number) => {
-    const dayInput = dayInputs[day];
-    if (!dayInput?.hour || !dayInput?.minute) {
-      showToast("error", t("pleaseSelectTimeAndPlatform"));
-      return;
-    }
-
-    const h = parseInt(dayInput.hour, 10);
-    const m = parseInt(dayInput.minute, 10);
-    if (Number.isNaN(h) || h < 0 || h > 23) {
-      showToast("error", t("hourMustBe0-23"));
-      return;
-    }
-    if (Number.isNaN(m) || m < 0 || m > 59) {
-      showToast("error", t("minuteMustBe0-59"));
-      return;
-    }
-
-    const hh = h.toString().padStart(2, "0");
-    const mm = m.toString().padStart(2, "0");
-    const timeString = `${hh}:${mm}`;
-
+  const handleAddScheduleToDay = (day: number) => {
     setSelectedDay(day);
-    setSelectedTime(timeString);
+    setSelectedTime("");
     setSelectedPlatforms([]); // Will be selected in modal
     setEditingSchedule(null);
     setIsModalOpen(true);
@@ -327,7 +265,7 @@ export function AutoGenerate({
 
   if (isLoading) {
     return (
-      <Card className="h-full flex items-center justify-center">
+      <Card className={cn("h-full flex items-center justify-center", cardClassName)}>
         <CardContent className="py-6 flex items-center justify-center">
           <LogoLoader />
         </CardContent>
@@ -337,7 +275,7 @@ export function AutoGenerate({
 
   return (
     <>
-      <Card className="h-full">
+      <Card className={cn("h-full", cardClassName)}>
         <CardContent className="py-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -391,14 +329,12 @@ export function AutoGenerate({
 
               {/* 7 Day Cards - Only show when enabled */}
               {globalEnabled && (
-                <div className="grid grid-cols-1 sm:grid-cols-2  lg:grid-cols-3 xl:grid-cols-4   gap-4">
+                <div className={scheduleListClassName}>
                   {DAYS.map((day) => {
                     const daySchedules = getSchedulesByDay(day.value);
                     return (
-                      <Card
-                        key={day.value}
-                        className="p-4 bg-background-secondary"
-                      >
+                      <Card key={day.value} className="bg-background-secondary">
+                        <CardContent className="space-y-3 p-4">
                         <div className="space-y-3">
                           <h3 className="font-semibold text-center">
                             {day.label}
@@ -406,140 +342,59 @@ export function AutoGenerate({
 
                           {/* Existing Schedules */}
                           <div className="space-y-2">
-                            {daySchedules.map((schedule) => (
-                              <div
-                                key={schedule.id}
-                                className="flex flex-row justify-between items-center gap-2"
-                              >
+                            {daySchedules.length === 0 ? (
+                              <div className="rounded-lg border border-dashed border-muted-foreground/35 bg-card/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                                {t("noRepetitionSchedule")}
+                              </div>
+                            ) : (
+                              daySchedules.map((schedule) => (
                                 <div
-                                  className="flex items-center justify-between p-2 w-full bg-card rounded-lg cursor-pointer hover:bg-primary/20"
-                                  onClick={() => handleEditSchedule(schedule)}
+                                  key={schedule.id}
+                                  className="flex items-center gap-3"
                                 >
-                                  <div className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4" />
-                                    <span className="text-sm font-medium">
-                                      {schedule.time}
-                                    </span>
-                                    {schedule.platforms.map((platform) => (
-                                      <span
-                                        className="text-xs font-medium"
-                                        key={platform}
-                                      >
-                                        {mapEnumPlatform.getPlatformIcon(
-                                          platform
-                                        )}
-                                      </span>
-                                    ))}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditSchedule(schedule);
-                                      }}
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    {/* <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteSchedule(schedule.id);
-                                    }}
+                                  <button
+                                    type="button"
+                                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg bg-card px-3 py-2 text-left transition-colors hover:bg-primary/10"
+                                    onClick={() => handleEditSchedule(schedule)}
                                   >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button> */}
-                                  </div>
-                                </div>
-                                <div onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex min-w-0 items-center gap-2">
+                                      <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                      <span className="truncate text-sm font-medium">
+                                        {schedule.time}
+                                      </span>
+                                      <div className="flex shrink-0 items-center gap-1">
+                                        {schedule.platforms.map((platform) => (
+                                          <span
+                                            className="text-xs font-medium"
+                                            key={platform}
+                                          >
+                                            {mapEnumPlatform.getPlatformIcon(platform)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <Edit className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                  </button>
                                   <Switch
                                     checked={schedule.isActive}
-                                    onCheckedChange={(checked) => {
-                                      console.log(
-                                        "Switch clicked for schedule:",
-                                        schedule.id,
-                                        "Current status:",
-                                        schedule.isActive,
-                                        "New status:",
-                                        checked
-                                      );
-                                      handleToggleSchedule(schedule.id);
-                                    }}
+                                    onCheckedChange={() =>
+                                      handleToggleSchedule(schedule.id)
+                                    }
                                   />
                                 </div>
-                              </div>
-                            ))}
+                              ))
+                            )}
                           </div>
 
-                          {/* Time Input */}
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block text-xs font-medium mb-1 text-muted-foreground">
-                                {t("selectTime")}
-                              </label>
-                              <div className="flex flex-row w-full justify-between items-center">
-                                <TimeInput
-                                  hour={dayInputs[day.value]?.hour || ""}
-                                  minute={dayInputs[day.value]?.minute || ""}
-                                  onHourChange={(value) =>
-                                    handleDayHourChange(day.value, value)
-                                  }
-                                  onMinuteChange={(value) =>
-                                    handleDayMinuteChange(day.value, value)
-                                  }
-                                />
-                                <div className="hidden xl:block">
-                                  <Button
-                                    onClick={() =>
-                                      handleAddScheduleToDay(day.value)
-                                    }
-                                    className=" px-3"
-                                    disabled={
-                                      !dayInputs[day.value]?.hour ||
-                                      !dayInputs[day.value]?.minute
-                                    }
-                                  >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    {t("addScheduleFull")}
-                                  </Button>
-                                </div>
-                                <div className="block xl:hidden">
-                                  <Button
-                                    onClick={() =>
-                                      handleAddScheduleToDay(day.value)
-                                    }
-                                    className=" px-3"
-                                    disabled={
-                                      !dayInputs[day.value]?.hour ||
-                                      !dayInputs[day.value]?.minute
-                                    }
-                                  >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    {t("addScheduleShort")}
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Add Button for mobile */}
-                            {/* <div className="block sm:hidden w-full">
-                              <Button 
-                                onClick={() => handleAddScheduleToDay(day.value)} 
-                                className="px-3 w-full"
-                                disabled={
-                                  !dayInputs[day.value]?.hour ||
-                                  !dayInputs[day.value]?.minute
-                                }
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                {t("addSchedule")}
-                              </Button>
-                            </div> */}
-                          </div>
+                          <Button
+                            onClick={() => handleAddScheduleToDay(day.value)}
+                            className="w-full"
+                          >
+                            <Send className="h-4 w-4" />
+                            {t("addScheduleFull")}
+                          </Button>
                         </div>
+                        </CardContent>
                       </Card>
                     );
                   })}

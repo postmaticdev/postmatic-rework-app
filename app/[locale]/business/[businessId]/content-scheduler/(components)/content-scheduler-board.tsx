@@ -10,7 +10,6 @@ import {
 import { Link, useRouter } from "@/i18n/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import {
   Dialog,
@@ -25,7 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { NoContent } from "@/components/base/no-content";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { dateFormat } from "@/helper/date-format";
 import { dateManipulation } from "@/helper/date-manipulation";
@@ -62,7 +60,6 @@ import {
 } from "date-fns";
 import {
   CalendarClock,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Edit,
@@ -70,7 +67,6 @@ import {
   FileClock,
   MoreVertical,
   Repeat2,
-  Search,
   Sparkles,
   PencilLine,
   WandSparkles,
@@ -81,6 +77,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ContentSchedulerUploadDialog } from "./content-scheduler-upload-dialog";
 import { TimezoneSelector } from "./timezone-selector";
+import { AutoGenerate } from "../../dashboard/(components)/auto-generate";
 
 type SchedulerEvent = {
   id: string;
@@ -109,7 +106,6 @@ export function ContentSchedulerBoard({
   const locale = useLocale();
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [searchQuery, setSearchQuery] = useState("");
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -177,7 +173,7 @@ export function ContentSchedulerBoard({
       dateEnd: rangeEnd,
     }
   );
-  const { data: upcomingData, isLoading } = useContentOverviewGetUpcoming(
+  const { data: upcomingData } = useContentOverviewGetUpcoming(
     businessId,
     {
       dateStart: rangeStart,
@@ -264,25 +260,6 @@ export function ContentSchedulerBoard({
     () => mergedEvents.filter((item) => isSameDay(item.date, selectedDate)),
     [mergedEvents, selectedDate]
   );
-
-  const filteredEvents = useMemo(() => {
-    const source = selectedDateEvents.length > 0 ? selectedDateEvents : mergedEvents;
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return source;
-
-    return source.filter((event) => {
-      const platformText = event.platforms
-        .map((platform) => mapEnumPlatform.getPlatformLabel(platform))
-        .join(" ")
-        .toLowerCase();
-
-      return (
-        event.title.toLowerCase().includes(query) ||
-        event.time.toLowerCase().includes(query) ||
-        platformText.includes(query)
-      );
-    });
-  }, [mergedEvents, searchQuery, selectedDateEvents]);
 
   const calendarDays = useMemo(
     () =>
@@ -632,7 +609,7 @@ export function ContentSchedulerBoard({
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
+        <div className="flex h-full flex-col gap-6">
           <Card>
             <CardContent className="space-y-5 p-4 sm:p-6">
               <div className="text-2xl font-bold">{t("overview")}</div>
@@ -691,110 +668,11 @@ export function ContentSchedulerBoard({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="space-y-4 p-4 sm:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="text-2xl font-bold">{t("scheduledListTitle")}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {selectedDateEvents.length > 0
-                      ? new Intl.DateTimeFormat(
-                          locale === "id" ? "id-ID" : "en-US",
-                          {
-                            weekday: "long",
-                            day: "numeric",
-                            month: "long",
-                          }
-                        ).format(selectedDate)
-                      : t("showingAllScheduled")}
-                  </div>
-                </div>
-                <div className="shrink-0 text-sm text-muted-foreground">
-                  {filteredEvents.length} {t("items")}
-                </div>
-              </div>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder={t("searchScheduledPlaceholder")}
-                  className="pl-10"
-                />
-              </div>
-
-              <div className="space-y-3">
-                {isLoading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="h-24 animate-pulse rounded-2xl bg-background-secondary"
-                    />
-                  ))
-                ) : filteredEvents.length === 0 ? (
-                  <NoContent
-                    icon={CalendarDays}
-                    title={t("noScheduledContent")}
-                    titleDescription={t("noScheduledContentDescription")}
-                  />
-                ) : (
-                  filteredEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex flex-col gap-3 rounded-2xl border border-border bg-background-secondary p-3 sm:flex-row sm:items-center"
-                    >
-                      <div className="flex min-w-0 gap-3">
-                        <Image
-                          src={event.image}
-                          alt={event.title}
-                          width={56}
-                          height={56}
-                          className="h-14 w-14 shrink-0 rounded-xl object-cover"
-                        />
-
-                        <div className="min-w-0 flex-1">
-                          <div className="break-words font-semibold sm:truncate">
-                            {event.title}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {formatFullDate(event.date)} - {event.time}
-                          </div>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {event.platforms.map((platform) => (
-                              <span
-                                key={platform}
-                                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
-                                  event.type === "manual"
-                                    ? "bg-rose-100 text-rose-600"
-                                    : "bg-violet-100 text-violet-600"
-                                }`}
-                              >
-                                {mapEnumPlatform.getPlatformIcon(platform, "h-3 w-3")}
-                                {mapEnumPlatform.getPlatformLabel(platform)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`w-fit rounded-full px-3 py-1 text-xs font-semibold sm:shrink-0 ${
-                          event.type === "manual"
-                            ? "bg-rose-100 text-rose-600"
-                            : "bg-violet-100 text-violet-600"
-                        }`}
-                      >
-                        {event.type === "manual"
-                          ? t("scheduledBadge")
-                          : t("repetitionBadge")}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <AutoGenerate
+            handleIfNoPlatformConnected={handleIfNoPlatformConnected}
+            cardClassName="flex-1"
+            scheduleListClassName="flex flex-col gap-4"
+          />
         </div>
       </div>
 

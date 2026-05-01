@@ -334,15 +334,16 @@ export function AutoGenerateModal({
             <div className="grid grid-cols-1 md:grid-cols-2 ">
               {/* Left Column - Reference Libary */}
               <div className="space-y-6 md:overflow-y-auto max-h-full md:max-h-[calc(180vh-360px)]">
-                <AutoGenerateReferencePanel />
-        
+              <div className="space-y-6 p-4 sm:p-6">
+              <AutoGenerateFormBasic />
+              <AutoGenerateFormAdvanced />
+              </div>
               </div>
 
               {/* Right Column - Form and Status */}
               <div id="auto-generate-form-section" className="space-y-6 p-4 sm:p-6">
-                <AutoSelectedReferenceImage/>
-              <AutoGenerateFormBasic />
-              <AutoGenerateFormAdvanced />
+              
+             
 
                 {/* Platform Selection */}
                 <Card>
