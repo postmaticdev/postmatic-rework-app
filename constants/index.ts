@@ -1,3 +1,5 @@
+import type { PlatformEnum } from "@/models/api/knowledge/platform.type";
+
 export const NEXT_PUBLIC_API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN || "";
 export const API_ORIGIN = process.env.API_ORIGIN || "";
 export const DEFAULT_USER_AVATAR = "/user.png";
@@ -13,3 +15,9 @@ export const ACCESS_TOKEN_KEY = "postmaticAccessToken";
 export const REFRESH_TOKEN_KEY = "postmaticRefreshToken";
 
 export const LOGIN_URL = `${NEXT_PUBLIC_API_ORIGIN}/api/auth/page/login`;
+
+export const SOCIAL_MEDIA_PLATFORMS: PlatformEnum[] = [
+  "facebook_page",
+  "instagram_business",
+  "linked_in",
+];

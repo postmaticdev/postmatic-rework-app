@@ -93,7 +93,7 @@ export function ColorPickerField({
       <div className="relative" onFocus={onFocus}>
         <div
           className={cn(
-            "flex h-10 items-center overflow-hidden rounded-2xl border bg-background transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20",
+            "flex h-10 items-center overflow-hidden rounded-md border bg-background transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20",
             error ? "border-red-500" : "border-border"
           )}
         >
@@ -103,10 +103,10 @@ export function ColorPickerField({
             aria-expanded={isPickerOpen}
             aria-haspopup="dialog"
             onClick={() => setIsPickerOpen((open) => !open)}
-            className="flex h-14 items-center justify-center border-r border-border px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-inset"
+            className="flex h-14 items-center justify-center border-r border-border px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-inset"
           >
             <span
-              className="size-6 rounded-md border border-black/5 shadow-sm"
+              className="size-8 rounded-md border border-black/5 shadow-sm"
               style={{ backgroundColor: colorHash }}
               title={colorHash}
             />

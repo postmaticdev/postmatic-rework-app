@@ -29,6 +29,7 @@ import { showToast } from "@/helper/show-toast";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { cn } from "@/lib/utils";
+import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 
 interface AutoGenerateProps {
   handleIfNoPlatformConnected: () => void;
@@ -74,7 +75,9 @@ export function AutoGenerate({
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const lenConnectedPlatform =
     platformData?.data.data.filter(
-      (platform) => platform.status === "connected"
+      (platform) =>
+        SOCIAL_MEDIA_PLATFORMS.includes(platform.platform) &&
+        platform.status === "connected"
     ).length || 0;
 
   const DAYS = [

@@ -5,16 +5,17 @@ import Image from "next/image";
 import { useRouter } from "@/i18n/navigation";
 import { CardNoGap } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { Progress } from "@/components/ui/progress";
 import { ScheduleSummaryModal } from "@/app/[locale]/business/[businessId]/content-generate/(components)/schedule-summary-modal";
 import { useContentGenerate } from "@/contexts/content-generate-context";
-import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
+import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
+import { cn } from "@/lib/utils";
 import {
   useContentCaptionEnhance,
   useContentDraftSaveDraftContent,
@@ -33,14 +34,10 @@ import {
 } from "lucide-react";
 import { showToast } from "@/helper/show-toast";
 
-function buildTimeOptions() {
-  return Array.from({ length: 48 }, (_, index) => {
-    const hour = Math.floor(index / 2)
-      .toString()
-      .padStart(2, "0");
-    const minute = index % 2 === 0 ? "00" : "30";
-    return `${hour}:${minute}`;
-  });
+function formatTimeInput(date: Date) {
+  const hour = date.getHours().toString().padStart(2, "0");
+  const minute = date.getMinutes().toString().padStart(2, "0");
+  return `${hour}:${minute}`;
 }
 
 export function PreviewPanel() {
@@ -105,15 +102,25 @@ export function PreviewPanel() {
     );
   }, [initialPlatforms]);
 
-  const connectedPlatforms = useMemo(
+  const platformOptions = useMemo(
     () =>
-      (platformData?.data.data || [])
-        .filter((platform) => platform.status === "connected")
-        .map((platform) => platform.platform),
+      SOCIAL_MEDIA_PLATFORMS.map((platform) => ({
+        platform,
+        isConnected: (platformData?.data.data || []).some(
+          (item) => item.platform === platform && item.status === "connected"
+        ),
+      })),
     [platformData?.data.data]
   );
-  const timeOptions = useMemo(() => buildTimeOptions(), []);
+  const connectedPlatforms = useMemo(
+    () =>
+      platformOptions
+        .filter((platform) => platform.isConnected)
+        .map((platform) => platform.platform),
+    [platformOptions]
+  );
   const minDate = dateManipulation.ymd(new Date());
+  const minTime = date === minDate ? formatTimeInput(new Date()) : undefined;
 
   const handleGenerateClick = () => {
     if (schedulerMode && selectedHistory) {
@@ -155,6 +162,8 @@ export function PreviewPanel() {
   };
 
   const togglePlatform = (platform: PlatformEnum) => {
+    if (!connectedPlatforms.includes(platform)) return;
+
     setSelectedPlatforms((current) =>
       current.includes(platform)
         ? current.filter((item) => item !== platform)
@@ -171,7 +180,22 @@ export function PreviewPanel() {
       showToast("error", schedulerT("selectDateTime"));
       return;
     }
-    if (selectedPlatforms.length === 0) {
+
+    const scheduledAt = new Date(`${date}T${time}`);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      showToast("error", schedulerT("selectDateTime"));
+      return;
+    }
+    if (scheduledAt <= new Date()) {
+      showToast("error", schedulerT("scheduleTimePassed"));
+      return;
+    }
+
+    const connectedSelectedPlatforms = selectedPlatforms.filter((platform) =>
+      connectedPlatforms.includes(platform)
+    );
+
+    if (connectedSelectedPlatforms.length === 0) {
       showToast("error", schedulerT("selectPlatform"));
       return;
     }
@@ -203,8 +227,8 @@ export function PreviewPanel() {
       const formData = {
         generatedImageContentId: savedDraft.data.data.id,
         caption: form.basic.caption || selectedHistory.result.caption || "",
-        platforms: selectedPlatforms,
-        dateTime: new Date(`${date}T${time}`).toISOString(),
+        platforms: connectedSelectedPlatforms,
+        dateTime: scheduledAt.toISOString(),
       };
 
       if (editSchedulerManualPostingId) {
@@ -349,18 +373,14 @@ export function PreviewPanel() {
                     className="h-11 w-full bg-transparent text-sm outline-none"
                   />
                 </div>
-                <Select value={time} onValueChange={setTime}>
-                  <SelectTrigger className="h-11 rounded-2xl bg-background-secondary">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  type="time"
+                  value={time}
+                  min={minTime}
+                  step={60}
+                  onChange={(event) => setTime(event.target.value)}
+                  className="h-11 rounded-2xl bg-background-secondary"
+                />
               </div>
             </div>
 
@@ -369,24 +389,40 @@ export function PreviewPanel() {
                 {schedulerT("choosePlatform")}
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
-                {connectedPlatforms.map((platform) => {
-                  const isSelected = selectedPlatforms.includes(platform);
+                {platformOptions.map(({ platform, isConnected }) => {
+                  const isSelected =
+                    isConnected && selectedPlatforms.includes(platform);
                   return (
                     <button
                       key={platform}
                       type="button"
                       onClick={() => togglePlatform(platform)}
-                      className={`flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors ${
+                      disabled={!isConnected}
+                      className={cn(
+                        "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
                         isSelected
                           ? "border-primary bg-primary text-white"
-                          : "border-border bg-background-secondary"
-                      }`}
+                          : "border-border bg-background-secondary",
+                        !isConnected &&
+                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
+                      )}
                     >
                       {mapEnumPlatform.getPlatformIcon(
                         platform,
-                        isSelected ? "text-white" : ""
+                        isSelected
+                          ? "text-white"
+                          : !isConnected
+                          ? "text-muted-foreground"
+                          : ""
                       )}
-                      <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
+                      <span className="flex flex-col leading-tight">
+                        <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
+                        {!isConnected && (
+                          <span className="text-[11px] font-normal">
+                            {schedulerT("notConnected")}
+                          </span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}
@@ -455,9 +491,10 @@ export function PreviewPanel() {
         caption={form.basic.caption || selectedHistory?.result?.caption || ""}
         date={date}
         time={time}
-        timeOptions={timeOptions}
+        minDate={minDate}
+        minTime={minTime}
         selectedPlatforms={selectedPlatforms}
-        connectedPlatforms={connectedPlatforms}
+        platforms={platformOptions}
         isLoading={isScheduling || mEnhanceCaption.isPending}
         onClose={() => setIsSummaryOpen(false)}
         onCaptionChange={(value) =>

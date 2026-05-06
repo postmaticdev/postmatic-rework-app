@@ -233,6 +233,7 @@
     "selectDay": "曜日を選択",
     "selectTime": "時間を選択",
     "selectPlatforms": "プラットフォームを選択",
+    "notConnected": "未接続",
     "productSelection": "商品選択",
     "selectProduct": "商品を選択",
     "generationSettings": "生成設定",
@@ -642,6 +643,7 @@
   },
   "businessKnowledge": {
     "notAvailable": "利用不可",
+    "notConnected": "未接続",
     "socialMedia": "ソーシャルメディア",
     "title": "ビジネス知識",
     "logoBrand": "ビジネスロゴ",

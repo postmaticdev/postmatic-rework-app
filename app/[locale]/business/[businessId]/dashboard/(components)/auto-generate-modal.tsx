@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { TimeInput } from "@/components/ui/time-input";
 import { Save, Sparkles, Trash2 } from "lucide-react";
+import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 
 interface AutoGenerateModalProps {
   isOpen: boolean;
@@ -69,6 +70,23 @@ export function AutoGenerateModal({
   // Auto Generate Context
   const { form, isLoading, productKnowledges, aiModels, onSelectAiModel } = useAutoGenerate();
   const { basic, setBasic, advance, setAdvance } = form;
+  const platformOptions = useMemo(
+    () =>
+      SOCIAL_MEDIA_PLATFORMS.map((platform) => ({
+        platform,
+        isConnected: (platformData?.data.data || []).some(
+          (item) => item.platform === platform && item.status === "connected"
+        ),
+      })),
+    [platformData?.data.data]
+  );
+  const connectedPlatforms = useMemo(
+    () =>
+      platformOptions
+        .filter((platform) => platform.isConnected)
+        .map((platform) => platform.platform),
+    [platformOptions]
+  );
 
   // Helper function to get product name from productKnowledgeId
   const getProductNameById = (productKnowledgeId: string) => {
@@ -92,6 +110,8 @@ export function AutoGenerateModal({
   };
 
   const togglePlatform = (platform: PlatformEnum) => {
+    if (!connectedPlatforms.includes(platform)) return;
+
     setModalSelectedPlatforms((prev) =>
       prev.includes(platform)
         ? prev.filter((p) => p !== platform)
@@ -122,7 +142,11 @@ export function AutoGenerateModal({
       return;
     }
 
-    if (modalSelectedPlatforms.length === 0) {
+    const connectedSelectedPlatforms = modalSelectedPlatforms.filter((platform) =>
+      connectedPlatforms.includes(platform)
+    );
+
+    if (connectedSelectedPlatforms.length === 0) {
       showToast("error", t("pleaseSelectPlatform"));
       return;
     }
@@ -158,7 +182,7 @@ export function AutoGenerateModal({
     const scheduleData: CreateAutoGenerateScheduleRequest = {
       day: selectedDay,
       time: timeString,
-      platforms: modalSelectedPlatforms,
+      platforms: connectedSelectedPlatforms,
       model: basic.model || "gpt-image-1",
       designStyle: basic.designStyle || "modern",
       ratio: basic.ratio || "1:1",
@@ -352,33 +376,45 @@ export function AutoGenerateModal({
                       {t("selectPlatforms")}
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {platformData?.data.data
-                        .filter((platform) => platform.status === "connected")
-                        .map((platform, index) => {
-                          const p = platform.platform as PlatformEnum;
-                          const selected = modalSelectedPlatforms.includes(p);
+                      {platformOptions.map(({ platform, isConnected }) => {
+                          const selected =
+                            isConnected &&
+                            modalSelectedPlatforms.includes(platform);
                           return (
                             <Button
-                              key={index}
+                              key={platform}
                               variant="outline"
-                              onClick={() => togglePlatform(p)}
+                              onClick={() => togglePlatform(platform)}
+                              disabled={!isConnected}
                               className={cn(
-                                "flex-shrink-0",
+                                "h-auto flex-shrink-0",
                                 selected
                                   ? "bg-blue-600 hover:bg-blue-700"
-                                  : "hover:bg-muted"
+                                  : "hover:bg-muted",
+                                !isConnected &&
+                                  "cursor-not-allowed border-dashed bg-muted/30 opacity-70 hover:bg-muted/30"
                               )}
                             >
                               <div className="bg-background-secondary p-1 rounded-md">
-                                {mapEnumPlatform.getPlatformIcon(p)}
+                                {mapEnumPlatform.getPlatformIcon(
+                                  platform,
+                                  !isConnected ? "text-muted-foreground" : ""
+                                )}
                               </div>
                               <span
                                 className={cn(
-                                  "text-xs font-medium",
+                                  "flex flex-col text-xs font-medium leading-tight",
                                   selected ? "text-white" : "text-muted-foreground"
                                 )}
                               >
-                                {mapEnumPlatform.getPlatformLabel(p)}
+                                <span>
+                                  {mapEnumPlatform.getPlatformLabel(platform)}
+                                </span>
+                                {!isConnected && (
+                                  <span className="font-normal">
+                                    {t("notConnected")}
+                                  </span>
+                                )}
                               </span>
                             </Button>
                           );

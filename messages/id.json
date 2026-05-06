@@ -243,6 +243,7 @@
     "selectDay": "Pilih Hari",
     "selectTime": "Pilih Waktu",
     "selectPlatforms": "Pilih Platform",
+    "notConnected": "Belum terhubung",
     "productSelection": "Pemilihan Produk",
     "selectProduct": "Pilih Produk",
     "generationSettings": "Pengaturan Generasi",
@@ -584,12 +585,14 @@
   },
   "contentGenerateScheduler": {
     "choosePlatform": "Pilih Platform",
+    "notConnected": "Belum terhubung",
     "generateContent": "Generate Content",
     "schedulePost": "Jadwalkan Postingan",
     "summaryTitle": "Ringkasan Konten",
     "caption": "Caption",
     "scheduleAt": "Jadwalkan Pada",
     "selectDateTime": "Silakan pilih tanggal dan waktu",
+    "scheduleTimePassed": "Waktu jadwal tidak boleh sudah lewat",
     "selectPlatform": "Silakan pilih minimal satu platform",
     "generateFirst": "Generate konten terlebih dahulu sebelum dijadwalkan",
     "shareReference": "Bagikan referensi konten ini kepada komunitas Postmatic untuk membantu pengembangan model AI yang lebih baik."
@@ -844,6 +847,7 @@
   },
   "businessKnowledge": {
     "notAvailable": "Tidak tersedia",
+    "notConnected": "Belum terhubung",
     "socialMedia": "Media Sosial",
     "title": "Pengetahuan Bisnis",
     "logoBrand": "Logo Bisnis",

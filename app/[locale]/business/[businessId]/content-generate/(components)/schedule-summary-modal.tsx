@@ -8,16 +8,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import { cn } from "@/lib/utils";
 import { CalendarDays, Loader2, Send, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -27,9 +22,10 @@ interface ScheduleSummaryModalProps {
   caption: string;
   date: string;
   time: string;
-  timeOptions: string[];
+  minDate?: string;
+  minTime?: string;
   selectedPlatforms: PlatformEnum[];
-  connectedPlatforms: PlatformEnum[];
+  platforms: { platform: PlatformEnum; isConnected: boolean }[];
   isLoading: boolean;
   onClose: () => void;
   onCaptionChange: (value: string) => void;
@@ -46,9 +42,10 @@ export function ScheduleSummaryModal({
   caption,
   date,
   time,
-  timeOptions,
+  minDate,
+  minTime,
   selectedPlatforms,
-  connectedPlatforms,
+  platforms,
   isLoading,
   onClose,
   onCaptionChange,
@@ -107,47 +104,60 @@ export function ScheduleSummaryModal({
                   <input
                     type="date"
                     value={date}
+                    min={minDate}
                     onChange={(event) => onDateChange(event.target.value)}
                     className="h-11 w-full bg-transparent text-sm outline-none"
                   />
                 </div>
 
-                <Select value={time} onValueChange={onTimeChange}>
-                  <SelectTrigger className="h-11 rounded-2xl bg-background-secondary">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  type="time"
+                  value={time}
+                  min={minTime}
+                  step={60}
+                  onChange={(event) => onTimeChange(event.target.value)}
+                  className="h-11 rounded-2xl bg-background-secondary"
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="text-sm font-medium">{t("choosePlatform")}</div>
               <div className="grid gap-3 sm:grid-cols-3">
-                {connectedPlatforms.map((platform) => {
-                  const isSelected = selectedPlatforms.includes(platform);
+                {platforms.map(({ platform, isConnected }) => {
+                  const isSelected =
+                    isConnected && selectedPlatforms.includes(platform);
                   return (
                     <button
                       key={platform}
                       type="button"
                       onClick={() => onTogglePlatform(platform)}
-                      className={`flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors ${
+                      disabled={!isConnected}
+                      className={cn(
+                        "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
                         isSelected
                           ? "border-primary bg-primary text-white"
-                          : "border-border bg-background-secondary"
-                      }`}
+                          : "border-border bg-background-secondary",
+                        !isConnected &&
+                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
+                      )}
                     >
                       {mapEnumPlatform.getPlatformIcon(
                         platform,
-                        isSelected ? "text-white" : ""
+                        isSelected
+                          ? "text-white"
+                          : !isConnected
+                          ? "text-muted-foreground"
+                          : ""
                       )}
-                      <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
+                      <span className="flex flex-col leading-tight">
+                        <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
+                        {!isConnected && (
+                          <span className="text-[11px] font-normal">
+                            {t("notConnected")}
+                          </span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}

@@ -60,7 +60,7 @@ export function CurrencyDropdown({
         </option>
         {CURRENCIES.map((currency) => (
           <option key={currency.code} value={currency.code}>
-            {`${currency.symbol} ${currency.code} - ${currency.name}`}
+            {currency.code}
           </option>
         ))}
       </select>

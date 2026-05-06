@@ -176,7 +176,7 @@ export const GenerateFormBasic = () => {
         </select>
       </div>
 
-      {aiModels.selectedModel?.name === "gemini-3-pro-image-preview" &&
+      {/* {aiModels.selectedModel?.name === "gemini-3-pro-image-preview" &&
         aiModels.selectedModel?.imageSizes?.length ? (
         <div>
           <label className="block text-sm font-medium mb-2">Image Size</label>
@@ -199,7 +199,7 @@ export const GenerateFormBasic = () => {
             ))}
           </select>
         </div>
-      ) : null}
+      ) : null} */}
 
       {/* Aspect Ratio */}
       <div>

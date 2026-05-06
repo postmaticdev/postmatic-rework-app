@@ -243,6 +243,7 @@
     "selectDay": "Select Day",
     "selectTime": "Select Time",
     "selectPlatforms": "Select Platforms",
+    "notConnected": "Not Connected",
     "productSelection": "Product Selection",
     "selectProduct": "Select Product",
     "generationSettings": "Generation Settings",
@@ -587,12 +588,14 @@
   },
   "contentGenerateScheduler": {
     "choosePlatform": "Choose Platform",
+    "notConnected": "Not Connected",
     "generateContent": "Generate Content",
     "schedulePost": "Schedule Post",
     "summaryTitle": "Content Summary",
     "caption": "Caption",
     "scheduleAt": "Schedule Time",
     "selectDateTime": "Please select date and time",
+    "scheduleTimePassed": "Schedule time cannot be in the past",
     "selectPlatform": "Please select at least one platform",
     "generateFirst": "Generate content first before scheduling",
     "shareReference": "Share this content reference with the Postmatic community to help improve the AI model."
@@ -847,6 +850,7 @@
   },
   "businessKnowledge": {
     "notAvailable": "Not Available",
+    "notConnected": "Not Connected",
     "socialMedia": "Social Media",
     "title": "Business Knowledge",
     "logoBrand": "Business Logo",

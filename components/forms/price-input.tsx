@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { formatIdr } from "@/helper/formatter";
 import { Info } from "lucide-react";
@@ -126,13 +125,8 @@ export function PriceInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className={`pr-16 ${
-            error ? "border-red-500 focus:border-red-500" : ""
-          }`}
+          className={error ? "border-red-500 focus:border-red-500" : ""}
         />
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-          {currency}
-        </div>
       </div>
 
       {/* Display formatted price preview */}

@@ -177,7 +177,7 @@ export const AutoGenerateFormBasic = () => {
         </select>
       </div>
 
-      {aiModels.selectedModel?.name === "gemini-3-pro-image-preview" &&
+      {/* {aiModels.selectedModel?.name === "gemini-3-pro-image-preview" &&
         aiModels.selectedModel?.imageSizes?.length ? (
         <div>
           <label className="block text-sm font-medium mb-2">Image Size</label>
@@ -200,7 +200,7 @@ export const AutoGenerateFormBasic = () => {
             ))}
           </select>
         </div>
-      ) : null}
+      ) : null} */}
 
       {/* Aspect Ratio */}
       <div>
@@ -233,7 +233,7 @@ export const AutoGenerateFormBasic = () => {
       </div>
 
       {/* Category */}
-      <div>
+      {/* <div>
         <label className="block text-sm font-medium mb-2">{t("category")}</label>
         <select
           value={basic?.category}
@@ -272,10 +272,10 @@ export const AutoGenerateFormBasic = () => {
             )}
           />
         )}
-      </div>
+      </div> */}
 
       {/* Design Style */}
-      <div>
+      {/* <div>
         <label className="block text-sm font-medium mb-2">{t("designStyle")}</label>
         <select
           value={basic.designStyle || ""}
@@ -312,7 +312,7 @@ export const AutoGenerateFormBasic = () => {
             )}
           />
         )}
-      </div>
+      </div> */}
       <AutoProductSelectionModal
         isOpen={isProductModalOpen}
         onClose={() => {

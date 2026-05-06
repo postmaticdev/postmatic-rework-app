@@ -1,15 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -22,7 +13,6 @@ interface BusinessCategoryDropdownProps {
   onFocus?: () => void;
 }
 
-
 export function BusinessCategoryDropdown({
   value,
   onChange,
@@ -31,9 +21,7 @@ export function BusinessCategoryDropdown({
   error,
   onFocus,
 }: BusinessCategoryDropdownProps) {
-  const [isOtherSelected, setIsOtherSelected] = useState(false);
   const t = useTranslations("businessCategory");
-  const [otherValue, setOtherValue] = useState("");
   const BUSINESS_CATEGORIES = [
     t("foodAndDrink"),
     t("retailAndEcommerce"),
@@ -52,28 +40,15 @@ export function BusinessCategoryDropdown({
     t("consultingAndProfessionalServices"),
     t("other"),
   ];
+  const categoryOptions = BUSINESS_CATEGORIES.includes(value)
+    ? BUSINESS_CATEGORIES
+    : value
+      ? [...BUSINESS_CATEGORIES, value]
+      : BUSINESS_CATEGORIES;
 
   const handleCategoryChange = (selectedValue: string) => {
-    if (selectedValue === t("other")) {
-      setIsOtherSelected(true);
-      onChange(otherValue || "");
-    } else {
-      setIsOtherSelected(false);
-      setOtherValue("");
-      onChange(selectedValue);
-    }
+    onChange(selectedValue);
   };
-
-  const handleOtherInputChange = (inputValue: string) => {
-    setOtherValue(inputValue);
-    onChange(inputValue);
-  };
-
-  // Check if current value is in the predefined categories
-  const isCurrentValueInCategories = BUSINESS_CATEGORIES.includes(value);
-
-  // Determine if we should show "Lainnya" option
-  const shouldShowLainnya = value && !isCurrentValueInCategories;
 
   return (
     <div className="space-y-1 ">
@@ -87,38 +62,21 @@ export function BusinessCategoryDropdown({
                 ? "border-red-500 focus:ring-red-500"
                 : "border-input focus:ring-ring"
             }`}
-            value={shouldShowLainnya ? t("other") : value || ""}
+            value={value || ""}
             onChange={(e) => handleCategoryChange(e.target.value)}
             onFocus={onFocus}
             aria-invalid={!!error}
           >
             <option value="" disabled hidden>
-              {isOtherSelected || shouldShowLainnya ? t("other") : placeholder}
+              {placeholder}
             </option>
-            {BUSINESS_CATEGORIES.map((category) => (
+            {categoryOptions.map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
             ))}
           </select>
-          
         </div>
-
-        {(isOtherSelected || shouldShowLainnya) && (
-          <div className="space-y-2 w-full">
-            <Label htmlFor="category">{t("enterOtherCategory")}</Label>
-            <Input
-              id="other-category"
-              value={shouldShowLainnya ? value : otherValue}
-              onChange={(e) => handleOtherInputChange(e.target.value)}
-              placeholder={t("enterBusinessCategoryPlaceholder")}
-              onFocus={onFocus}
-              className={`w-full ${
-                error ? "border-red-500 focus:border-red-500" : ""
-              }`}
-            />
-          </div>
-        )}
       </div>
       {error && (
         <div className="flex items-center gap-1">
