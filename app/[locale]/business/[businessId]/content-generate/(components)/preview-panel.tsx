@@ -17,6 +17,10 @@ import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { cn } from "@/lib/utils";
 import {
+  removeSchedulerDraftMarker,
+  upsertSchedulerDraftMarker,
+} from "@/lib/scheduler-draft-markers";
+import {
   useContentCaptionEnhance,
   useContentDraftSaveDraftContent,
   useContentSchedulerManualAddToQueue,
@@ -78,10 +82,23 @@ export function PreviewPanel() {
   const [time, setTime] = useState("08:00");
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [autoSavedDraftId, setAutoSavedDraftId] = useState<string | null>(null);
+  const autoSaveKeyRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (scheduleDate) {
       setDate(scheduleDate);
+      setAutoSavedDraftId(null);
+      autoSaveKeyRef.current = null;
     }
   }, [scheduleDate]);
 
@@ -121,6 +138,72 @@ export function PreviewPanel() {
   );
   const minDate = dateManipulation.ymd(new Date());
   const minTime = date === minDate ? formatTimeInput(new Date()) : undefined;
+
+  useEffect(() => {
+    if (
+      !schedulerMode ||
+      !scheduleDate ||
+      !selectedHistory?.result ||
+      !selectedImageUrl ||
+      editSchedulerManualPostingId
+    ) {
+      return;
+    }
+
+    const autoSaveKey = `${scheduleDate}:${selectedHistory.id}:${selectedImageUrl}`;
+    if (autoSaveKeyRef.current === autoSaveKey || mSaveDraft.isPending) {
+      return;
+    }
+
+    autoSaveKeyRef.current = autoSaveKey;
+    mSaveDraft
+      .mutateAsync({
+        businessId,
+        formData: {
+          caption: form.basic.caption || selectedHistory.result.caption || "",
+          category:
+            selectedHistory.result.category || selectedHistory.input.category || "",
+          designStyle:
+            selectedHistory.result.designStyle ||
+            selectedHistory.input.designStyle ||
+            "",
+          ratio: selectedHistory.result.ratio || selectedHistory.input.ratio || "",
+          images: [selectedImageUrl],
+          productKnowledgeId: selectedHistory.input.productKnowledgeId || "",
+          referenceImages:
+            selectedHistory.result.referenceImages ||
+            (selectedHistory.input.referenceImage
+              ? [selectedHistory.input.referenceImage]
+              : []),
+        },
+      })
+      .then((savedDraft) => {
+        const draftId = savedDraft.data.data.id;
+        if (isMountedRef.current) {
+          setAutoSavedDraftId(draftId);
+        }
+        upsertSchedulerDraftMarker(businessId, {
+          draftId,
+          jobId: selectedHistory.id,
+          date: scheduleDate,
+          image: selectedImageUrl,
+          caption: form.basic.caption || selectedHistory.result?.caption || "",
+          createdAt: new Date().toISOString(),
+        });
+      })
+      .catch(() => {
+        autoSaveKeyRef.current = null;
+      });
+  }, [
+    businessId,
+    editSchedulerManualPostingId,
+    form.basic.caption,
+    mSaveDraft,
+    scheduleDate,
+    schedulerMode,
+    selectedHistory,
+    selectedImageUrl,
+  ]);
 
   const handleGenerateClick = () => {
     if (schedulerMode && selectedHistory) {
@@ -201,31 +284,38 @@ export function PreviewPanel() {
     }
 
     try {
-      const savedDraft = await mSaveDraft.mutateAsync({
-        businessId,
-        formData: {
-          caption: form.basic.caption || selectedHistory.result.caption || "",
-          category:
-            selectedHistory.result.category || selectedHistory.input.category || "",
-          designStyle:
-            selectedHistory.result.designStyle ||
-            selectedHistory.input.designStyle ||
-            "",
-          ratio: selectedHistory.result.ratio || selectedHistory.input.ratio || "",
-          images: selectedImageUrl
-            ? [selectedImageUrl]
-            : selectedHistory.result.images || [],
-          productKnowledgeId: selectedHistory.input.productKnowledgeId || "",
-          referenceImages:
-            selectedHistory.result.referenceImages ||
-            (selectedHistory.input.referenceImage
-              ? [selectedHistory.input.referenceImage]
-              : []),
-        },
-      });
+      const generatedImageContentId =
+        autoSavedDraftId ||
+        (
+          await mSaveDraft.mutateAsync({
+            businessId,
+            formData: {
+              caption: form.basic.caption || selectedHistory.result.caption || "",
+              category:
+                selectedHistory.result.category ||
+                selectedHistory.input.category ||
+                "",
+              designStyle:
+                selectedHistory.result.designStyle ||
+                selectedHistory.input.designStyle ||
+                "",
+              ratio:
+                selectedHistory.result.ratio || selectedHistory.input.ratio || "",
+              images: selectedImageUrl
+                ? [selectedImageUrl]
+                : selectedHistory.result.images || [],
+              productKnowledgeId: selectedHistory.input.productKnowledgeId || "",
+              referenceImages:
+                selectedHistory.result.referenceImages ||
+                (selectedHistory.input.referenceImage
+                  ? [selectedHistory.input.referenceImage]
+                  : []),
+            },
+          })
+        ).data.data.id;
 
       const formData = {
-        generatedImageContentId: savedDraft.data.data.id,
+        generatedImageContentId,
         caption: form.basic.caption || selectedHistory.result.caption || "",
         platforms: connectedSelectedPlatforms,
         dateTime: scheduledAt.toISOString(),
@@ -245,6 +335,7 @@ export function PreviewPanel() {
       }
 
       setIsSummaryOpen(false);
+      removeSchedulerDraftMarker(businessId, generatedImageContentId);
       router.push(`/business/${businessId}/content-scheduler?selectedDate=${date}`);
     } catch (error) {
       showToast("error", error);

@@ -4,6 +4,7 @@ import { createContext, useContext, useState } from "react";
 import { ContentLibrary } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-library";
 import { TabNavigation } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/tab-navigation";
 import { ContentSchedulerBoard } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-scheduler-board";
+import { FailedGenerationHistory } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/failed-generation-history";
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { PlatformModal } from "../knowledge-base/(components)/platform-modal";
 import { useTranslations } from "next-intl";
@@ -30,6 +31,7 @@ function ContentSchedulerInner() {
         return (
           <div className="h-full">
             <div className="grid grid-cols-1 gap-4 sm:gap-6 h-full">
+              <FailedGenerationHistory />
               <div className="h-full">
                 <ContentLibrary
                   showAddtoQueue={false}
