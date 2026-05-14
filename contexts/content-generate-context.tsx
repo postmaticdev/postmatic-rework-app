@@ -449,7 +449,7 @@ export const ContentGenerateProvider = ({
       setFormBasic(prev => ({
         ...prev,
         model: defaultModel.name,
-        ratio: (defaultModel.validRatios[0] || prev.ratio || "1:1") as ValidRatio,
+        ratio: (defaultModel.validRatios?.[0] || prev.ratio || "1:1") as ValidRatio,
         imageSize: defaultModel.imageSizes?.[0] || null,
       }));
     }
@@ -520,7 +520,7 @@ export const ContentGenerateProvider = ({
       form.setBasic({
         ...initialFormBasic,
         model: defaultModel?.name || initialFormBasic.model,
-        ratio: (defaultModel?.validRatios[0] ||
+          ratio: (defaultModel?.validRatios?.[0] ||
           initialFormBasic.ratio) as ValidRatio,
         imageSize: defaultModel?.imageSizes?.[0] || null,
       });
@@ -1192,7 +1192,7 @@ export const ContentGenerateProvider = ({
     setFormBasic((prev) => ({
       ...prev,
       model: model.name,
-      ratio: (model.validRatios[0] || "1:1") as ValidRatio, // Set to first valid ratio
+      ratio: (model.validRatios?.[0] || "1:1") as ValidRatio, // Set to first valid ratio
       imageSize: model.imageSizes?.[0] || null,
     }));
   };

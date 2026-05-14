@@ -16,6 +16,16 @@ const colorToneSchemaWithMsg = (msg: string) =>
       .regex(/^[0-9A-F]{6}$/, { message: msg }) // pastikan 6 hex
   );
 
+const optionalUrlSchema = (maxMessage: string, invalidMessage: string) =>
+  z
+    .string()
+    .trim()
+    .max(200, maxMessage)
+    .refine(
+      (value) => !value || z.string().url().safeParse(value).success,
+      invalidMessage
+    );
+
 // Function to create business knowledge schema with i18n messages
 export const createBusinessKnowledgeSchema = (messages: {
   zodLogoBrand: string;
@@ -39,10 +49,15 @@ export const createBusinessKnowledgeSchema = (messages: {
     .min(1, messages.zodDescription)
     .max(1000, messages.zodMaxLengthDescription),
   visionMission: z.string(),
-  website: z
+  website: optionalUrlSchema(
+    "Website harus kurang dari 200 karakter",
+    "Website harus berupa URL valid"
+  ),
+  businessPhone: z
     .string()
     .min(1, messages.zodPhone)
     .max(50, messages.zodMaxLengthPhone),
+  countryCode: z.string().min(1, "Harap pilih kode negara"),
   uniqueSellingPoint: z.string(),
   location: z.string(),
   colorTone: colorToneSchemaWithMsg(messages.zodColorTone),
@@ -61,10 +76,15 @@ export const businessKnowledgeSchema = z.object({
     .min(1, "Harap masukkan deskripsi bisnis")
     .max(1000, "Deskripsi bisnis harus kurang dari 1000 karakter"),
   visionMission: z.string(),
-  website: z
+  website: optionalUrlSchema(
+    "Website harus kurang dari 200 karakter",
+    "Website harus berupa URL valid"
+  ),
+  businessPhone: z
     .string()
     .min(1, "Harap masukkan nomor telepon bisnis")
     .max(50, "Nomor telepon bisnis harus kurang dari 50 karakter"),
+  countryCode: z.string().min(1, "Harap pilih kode negara"),
   uniqueSellingPoint: z.string(),
   location: z.string(),
   colorTone: z.preprocess(

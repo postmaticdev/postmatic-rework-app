@@ -4,7 +4,7 @@
 
    ▲ Next.js 15.5.2 (Turbopack)
    - Local:        http://localhost:3000
-   - Network:      http://192.168.18.187:3000
+   - Network:      http://192.168.18.14:3000
    - Environments: .env.local
 
  ✓ Starting...
@@ -12,51 +12,415 @@ Creating turbopack project {
   dir: 'C:\\Users\\lphai\\Documents\\postmatic-rework',
   testMode: true
 }
- ✓ Compiled middleware in 175ms
- ✓ Ready in 2.1s
+ ✓ Compiled middleware in 124ms
+ ✓ Ready in 1185ms
  ○ Compiling /[locale]/business/[businessId]/content-scheduler ...
- ✓ Compiled /[locale]/business/[businessId]/content-scheduler in 16.9s
- GET /id/business/2/content-scheduler 200 in 18869ms
- GET /id/business/2/content-scheduler 200 in 774ms
- GET /id/business/2/content-scheduler 200 in 501ms
- GET /id/business/2/content-scheduler 200 in 495ms
- GET /id/business/2/content-scheduler 200 in 1005ms
- GET /id/business/2/content-scheduler 200 in 682ms
- ○ Compiling /api/backend/[...path] ...
- ✓ Compiled /api/backend/[...path] in 1030ms
- GET /api/backend/content/scheduler/timezone/2 404 in 6958ms
- GET /api/backend/business/connected-platform/2 404 in 7324ms
- GET /api/backend/library/time 404 in 7373ms
- GET /api/backend/content/overview/upcoming-count/2?dateStart=2026-05-01&dateEnd=2026-05-31 404 in 7235ms
- GET /api/backend/content/scheduler/auto-generate/2 404 in 7374ms
- GET /api/backend/generative-token/image-token/2/status 200 in 7411ms
- GET /api/backend/content/overview/posted-count/2?dateStart=2026-05-01&dateEnd=2026-05-31 404 in 1420ms
- GET /api/backend/content/overview/upcoming-posts/2?dateStart=2026-05-01&dateEnd=2026-05-31 404 in 1657ms
- GET /api/backend/business/role/2 500 in 1664ms
- GET /api/backend/business/product/2?limit=100&sortBy=name&sort=asc 200 in 1675ms
- GET /api/backend/content/image/job/2 404 in 1685ms
- GET /api/backend/business/knowledge/2 500 in 1691ms
- GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fcontent-scheduler 404 in 1684ms
- GET /api/backend/business/information/2 500 in 1894ms
- GET /api/backend/content/scheduler/auto/2 404 in 1907ms
- GET /api/backend/content/scheduler/auto-generate/2/histories?sortBy=createdAt&limit=10&page=1&sort=desc 404 in 1915ms
- GET /api/backend/business/connected-platform/2 404 in 1924ms
- ○ Compiling /[locale]/business/[businessId]/content-generate ...
- ✓ Compiled /[locale]/business/[businessId]/content-generate in 2.8s
- GET /id/business/2/content-generate?scheduleDate=2026-05-14 200 in 3832ms
- GET /api/backend/library/template/category/product 404 in 1290ms
- GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fcontent-generate 404 in 1297ms
- GET /api/backend/business/information/2 500 in 1317ms
- GET /api/backend/business/connected-platform/2 404 in 1385ms
- ○ Compiling /[locale]/business/new-business ...
- ✓ Compiled /[locale]/business/new-business in 2.5s
- GET /id/business/new-business 200 in 3700ms
- ○ Compiling /[locale]/business/new-business/website ...
- ✓ Compiled /[locale]/business/new-business/website in 2.1s
- GET /id/business/new-business/website 200 in 3830ms
- ○ Compiling /[locale]/business/new-business/manual ...
- ✓ Compiled /[locale]/business/new-business/manual in 3.5s
- GET /id/business/new-business/manual 200 in 5318ms
- POST /api/backend/app/image-uploader/upload-single-image 200 in 3059ms
- POST /api/backend/app/image-uploader/upload-single-image 200 in 1901ms
- POST /api/backend/business/information 400 in 748ms
+ ✓ Compiled /[locale]/business/[businessId]/content-scheduler in 4.7s
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/content-scheduler 200 in 5929ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 676ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 1063ms
+ ✓ Compiled /api/backend/[...path] in 432ms
+ GET /api/backend/business/timezone-pref/2 200 in 1872ms
+ GET /api/backend/app/timezone 200 in 1882ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 1900ms
+ GET /api/backend/business/information?limit=10 200 in 1927ms
+ GET /api/backend/account/profile 200 in 1951ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 1937ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 853ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 1189ms
+ GET /api/backend/business/connected-platform/2 200 in 1201ms
+ GET /api/backend/business/knowledge/2 200 in 1184ms
+ GET /api/backend/business/product/2?limit=100&sortBy=name&sort=asc 200 in 1192ms
+ GET /api/backend/generative-content/image-post/2?page=1&limit=100 200 in 1203ms
+ GET /api/backend/business/role/2 200 in 523ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 574ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fcontent-scheduler 200 in 605ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 609ms
+ GET /api/backend/business/information/2 200 in 614ms
+ GET /api/backend/generative-content/image-post/2?sortBy=createdAt&limit=10&page=1&sort=desc 200 in 621ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 419ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 350ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 433ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 350ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 391ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 392ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 397ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 364ms
+ ○ Compiling /[locale]/business/[businessId]/knowledge-base ...
+ ✓ Compiled /[locale]/business/[businessId]/knowledge-base in 1298ms
+ GET /id/business/2/knowledge-base 200 in 1950ms
+ GET /api/backend/library/rss/category 404 in 820ms
+ GET /api/backend/business/product/2?search= 200 in 1143ms
+ GET /api/backend/library/rss/data?sortBy=title&sort=asc&category= 404 in 1135ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 1138ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 1145ms
+ ✓ Compiled in 417ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 1018ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 598ms
+ GET /api/backend/account/profile 200 in 951ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 980ms
+ GET /api/backend/business/knowledge/2 200 in 983ms
+ GET /api/backend/business/role/2 200 in 992ms
+ GET /api/backend/business/information?limit=10 200 in 1010ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 1019ms
+ GET /api/backend/business/information/2 200 in 593ms
+ GET /api/backend/app/rss/category 200 in 645ms
+ GET /api/backend/business/connected-platform/2 200 in 653ms
+ GET /api/backend/business/product/2?search= 200 in 656ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 634ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 640ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 440ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 390ms
+ ✓ Compiled in 267ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 829ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 371ms
+ GET /api/backend/account/profile 200 in 659ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 656ms
+ GET /api/backend/business/knowledge/2 200 in 649ms
+ GET /api/backend/business/role/2 200 in 655ms
+ GET /api/backend/business/information?limit=10 200 in 683ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 685ms
+ GET /api/backend/business/information/2 200 in 603ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 601ms
+ GET /api/backend/business/connected-platform/2 200 in 618ms
+ GET /api/backend/app/rss/category 200 in 624ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 612ms
+ GET /api/backend/business/product/2?search= 200 in 635ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 387ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 416ms
+ ✓ Compiled in 257ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 823ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 394ms
+ GET /api/backend/account/profile 200 in 737ms
+ GET /api/backend/business/information?limit=10 200 in 740ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 743ms
+ GET /api/backend/business/knowledge/2 200 in 747ms
+ GET /api/backend/business/role/2 200 in 753ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 760ms
+ GET /api/backend/business/information/2 200 in 738ms
+ GET /api/backend/business/product/2?search= 200 in 959ms
+ GET /api/backend/business/connected-platform/2 200 in 984ms
+ GET /api/backend/app/rss/category 200 in 957ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 959ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 973ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 381ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 368ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 502ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 458ms
+ GET /api/backend/account/profile 200 in 768ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 769ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 788ms
+ GET /api/backend/business/role/2 200 in 810ms
+ GET /api/backend/business/information?limit=10 200 in 821ms
+ GET /api/backend/business/knowledge/2 200 in 741ms
+ GET /api/backend/business/information/2 200 in 695ms
+ GET /api/backend/business/connected-platform/2 200 in 731ms
+ GET /api/backend/business/product/2?search= 200 in 713ms
+ GET /api/backend/app/rss/category 200 in 669ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 678ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 684ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 578ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 580ms
+ ✓ Compiled in 308ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 1265ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 403ms
+ GET /api/backend/account/profile 200 in 1197ms
+ GET /api/backend/business/knowledge/2 200 in 1606ms
+ GET /api/backend/business/role/2 200 in 1610ms
+ GET /api/backend/business/information?limit=10 200 in 1623ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 1628ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 1632ms
+ GET /api/backend/business/information/2 200 in 633ms
+ GET /api/backend/business/product/2?search= 200 in 641ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 654ms
+ GET /api/backend/app/rss/category 200 in 659ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 666ms
+ GET /api/backend/business/connected-platform/2 200 in 670ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 475ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 469ms
+ ✓ Compiled in 276ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 759ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 430ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 639ms
+ GET /api/backend/business/information?limit=10 200 in 656ms
+ GET /api/backend/account/profile 200 in 667ms
+ GET /api/backend/business/knowledge/2 200 in 662ms
+ GET /api/backend/business/role/2 200 in 671ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 677ms
+ GET /api/backend/business/information/2 200 in 619ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 769ms
+ GET /api/backend/business/product/2?search= 200 in 777ms
+ GET /api/backend/business/connected-platform/2 200 in 789ms
+ GET /api/backend/app/rss/category 200 in 808ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 817ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 497ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 494ms
+ ✓ Compiled in 335ms
+ ✓ Compiled in 232ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 854ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 361ms
+ GET /api/backend/account/profile 200 in 757ms
+ GET /api/backend/business/knowledge/2 200 in 803ms
+ GET /api/backend/business/role/2 200 in 807ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 811ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 814ms
+ GET /api/backend/business/information?limit=10 200 in 832ms
+ GET /api/backend/business/information/2 200 in 586ms
+ GET /api/backend/app/rss/category 200 in 592ms
+ GET /api/backend/business/product/2?search= 200 in 600ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 610ms
+ GET /api/backend/business/connected-platform/2 200 in 625ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 628ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 453ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 460ms
+ ✓ Compiled in 292ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 847ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 454ms
+ GET /api/backend/business/role/2 200 in 854ms
+ GET /api/backend/account/profile 200 in 877ms
+ GET /api/backend/business/knowledge/2 200 in 868ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 878ms
+ GET /api/backend/business/information?limit=10 200 in 890ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 895ms
+ GET /api/backend/business/information/2 200 in 756ms
+ GET /api/backend/app/rss/category 200 in 752ms
+ GET /api/backend/business/connected-platform/2 200 in 771ms
+ GET /api/backend/business/product/2?search= 200 in 776ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 778ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 788ms
+ ✓ Compiled in 381ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 478ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 484ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 867ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 380ms
+ GET /api/backend/account/profile 200 in 619ms
+ GET /api/backend/business/information?limit=10 200 in 951ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 954ms
+ GET /api/backend/business/knowledge/2 200 in 978ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 982ms
+ GET /api/backend/business/role/2 200 in 986ms
+ GET /api/backend/business/information/2 200 in 728ms
+ GET /api/backend/business/connected-platform/2 200 in 740ms
+ GET /api/backend/app/rss/category 200 in 753ms
+ GET /api/backend/business/product/2?search= 200 in 761ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 768ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 774ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 508ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 522ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id/business/2/knowledge-base 200 in 408ms
+ GET /favicon.ico?favicon.536c3237.ico 200 in 519ms
+ GET /api/backend/account/profile 200 in 662ms
+ GET /api/backend/business/information?limit=10 200 in 870ms
+ GET /api/backend/business/role/2 200 in 872ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 877ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 880ms
+ GET /api/backend/business/knowledge/2 200 in 519ms
+ GET /api/backend/business/information/2 200 in 725ms
+ GET /api/backend/business/connected-platform/2 200 in 733ms
+ GET /api/backend/app/rss/category 200 in 744ms
+ GET /api/backend/business/product/2?search= 200 in 748ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 761ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 765ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 425ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 444ms
+ GET /id/business/2/content-scheduler 200 in 145ms
+ GET /api/backend/business/timezone-pref/2 200 in 767ms
+ GET /api/backend/app/timezone 200 in 891ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 893ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 901ms
+ GET /api/backend/business/product/2?limit=100&sortBy=name&sort=asc 200 in 903ms
+ GET /api/backend/generative-content/image-post/2?page=1&limit=100 200 in 913ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fcontent-scheduler 200 in 486ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 571ms
+ GET /api/backend/generative-content/image-post/2?sortBy=createdAt&limit=10&page=1&sort=desc 200 in 423ms
+ ○ Compiling /[locale]/business/[businessId]/settings ...
+ ✓ Compiled /[locale]/business/[businessId]/settings in 2s
+ GET /id/business/2/settings 200 in 2670ms
+ GET /api/backend/tier/token/analytics/2?page=1&dateStart=2026-05-07 404 in 589ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fsettings 200 in 1138ms
+ GET /api/backend/tier/token/type/2 404 in 1147ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 1150ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 356ms
+ GET /api/backend/business/member/2 200 in 402ms
+ GET /api/backend/payment/2?page=1&limit=10&sort=desc&sortBy=createdAt&category=&search= 200 in 353ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 954ms
+ GET /api/backend/tier/token/type/2 404 in 1184ms
+ GET /api/backend/tier/token/analytics/2?page=1&dateStart=2026-05-07 404 in 1189ms
+ GET /id/business/2/knowledge-base 200 in 185ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 396ms
+ GET /id/business/2/settings 200 in 118ms
+ GET /api/backend/tier/token/type/2 404 in 583ms
+ GET /api/backend/tier/token/analytics/2?page=1&dateStart=2026-05-07 404 in 792ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 795ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 342ms
+ ○ Compiling /[locale] ...
+ ✓ Compiled /[locale] in 874ms
+isChanged calculation: {
+  draftEnabled: false,
+  baseEnabled: false,
+  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
+  isChanged: false
+}
+findMaskGenerated undefined
+ GET /id?postmaticAccessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjIxZGRkZjdhLTUwYWEtNDRiNC04OTAyLTBhNDc4ZmYwZDQ0ZSIsImVtYWlsIjoiZ2h1ZnJvbmFrYmFybUBnbWFpbC5jb20iLCJuYW1lIjoiTGFucyBUaGUgUHJvZGlneSIsImltYWdlVXJsIjpudWxsLCJyb2xlIjoidXNlciIsImV4cCI6MTc3ODg1ODUwMn0.0IpFPw1TDmJk6H622YEnR6_0EwBmoGu4BmkUjLM4WLM 200 in 1661ms
+ ✓ Compiled /api/auth/sync in 295ms
+ POST /api/auth/sync 200 in 637ms
+ GET /api/backend/business/information 200 in 961ms
+ GET /api/backend/business/information?limit=40&sort=asc&sortBy=name 200 in 978ms
+ GET /api/backend/account/profile 200 in 986ms
+ GET /api/backend/business/information?limit=10 200 in 998ms
+ ○ Compiling /[locale]/business ...
+ ✓ Compiled /[locale]/business in 746ms
+ GET /id/business 200 in 1343ms
+ GET /api/backend/business/information?limit=8&page=1 200 in 355ms
+ GET /id/business/1/content-scheduler 200 in 148ms
+ GET /id/business 200 in 870ms
+ GET /api/backend/generative-token/image-token/1/status 200 in 1079ms
+ GET /api/backend/business/timezone-pref/1 200 in 1090ms
+ GET /api/backend/generative-content/image-post-repetition/1 200 in 1061ms
+ GET /api/backend/app/timezone 200 in 1090ms
+ GET /api/backend/business/connected-platform/1 200 in 742ms
+ GET /api/backend/generative-content/image-post-scheduled/1 500 in 605ms
+ GET /api/backend/generative-content/image-post/1?page=1&limit=100 200 in 852ms
+ GET /api/backend/business/knowledge/1 200 in 847ms
+ GET /api/backend/business/role/1 200 in 865ms
+ GET /api/backend/business/product/1?limit=100&sortBy=name&sort=asc 200 in 881ms
+ GET /api/backend/business/connected-platform/1?from=%2Fid%2Fbusiness%2F1%2Fcontent-scheduler 200 in 830ms
+ GET /api/backend/business/information/1 200 in 503ms
+ GET /api/backend/generative-content/image-post-repetition/1 200 in 481ms
+ GET /api/backend/generative-content/image-post-scheduled/1 500 in 486ms
+ GET /id/business/2/content-scheduler 200 in 128ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 878ms
+ GET /api/backend/business/timezone-pref/2 200 in 882ms
+ GET /api/backend/business/connected-platform/2 200 in 887ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 893ms
+ GET /api/backend/business/knowledge/2 200 in 950ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 959ms
+ GET /api/backend/business/role/2 200 in 667ms
+ GET /api/backend/business/information/2 200 in 951ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 954ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fcontent-scheduler 200 in 960ms
+ GET /api/backend/generative-content/image-post-repetition/2 200 in 893ms
+ GET /api/backend/generative-content/image-post/2?sortBy=createdAt&limit=10&page=1&sort=desc 200 in 827ms
+ GET /id/business/2/settings 200 in 175ms
+ GET /api/backend/tier/token/analytics/2?page=1&dateStart=2026-05-07 404 in 646ms
+ GET /api/backend/tier/token/type/2 404 in 651ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 657ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fsettings 200 in 665ms
+ GET /api/backend/generative-content/image-post-scheduled/2 500 in 376ms
+ GET /api/backend/business/member/2 200 in 597ms
+ GET /id/business/2/knowledge-base 200 in 161ms
+ GET /api/backend/app/rss/category 200 in 847ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category= 200 in 841ms
+ GET /api/backend/business/rss-subscription/2?search=&sortBy=title&sort=asc 200 in 834ms
+ GET /api/backend/business/product/2?search= 200 in 867ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fknowledge-base 200 in 781ms
+ POST /api/backend/business/knowledge/2 400 in 417ms
+ POST /api/backend/business/role/2 200 in 476ms
+ GET /api/backend/business/role/2 200 in 383ms
+ PUT /api/backend/business/product/2/2 400 in 408ms
+ POST /api/backend/business/knowledge/2 400 in 491ms
+ POST /api/backend/business/role/2 200 in 511ms
+ GET /api/backend/business/role/2 200 in 406ms
+ POST /api/backend/business/knowledge/2 400 in 464ms
+ POST /api/backend/business/role/2 200 in 479ms
+ GET /api/backend/business/role/2 200 in 412ms
+ POST /api/backend/business/knowledge/2 400 in 452ms
+ POST /api/backend/business/role/2 200 in 474ms
+ GET /api/backend/business/role/2 200 in 370ms
+ POST /api/backend/business/knowledge/2 400 in 435ms
+ POST /api/backend/business/role/2 200 in 469ms
+ GET /api/backend/business/role/2 200 in 373ms
+ GET /api/backend/app/rss?sortBy=title&sort=asc&category=23 200 in 408ms
+ POST /api/backend/business/rss-subscription/2 400 in 340ms
+ POST /api/backend/business/rss-subscription/2 400 in 448ms

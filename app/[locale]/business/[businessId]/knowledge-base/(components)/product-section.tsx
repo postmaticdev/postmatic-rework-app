@@ -34,6 +34,10 @@ import {
   ProductKnowledgeRes,
 } from "@/models/api/knowledge/product.type";
 import { showToast } from "@/helper/show-toast";
+import {
+  getApiValidationErrors,
+  getFirstValidationMessage,
+} from "@/helper/api-validation";
 import { formatPriceWithCurrency } from "@/helper/price-formatter";
 import { NoContent } from "@/components/base/no-content";
 import { SearchNotFound } from "@/components/base/search-not-found";
@@ -50,6 +54,15 @@ const initialProduct: ProductKnowledgePld & { id?: string } = {
   currency: "IDR",
   id: "",
 };
+
+const PRODUCT_VALIDATION_FIELD_MAP = {
+  imageUrls: "images",
+  name: "name",
+  category: "category",
+  description: "description",
+  price: "price",
+  currency: "currency",
+} as const;
 
 export function ProductSection() {
   const { businessId } = useParams() as { businessId: string };
@@ -162,6 +175,19 @@ export function ProductSection() {
         // Validation errors are already set, don't show toast
         return;
       }
+      const apiValidationErrors = getApiValidationErrors(
+        error,
+        PRODUCT_VALIDATION_FIELD_MAP
+      );
+      if (Object.keys(apiValidationErrors).length) {
+        setProductErrors(apiValidationErrors);
+        showToast(
+          "error",
+          getFirstValidationMessage(apiValidationErrors) ||
+            t("errors.formValidation")
+        );
+        return;
+      }
       showToast("error", t("toast.product.saveFailed"));
     }
   };
@@ -227,7 +253,7 @@ export function ProductSection() {
                         <div className="flex items-center gap-2 mb-1">
                           <div className="relative w-16 h-16 sm:w-32  sm:h-32 rounded-lg overflow-hidden flex-shrink-0">
                             <Image
-                              src={product.images[0] || DEFAULT_PRODUCT_IMAGE}
+                              src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                               alt={product.name}
                               fill
                               className="object-cover"

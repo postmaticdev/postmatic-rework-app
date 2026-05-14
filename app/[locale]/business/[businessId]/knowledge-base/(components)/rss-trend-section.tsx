@@ -31,6 +31,10 @@ import { useRouter } from "@/i18n/navigation";
 import { useParams, useSearchParams } from "next/navigation";
 import { AddRssPld, RssRes } from "@/models/api/knowledge/rss.type";
 import { showToast } from "@/helper/show-toast";
+import {
+  getApiValidationErrors,
+  getFirstValidationMessage,
+} from "@/helper/api-validation";
 import { NoContent } from "@/components/base/no-content";
 import { SearchNotFound } from "@/components/base/search-not-found";
 import { getRssSourceImage } from "@/helper/rss-image-helper";
@@ -45,6 +49,13 @@ const initialRSS: AddRssPld & { id?: string } = {
   isActive: true,
   id: "",
 };
+
+const RSS_VALIDATION_FIELD_MAP = {
+  appRssFeedId: "masterRssId",
+  masterRssId: "masterRssId",
+  title: "title",
+  isActive: "isActive",
+} as const;
 
 interface RSSTrendSectionProps {
   openRssModal?: boolean;
@@ -102,7 +113,7 @@ export function RSSTrendSection({
       masterRssId: rss.masterRssId,
       title: rss.title,
       id: rss.id,
-      masterRssCategoryId: rss.masterRss.masterRssCategory.id,
+      masterRssCategoryId: rss.masterRss?.masterRssCategory?.id ?? "",
     });
     setRssErrors({});
     setIsModalOpen(true);
@@ -183,9 +194,21 @@ export function RSSTrendSection({
     } catch (error) {
       if (
         error instanceof Error &&
-        error.message === "Harap perbaiki data yang tidak valid"
+        error.message === e("formValidation")
       ) {
         // Validation errors are already set, don't show toast
+        return;
+      }
+      const apiValidationErrors = getApiValidationErrors(
+        error,
+        RSS_VALIDATION_FIELD_MAP
+      );
+      if (Object.keys(apiValidationErrors).length) {
+        setRssErrors(apiValidationErrors);
+        showToast(
+          "error",
+          getFirstValidationMessage(apiValidationErrors) || e("formValidation")
+        );
         return;
       }
       showToast("error", e("FailedToSaveRSS"));
@@ -371,7 +394,7 @@ export function RSSTrendSection({
           masterRssCategoryId: selectedRSS?.masterRssCategoryId || "",
           masterRssId: selectedRSS?.masterRssId || "",
           title: selectedRSS?.title || "",
-          isActive: selectedRSS?.isActive || true,
+          isActive: selectedRSS?.isActive ?? true,
         }}
         onChange={setSelectedRSS}
         errors={rssErrors}

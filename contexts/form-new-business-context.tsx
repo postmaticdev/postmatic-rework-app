@@ -55,6 +55,8 @@ export function FormNewBusinessProvider({
       description: "",
       visionMission: LEGACY_UNUSED_VALUE,
       website: "",
+      businessPhone: "",
+      countryCode: "+62",
       location: LEGACY_UNUSED_VALUE,
       uniqueSellingPoint: LEGACY_UNUSED_VALUE,
       colorTone: "",

@@ -33,6 +33,42 @@ type NewBusiness = Omit<BusinessDetailRes, "id" | "members" | "userPosition"> & 
   userPosition?: NewBusinessMember;
 };
 
+const sanitizePhone = (phone: string) =>
+  phone.replace(/[^\d]/g, "").replace(/^0+/, "");
+
+const sanitizeCountryCode = (countryCode: string) =>
+  countryCode.replace(/[^\d]/g, "") || "62";
+
+const toCreateBusinessPayload = (formData: BussinessPld) => ({
+  businessKnowledge: {
+    primaryLogoUrl: formData.businessKnowledge.primaryLogo,
+    name: formData.businessKnowledge.name,
+    category: formData.businessKnowledge.category,
+    description: formData.businessKnowledge.description,
+    ...(formData.businessKnowledge.website.trim()
+      ? { websiteUrl: formData.businessKnowledge.website.trim() }
+      : {}),
+    colorTone: formData.businessKnowledge.colorTone,
+    businessPhone: sanitizePhone(formData.businessKnowledge.businessPhone),
+    countryCode: sanitizeCountryCode(formData.businessKnowledge.countryCode),
+  },
+  productKnowledge: {
+    name: formData.productKnowledge.name,
+    category: formData.productKnowledge.category,
+    description: formData.productKnowledge.description,
+    price: Number(formData.productKnowledge.price),
+    currency: formData.productKnowledge.currency,
+    imageUrls: formData.productKnowledge.images,
+  },
+  roleKnowledge: {
+    targetAudience: formData.roleKnowledge.targetAudience,
+    tone: formData.roleKnowledge.tone,
+    hashtags: formData.roleKnowledge.hashtags.map((hashtag) =>
+      hashtag.startsWith("#") ? hashtag : `#${hashtag}`
+    ),
+  },
+});
+
 const toRole = (role?: string): MemberRole => {
   const normalized = role?.toLowerCase();
   if (normalized === "owner") return "Owner";
@@ -95,7 +131,7 @@ const businessService = {
   create: (formData: BussinessPld) => {
     return api.post<BaseResponse<BusinessRes>>(
       `/business/information`,
-      formData
+      toCreateBusinessPayload(formData)
     );
   },
   update: (idData: string, formData: BussinessPld) => {

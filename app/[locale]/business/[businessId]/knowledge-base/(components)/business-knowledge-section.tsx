@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, Phone } from "lucide-react";
+import { Edit, Globe, Phone } from "lucide-react";
 import Image from "next/image";
 import { EditKnowledgeModal } from "./edit-knowledge-modal";
 import { useBusinessGetById } from "@/services/business.api";
@@ -24,11 +24,15 @@ export function BusinessKnowledgeSection() {
   const { businessKnowledge } = access;
   const b = useTranslations("businessKnowledge");
 
-  const phoneNumber = isLegacyUnusedValue(
-    businessKnowledgeData?.data?.data?.website,
-  )
+  const businessKnowledgeDetail = businessKnowledgeData?.data?.data;
+  const phoneNumber = isLegacyUnusedValue(businessKnowledgeDetail?.businessPhone)
     ? b("notAvailable")
-    : businessKnowledgeData?.data?.data?.website;
+    : `${businessKnowledgeDetail?.countryCode || ""} ${
+        businessKnowledgeDetail?.businessPhone
+      }`.trim();
+  const website = isLegacyUnusedValue(businessKnowledgeDetail?.website)
+    ? b("notAvailable")
+    : businessKnowledgeDetail?.website;
 
   return (
     <div className="h-full">
@@ -55,8 +59,8 @@ export function BusinessKnowledgeSection() {
               <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
                 <Image
                   src={
-                    businessKnowledgeData?.data?.data?.primaryLogo ||
-                    businessKnowledgeData?.data?.data?.secondaryLogo ||
+                    businessKnowledgeDetail?.primaryLogo ||
+                    businessKnowledgeDetail?.secondaryLogo ||
                     businessData?.data?.data?.logo ||
                     DEFAULT_BUSINESS_IMAGE
                   }
@@ -69,10 +73,10 @@ export function BusinessKnowledgeSection() {
 
             <div>
               <h3 className="mb-2 font-semibold text-foreground">
-                {businessKnowledgeData?.data?.data?.name || b("notAvailable")}
+                {businessKnowledgeDetail?.name || b("notAvailable")}
               </h3>
               <p className="mb-3 text-sm text-muted-foreground">
-                {businessKnowledgeData?.data?.data?.category}
+                {businessKnowledgeDetail?.category}
               </p>
 
               <div className="mb-3 flex flex-wrap gap-2">
@@ -84,13 +88,20 @@ export function BusinessKnowledgeSection() {
                   <Phone className="mr-1 h-3 w-3 flex-shrink-0" />
                   <span className="truncate">{phoneNumber}</span>
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 max-w-[200px] px-2 text-xs"
+                >
+                  <Globe className="mr-1 h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{website}</span>
+                </Button>
               </div>
             </div>
           </div>
 
           <p className="mb-3 text-sm text-muted-foreground line-clamp-4">
-            {businessKnowledgeData?.data?.data?.description ||
-              b("notAvailable")}
+            {businessKnowledgeDetail?.description || b("notAvailable")}
           </p>
 
           <div className="space-y-4">
@@ -103,7 +114,7 @@ export function BusinessKnowledgeSection() {
                 style={{
                   backgroundColor: `#${
                     (
-                      businessKnowledgeData?.data?.data?.colorTone ?? ""
+                      businessKnowledgeDetail?.colorTone ?? ""
                     ).replace(/^#/, "") || "FFFFFF"
                   }`,
                 }}

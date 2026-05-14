@@ -4,8 +4,11 @@ import { BusinessCategoryDropdown } from "@/components/forms/business-category-d
 import { ColorPickerField } from "@/components/forms/colorpickerfield";
 import { TextField } from "@/components/forms/text-field";
 import { UploadPhoto } from "@/components/forms/upload-photo";
+import { Input } from "@/components/ui/input";
 import { useManageKnowledge } from "@/contexts/manage-knowledge-context";
 import { BusinessKnowledgePld } from "@/models/api/knowledge/business.type";
+import { SearchableCountrySelect } from "@/app/[locale]/profile/(components)/searchable-select-content";
+import countryCodes from "@/lib/country-code.json";
 import { useTranslations } from "next-intl";
 
 export function BusinessKnowledgeForm() {
@@ -27,6 +30,7 @@ export function BusinessKnowledgeForm() {
     brandName: b("brandName"),
     category: b("category"),
     description: b("description"),
+    website: b("website"),
     phone: b("phone"),
     colorTone: b("colorTone"),
   };
@@ -35,6 +39,7 @@ export function BusinessKnowledgeForm() {
     brandName: b("brandNamePlaceholder"),
     category: b("categoryPlaceholder"),
     description: b("descriptionPlaceholder"),
+    website: "https://example.com",
     phone: b("phonePlaceholder"),
   };
 
@@ -86,12 +91,46 @@ export function BusinessKnowledgeForm() {
       />
 
       <TextField
-        label={finalLabels.phone}
+        label={finalLabels.website}
         value={formKnowledge?.business?.website}
         onChange={(value) => updateField("website", value)}
-        placeholder={finalPlaceholders.phone}
+        placeholder={finalPlaceholders.website}
         error={errors.business.website}
       />
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground">
+          {finalLabels.phone}
+        </label>
+        <div className="flex gap-2">
+          <SearchableCountrySelect
+            countries={countryCodes}
+            value={formKnowledge?.business?.countryCode || "+62"}
+            onValueChange={(value) => updateField("countryCode", value)}
+            placeholder="+62"
+            searchPlaceholder="Search country..."
+            className="w-36 bg-background-secondary"
+          />
+          <Input
+            type="number"
+            value={formKnowledge?.business?.businessPhone}
+            onKeyDown={(event) =>
+              ["e", "E", "+", "-"].includes(event.key) &&
+              event.preventDefault()
+            }
+            onChange={(event) => updateField("businessPhone", event.target.value)}
+            placeholder={finalPlaceholders.phone}
+            className={`bg-background-secondary ${
+              errors.business.businessPhone ? "border-red-500" : ""
+            }`}
+          />
+        </div>
+        {(errors.business.countryCode || errors.business.businessPhone) && (
+          <p className="text-sm text-red-500">
+            {errors.business.countryCode || errors.business.businessPhone}
+          </p>
+        )}
+      </div>
 
       {/* <TextField
         label={finalLabels.colorTone}

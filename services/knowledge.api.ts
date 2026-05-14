@@ -11,7 +11,6 @@ import {
 } from "@/models/api/knowledge/business.type";
 import {
   PlatformEnum,
-  PlatformPld,
   PlatformRes,
 } from "@/models/api/knowledge/platform.type";
 import {
@@ -26,20 +25,188 @@ import {
 import { AddRssPld, RssRes } from "@/models/api/knowledge/rss.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+type BackendBusinessKnowledgeRes = BusinessKnowledgeRes & {
+  primaryLogoUrl?: string | null;
+  websiteUrl?: string | null;
+  businessPhone?: string | null;
+  countryCode?: string | null;
+  businessRootId?: string | number;
+};
+
+type BackendProductKnowledgeRes = Omit<ProductKnowledgeRes, "images"> & {
+  id: string | number;
+  businessRootId?: string | number;
+  imageUrls?: string[];
+  images?: string[];
+};
+
+type BackendRssRes = Omit<RssRes, "masterRssId" | "masterRss"> & {
+  id: string | number;
+  appRssId?: string | number;
+  masterRssId?: string | number;
+  businessRootId?: string | number;
+  appRssFeed?: {
+    id: string | number;
+    title: string;
+    publisher?: string;
+    appRssCategory?: {
+      id: string | number;
+      name: string;
+    };
+  };
+  masterRss?: RssRes["masterRss"];
+};
+
+const mapBusinessKnowledge = (
+  business?: Partial<BackendBusinessKnowledgeRes> | null
+): BusinessKnowledgeRes => {
+  const item = business ?? {};
+
+  return {
+    id: String(item.id ?? item.businessRootId ?? ""),
+    primaryLogo: item.primaryLogo ?? item.primaryLogoUrl ?? "",
+    secondaryLogo: item.secondaryLogo ?? "",
+    name: item.name ?? "",
+    category: item.category ?? "",
+    description: item.description ?? "",
+    visionMission: item.visionMission ?? "",
+    website: item.website ?? item.websiteUrl ?? "",
+    websiteUrl: item.websiteUrl ?? "",
+    businessPhone: item.businessPhone ?? "",
+    countryCode: item.countryCode
+      ? item.countryCode.startsWith("+")
+        ? item.countryCode
+        : `+${item.countryCode}`
+      : "+62",
+    location: item.location ?? "",
+    uniqueSellingPoint: item.uniqueSellingPoint ?? "",
+    colorTone: item.colorTone ?? "",
+    rootBusinessId: String(item.rootBusinessId ?? item.businessRootId ?? ""),
+    deletedAt: item.deletedAt ?? null,
+    createdAt: item.createdAt ?? null,
+    updatedAt: item.updatedAt ?? null,
+  };
+};
+
+const sanitizePhone = (phone: string) =>
+  phone.replace(/[^\d]/g, "").replace(/^0+/, "");
+
+const sanitizeCountryCode = (countryCode: string) =>
+  countryCode.replace(/[^\d]/g, "") || "62";
+
+const toBusinessKnowledgePayload = (formData: BusinessKnowledgePld) => ({
+  primaryLogoUrl: formData.primaryLogo,
+  name: formData.name,
+  category: formData.category,
+  description: formData.description,
+  ...(formData.website.trim() ? { websiteUrl: formData.website.trim() } : {}),
+  colorTone: formData.colorTone,
+  businessPhone: sanitizePhone(formData.businessPhone),
+  countryCode: sanitizeCountryCode(formData.countryCode),
+});
+
+const mapProductKnowledge = (
+  product?: Partial<BackendProductKnowledgeRes> | null
+): ProductKnowledgeRes => {
+  const item = product ?? {};
+
+  return {
+    id: String(item.id ?? ""),
+    name: item.name ?? "",
+    category: item.category ?? "",
+    description: item.description ?? "",
+    currency: item.currency ?? "IDR",
+    price: Number(item.price ?? 0),
+    images: item.images ?? item.imageUrls ?? [],
+    rootBusinessId: String(item.rootBusinessId ?? item.businessRootId ?? ""),
+    deletedAt: item.deletedAt ?? "",
+    createdAt: item.createdAt ?? "",
+    updatedAt: item.updatedAt ?? "",
+  };
+};
+
+const toProductKnowledgePayload = (formData: ProductKnowledgePld) => ({
+  name: formData.name,
+  category: formData.category,
+  description: formData.description,
+  currency: formData.currency,
+  imageUrls: formData.images ?? [],
+  price: Number(formData.price),
+});
+
+const toRoleKnowledgePayload = (formData: RoleKnowledgePld) => ({
+  hashtags: formData.hashtags.map((hashtag) =>
+    hashtag.startsWith("#") ? hashtag : `#${hashtag}`
+  ),
+  targetAudience: formData.targetAudience,
+  tone: formData.tone,
+});
+
+const mapRssKnowledge = (rss?: Partial<BackendRssRes> | null): RssRes => {
+  const item = rss ?? {};
+  const feed = item.masterRss ?? {
+    id: String(item.appRssFeed?.id ?? item.appRssId ?? item.masterRssId ?? ""),
+    title: item.appRssFeed?.title ?? "",
+    publisher: item.appRssFeed?.publisher ?? "",
+    masterRssCategory: {
+      id: String(item.appRssFeed?.appRssCategory?.id ?? ""),
+      name: item.appRssFeed?.appRssCategory?.name ?? "",
+    },
+  };
+
+  return {
+    id: String(item.id ?? ""),
+    title: item.title ?? "",
+    isActive: item.isActive ?? true,
+    rootBusinessId: String(item.rootBusinessId ?? item.businessRootId ?? ""),
+    deletedAt: item.deletedAt ?? "",
+    createdAt: item.createdAt ?? "",
+    updatedAt: item.updatedAt ?? "",
+    masterRssId: String(item.masterRssId ?? item.appRssId ?? feed.id ?? ""),
+    masterRss: {
+      ...feed,
+      id: String(feed.id),
+      masterRssCategory: {
+        ...feed.masterRssCategory,
+        id: String(feed.masterRssCategory?.id ?? ""),
+        name: feed.masterRssCategory?.name ?? "",
+      },
+    },
+  };
+};
+
+const toRssPayload = (formData: AddRssPld) => ({
+  title: formData.title,
+  isActive: formData.isActive,
+  appRssFeedId: formData.masterRssId,
+});
+
 // ============================== BUSINESS KNOWLEDGE ==============================
 
 const businessKnowledgeService = {
   getById: (businessId: string) => {
     return api.get<BaseResponse<BusinessKnowledgeRes>>(
       `/business/knowledge/${businessId}`
-    );
+    ).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: mapBusinessKnowledge(res.data.data as BackendBusinessKnowledgeRes),
+      },
+    }));
   },
 
   upsert: (businessId: string, formData: BusinessKnowledgePld) => {
     return api.post<BaseResponse<BusinessKnowledgeRes>>(
       `/business/knowledge/${businessId}`,
-      { ...formData, secondaryLogo: null }
-    );
+      toBusinessKnowledgePayload(formData)
+    ).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: mapBusinessKnowledge(res.data.data as BackendBusinessKnowledgeRes),
+      },
+    }));
   },
 };
 
@@ -84,28 +251,40 @@ const productKnowledgeService = {
     return api.get<BaseResponseFiltered<ProductKnowledgeRes[]>>(
       `/business/product/${businessId}`,
       { params: filterQuery }
-    );
+    ).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: (Array.isArray(res.data.data) ? res.data.data : []).map(
+          mapProductKnowledge
+        ),
+      },
+    }));
   },
 
   create: (businessId: string, formData: ProductKnowledgePld) => {
     return api.post<BaseResponse<ProductKnowledgeRes>>(
       `/business/product/${businessId}`,
-      {
-        ...formData,
-        imageUrls: formData.images,
-        price: Number(formData.price),
-      }
-    );
+      toProductKnowledgePayload(formData)
+    ).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: mapProductKnowledge(res.data.data as BackendProductKnowledgeRes),
+      },
+    }));
   },
   update: (businessId: string, productId: string, formData: ProductKnowledgePld) => {
     return api.put<BaseResponse<ProductKnowledgeRes>>(
       `/business/product/${businessId}/${productId}`,
-      {
-        ...formData,
-        imageUrls: formData.images,
-        price: Number(formData.price),
-      }
-    );
+      toProductKnowledgePayload(formData)
+    ).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: mapProductKnowledge(res.data.data as BackendProductKnowledgeRes),
+      },
+    }));
   },
 
   delete: (businessId: string, productId: string) => {
@@ -207,7 +386,7 @@ const roleKnowledgeService = {
   upsert: (businessId: string, formData: RoleKnowledgePld) => {
     return api.post<BaseResponse<RoleKnowledgeRes>>(
       `/business/role/${businessId}`,
-      { ...formData }
+      toRoleKnowledgePayload(formData)
     );
   },
 };
@@ -250,20 +429,40 @@ const rssKnowledgeService = {
       {
         params: filterQuery,
       }
-    );
+    ).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: (Array.isArray(res.data.data) ? res.data.data : []).map(
+          mapRssKnowledge
+        ),
+      },
+    }));
   },
   create: (businessId: string, formData: AddRssPld) => {
     return api.post<BaseResponse<RssRes>>(
       `/business/rss-subscription/${businessId}`,
-      formData
-    );
+      toRssPayload(formData)
+    ).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: mapRssKnowledge(res.data.data as BackendRssRes),
+      },
+    }));
   },
 
   update: (businessId: string, rssKnId: string, formData: AddRssPld) => {
     return api.put<BaseResponse<RssRes>>(
       `/business/rss-subscription/${businessId}/${rssKnId}`,
-      formData
-    );
+      toRssPayload(formData)
+    ).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: mapRssKnowledge(res.data.data as BackendRssRes),
+      },
+    }));
   },
 
   delete: (businessId: string, rssKnId: string) => {

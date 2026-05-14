@@ -25,9 +25,26 @@ import {
   prepareBusinessKnowledgePayload,
   prepareRoleKnowledgePayload,
 } from "@/helper/knowledge-form";
+import {
+  getApiValidationErrors,
+  getFirstValidationMessage,
+} from "@/helper/api-validation";
 import { showToast } from "@/helper/show-toast";
 import { useBusinessKnowledgeSchema, useRoleKnowledgeSchema } from "@/validator/new-business/schema-with-i18n";
 import { useTranslations } from "next-intl";
+
+const BUSINESS_VALIDATION_FIELD_MAP = {
+  primaryLogoUrl: "primaryLogo",
+  businessPhone: "businessPhone",
+  countryCode: "countryCode",
+  websiteUrl: "website",
+} as const;
+
+const ROLE_VALIDATION_FIELD_MAP = {
+  targetAudience: "targetAudience",
+  tone: "tone",
+  hashtags: "hashtags",
+} as const;
 
 interface EditKnowledgeModalProps {
   isOpen: boolean;
@@ -141,8 +158,27 @@ export function EditKnowledgeModal({
       ]);
       showToast("success", t("toast.business.knowledgeUpdated"));
       onClose();
-    } catch (e) {
-      showToast("error", e);
+    } catch (error) {
+      const businessErrors = getApiValidationErrors(
+        error,
+        BUSINESS_VALIDATION_FIELD_MAP
+      );
+      const roleErrors = getApiValidationErrors(error, ROLE_VALIDATION_FIELD_MAP);
+
+      if (Object.keys(businessErrors).length || Object.keys(roleErrors).length) {
+        setErrors({
+          business: businessErrors,
+          role: roleErrors,
+        });
+        showToast(
+          "error",
+          getFirstValidationMessage({ ...businessErrors, ...roleErrors }) ||
+            t("errors.formValidation")
+        );
+        return;
+      }
+
+      showToast("error", error);
     }
   };
 

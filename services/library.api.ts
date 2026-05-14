@@ -19,6 +19,17 @@ import {
 import { TimezoneRes } from "@/models/api/library/time.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+const mapRssLibrary = (rss: RssLibraryRes): RssLibraryRes => ({
+  ...rss,
+  id: String(rss.id),
+  masterRssCategoryId: String(rss.masterRssCategoryId),
+});
+
+const mapRssCategory = (category: RssCategoryRes): RssCategoryRes => ({
+  ...category,
+  id: String(category.id),
+});
+
 // ============================== LIBRARY ==============================
 
 const libraryService = {
@@ -33,15 +44,33 @@ const libraryService = {
     );
   },
   RSSData: (filterQuery?: Partial<FilterQuery>) => {
-    return api.get<BaseResponse<RssLibraryRes[]>>(`/library/rss/data`, {
+    return api.get<BaseResponse<RssLibraryRes[]>>(`/app/rss`, {
       params: filterQuery,
-    });
+    }).then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: (Array.isArray(res.data.data) ? res.data.data : []).map(
+          mapRssLibrary
+        ),
+      },
+    }));
   },
   RSSCategory: () => {
-    return api.get<BaseResponse<RssCategoryRes[]>>(`/library/rss/category`);
+    return api.get<BaseResponse<RssCategoryRes[]>>(`/app/rss/category`).then(
+      (res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: (Array.isArray(res.data.data) ? res.data.data : []).map(
+            mapRssCategory
+          ),
+        },
+      })
+    );
   },
   time: () => {
-    return api.get<BaseResponse<TimezoneRes[]>>(`/library/time`);
+    return api.get<BaseResponse<TimezoneRes[]>>(`/app/timezone`);
   },
 };
 

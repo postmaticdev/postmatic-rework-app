@@ -79,7 +79,8 @@ export function RSSModal({
   const buttonText = isEditMode ? t("saveButton") : t("addRSS");
 
   const selectedRssUrl =
-    dataLib.find((data) => data.id === formValue.masterRssId)?.url || "";
+    dataLib.find((data) => String(data.id) === String(formValue.masterRssId))
+      ?.url || "";
 
     const placeholders = {
       title: t("feedPlaceholder"),
@@ -142,7 +143,7 @@ export function RSSModal({
                   </SelectTrigger>
                   <SelectContent>
                     {categoryLib.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
+                      <SelectItem key={category.id} value={String(category.id)}>
                         {category.name}
                       </SelectItem>
                     ))}
@@ -168,7 +169,7 @@ export function RSSModal({
                   </SelectTrigger>
                   <SelectContent>
                     {dataLib.map((data) => (
-                      <SelectItem key={data.id} value={data.id}>
+                      <SelectItem key={data.id} value={String(data.id)}>
                         {data.title} ({data.publisher?.toUpperCase()})
                       </SelectItem>
                     ))}

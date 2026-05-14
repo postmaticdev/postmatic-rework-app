@@ -311,7 +311,7 @@ export function AutoGenerateProvider({
       setFormBasic(prev => ({
         ...prev,
         model: defaultModel.name,
-        ratio: (defaultModel.validRatios[0] || prev.ratio || "1:1") as ValidRatio,
+        ratio: (defaultModel.validRatios?.[0] || prev.ratio || "1:1") as ValidRatio,
         imageSize: defaultModel.imageSizes?.[0] || null,
       }));
     }
@@ -616,7 +616,7 @@ export function AutoGenerateProvider({
         ...prev,
         model: model.name,
         // Only change ratio if current ratio is not valid for new model
-        ratio: isValidRatio ? currentRatio : (model.validRatios[0] || "1:1") as ValidRatio,
+        ratio: isValidRatio ? currentRatio : (model.validRatios?.[0] || "1:1") as ValidRatio,
         imageSize: model.imageSizes?.[0] || null,
       };
     });

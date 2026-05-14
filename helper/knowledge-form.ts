@@ -21,6 +21,16 @@ export const normalizeBusinessKnowledge = (
   description: business?.description ?? "",
   visionMission: LEGACY_UNUSED_VALUE,
   website: isLegacyUnusedValue(business?.website) ? "" : business?.website ?? "",
+  businessPhone:
+    "businessPhone" in (business ?? {}) && business?.businessPhone
+      ? business.businessPhone
+      : "",
+  countryCode:
+    "countryCode" in (business ?? {}) && business?.countryCode
+      ? business.countryCode.startsWith("+")
+        ? business.countryCode
+        : `+${business.countryCode}`
+      : "+62",
   location: LEGACY_UNUSED_VALUE,
   uniqueSellingPoint: LEGACY_UNUSED_VALUE,
   colorTone: business?.colorTone ?? "",
@@ -32,7 +42,9 @@ export const normalizeRoleKnowledge = (
   targetAudience: role?.targetAudience ?? "",
   tone: role?.tone ?? "",
   audiencePersona: LEGACY_UNUSED_VALUE,
-  hashtags: Array.isArray(role?.hashtags) ? role.hashtags : [],
+  hashtags: Array.isArray(role?.hashtags)
+    ? role.hashtags.map((hashtag) => hashtag.replace(/^#/, ""))
+    : [],
   callToAction: LEGACY_UNUSED_VALUE,
   goals: LEGACY_UNUSED_VALUE,
 });

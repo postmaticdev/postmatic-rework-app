@@ -33,6 +33,13 @@ export const AutoTemplateCard = ({ item, onDetail }: TemplateCardProps) => {
   const t = useTranslations("templateCard");
   
   const isSelected = selectedTemplate?.id === item.id;
+  const categoryLabel =
+    item.categories?.length === 1
+      ? item.categories[0]
+      : item.categories?.length > 1
+      ? `${item.categories[0]} +${item.categories.length - 1}`
+      : "";
+  const productCategoryLabel = item.productCategories?.join(", ") || "";
   
   return (
     <Card
@@ -56,16 +63,12 @@ export const AutoTemplateCard = ({ item, onDetail }: TemplateCardProps) => {
         </div>
         <div className="absolute top-2 right-2">
           <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">
-            {item.categories && item.categories.length > 0 ? (
-              item.categories.length === 1 
-                ? item.categories[0]
-                : `${item.categories[0]} +${item.categories.length - 1}`
-            ) : ""}
+            {categoryLabel}
           </span>
         </div>
         <div className="absolute bottom-2 right-2">
           <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">
-            {item.productCategories}
+            {productCategoryLabel}
           </span>
         </div>
       </div>
