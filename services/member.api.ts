@@ -5,39 +5,70 @@ import {
   MembersInvitePld,
   MembersInviteRes,
   MembersRes,
+  MemberRole,
+  MemberStatus,
   ResendEmailPld,
 } from "@/models/api/member/index.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+const toApiRole = (role: string) => role.toLowerCase();
+const toUiRole = (role: string): MemberRole => {
+  const normalized = role.toLowerCase();
+  if (normalized === "owner") return "Owner";
+  if (normalized === "admin") return "Admin";
+  return "Member";
+};
+const toUiStatus = (status: string): MemberStatus => {
+  const normalized = status.toLowerCase();
+  if (normalized === "accepted") return "Accepted";
+  if (normalized === "rejected") return "Rejected";
+  if (normalized === "left") return "Left";
+  if (normalized === "kicked") return "Kicked";
+  return "Pending";
+};
+const mapMember = (member: MembersRes & { profile?: { imageUrl?: string | null } }) => ({
+  ...member,
+  id: String(member.id),
+  role: toUiRole(member.role),
+  status: toUiStatus(member.status),
+  profile: {
+    ...member.profile,
+    image: member.profile?.image ?? member.profile?.imageUrl ?? "",
+  },
+});
+
 const memberService = {
   getAllMembers: (businessId: string) => {
-    return api.get<BaseResponse<MembersRes[]>>(
-      `/member/business/${businessId}`
-    );
+    return api
+      .get<BaseResponse<MembersRes[]>>(`/business/member/${businessId}`)
+      .then((res) => {
+        res.data.data = ((res.data.data ?? []) as MembersRes[]).map(mapMember);
+        return res;
+      });
   },
   invite: (businessId: string, formData: MembersInvitePld) => {
     return api.post<BaseResponse<MembersInviteRes>>(
-      `/member/${businessId}`,
-      formData
+      `/business/member/${businessId}`,
+      { ...formData, role: toApiRole(formData.role) }
     );
   },
   resend: (businessId: string, formData: ResendEmailPld) => {
     return api.post<BaseResponse<MembersInviteRes>>(
-      `/member/${businessId}/resend-email-invitation`,
+      `/business/member/${businessId}/resend-invitation`,
       formData
     );
   },
 
   updateRole: (businessId: string, formData: EditRolePld) => {
     return api.put<BaseResponse<MembersInviteRes>>(
-      `/member/${businessId}`,
-      formData
+      `/business/member/${businessId}`,
+      { ...formData, role: toApiRole(formData.role) }
     );
   },
 
-  delete: (idData: string) => {
+  delete: (businessId: string, idData: string) => {
     return api.delete<BaseResponse<MembersInviteRes>>(
-      `/member/${idData}`
+      `/business/member/${businessId}/${idData}`
     );
   },
 };
@@ -112,6 +143,12 @@ export const useMemberDelete = () => {
         queryKey: ["members", data.data.rootBusinessId],
       });
     },
-    mutationFn: (idData: string) => memberService.delete(idData),
+    mutationFn: ({
+      businessId,
+      idData,
+    }: {
+      businessId: string;
+      idData: string;
+    }) => memberService.delete(businessId, idData),
   });
 };

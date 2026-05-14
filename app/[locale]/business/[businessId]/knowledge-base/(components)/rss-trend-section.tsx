@@ -110,7 +110,10 @@ export function RSSTrendSection({
 
   const handleDeleteRSS = async (rss: RssRes) => {
     try {
-      const res = await mRssKnowledgeDelete.mutateAsync(rss.id);
+      const res = await mRssKnowledgeDelete.mutateAsync({
+        businessId,
+        rssKnowledgeId: rss.id,
+      });
       showToast("success", res.data.responseMessage);
       setIsDeleteModalOpen(false);
       setSelectedRSS(initialRSS); // Reset selectedRSS after deletion
@@ -132,6 +135,7 @@ export function RSSTrendSection({
       const findRss = rss.find((r) => r.id === rssKnowledgeId);
       if (findRss) {
         const res = await mRssKnowledgeUpdate.mutateAsync({
+          businessId,
           rssKnId: rssKnowledgeId,
           formData: {
             ...findRss,
@@ -163,6 +167,7 @@ export function RSSTrendSection({
 
       if (item.id) {
         const res = await mRssKnowledgeUpdate.mutateAsync({
+          businessId,
           rssKnId: item.id,
           formData: item,
         });

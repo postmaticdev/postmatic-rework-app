@@ -9,21 +9,36 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const authProfileService = {
   getProfile: () => {
-    return api.get<BaseResponse<ProfileRes>>(`/auth/profile`);
+    return api.get<BaseResponse<ProfileRes>>(`/account/profile`).then((res) => {
+      const profile = res.data.data as ProfileRes & { imageUrl?: string | null };
+      res.data.data = {
+        ...profile,
+        image: profile.image ?? profile.imageUrl ?? null,
+      };
+      return res;
+    });
   },
   updateProfile: (formData: ProfilePld) => {
-    return api.put<BaseResponse<ProfileRes>>("/auth/profile", formData);
+    return api.put<BaseResponse<ProfileRes>>("/account/profile", {
+      countryCode: formData.countryCode,
+      countrycode: formData.countryCode,
+      description: formData.description,
+      imageUrl: formData.image,
+      imageurl: formData.image,
+      name: formData.name,
+      phone: formData.phone,
+    });
   },
-  logout: (refreshToken: string) => {
-    return api.post<BaseResponse<null>>("/auth/profile/session/logout", {
-      refreshToken,
+  logout: (sessionId?: string) => {
+    return api.post<BaseResponse<null>>("/account/session/logout", {
+      sessionId,
     });
   },
   logoutAll: () => {
-    return api.post<BaseResponse<null>>("/auth/profile/session/logout-all");
+    return api.post<BaseResponse<null>>("/account/session/logout-all");
   },
   changePassword: (formData: UpdatePasswordPld) => {
-    return api.patch<BaseResponse<null>>("/auth/profile", formData);
+    return api.put<BaseResponse<null>>("/account/profile/password", formData);
   },
 };
 
@@ -48,8 +63,7 @@ export const useAuthProfileUpdateProfile = () => {
 export const useAuthProfileLogout = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (refreshToken: string) =>
-      authProfileService.logout(refreshToken),
+    mutationFn: (sessionId?: string) => authProfileService.logout(sessionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["authProfile"] });
     },

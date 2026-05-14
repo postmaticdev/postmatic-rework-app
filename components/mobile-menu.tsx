@@ -30,7 +30,6 @@ import {
   ACCESS_TOKEN_KEY,
   DEFAULT_USER_AVATAR,
   LOGIN_URL,
-  REFRESH_TOKEN_KEY,
 } from "@/constants";
 import { useBusinessGetAll } from "@/services/business.api";
 import { showToast } from "@/helper/show-toast";
@@ -119,15 +118,12 @@ export function MobileMenu() {
   
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      if (refreshToken) {
-        await mLogout.mutateAsync(refreshToken);
-      }
+      await mLogout.mutateAsync(undefined);
     } catch {
     } finally {
       showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
       localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
       window.location.href = LOGIN_URL;
     }
   };

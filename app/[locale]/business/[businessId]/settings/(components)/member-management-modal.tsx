@@ -77,7 +77,7 @@ export function MemberManagementModal({
 
   const handleDeleteMember = async (id: string) => {
     try {
-      const res = await mDelete.mutateAsync(id);
+      const res = await mDelete.mutateAsync({ businessId, idData: id });
       showToast("success", res.data.responseMessage);
     } catch {}
   };

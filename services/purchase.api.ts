@@ -13,6 +13,116 @@ import {
 import { UserPurchaseRes } from "@/models/api/purchase/user.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+type NewPaymentAction = {
+  name: string;
+  value: string;
+  valueType: "image" | "link" | "text";
+  method: string;
+};
+
+type NewPaymentCreated = {
+  paymentId: string;
+  status: string;
+  paymentMethod: { code: string; name: string; type: string };
+  expiresAt: string;
+  calculation: {
+    itemPrice: number;
+    discountAmount: number;
+    adminFeeAmount: number;
+    taxAmount: number;
+    totalAmount: number;
+  };
+  tokenAmount: number;
+  actions: NewPaymentAction[];
+};
+
+type NewPaymentHistory = {
+  id: string;
+  productAmount: number;
+  status: string;
+  currency: string;
+  paymentMethod: string;
+  paymentMethodType: string;
+  productName: string;
+  productType: string;
+  productPrice: number;
+  subtotalItemAmount: number;
+  discountAmount: number;
+  adminFeeAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  midtransExpiredAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const titleStatus = (status: string) =>
+  `${status.slice(0, 1).toUpperCase()}${status.slice(1).toLowerCase()}`;
+
+const mapActions = (actions: NewPaymentAction[] = []) =>
+  actions.map((action) => ({
+    action: action.name,
+    value: action.value,
+    type:
+      action.valueType === "link"
+        ? ("redirect" as const)
+        : (action.valueType as "image" | "text"),
+    method: action.method,
+  }));
+
+const mapPaymentDetails = (payment: NewPaymentCreated | NewPaymentHistory) => {
+  if ("calculation" in payment) {
+    return [
+      { name: "Item", price: payment.calculation.itemPrice },
+      { name: "Discount", price: payment.calculation.discountAmount },
+      { name: "Admin", price: payment.calculation.adminFeeAmount },
+      { name: "Tax", price: payment.calculation.taxAmount },
+    ];
+  }
+  return [
+    { name: "Item", price: payment.subtotalItemAmount },
+    { name: "Discount", price: payment.discountAmount },
+    { name: "Admin", price: payment.adminFeeAmount },
+    { name: "Tax", price: payment.taxAmount },
+  ];
+};
+
+const mapCheckout = (payment: NewPaymentCreated): CheckoutRes => ({
+  id: payment.paymentId,
+  midtransId: payment.paymentId,
+  productName: `Image Token x${payment.tokenAmount}`,
+  productType: "token",
+  totalAmount: payment.calculation.totalAmount,
+  method: payment.paymentMethod.code,
+  token: payment.tokenAmount,
+  expiredAt: payment.expiresAt,
+  status: titleStatus(payment.status),
+  appProductSubscriptionItemId: "",
+  appProductTokenId: String(payment.tokenAmount),
+  profileId: "",
+  rootBusinessId: "",
+  deletedAt: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  paymentActions: mapActions(payment.actions),
+  paymentDetails: mapPaymentDetails(payment),
+});
+
+const mapHistory = (payment: NewPaymentHistory): BusinessPurchaseRes => ({
+  id: payment.id,
+  totalAmount: payment.totalAmount,
+  method: payment.paymentMethod,
+  productName: payment.productName,
+  productType: payment.productType,
+  status: titleStatus(payment.status) as BusinessPurchaseRes["status"],
+  expiredAt: payment.midtransExpiredAt ?? undefined,
+  createdAt: payment.createdAt,
+  updatedAt: payment.updatedAt,
+  paymentActions: [],
+  paymentDetails: mapPaymentDetails(payment),
+  profile: { name: "", email: "", members: [] },
+});
+
 // ============================== USER PURCHASE ==============================
 
 const userPurchaseService = {
@@ -45,16 +155,24 @@ export const useUserPurchaseGetDetail = (businessId: string) => {
 export const businessPurchaseService = {
   getHistory: (businessId: string, filterQuery: Partial<FilterQuery>) => {
     return api.get<BaseResponseFiltered<BusinessPurchaseRes[]>>(
-      `/purchase/business/${businessId}`,
+      `/payment/${businessId}/`,
       {
         params: filterQuery,
       }
-    );
+    ).then((res) => {
+      res.data.data = ((res.data.data ?? []) as unknown as NewPaymentHistory[]).map(
+        mapHistory
+      );
+      return res;
+    });
   },
   getDetail: (businessId: string, paymentId: string) => {
     return api.get<BaseResponse<BusinessPurchaseRes>>(
-      `/purchase/business/${businessId}/${paymentId}`
-    );
+      `/payment/${businessId}/${paymentId}`
+    ).then((res) => {
+      res.data.data = mapHistory(res.data.data as unknown as NewPaymentHistory);
+      return res;
+    });
   },
 };
 
@@ -85,15 +203,35 @@ export const useBusinessPurchaseGetDetail = (
 const checkoutPayService = {
   eWallet: (businessId: string, formData: EWalletPld) => {
     return api.post<BaseResponse<CheckoutRes>>(
-      `purchase/checkout/payment/e-wallet/${businessId}`,
-      formData
-    );
+      `/payment/image-token`,
+      {
+        tokenAmount: Number(formData.productId),
+        currencyCode: "IDR",
+        paymentMethod: formData.acquirer,
+        businessRootId: Number(businessId),
+        referralCode: formData.discountCode || undefined,
+      }
+    ).then((res) => {
+      res.data.data = mapCheckout(res.data.data as unknown as NewPaymentCreated);
+      res.data.data.rootBusinessId = businessId;
+      return res;
+    });
   },
   bank: (businessId: string, formData: BankPld) => {
     return api.post<BaseResponse<CheckoutRes>>(
-      `purchase/checkout/payment/bank/${businessId}`,
-      formData
-    );
+      `/payment/image-token`,
+      {
+        tokenAmount: Number(formData.productId),
+        currencyCode: "IDR",
+        paymentMethod: formData.bank,
+        businessRootId: Number(businessId),
+        referralCode: formData.discountCode || undefined,
+      }
+    ).then((res) => {
+      res.data.data = mapCheckout(res.data.data as unknown as NewPaymentCreated);
+      res.data.data.rootBusinessId = businessId;
+      return res;
+    });
   },
 };
 

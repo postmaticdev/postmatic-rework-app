@@ -552,10 +552,11 @@ const aiModelService = {
   },
 };
 
-export const useContentAiModelGetAiModels = () => {
+export const useContentAiModelGetAiModels = (enabled = true) => {
   return useQuery({
     queryKey: ["contentAiModelGetAiModels"],
     queryFn: () => aiModelService.getAiModels(),
+    enabled,
   });
 };
 
@@ -604,11 +605,11 @@ export const jobContentService = {
   },
 };
 
-export const useContentJobGetAllJob = (businessId: string) => {
+export const useContentJobGetAllJob = (businessId: string, enabled = true) => {
   return useQuery({
     queryKey: ["contentJobGetAllJob"],
     queryFn: () => jobContentService.getAllJob(businessId),
-    enabled: !!businessId,
+    enabled: enabled && !!businessId,
   });
 };
 
@@ -740,11 +741,14 @@ const autoGenerateService = {
   },
 };
 
-export const useContentAutoGenerateGetSettings = (businessId: string) => {
+export const useContentAutoGenerateGetSettings = (
+  businessId: string,
+  enabled = true
+) => {
   return useQuery({
     queryKey: ["contentAutoGenerateGetSettings", businessId],
     queryFn: () => autoGenerateService.getSettings(businessId),
-    enabled: !!businessId,
+    enabled: enabled && !!businessId,
   });
 };
 

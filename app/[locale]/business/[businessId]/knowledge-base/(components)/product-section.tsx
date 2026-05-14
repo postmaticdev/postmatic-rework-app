@@ -97,7 +97,10 @@ export function ProductSection() {
     }
 
     try {
-      const res = await mProductDelete.mutateAsync(productToDelete.id);
+      const res = await mProductDelete.mutateAsync({
+        businessId,
+        productId: productToDelete.id,
+      });
       showToast(
         "success",
         res.data.responseMessage || t("toast.product.deleteSuccess")
@@ -138,6 +141,7 @@ export function ProductSection() {
 
       if (productData.id) {
         const res = await mProductUpdate.mutateAsync({
+          businessId,
           productId: productData.id,
           formData: productData,
         });

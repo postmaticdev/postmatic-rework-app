@@ -45,11 +45,11 @@ const libraryService = {
   },
 };
 
-export const useLibraryRSSArticle = (businessId: string) => {
+export const useLibraryRSSArticle = (businessId: string, enabled = true) => {
   return useQuery({
     queryKey: ["libraryRSSArticle"],
     queryFn: () => libraryService.RSSArticle(businessId),
-    enabled: !!businessId,
+    enabled: enabled && !!businessId,
   });
 };
 
@@ -134,39 +134,41 @@ export const useLibraryTemplateSave = () => {
 
 export const useLibraryTemplateGetSaved = (
   businessId: string,
-  filterQuery?: Partial<FilterQuery>
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["libraryTemplateSaved", businessId, filterQuery],
     queryFn: () => templateService.getSaved(businessId, filterQuery),
-    enabled: !!businessId,
+    enabled: enabled && !!businessId,
   });
 };
 
 export const useLibraryTemplateGetPublished = (
   businessId: string,
-  filterQuery?: Partial<FilterQuery>
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["libraryTemplatePublished", businessId, filterQuery],
     queryFn: () => templateService.getPublished(businessId, filterQuery),
-    enabled: !!businessId,
+    enabled: enabled && !!businessId,
   });
 };
 
-export const useLibraryTemplateGetCategory = () => {
+export const useLibraryTemplateGetCategory = (enabled = true) => {
   return useQuery({
     queryKey: ["libraryTemplateCategory"],
     queryFn: () => templateService.getCategory(),
-    enabled: true,
+    enabled,
   });
 };
 
-export const useLibraryTemplateGetProductCategory = () => {
+export const useLibraryTemplateGetProductCategory = (enabled = true) => {
   return useQuery({
     queryKey: ["libraryTemplateProductCategory"],
     queryFn: () => templateService.getProductCategory(),
-    enabled: true,
+    enabled,
   });
 };
 

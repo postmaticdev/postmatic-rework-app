@@ -18,17 +18,19 @@ const templateCategoryService = {
 };
 
 // React Query hooks for template categories
-export const useTemplateImageCategories = () => {
+export const useTemplateImageCategories = (enabled = true) => {
   return useQuery({
     queryKey: ["templateImageCategories"],
     queryFn: () => templateCategoryService.getImageCategories(),
+    enabled,
   });
 };
 
-export const useTemplateProductCategories = () => {
+export const useTemplateProductCategories = (enabled = true) => {
   return useQuery({
     queryKey: ["templateProductCategories"],
     queryFn: () => templateCategoryService.getProductCategories(),
+    enabled,
   });
 };
 

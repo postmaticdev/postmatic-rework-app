@@ -22,15 +22,16 @@ export function SessionLogin() {
   const mLogoutAll = useAuthProfileLogoutAll();
   const t = useTranslations("sessionLogin");
 
-  const handleLogout = async (refreshToken: string) => {
+  const handleLogout = async (sessionId: string) => {
     try {
-      await mLogout.mutateAsync(refreshToken);
+      await mLogout.mutateAsync(sessionId);
     } catch {
     } finally {
       showToast("success", t("toast.auth.logoutSuccess"), t);
       await sleep(1000);
       localStorage.removeItem(ACCESS_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
+      fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
       window.location.href = LOGIN_URL;
     }
   };
@@ -44,6 +45,7 @@ export function SessionLogin() {
       await sleep(1000);
       localStorage.removeItem(ACCESS_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
+      fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
       window.location.href = LOGIN_URL;
     }
   };
@@ -78,7 +80,7 @@ export function SessionLogin() {
                 variant="destructive"
                 size="sm"
                 className="text-white px-6"
-                onClick={() => handleLogout(session.refreshToken)}
+                onClick={() => handleLogout(session.id)}
               >
                 {t("logout")}
               </Button>

@@ -23,7 +23,28 @@ const tokenService = {
     );
   },
   getTokenUsage: (businessId: string) => {
-    return api.get<BaseResponse<TokenUsage>>(`/tier/token/usage/` + businessId);
+    return api
+      .get<
+        BaseResponse<{
+          availableToken: number;
+          usedToken: number;
+          totalToken: number;
+        }>
+      >(`/generative-token/image-token/${businessId}/status`)
+      .then((res) => {
+        const data = res.data.data;
+        (res.data as unknown as BaseResponse<TokenUsage>).data = {
+          availableToken: data.availableToken,
+          totalValidToken: data.totalToken,
+          totalUsedToken: data.usedToken,
+          percentageUsage: data.totalToken
+            ? Math.round((data.usedToken / data.totalToken) * 100)
+            : 0,
+        };
+        return res as unknown as Awaited<
+          ReturnType<typeof api.get<BaseResponse<TokenUsage>>>
+        >;
+      });
   },
 };
 

@@ -16,14 +16,19 @@ const MINUTE = 60_000;
 
 // === Axios instances ===
 export const api: AxiosInstance = axios.create({
-  baseURL: `${NEXT_PUBLIC_API_ORIGIN}/api`,
+  baseURL:
+    typeof window === "undefined"
+      ? `${NEXT_PUBLIC_API_ORIGIN}/api`
+      : "/api/backend",
   timeout: MINUTE * 2,
   headers: { "Content-Type": "application/json" },
 });
 
+const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
+
 // Penting: client khusus refresh (tanpa interceptor auth/401)
 const refreshApi: AxiosInstance = axios.create({
-  baseURL: `${NEXT_PUBLIC_API_ORIGIN}/api`,
+  baseURL: "",
   timeout: MINUTE,
   headers: { "Content-Type": "application/json" },
 });
@@ -46,14 +51,34 @@ function addRefreshSubscriber(callback: ResolveFn) {
 
 // Util: ambil token dari localStorage (di browser)
 function getAccessToken() {
-  return typeof window !== "undefined"
-    ? localStorage.getItem(ACCESS_TOKEN_KEY)
-    : null;
+  if (typeof window === "undefined") return null;
+  return getCookie(ACCESS_TOKEN_KEY) ?? localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 function getRefreshToken() {
   return typeof window !== "undefined"
     ? localStorage.getItem(REFRESH_TOKEN_KEY)
     : null;
+}
+
+function getCookie(name: string) {
+  if (typeof document === "undefined") return null;
+  const value = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${name}=`))
+    ?.split("=")[1];
+  return value ? decodeURIComponent(value) : null;
+}
+
+function setClientCookie(name: string, value: string | null) {
+  if (typeof document === "undefined") return;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  if (!value) {
+    document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+    return;
+  }
+  document.cookie = `${name}=${encodeURIComponent(
+    value
+  )}; Path=/; Max-Age=604800; SameSite=Lax${secure}`;
 }
 
 export function setAuthToken(
@@ -63,10 +88,12 @@ export function setAuthToken(
   if (typeof window === "undefined") return;
   if (accessToken) {
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+    setClientCookie(ACCESS_TOKEN_KEY, accessToken);
+    api.defaults.headers.common[ACCESS_TOKEN_HEADER] = accessToken;
   } else {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
-    delete api.defaults.headers.common["Authorization"];
+    setClientCookie(ACCESS_TOKEN_KEY, null);
+    delete api.defaults.headers.common[ACCESS_TOKEN_HEADER];
   }
   if (refreshToken) {
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
@@ -82,13 +109,13 @@ function hardLogout() {
   }
 }
 
-// === Request interceptor: sisipkan Authorization ===
+// === Request interceptor: sisipkan token header backend baru ===
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getAccessToken();
     if (token) {
       config.headers = config.headers ?? {};
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers[ACCESS_TOKEN_HEADER] = token;
     }
     return config;
   },
@@ -136,7 +163,7 @@ api.interceptors.response.use(
         });
         // set header baru di request yg diulang
         originalConfig.headers = originalConfig.headers ?? {};
-        originalConfig.headers.Authorization = `Bearer ${newToken}`;
+        originalConfig.headers[ACCESS_TOKEN_HEADER] = newToken;
         return api.request(originalConfig);
       }
 
@@ -145,7 +172,7 @@ api.interceptors.response.use(
 
       const refreshResponse = await refreshApi.post<
         BaseResponse<{ accessToken: string; refreshToken: string }>
-      >("/auth/callback/refresh", { refreshToken: rToken });
+      >("/api/auth/refresh", { refreshToken: rToken });
 
       const payload = refreshResponse.data?.data;
       if (!payload?.accessToken || !payload?.refreshToken) {
@@ -161,7 +188,7 @@ api.interceptors.response.use(
 
       // Ulang request awal dengan token baru
       originalConfig.headers = originalConfig.headers ?? {};
-      originalConfig.headers.Authorization = `Bearer ${payload.accessToken}`;
+      originalConfig.headers[ACCESS_TOKEN_HEADER] = payload.accessToken;
 
       return api.request(originalConfig);
     } catch (e) {

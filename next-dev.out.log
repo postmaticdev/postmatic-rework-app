@@ -3,8 +3,8 @@
 > next dev --turbopack
 
    ▲ Next.js 15.5.2 (Turbopack)
-   - Local:        http://localhost:3001
-   - Network:      http://192.168.18.14:3001
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.18.187:3000
    - Environments: .env.local
 
  ✓ Starting...
@@ -12,18 +12,51 @@ Creating turbopack project {
   dir: 'C:\\Users\\lphai\\Documents\\postmatic-rework',
   testMode: true
 }
- ✓ Compiled middleware in 217ms
- ✓ Ready in 1757ms
- ○ Compiling /[locale] ...
- ✓ Compiled /[locale] in 4.4s
-isChanged calculation: {
-  draftEnabled: false,
-  baseEnabled: false,
-  draftSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
-  baseSig: '{"enabled":false,"schedules":{"preference":{"isActive":false},"schedules":[{"day":0,"schedules":[]},{"day":1,"schedules":[]},{"day":2,"schedules":[]},{"day":3,"schedules":[]},{"day":4,"schedules":[]},{"day":5,"schedules":[]},{"day":6,"schedules":[]}]}}',
-  isChanged: false
-}
-findMaskGenerated undefined
- GET /en 200 in 5569ms
- ✓ Compiled /favicon.ico in 342ms
- GET /favicon.ico?favicon.536c3237.ico 200 in 665ms
+ ✓ Compiled middleware in 175ms
+ ✓ Ready in 2.1s
+ ○ Compiling /[locale]/business/[businessId]/content-scheduler ...
+ ✓ Compiled /[locale]/business/[businessId]/content-scheduler in 16.9s
+ GET /id/business/2/content-scheduler 200 in 18869ms
+ GET /id/business/2/content-scheduler 200 in 774ms
+ GET /id/business/2/content-scheduler 200 in 501ms
+ GET /id/business/2/content-scheduler 200 in 495ms
+ GET /id/business/2/content-scheduler 200 in 1005ms
+ GET /id/business/2/content-scheduler 200 in 682ms
+ ○ Compiling /api/backend/[...path] ...
+ ✓ Compiled /api/backend/[...path] in 1030ms
+ GET /api/backend/content/scheduler/timezone/2 404 in 6958ms
+ GET /api/backend/business/connected-platform/2 404 in 7324ms
+ GET /api/backend/library/time 404 in 7373ms
+ GET /api/backend/content/overview/upcoming-count/2?dateStart=2026-05-01&dateEnd=2026-05-31 404 in 7235ms
+ GET /api/backend/content/scheduler/auto-generate/2 404 in 7374ms
+ GET /api/backend/generative-token/image-token/2/status 200 in 7411ms
+ GET /api/backend/content/overview/posted-count/2?dateStart=2026-05-01&dateEnd=2026-05-31 404 in 1420ms
+ GET /api/backend/content/overview/upcoming-posts/2?dateStart=2026-05-01&dateEnd=2026-05-31 404 in 1657ms
+ GET /api/backend/business/role/2 500 in 1664ms
+ GET /api/backend/business/product/2?limit=100&sortBy=name&sort=asc 200 in 1675ms
+ GET /api/backend/content/image/job/2 404 in 1685ms
+ GET /api/backend/business/knowledge/2 500 in 1691ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fcontent-scheduler 404 in 1684ms
+ GET /api/backend/business/information/2 500 in 1894ms
+ GET /api/backend/content/scheduler/auto/2 404 in 1907ms
+ GET /api/backend/content/scheduler/auto-generate/2/histories?sortBy=createdAt&limit=10&page=1&sort=desc 404 in 1915ms
+ GET /api/backend/business/connected-platform/2 404 in 1924ms
+ ○ Compiling /[locale]/business/[businessId]/content-generate ...
+ ✓ Compiled /[locale]/business/[businessId]/content-generate in 2.8s
+ GET /id/business/2/content-generate?scheduleDate=2026-05-14 200 in 3832ms
+ GET /api/backend/library/template/category/product 404 in 1290ms
+ GET /api/backend/business/connected-platform/2?from=%2Fid%2Fbusiness%2F2%2Fcontent-generate 404 in 1297ms
+ GET /api/backend/business/information/2 500 in 1317ms
+ GET /api/backend/business/connected-platform/2 404 in 1385ms
+ ○ Compiling /[locale]/business/new-business ...
+ ✓ Compiled /[locale]/business/new-business in 2.5s
+ GET /id/business/new-business 200 in 3700ms
+ ○ Compiling /[locale]/business/new-business/website ...
+ ✓ Compiled /[locale]/business/new-business/website in 2.1s
+ GET /id/business/new-business/website 200 in 3830ms
+ ○ Compiling /[locale]/business/new-business/manual ...
+ ✓ Compiled /[locale]/business/new-business/manual in 3.5s
+ GET /id/business/new-business/manual 200 in 5318ms
+ POST /api/backend/app/image-uploader/upload-single-image 200 in 3059ms
+ POST /api/backend/app/image-uploader/upload-single-image 200 in 1901ms
+ POST /api/backend/business/information 400 in 748ms

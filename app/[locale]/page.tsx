@@ -34,6 +34,17 @@ const useCheckBusiness = () => {
       localStorage.setItem(REFRESH_TOKEN_KEY, refreshTokenFromParam);
     }
 
+    if (tokenFromParam || refreshTokenFromParam) {
+      fetch("/api/auth/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: tokenFromParam,
+          refreshToken: refreshTokenFromParam,
+        }),
+      }).catch(() => undefined);
+    }
+
     countBusiness()
       .then((totalBusiness) => {
         if (!totalBusiness || totalBusiness === 0) {

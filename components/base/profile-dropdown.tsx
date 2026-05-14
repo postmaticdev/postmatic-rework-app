@@ -24,7 +24,6 @@ import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import {
   ACCESS_TOKEN_KEY,
-  REFRESH_TOKEN_KEY,
   LOGIN_URL,
   DEFAULT_USER_AVATAR,
 } from "@/constants";
@@ -59,15 +58,12 @@ export function ProfileDropdown() {
 
   const handleLogout = async () => {
     try {
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      if (refreshToken) {
-        await mLogout.mutateAsync(refreshToken);
-      }
+      await mLogout.mutateAsync(undefined);
     } catch {
     } finally {
       showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
       localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
       window.location.href = LOGIN_URL;
     }
   };

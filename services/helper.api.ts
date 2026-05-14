@@ -15,8 +15,8 @@ export const helperService = {
       const formData = new FormData();
       formData.append("image", data.image);
 
-      const response = await api.post<BaseResponse<string>>(
-        "/helper/image/single",
+      const response = await api.post<BaseResponse<string | { imageUrl: string }>>(
+        "/app/image-uploader/upload-single-image",
         formData
       );
       
@@ -26,7 +26,9 @@ export const helperService = {
         );
       }
       
-      return response.data.data;
+      return typeof response.data.data === "string"
+        ? response.data.data
+        : response.data.data.imageUrl;
     } catch (error) {
       console.error("Error uploading image:", error);
       throw new Error("Failed to upload image. Please try again.");

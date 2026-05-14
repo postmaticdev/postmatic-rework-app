@@ -31,13 +31,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 const businessKnowledgeService = {
   getById: (businessId: string) => {
     return api.get<BaseResponse<BusinessKnowledgeRes>>(
-      `/knowledge/business/${businessId}`
+      `/business/knowledge/${businessId}`
     );
   },
 
   upsert: (businessId: string, formData: BusinessKnowledgePld) => {
     return api.post<BaseResponse<BusinessKnowledgeRes>>(
-      `/knowledge/business/${businessId}`,
+      `/business/knowledge/${businessId}`,
       { ...formData, secondaryLogo: null }
     );
   },
@@ -82,27 +82,35 @@ const productKnowledgeService = {
   },
   getAll: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     return api.get<BaseResponseFiltered<ProductKnowledgeRes[]>>(
-      `/knowledge/product/${businessId}`,
+      `/business/product/${businessId}`,
       { params: filterQuery }
     );
   },
 
   create: (businessId: string, formData: ProductKnowledgePld) => {
     return api.post<BaseResponse<ProductKnowledgeRes>>(
-      `/knowledge/product/${businessId}`,
-      { ...formData, price: Number(formData.price) }
+      `/business/product/${businessId}`,
+      {
+        ...formData,
+        imageUrls: formData.images,
+        price: Number(formData.price),
+      }
     );
   },
-  update: (productId: string, formData: ProductKnowledgePld) => {
+  update: (businessId: string, productId: string, formData: ProductKnowledgePld) => {
     return api.put<BaseResponse<ProductKnowledgeRes>>(
-      `/knowledge/product/${productId}`,
-      { ...formData, price: Number(formData.price) }
+      `/business/product/${businessId}/${productId}`,
+      {
+        ...formData,
+        imageUrls: formData.images,
+        price: Number(formData.price),
+      }
     );
   },
 
-  delete: (productId: string) => {
+  delete: (businessId: string, productId: string) => {
     return api.delete<BaseResponse<ProductKnowledgeDeleteRes>>(
-      `/knowledge/product/${productId}`
+      `/business/product/${businessId}/${productId}`
     );
   },
 };
@@ -121,12 +129,13 @@ export const useProductKnowledgeGetStatus = (
 
 export const useProductKnowledgeGetAll = (
   businessId: string,
-  filterQuery?: Partial<FilterQuery>
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["productKnowledge", filterQuery],
     queryFn: () => productKnowledgeService.getAll(businessId, filterQuery),
-    enabled: !!businessId,
+    enabled: enabled && !!businessId,
   });
 };
 
@@ -152,12 +161,14 @@ export const useProductKnowledgeUpdate = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
+      businessId,
       productId,
       formData,
     }: {
+      businessId: string;
       productId: string;
       formData: ProductKnowledgePld;
-    }) => productKnowledgeService.update(productId, formData),
+    }) => productKnowledgeService.update(businessId, productId, formData),
     onSuccess: ({}) => {
       queryClient.invalidateQueries({
         queryKey: ["productKnowledge"],
@@ -169,8 +180,13 @@ export const useProductKnowledgeUpdate = () => {
 export const useProductKnowledgeDelete = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (productId: string) =>
-      productKnowledgeService.delete(productId),
+    mutationFn: ({
+      businessId,
+      productId,
+    }: {
+      businessId: string;
+      productId: string;
+    }) => productKnowledgeService.delete(businessId, productId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["productKnowledge"],
@@ -184,13 +200,13 @@ export const useProductKnowledgeDelete = () => {
 const roleKnowledgeService = {
   getById: (businessId: string) => {
     return api.get<BaseResponse<RoleKnowledgeRes>>(
-      `/knowledge/role/${businessId}`
+      `/business/role/${businessId}`
     );
   },
 
   upsert: (businessId: string, formData: RoleKnowledgePld) => {
     return api.post<BaseResponse<RoleKnowledgeRes>>(
-      `/knowledge/role/${businessId}`,
+      `/business/role/${businessId}`,
       { ...formData }
     );
   },
@@ -229,23 +245,31 @@ export const useRoleKnowledgeUpsert = () => {
 
 const rssKnowledgeService = {
   getById: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
-    return api.get<BaseResponse<RssRes[]>>(`/knowledge/rss/${businessId}`, {
-      params: filterQuery,
-    });
+    return api.get<BaseResponse<RssRes[]>>(
+      `/business/rss-subscription/${businessId}`,
+      {
+        params: filterQuery,
+      }
+    );
   },
   create: (businessId: string, formData: AddRssPld) => {
     return api.post<BaseResponse<RssRes>>(
-      `/knowledge/rss/${businessId}`,
+      `/business/rss-subscription/${businessId}`,
       formData
     );
   },
 
-  update: (rssKnId: string, formData: AddRssPld) => {
-    return api.put<BaseResponse<RssRes>>(`/knowledge/rss/${rssKnId}`, formData);
+  update: (businessId: string, rssKnId: string, formData: AddRssPld) => {
+    return api.put<BaseResponse<RssRes>>(
+      `/business/rss-subscription/${businessId}/${rssKnId}`,
+      formData
+    );
   },
 
-  delete: (businessId: string) => {
-    return api.delete<BaseResponse<RssRes>>(`/knowledge/rss/${businessId}`);
+  delete: (businessId: string, rssKnId: string) => {
+    return api.delete<BaseResponse<RssRes>>(
+      `/business/rss-subscription/${businessId}/${rssKnId}`
+    );
   },
 };
 
@@ -285,12 +309,14 @@ export const useRssKnowledgeUpdate = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
+      businessId,
       rssKnId,
       formData,
     }: {
+      businessId: string;
       rssKnId: string;
       formData: AddRssPld;
-    }) => rssKnowledgeService.update(rssKnId, formData),
+    }) => rssKnowledgeService.update(businessId, rssKnId, formData),
     onSuccess: ({}) => {
       queryClient.invalidateQueries({
         queryKey: ["rssKnowledge"],
@@ -305,8 +331,13 @@ export const useRssKnowledgeUpdate = () => {
 export const useRssKnowledgeDelete = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (rssKnowledgeId: string) =>
-      rssKnowledgeService.delete(rssKnowledgeId),
+    mutationFn: ({
+      businessId,
+      rssKnowledgeId,
+    }: {
+      businessId: string;
+      rssKnowledgeId: string;
+    }) => rssKnowledgeService.delete(businessId, rssKnowledgeId),
     onSuccess: ({}) => {
       queryClient.invalidateQueries({
         queryKey: ["rssKnowledge"],
@@ -323,13 +354,13 @@ export const useRssKnowledgeDelete = () => {
 const platformService = {
   getAll: (businessId: string, from?: string) => {
     return api.get<BaseResponse<PlatformRes[]>>(
-      `/knowledge/platform/${businessId}`,
+      `/business/connected-platform/${businessId}`,
       { params: { from } }
     );
   },
   disconnect: (businessId: string, platform: PlatformEnum) => {
     return api.post<BaseResponse<PlatformRes>>(
-      `/knowledge/platform/${businessId}/${platform}`
+      `/business/connected-platform/${businessId}/${platform}`
     );
   },
 };

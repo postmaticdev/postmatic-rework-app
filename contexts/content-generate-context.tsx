@@ -1,6 +1,10 @@
 "use client";
 
-import { ACCESS_TOKEN_KEY } from "@/constants";
+import {
+  ACCESS_TOKEN_KEY,
+  NEXT_PUBLIC_ENABLE_CONTENT_FEATURES,
+  NEXT_PUBLIC_ENABLE_SOCKET,
+} from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { createSocket, destroySocket, getSocket } from "@/lib/socket";
@@ -364,6 +368,8 @@ export const ContentGenerateProvider = ({
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const t = useTranslations();
+  const contentFeaturesEnabled =
+    NEXT_PUBLIC_ENABLE_CONTENT_FEATURES && pathname.includes("content-generate");
   /**
    *
    * LIBRARY HISTORY
@@ -371,9 +377,12 @@ export const ContentGenerateProvider = ({
    */
 
   const { data: historiesRes, refetch: refetchHistories } =
-    useContentJobGetAllJob(businessId);
-  const { data: productCategoriesData } = useLibraryTemplateGetProductCategory();
-  const { data: aiModelsRes, isLoading: isLoadingAiModels } = useContentAiModelGetAiModels();
+    useContentJobGetAllJob(businessId, contentFeaturesEnabled);
+  const { data: productCategoriesData } = useLibraryTemplateGetProductCategory(
+    contentFeaturesEnabled
+  );
+  const { data: aiModelsRes, isLoading: isLoadingAiModels } =
+    useContentAiModelGetAiModels(contentFeaturesEnabled);
 
   const [histories, setHistories] = useState<GetAllJob[]>([]);
   const lastHistoryRouteRefetchKeyRef = useRef<string | null>(null);
@@ -571,7 +580,10 @@ export const ContentGenerateProvider = ({
    * LIBRARY RSS (client-side pagination)
    *
    */
-  const { data: rssArtRes } = useLibraryRSSArticle(businessId);
+  const { data: rssArtRes } = useLibraryRSSArticle(
+    businessId,
+    contentFeaturesEnabled
+  );
 
   // state query (hanya simpan apa yang perlu dari filter/pagination di client)
   const [rssQuery, setRssQuery] = useState<Partial<FilterQuery>>({
@@ -827,7 +839,11 @@ export const ContentGenerateProvider = ({
   }, [publishedQuery]);
   
   const { data: publishedRes, isLoading: isLoadingPublished } =
-    useLibraryTemplateGetPublished(businessId, publishedApiQuery);
+    useLibraryTemplateGetPublished(
+      businessId,
+      publishedApiQuery,
+      contentFeaturesEnabled
+    );
   useEffect(() => {
     if (publishedRes) {
       setPublishedPagination(publishedRes?.data?.pagination);
@@ -942,7 +958,7 @@ export const ContentGenerateProvider = ({
   }, [savedQuery]);
   
   const { data: savedRes, isLoading: isLoadingSaved } =
-    useLibraryTemplateGetSaved(businessId, savedApiQuery);
+    useLibraryTemplateGetSaved(businessId, savedApiQuery, contentFeaturesEnabled);
   useEffect(() => {
     if (savedRes) {
       setSavedPagination(savedRes?.data?.pagination);
@@ -1042,7 +1058,8 @@ export const ContentGenerateProvider = ({
   });
   const { data: productRes } = useProductKnowledgeGetAll(
     businessId,
-    productQuery
+    productQuery,
+    contentFeaturesEnabled
   );
   useEffect(() => {
     if (productRes) {
@@ -1503,6 +1520,11 @@ export const ContentGenerateProvider = ({
 
   /** ===== Socket lifecycle ===== */
   useEffect(() => {
+    if (!NEXT_PUBLIC_ENABLE_SOCKET || !pathname.includes("content-generate")) {
+      setIsConnected(false);
+      return;
+    }
+
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem(ACCESS_TOKEN_KEY)
