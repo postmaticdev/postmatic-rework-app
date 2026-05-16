@@ -1,6 +1,9 @@
 "use client";
 
-import { NEXT_PUBLIC_API_ORIGIN } from "@/constants";
+import {
+  NEXT_PUBLIC_SOCKET_ORIGIN,
+  NEXT_PUBLIC_SOCKET_PATH,
+} from "@/constants";
 import { io, Socket } from "socket.io-client";
 
 type Transport = "websocket" | "polling";
@@ -22,15 +25,17 @@ export function getSocket() {
 export function createSocket(opts: CreateSocketOpts = {}) {
   if (socket && socket.connected) return socket;
 
-  const url = opts.url ?? NEXT_PUBLIC_API_ORIGIN;
+  const url = opts.url ?? NEXT_PUBLIC_SOCKET_ORIGIN;
 
   socket = io(`${url}`, {
     forceNew: true,
     reconnection: true,
-    reconnectionAttempts: Infinity,
+    reconnectionAttempts: 3,
     reconnectionDelay: 500,
     reconnectionDelayMax: 5000,
     timeout: 20000,
+    path: opts.path ?? NEXT_PUBLIC_SOCKET_PATH,
+    transports: opts.transports,
     auth: opts.token ? { token: opts.token } : undefined,
     autoConnect: true,
   });

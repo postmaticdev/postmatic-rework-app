@@ -316,6 +316,7 @@ export function PreviewPanel() {
 
       const formData = {
         generatedImageContentId,
+        imageUrl: selectedImageUrl,
         caption: form.basic.caption || selectedHistory.result.caption || "",
         platforms: connectedSelectedPlatforms,
         dateTime: scheduledAt.toISOString(),

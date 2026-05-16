@@ -115,6 +115,7 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
       queue: {
         ...initialQueueForm,
         generatedImageContentId: item?.generatedImageContent?.id,
+        imageUrl: item?.generatedImageContent?.images?.[0],
         dateTime: item.date,
         date: dateFormat.getDdMmYyyy(new Date(item.date)),
         time: dateFormat.getHhMm(new Date(item.date)),
@@ -193,6 +194,7 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
               ...formDataDraft.queue,
               generatedImageContentId:
                 formDataDraft.queue.generatedImageContentId,
+              imageUrl: formDataDraft.queue.imageUrl,
               caption: formDataDraft.edit.caption,
               dateTime: new Date(
                 formDataDraft.queue.date + "T" + formDataDraft.queue.time

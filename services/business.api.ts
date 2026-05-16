@@ -29,6 +29,14 @@ type NewBusiness = Omit<BusinessDetailRes, "id" | "members" | "userPosition"> & 
   id: string | number;
   primaryLogoUrl?: string | null;
   logo?: string | null;
+  businessKnowledge?: {
+    primaryLogo?: string | null;
+    primaryLogoUrl?: string | null;
+  };
+  knowledge?: {
+    primaryLogo?: string | null;
+    primaryLogoUrl?: string | null;
+  };
   members?: NewBusinessMember[];
   userPosition?: NewBusinessMember;
 };
@@ -92,7 +100,14 @@ const mapBusiness = <T extends BusinessRes | BusinessDetailRes>(
   ({
     ...business,
     id: String(business.id),
-    logo: business.logo ?? business.primaryLogoUrl ?? "",
+    logo:
+      business.logo ??
+      business.primaryLogoUrl ??
+      business.businessKnowledge?.primaryLogoUrl ??
+      business.businessKnowledge?.primaryLogo ??
+      business.knowledge?.primaryLogoUrl ??
+      business.knowledge?.primaryLogo ??
+      "",
     members: business.members?.map(mapMember) ?? [],
     userPosition: business.userPosition
       ? mapMember(business.userPosition)
@@ -104,6 +119,28 @@ const mapBusiness = <T extends BusinessRes | BusinessDetailRes>(
     },
   } as unknown as T);
 
+const businessFingerprint = (business: BusinessRes) =>
+  `${business.name?.trim().toLowerCase() ?? ""}|${
+    business.description?.trim().toLowerCase() ?? ""
+  }`;
+
+const dedupeBusinesses = (businesses: BusinessRes[]) => {
+  const seenIds = new Set<string>();
+  const seenFingerprints = new Set<string>();
+  const result: BusinessRes[] = [];
+
+  businesses.forEach((business) => {
+    const id = String(business.id);
+    const fingerprint = businessFingerprint(business);
+    if (seenIds.has(id) || seenFingerprints.has(fingerprint)) return;
+    seenIds.add(id);
+    if (fingerprint !== "|") seenFingerprints.add(fingerprint);
+    result.push(business);
+  });
+
+  return result;
+};
+
 const businessService = {
   getAll: (filterQuery?: Partial<FilterQuery>) => {
     return api
@@ -111,8 +148,10 @@ const businessService = {
         params: filterQuery,
       })
       .then((res) => {
-        res.data.data = ((res.data.data ?? []) as unknown as NewBusiness[]).map(
-          (business) => mapBusiness<BusinessRes>(business)
+        res.data.data = dedupeBusinesses(
+          ((res.data.data ?? []) as unknown as NewBusiness[]).map((business) =>
+            mapBusiness<BusinessRes>(business)
+          )
         );
         return res;
       });

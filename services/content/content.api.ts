@@ -18,6 +18,10 @@ import {
   PersonalContentPld,
   EnhanceCaptionPld,
   EnhanceCaptionRes,
+  ImagePostChatRes,
+  ImagePostChatSessionRes,
+  SendImageChatMessagePld,
+  SendImageChatMessageRes,
 } from "@/models/api/content/image.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
@@ -66,10 +70,13 @@ type NewRepetitionDay = {
 type NewScheduledPost = {
   id: number;
   businessRootId: number;
+  businessProductId?: number | null;
   publishAt: string;
   status: string;
   caption: string | null;
   imageUrl: string | null;
+  withChatAI?: boolean;
+  chatSessionId?: number | null;
   platforms: string[];
   createdAt: string;
   updatedAt: string;
@@ -106,6 +113,27 @@ type NewBusinessImageContent = {
   imageUrls: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+type NewGenerativeImageModel = {
+  id: number;
+  model: string;
+  label: string;
+  image: string | null;
+  provider: string;
+  isActive: boolean;
+  validRatios: string[];
+  imageSizes: string[] | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type NewImagePostCreateRes = {
+  id: number;
+  status: string;
+  mode: string;
+  numOfImages: number;
+  createdAt: string;
 };
 
 const dayNames = [
@@ -212,13 +240,46 @@ const mapScheduledToQueue = (item: NewScheduledPost): QueueRes => ({
   date: item.publishAt,
   platforms: item.platforms,
   rootBusinessId: String(item.businessRootId),
-  generatedImageContentId: String(item.id),
+  generatedImageContentId: item.imageUrl || String(item.id),
+  imageUrl: item.imageUrl,
+  status: item.status,
+  chatSessionId: item.chatSessionId ?? null,
 });
+
+const mapImagePostStatus = (status: string) => {
+  const normalizedStatus = status.toLowerCase();
+
+  if (normalizedStatus === "success") {
+    return { status: "done" as const, stage: "done" as const, progress: 100 };
+  }
+
+  if (normalizedStatus === "failed" || normalizedStatus === "error") {
+    return { status: "error" as const, stage: "error" as const, progress: 100 };
+  }
+
+  if (normalizedStatus === "pending") {
+    return {
+      status: "processing" as const,
+      stage: "processing" as const,
+      progress: 10,
+    };
+  }
+
+  return { status: "queued" as const, stage: "queued" as const, progress: 0 };
+};
+
+const mapImagePostMode = (mode: string) => {
+  if (mode === "regenerate" || mode === "mask" || mode === "rss") {
+    return mode;
+  }
+
+  return "knowledge";
+};
 
 const mapImagePostToJobGroup = (post: NewImagePost): GetAllJob => {
   const images = post.items.map((item) => item.imageUrl);
   const caption = post.caption?.captionText || "";
-  const status = post.status === "success" ? "done" : post.status === "failed" ? "error" : "queued";
+  const mappedStatus = mapImagePostStatus(post.status);
 
   return {
     productKnowledgeId: String(post.businessProductId),
@@ -228,11 +289,11 @@ const mapImagePostToJobGroup = (post: NewImagePost): GetAllJob => {
     jobs: [
       {
         id: String(post.id),
-        type: "knowledge",
+        type: mapImagePostMode(post.mode),
         rootBusinessId: String(post.businessRootId),
-        status,
-        stage: status,
-        progress: status === "done" ? 100 : 0,
+        status: mappedStatus.status,
+        stage: mappedStatus.stage,
+        progress: mappedStatus.progress,
         createdAt: post.createdAt,
         updatedAt: post.updatedAt,
         input: {
@@ -307,6 +368,62 @@ const toBusinessImagePayload = (
   category: formData.category || "",
   readyToPost: formData.readyToPost ?? false,
 });
+
+const mapAiModel = (model: NewGenerativeImageModel): AiModelRes => ({
+  id: String(model.id),
+  name: model.model,
+  label: model.label,
+  description: model.label,
+  provider: model.provider,
+  image: model.image,
+  isActive: model.isActive,
+  validRatios: Array.isArray(model.validRatios) ? model.validRatios : [],
+  imageSizes: Array.isArray(model.imageSizes) ? model.imageSizes : [],
+});
+
+const mapImagePostCreateToJob = (post: NewImagePostCreateRes): JobRes => ({
+  jobId: String(post.id),
+});
+
+const resolveImageModelId = async (model: string) => {
+  const directId = Number(model);
+  if (Number.isFinite(directId) && directId > 0) return directId;
+
+  const res = await api.get<BaseResponse<NewGenerativeImageModel>>(
+    `/app/generative-image-model/${encodeURIComponent(model)}/model`
+  );
+  return res.data.data.id;
+};
+
+const toImagePostPayload = async (
+  mode: "generate" | "regenerate" | "mask",
+  formData:
+    | GenerateContentKnowledgePld
+    | GenerateContentRssPld
+    | GenerateContentRegeneratePld
+    | GenerateContentMaskPld
+) => {
+  const modelId = await resolveImageModelId(formData.model);
+  const data = formData as GenerateContentKnowledgePld &
+    Partial<GenerateContentRssPld & GenerateContentRegeneratePld & GenerateContentMaskPld>;
+
+  return {
+    mode,
+    ratio: data.ratio,
+    productKnowledgeId: Number(data.productKnowledgeId),
+    appGenerativeImageModelId: modelId,
+    numOfImages: 1,
+    additionalPrompt: data.prompt || "",
+    designStyle: data.designStyle || "",
+    category: data.category || "",
+    referenceImage: data.referenceImage || "",
+    maskImage: data.mask || "",
+    imageSize: data.imageSize || undefined,
+    currentCaption: data.caption || undefined,
+    rss: data.rss || undefined,
+    advanceGenerate: data.advancedGenerate || undefined,
+  };
+};
 
 // ============================== DRAFT ==============================
 
@@ -601,6 +718,93 @@ export const useContentCaptionEnhance = () => {
   });
 };
 
+// ============================== IMAGE POST AI CHAT ==============================
+const imagePostChatService = {
+  getAllChats: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
+    return api.get<BaseResponse<ImagePostChatSessionRes[]>>(
+      `/generative-content/chat/${businessId}`,
+      { params: filterQuery }
+    );
+  },
+  getChatById: (businessId: string, chatSessionId: string | number) => {
+    return api.get<BaseResponse<ImagePostChatRes>>(
+      `/generative-content/chat/${businessId}/${chatSessionId}`
+    );
+  },
+  sendImageMessage: async (
+    businessId: string,
+    chatSessionId: string | number,
+    formData: SendImageChatMessagePld
+  ) => {
+    const modelId = await resolveImageModelId(formData.model);
+
+    return api.post<BaseResponse<SendImageChatMessageRes>>(
+      `/generative-content/chat/${businessId}/${chatSessionId}/send-message-image`,
+      {
+        modelId,
+        additionalImages: formData.additionalImages || [],
+        prompt: formData.prompt,
+        ratio: formData.ratio || undefined,
+        bubbleChatId: formData.bubbleChatId || undefined,
+        rss: formData.rss || undefined,
+      }
+    );
+  },
+};
+
+export const useContentImagePostChatGetAll = (
+  businessId: string,
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["contentImagePostChatGetAll", businessId, filterQuery],
+    queryFn: () => imagePostChatService.getAllChats(businessId, filterQuery),
+    enabled: enabled && !!businessId,
+  });
+};
+
+export const useContentImagePostChatGetById = (
+  businessId: string,
+  chatSessionId?: string | number | null,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["contentImagePostChatGetById", businessId, chatSessionId],
+    queryFn: () =>
+      imagePostChatService.getChatById(businessId, chatSessionId as string | number),
+    enabled: enabled && !!businessId && !!chatSessionId,
+  });
+};
+
+export const useContentImagePostChatSendImageMessage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      businessId,
+      chatSessionId,
+      formData,
+    }: {
+      businessId: string;
+      chatSessionId: string | number;
+      formData: SendImageChatMessagePld;
+    }) =>
+      imagePostChatService.sendImageMessage(
+        businessId,
+        chatSessionId,
+        formData
+      ),
+    onSuccess: (_, { businessId, chatSessionId }) => {
+      queryClient.invalidateQueries({
+        queryKey: ["contentImagePostChatGetById", businessId, chatSessionId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["contentImagePostChatGetAll", businessId],
+      });
+    },
+  });
+};
+
 // ============================== POSTED ==============================
 
 const postedService = {
@@ -809,9 +1013,14 @@ const schedulerManualService = {
       .post<BaseResponse<NewScheduledPost>>(
         `/generative-content/image-post-scheduled/${businessId}`,
         {
-          imageUrl: formData.generatedImageContentId,
+          imageUrl: formData.imageUrl || formData.generatedImageContentId,
           caption: formData.caption,
-          status: "ready",
+          status: formData.status || "ready",
+          withChatAI: formData.withChatAI || undefined,
+          businessProductId: formData.businessProductId
+            ? Number(formData.businessProductId)
+            : undefined,
+          chatSessionId: formData.chatSessionId || undefined,
           platforms: formData.platforms,
           publishAt: formatPublishAt(formData.dateTime),
         }
@@ -830,9 +1039,14 @@ const schedulerManualService = {
       .put<BaseResponse<NewScheduledPost>>(
         `/generative-content/image-post-scheduled/${businessId}/${idScheduler}`,
         {
-          imageUrl: formData.generatedImageContentId,
+          imageUrl: formData.imageUrl || formData.generatedImageContentId,
           caption: formData.caption,
-          status: "ready",
+          status: formData.status || "ready",
+          withChatAI: formData.withChatAI || undefined,
+          businessProductId: formData.businessProductId
+            ? Number(formData.businessProductId)
+            : undefined,
+          chatSessionId: formData.chatSessionId || undefined,
           platforms: formData.platforms,
           publishAt: formatPublishAt(formData.dateTime),
         }
@@ -992,9 +1206,19 @@ export const useContentSchedulerTimezoneUpsertTimezone = () => {
 
 const aiModelService = {
   getAiModels: () => {
-    return api.get<BaseResponse<AiModelRes[]>>(
-      `/content/ai-model/image`
-    );
+    return api
+      .get<BaseResponse<NewGenerativeImageModel[]>>(
+        `/app/generative-image-model`
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: (res.data.data || [])
+            .filter((model) => model.isActive !== false)
+            .map(mapAiModel),
+        },
+      })) as unknown as ReturnType<typeof api.get<BaseResponse<AiModelRes[]>>>;
   },
 };
 
@@ -1020,49 +1244,92 @@ export const jobContentService = {
           ...res.data,
           data: (res.data.data || []).map(mapImagePostToJobGroup),
         },
-      })) as unknown as ReturnType<typeof api.get<BaseResponse<GetAllJob[]>>>;
+      }))
+      .catch((error) => {
+        const status = error?.response?.status ?? error?.status;
+
+        if (status === 404) {
+          return {
+            data: {
+              metaData: { code: 200, message: "OK" },
+              responseMessage: "GET_IMAGE_POST_EMPTY",
+              data: [],
+            },
+          };
+        }
+
+        throw error;
+      }) as unknown as ReturnType<typeof api.get<BaseResponse<GetAllJob[]>>>;
   },
   knowledgeOnJob: (
     businessId: string,
     formData: GenerateContentKnowledgePld
   ) => {
-    return api.post<BaseResponse<JobRes>>(
-      `/content/image/job/${businessId}/generate`,
-      formData
-    );
+    return toImagePostPayload("generate", formData).then((payload) =>
+      api
+        .post<BaseResponse<NewImagePostCreateRes>>(
+          `/generative-content/image-post/${businessId}`,
+          payload
+        )
+        .then((res) => ({
+          ...res,
+          data: { ...res.data, data: mapImagePostCreateToJob(res.data.data) },
+        }))
+    ) as unknown as ReturnType<typeof api.post<BaseResponse<JobRes>>>;
   },
   rssOnJob: (businessId: string, formData: GenerateContentRssPld) => {
-    return api.post<BaseResponse<JobRes>>(
-      `/content/image/job/${businessId}/rss`,
-      formData
-    );
+    return toImagePostPayload("generate", formData).then((payload) =>
+      api
+        .post<BaseResponse<NewImagePostCreateRes>>(
+          `/generative-content/image-post/${businessId}`,
+          payload
+        )
+        .then((res) => ({
+          ...res,
+          data: { ...res.data, data: mapImagePostCreateToJob(res.data.data) },
+        }))
+    ) as unknown as ReturnType<typeof api.post<BaseResponse<JobRes>>>;
   },
   regenerateOnJob: (
     businessId: string,
     formData: GenerateContentRegeneratePld
   ) => {
-    return api.post<BaseResponse<JobRes>>(
-      `/content/image/job/${businessId}/regenerate`,
-      formData
-    );
+    return toImagePostPayload("regenerate", formData).then((payload) =>
+      api
+        .post<BaseResponse<NewImagePostCreateRes>>(
+          `/generative-content/image-post/${businessId}`,
+          payload
+        )
+        .then((res) => ({
+          ...res,
+          data: { ...res.data, data: mapImagePostCreateToJob(res.data.data) },
+        }))
+    ) as unknown as ReturnType<typeof api.post<BaseResponse<JobRes>>>;
   },
 
   maskOnJob: (businessId: string, formData: GenerateContentMaskPld) => {
-    return api.post<BaseResponse<JobRes>>(
-      `/content/image/job/${businessId}/mask`,
-      formData
-    );
+    return toImagePostPayload("mask", formData).then((payload) =>
+      api
+        .post<BaseResponse<NewImagePostCreateRes>>(
+          `/generative-content/image-post/${businessId}`,
+          payload
+        )
+        .then((res) => ({
+          ...res,
+          data: { ...res.data, data: mapImagePostCreateToJob(res.data.data) },
+        }))
+    ) as unknown as ReturnType<typeof api.post<BaseResponse<JobRes>>>;
   },
   deleteHistoryJob: (rootBusinessId: string, jobId: string) => {
     return api.delete<BaseResponse<null>>(
-      `/content/image/job/${rootBusinessId}/${jobId}`
+      `/generative-content/image-post/${rootBusinessId}/${jobId}`
     );
   },
 };
 
 export const useContentJobGetAllJob = (businessId: string, enabled = true) => {
   return useQuery({
-    queryKey: ["contentJobGetAllJob"],
+    queryKey: ["contentJobGetAllJob", businessId],
     queryFn: () => jobContentService.getAllJob(businessId),
     enabled: enabled && !!businessId,
   });

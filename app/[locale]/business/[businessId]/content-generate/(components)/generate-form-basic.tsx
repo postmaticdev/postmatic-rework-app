@@ -168,9 +168,15 @@ export const GenerateFormBasic = () => {
             }
           }}
         >
+          {aiModels.isLoading ? (
+            <option value="">Loading models...</option>
+          ) : null}
+          {!aiModels.isLoading && aiModels.models.length === 0 ? (
+            <option value="">No model available</option>
+          ) : null}
           {aiModels.models.map((model) => (
             <option key={model.name} value={model.name}>
-              {model.description}
+              {model.label || model.description || model.name}
             </option>
           ))}
         </select>
@@ -216,6 +222,9 @@ export const GenerateFormBasic = () => {
             setBasic({ ...basic, ratio: e.target.value as ValidRatio });
           }}
         >
+          {aiModels.validRatios.length === 0 ? (
+            <option value="">No ratio available</option>
+          ) : null}
           {aiModels.validRatios.map((option) => (
             <option key={option} value={option}>
               {option}

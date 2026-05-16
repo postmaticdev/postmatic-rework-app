@@ -54,8 +54,13 @@ payload for queue
 export interface QueuePld {
   platforms: PlatformEnum[];
   generatedImageContentId: string;
+  imageUrl?: string;
   dateTime: string;
   caption: string;
+  status?: "draft" | "ready";
+  withChatAI?: boolean;
+  businessProductId?: string;
+  chatSessionId?: string | number | null;
 }
 
 /*
@@ -98,6 +103,9 @@ export interface QueueRes {
   platforms: string[];
   rootBusinessId: string;
   generatedImageContentId: string;
+  imageUrl?: string | null;
+  status?: string;
+  chatSessionId?: number | null;
 }
 
 /*

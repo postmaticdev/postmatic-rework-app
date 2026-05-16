@@ -19,10 +19,6 @@ import {
 } from "@/models/api/content/image.type";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { RssArticleRes } from "@/models/api/library/rss.type";
-import {
-  PublishedTemplateRes,
-  SavedTemplateRes,
-} from "@/models/api/library/template.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
 import {
   GetAllJob,
@@ -35,7 +31,6 @@ import {
   useContentJobGetAllJob,
   useContentJobKnowledgeOnJob,
   useContentJobMaskOnJob,
-  useContentJobRegenerateOnJob,
   useContentJobRssOnJob,
   useContentAiModelGetAiModels,
 } from "@/services/content/content.api";
@@ -46,7 +41,7 @@ import {
 import {
   useLibraryRSSArticle,
   useLibraryTemplateDeleteSaved,
-  useLibraryTemplateGetPublished,
+  useCreatorImageTemplates,
   useLibraryTemplateGetSaved,
   useLibraryTemplateSave,
   useLibraryTemplateGetProductCategory,
@@ -293,6 +288,78 @@ const initialPagination: Pagination = {
   hasPrevPage: false,
 };
 
+const fallbackRatios = [
+  "1:1",
+  "2:3",
+  "3:2",
+  "3:4",
+  "4:3",
+  "4:5",
+  "5:4",
+  "9:16",
+  "16:9",
+  "21:9",
+];
+
+type CreatorImageCategory = {
+  id: string | number;
+  name: string;
+};
+
+type CreatorImageReference = {
+  id: string | number;
+  name: string;
+  imageUrl: string | null;
+  publisher: {
+    id: string;
+    name: string;
+    image: string | null;
+  } | null;
+  typeCategories?: CreatorImageCategory[];
+  productCategories?: CreatorImageCategory[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+const mapCreatorImageReference = (item: CreatorImageReference): Template => ({
+  id: String(item.id),
+  name: item.name,
+  imageUrl: item.imageUrl || "",
+  categories: item.typeCategories?.map((category) => category.name) || [],
+  productCategories:
+    item.productCategories?.map((category) => category.name) || [],
+  publisher: item.publisher || {
+    id: "",
+    name: "Postmatic",
+    image: null,
+  },
+  createdAt: item.createdAt,
+  updatedAt: item.updatedAt,
+  price: 0,
+  type: "published",
+});
+
+const getBrowserAccessToken = () => {
+  if (typeof window === "undefined") return null;
+
+  const cookieToken = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${ACCESS_TOKEN_KEY}=`))
+    ?.split("=")[1];
+
+  return cookieToken
+    ? decodeURIComponent(cookieToken)
+    : localStorage.getItem(ACCESS_TOKEN_KEY);
+};
+
+const pickDefaultAiModel = (models: AiModelRes[]) =>
+  models.find((model) => model.name === "gemini-3-pro-image-preview") ||
+  models[0] ||
+  null;
+
+const notLoadingJobStatus: JobStatus[] = ["done", "error"];
+const notLoadingJobStages: JobStage[] = ["done", "error"];
+
 function upsertJobIntoHistory(groups: GetAllJob[], incoming: JobData) {
   let jobWasUpdated = false;
   let jobWasInserted = false;
@@ -368,8 +435,18 @@ export const ContentGenerateProvider = ({
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const t = useTranslations();
+  const browserPathname =
+    typeof window !== "undefined" ? window.location.pathname : "";
+  const isContentGenerateRoute =
+    pathname.includes("content-generate") ||
+    browserPathname.includes("content-generate");
   const contentFeaturesEnabled =
-    NEXT_PUBLIC_ENABLE_CONTENT_FEATURES && pathname.includes("content-generate");
+    NEXT_PUBLIC_ENABLE_CONTENT_FEATURES && isContentGenerateRoute;
+  const selectedHistoryRouteId = searchParams.get("selectedHistoryId");
+  const selectedHistoryRouteImage = searchParams.get("selectedHistoryImage");
+  const shouldFetchHistories =
+    contentFeaturesEnabled &&
+    Boolean(selectedHistoryRouteId || selectedHistoryRouteImage);
   /**
    *
    * LIBRARY HISTORY
@@ -377,7 +454,7 @@ export const ContentGenerateProvider = ({
    */
 
   const { data: historiesRes, refetch: refetchHistories } =
-    useContentJobGetAllJob(businessId, contentFeaturesEnabled);
+    useContentJobGetAllJob(businessId, shouldFetchHistories);
   const { data: productCategoriesData } = useLibraryTemplateGetProductCategory(
     contentFeaturesEnabled
   );
@@ -444,12 +521,13 @@ export const ContentGenerateProvider = ({
   // Set default AI model when models are loaded
   useEffect(() => {
     if (aiModelsRes?.data?.data && aiModelsRes.data.data.length > 0 && !selectedAiModel) {
-      const defaultModel = aiModelsRes.data.data[2];
+      const defaultModel = pickDefaultAiModel(aiModelsRes.data.data);
+      if (!defaultModel) return;
       setSelectedAiModel(defaultModel);
       setFormBasic(prev => ({
         ...prev,
         model: defaultModel.name,
-        ratio: (defaultModel.validRatios?.[0] || prev.ratio || "1:1") as ValidRatio,
+        ratio: (defaultModel.validRatios?.[0] || prev.ratio || fallbackRatios[0]) as ValidRatio,
         imageSize: defaultModel.imageSizes?.[0] || null,
       }));
     }
@@ -457,8 +535,12 @@ export const ContentGenerateProvider = ({
 
   // Get valid ratios from selected model
   const validRatios = useMemo(() => {
-    return selectedAiModel?.validRatios || [];
-  }, [selectedAiModel]);
+    const model =
+      selectedAiModel ||
+      pickDefaultAiModel(aiModelsRes?.data?.data || []);
+
+    return model?.validRatios?.length ? model.validRatios : fallbackRatios;
+  }, [aiModelsRes?.data?.data, selectedAiModel]);
 
   const onSelectHistory = useCallback((
     item: JobData | null,
@@ -505,10 +587,7 @@ export const ContentGenerateProvider = ({
       setTab("knowledge");
     } else {
       const defaultModel =
-        aiModelsRes?.data?.data?.find(
-          (model) => model.name === "gemini-3-pro-image-preview"
-        ) ||
-        aiModelsRes?.data?.data?.[0] ||
+        pickDefaultAiModel(aiModelsRes?.data?.data || []) ||
         selectedAiModel;
       if (defaultModel) {
         setSelectedAiModel(defaultModel);
@@ -521,7 +600,8 @@ export const ContentGenerateProvider = ({
         ...initialFormBasic,
         model: defaultModel?.name || initialFormBasic.model,
           ratio: (defaultModel?.validRatios?.[0] ||
-          initialFormBasic.ratio) as ValidRatio,
+          initialFormBasic.ratio ||
+          fallbackRatios[0]) as ValidRatio,
         imageSize: defaultModel?.imageSizes?.[0] || null,
       });
       form.setAdvance(initialFormAdvance);
@@ -804,8 +884,6 @@ export const ContentGenerateProvider = ({
     isLoading: false,
   });
 
-  const notLoadingJobStatus: JobStatus[] = ["done", "error"];
-  const notLoadingJobStages: JobStage[] = ["done", "error"];
   const isLoading =
     loadingState ||
     !notLoadingJobStatus.includes(selectedHistory?.status || "done") ||
@@ -819,8 +897,9 @@ export const ContentGenerateProvider = ({
   const [publishedPagination, setPublishedPagination] =
     useState<Pagination>(initialPagination);
   const [publishedQuery, setPublishedQuery] = useState<Partial<FilterQuery>>({
-    limit: 10,
+    limit: 7,
     page: 1,
+    search: "",
     sortBy: "createdAt",
     sort: "desc",
   });
@@ -839,37 +918,79 @@ export const ContentGenerateProvider = ({
   }, [publishedQuery]);
   
   const { data: publishedRes, isLoading: isLoadingPublished } =
-    useLibraryTemplateGetPublished(
-      businessId,
-      publishedApiQuery,
-      contentFeaturesEnabled
-    );
+    useCreatorImageTemplates(publishedApiQuery, contentFeaturesEnabled);
+  const [publishedFallback, setPublishedFallback] = useState<{
+    contents: Template[];
+    pagination: Pagination | null;
+  }>({
+    contents: [],
+    pagination: null,
+  });
+
   useEffect(() => {
-    if (publishedRes) {
-      setPublishedPagination(publishedRes?.data?.pagination);
+    if (!contentFeaturesEnabled) return;
+
+    const controller = new AbortController();
+    const { productCategory, category, ...rest } = publishedApiQuery;
+    const params = new URLSearchParams();
+
+    Object.entries(rest).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      params.set(key, String(value));
+    });
+    params.set("published", "true");
+    if (productCategory) params.set("category", String(productCategory));
+    if (category) params.set("typeCategoryId", String(category));
+
+    const token = getBrowserAccessToken();
+
+    fetch(`/api/backend/creator/image?${params.toString()}`, {
+      signal: controller.signal,
+      headers: token ? { "X-Postmatic-AccessToken": token } : undefined,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`creator/image ${response.status}`);
+        return response.json();
+      })
+      .then((body) => {
+        if (controller.signal.aborted) return;
+        const rawData = Array.isArray(body?.data) ? body.data : [];
+        setPublishedFallback({
+          contents: rawData.map(mapCreatorImageReference),
+          pagination: body?.pagination || null,
+        });
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.error("Failed to load creator image references", error);
+      });
+
+    return () => controller.abort();
+  }, [contentFeaturesEnabled, publishedApiQuery]);
+
+  useEffect(() => {
+    const publishedResData = publishedRes?.data?.data || [];
+    const fallbackTotal = publishedFallback.contents.length;
+
+    if (!publishedRes && !publishedFallback.pagination && fallbackTotal === 0) {
+      return;
     }
-  }, [publishedRes]);
-  const publishedData: Template[] = (publishedRes?.data.data || []).map(
-    (item) => {
-      
-      return {
-        id: item?.id,
-        name: item?.name,
-        imageUrl: item?.imageUrl,
-        categories: item?.templateImageCategories.map((cat) => cat.name) || [],
-        productCategories: item?.templateProductCategories.map((cat) => cat.indonesianName) || [],
-        price: 0,
-        publisher: item?.publisher || {
-          id: "",
-          name: "Postmatic",
-          image: null,
-        },
-        type: "published",
-        createdAt: item?.createdAt,
-        updatedAt: item?.updatedAt,
-      };
-    }
-  );
+
+    setPublishedPagination(
+      publishedRes?.data?.pagination ||
+        publishedFallback.pagination || {
+          ...initialPagination,
+          limit: Number(publishedQuery.limit) || initialPagination.limit,
+          page: Number(publishedQuery.page) || initialPagination.page,
+          total: publishedResData.length || fallbackTotal,
+          totalPages: publishedResData.length || fallbackTotal ? 1 : 0,
+        }
+    );
+  }, [publishedFallback, publishedQuery.limit, publishedQuery.page, publishedRes]);
+  const publishedData: Template[] =
+    publishedRes?.data.data?.length
+      ? publishedRes.data.data
+      : publishedFallback.contents;
 
   // Client-side filtering by productCategory if server-side filtering is not working
   const allFilteredPublishedData = useMemo(() => {
@@ -1063,13 +1184,9 @@ export const ContentGenerateProvider = ({
   );
   useEffect(() => {
     if (productRes) {
-      setProductPagination(productRes?.data?.pagination);
-      setProductQuery({
-        ...savedQuery,
-        page: savedRes?.data?.pagination?.page,
-      });
+      setProductPagination(productRes?.data?.pagination || initialPagination);
     }
-  }, [savedRes]);
+  }, [productRes]);
   const products = productRes?.data?.data || [];
 
   const productKnowledges: ContentGenerateContext["productKnowledges"] = {
@@ -1204,7 +1321,6 @@ export const ContentGenerateProvider = ({
    */
   const mGenerateKnowledge = useContentJobKnowledgeOnJob();
   const mGenerateRss = useContentJobRssOnJob();
-  const mGenerateRegenerate = useContentJobRegenerateOnJob();
   const mGenerateMask = useContentJobMaskOnJob();
 
   const onSubmitGenerate = async (overrides?: {
@@ -1240,7 +1356,47 @@ export const ContentGenerateProvider = ({
             },
           });
 
-          await afterSubmitGenerate(resKnowledge.data.data.jobId);
+          const knowledgeJobId = resKnowledge.data.data.jobId;
+
+          await afterSubmitGenerate(knowledgeJobId, {
+            id: knowledgeJobId,
+            type: "knowledge",
+            rootBusinessId: businessId,
+            status: "processing",
+            stage: "processing",
+            progress: 10,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            input: {
+              rss: null,
+              ratio: form.basic.ratio,
+              prompt: form.basic.prompt,
+              caption: form.basic.caption,
+              category:
+                form.basic.category === "other"
+                  ? form.basic.customCategory
+                  : form.basic.category,
+              designStyle:
+                form.basic.designStyle === "other"
+                  ? form.basic.customDesignStyle
+                  : form.basic.designStyle || "",
+              referenceImage: form.basic.referenceImage,
+              advancedGenerate: form.advance,
+              productKnowledgeId: form.basic.productKnowledgeId,
+              model: form.basic.model,
+              imageSize: form.basic.imageSize,
+            },
+            error: null,
+            product: {
+              name: form.basic.productName,
+              description: "",
+              category: "",
+              currency: "IDR",
+              price: 0,
+              images: form.basic.productImage ? [form.basic.productImage] : [],
+            },
+            result: null,
+          });
 
           showToast(
             "success",
@@ -1274,7 +1430,47 @@ export const ContentGenerateProvider = ({
             },
           });
 
-          await afterSubmitGenerate(resRss?.data?.data?.jobId);
+          const rssJobId = resRss?.data?.data?.jobId;
+
+          await afterSubmitGenerate(rssJobId, {
+            id: rssJobId,
+            type: "rss",
+            rootBusinessId: businessId,
+            status: "processing",
+            stage: "processing",
+            progress: 10,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            input: {
+              rss: form.rss,
+              ratio: form.basic.ratio,
+              prompt: form.basic.prompt,
+              caption: form.basic.caption,
+              category:
+                form.basic.category === "other"
+                  ? form.basic.customCategory
+                  : form.basic.category,
+              designStyle:
+                form.basic.designStyle === "other"
+                  ? form.basic.customDesignStyle
+                  : form.basic.designStyle || "",
+              referenceImage: form.basic.referenceImage,
+              advancedGenerate: form.advance,
+              productKnowledgeId: form.basic.productKnowledgeId,
+              model: form.basic.model,
+              imageSize: form.basic.imageSize,
+            },
+            error: null,
+            product: {
+              name: form.basic.productName,
+              description: "",
+              category: "",
+              currency: "IDR",
+              price: 0,
+              images: form.basic.productImage ? [form.basic.productImage] : [],
+            },
+            result: null,
+          });
 
           showToast(
             "success",
@@ -1293,7 +1489,7 @@ export const ContentGenerateProvider = ({
             selectedGeneratedImageUrl || selectedHistory.result?.images[0] || "";
           const regeneratePrompt = form.basic.prompt || "";
           const regenerateCaption = form.basic.caption || "";
-          const resRegenerate = await mGenerateRegenerate.mutateAsync({
+          const resRegenerate = await mGenerateKnowledge.mutateAsync({
             businessId,
             formData: {
               productKnowledgeId: selectedHistory.input.productKnowledgeId,
@@ -1307,7 +1503,6 @@ export const ContentGenerateProvider = ({
                   : form.basic.category) || "",
               advancedGenerate: form.advance,
               referenceImage: regenerateReferenceImage,
-              caption: regenerateCaption,
               prompt: regeneratePrompt,
               ratio: form.basic.ratio,
               model: form.basic.model,
@@ -1321,9 +1516,9 @@ export const ContentGenerateProvider = ({
             ...selectedHistory,
             id: regenerateJobId,
             type: "regenerate",
-            status: "queued",
-            stage: "queued",
-            progress: 0,
+            status: "processing",
+            stage: "processing",
+            progress: 10,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             input: {
@@ -1404,6 +1599,8 @@ export const ContentGenerateProvider = ({
       );
       setSelectedJobId(optimisticJob.id);
       setSelectedGeneratedImageUrl(null);
+      setMode("regenerate");
+      setTab("knowledge");
     }
 
     const refetchHistoriesRes = await refetchHistories();
@@ -1416,6 +1613,8 @@ export const ContentGenerateProvider = ({
     if (findJob) {
       setSelectedJobId(findJob.id);
       setSelectedGeneratedImageUrl(findJob.result?.images[0] || null);
+      setMode("regenerate");
+      setTab("knowledge");
       setIsDraftSaved(false); // Reset draft saved state when new content is generated
     } else if (optimisticJob) {
       setHistories((prev) => upsertJobIntoHistory(prev, optimisticJob));
@@ -1583,6 +1782,36 @@ export const ContentGenerateProvider = ({
   const socketEvent: ContentGenerateContext["socketEvent"] = {
     isConnected,
   };
+
+  useEffect(() => {
+    if (!contentFeaturesEnabled || !selectedHistory) return;
+
+    const isFinal =
+      notLoadingJobStatus.includes(selectedHistory.status) &&
+      notLoadingJobStages.includes(selectedHistory.stage);
+    if (isFinal || isConnected) return;
+
+    const intervalId = window.setInterval(async () => {
+      const result = await refetchHistories();
+      const refreshedGroups = result.data?.data?.data || [];
+      const refreshedJob =
+        refreshedGroups
+          .flatMap((group) => group.jobs)
+          .find((job) => job.id === selectedHistory.id) || null;
+
+      if (!refreshedJob) return;
+
+      setHistories((prev) => upsertJobIntoHistory(prev, refreshedJob));
+      setSelectedGeneratedImageUrl(refreshedJob.result?.images?.[0] || null);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    contentFeaturesEnabled,
+    isConnected,
+    refetchHistories,
+    selectedHistory,
+  ]);
 
   const aiModels: ContentGenerateContext["aiModels"] = {
     models: aiModelsRes?.data?.data || [],

@@ -184,6 +184,7 @@ export function ContentLibrary({
       queue: {
         ...initialQueueForm,
         generatedImageContentId: item.id,
+        imageUrl: item.images?.[0],
         dateTime: "",
         date: "",
         time: "",
@@ -280,6 +281,7 @@ export function ContentLibrary({
               ...formDataDraft.queue,
               generatedImageContentId:
                 formDataDraft.queue.generatedImageContentId,
+              imageUrl: formDataDraft.queue.imageUrl,
               dateTime: new Date(
                 formDataDraft.queue.date + " " + formDataDraft.queue.time
               ).toISOString(),

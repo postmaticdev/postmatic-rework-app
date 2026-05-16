@@ -40,10 +40,16 @@ export function GenerationPanel() {
 
   const currentThread = useMemo(() => {
     if (!selectedHistory) return [];
-    const group = histories.find((item) =>
-      item.jobs.some((job) => job.id === selectedHistory.id)
-    );
-    return (group?.jobs || [])
+    const selectedDate = new Date(selectedHistory.createdAt).toDateString();
+
+    return histories
+      .flatMap((item) => item.jobs)
+      .filter(
+        (job) =>
+          job.input.productKnowledgeId ===
+            selectedHistory.input.productKnowledgeId &&
+          new Date(job.createdAt).toDateString() === selectedDate
+      )
       .sort(
         (left, right) =>
           new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()

@@ -45,9 +45,6 @@ export default function ContentGenerate() {
           )}
         >
           <GenerationPanel />
-          {isLoading && (
-            <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-10 pointer-events-auto" />
-          )}
         </div>
 
         <div className="w-full bg-card lg:w-1/3">

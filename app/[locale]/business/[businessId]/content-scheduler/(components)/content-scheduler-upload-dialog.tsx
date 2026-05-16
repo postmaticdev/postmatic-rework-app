@@ -174,6 +174,7 @@ export function ContentSchedulerUploadDialog({
         businessId,
         formData: {
           generatedImageContentId: createdDraft.data.data.id,
+          imageUrl: image,
           caption,
           platforms: selectedPlatforms,
           dateTime: new Date(`${date}T${time}`).toISOString(),

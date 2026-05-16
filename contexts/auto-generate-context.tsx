@@ -373,22 +373,7 @@ export function AutoGenerateProvider({
     }
   }, [publishedRes]);
 
-  const publishedData: Template[] = (publishedRes?.data.data || []).map((item) => ({
-    id: item?.id,
-    name: item?.name,
-    imageUrl: item?.imageUrl,
-    categories: item?.templateImageCategories.map((cat) => cat.name) || [],
-    productCategories: item?.templateProductCategories.map((cat) => cat.indonesianName) || [],
-    price: 0,
-    publisher: item?.publisher || {
-      id: "",
-      name: "Postmatic",
-      image: null,
-    },
-    type: "published",
-    createdAt: item?.createdAt,
-    updatedAt: item?.updatedAt,
-  }));
+  const publishedData: Template[] = publishedRes?.data.data || [];
 
   // Client-side filtering by productCategory
   const allFilteredPublishedData = useMemo(() => {

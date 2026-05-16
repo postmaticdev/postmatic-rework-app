@@ -225,6 +225,57 @@ export interface EnhanceCaptionRes {
 }
 
 /*
+  Image Post AI Chat
+*/
+export interface ImagePostChatSessionRes {
+  id: number;
+  businessRootId: number;
+  imagePostScheduleId: number | null;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImagePostChatBubbleImageRes {
+  id: number;
+  source: string;
+  imageUrl: string;
+}
+
+export interface ImagePostChatBubbleRes {
+  id: number;
+  role: "user" | "system";
+  prompt: string;
+  imageRatio: string | null;
+  replyToBubbleId: number | null;
+  appGenerativeImageModelId: number | null;
+  errorMessage: string | null;
+  images: ImagePostChatBubbleImageRes[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImagePostChatRes {
+  session: ImagePostChatSessionRes;
+  bubbles: ImagePostChatBubbleRes[];
+}
+
+export interface SendImageChatMessagePld {
+  model: string;
+  additionalImages?: string[];
+  prompt: string;
+  ratio?: string;
+  bubbleChatId?: string | number;
+  rss?: GenerateContentRssBase;
+}
+
+export interface SendImageChatMessageRes {
+  userBubble: ImagePostChatBubbleRes;
+  systemBubble: ImagePostChatBubbleRes | null;
+  processState: "queued" | "processing" | "done" | "error" | string;
+}
+
+/*
   Response for Delete Content
 */
 export interface DeleteContentRes {

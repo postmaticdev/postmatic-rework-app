@@ -62,7 +62,7 @@ export function PaginationWithControls({
   currData,
   showSort = true,
 }: PaginationWithControlsProps) {
-  const limitOptions = [5, 10, 20, 50];
+  const limitOptions = [5, 7, 10, 20, 50];
 
   const sort = filterQuery?.productCategory || "all";
 

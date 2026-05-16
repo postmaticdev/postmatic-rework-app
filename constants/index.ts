@@ -6,6 +6,10 @@ export const NEXT_PUBLIC_AUTH_ORIGIN =
   process.env.NEXT_PUBLIC_AUTH_ORIGIN || "https://auth.postmatic.id";
 export const NEXT_PUBLIC_ENABLE_SOCKET =
   process.env.NEXT_PUBLIC_ENABLE_SOCKET === "true";
+export const NEXT_PUBLIC_SOCKET_ORIGIN =
+  process.env.NEXT_PUBLIC_SOCKET_ORIGIN || NEXT_PUBLIC_API_ORIGIN;
+export const NEXT_PUBLIC_SOCKET_PATH =
+  process.env.NEXT_PUBLIC_SOCKET_PATH || "/socket.io";
 export const NEXT_PUBLIC_ENABLE_CONTENT_FEATURES =
   process.env.NEXT_PUBLIC_ENABLE_CONTENT_FEATURES === "true";
 export const DEFAULT_USER_AVATAR = "/user.png";

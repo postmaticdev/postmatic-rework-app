@@ -242,10 +242,35 @@ export const useBusinessKnowledgeUpsert = () => {
 // ============================== PRODUCT KNOWLEDGE ==============================
 
 const productKnowledgeService = {
-  getStatus(businessId: string, productKnowledgeId: string) {
-    return api.get<BaseResponse<AdvancedGenerate>>(
-      `/knowledge/product/${businessId}/${productKnowledgeId}`
-    );
+  getStatus(_businessId: string, _productKnowledgeId: string) {
+    return Promise.resolve({
+      data: {
+        metaData: { code: 200, message: "OK" },
+        responseMessage: "PRODUCT_ADVANCED_FIELDS_LOCAL_DEFAULT",
+        data: {
+          businessKnowledge: {
+            name: true,
+            category: true,
+            description: true,
+            location: false,
+            uniqueSellingPoint: false,
+            visionMission: false,
+            website: true,
+            logo: true,
+            colorTone: true,
+          },
+          productKnowledge: {
+            name: true,
+            category: true,
+            description: true,
+            price: true,
+          },
+          roleKnowledge: {
+            hashtags: true,
+          },
+        },
+      },
+    }) as ReturnType<typeof api.get<BaseResponse<AdvancedGenerate>>>;
   },
   getAll: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     return api.get<BaseResponseFiltered<ProductKnowledgeRes[]>>(

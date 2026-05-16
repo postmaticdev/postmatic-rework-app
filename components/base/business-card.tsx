@@ -20,6 +20,7 @@ import {
   useBusinessDelete,
   useBusinessOutBusiness,
 } from "@/services/business.api";
+import { useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { showToast } from "@/helper/show-toast";
 import { BusinessRes } from "@/models/api/business/index.type";
 import {
@@ -44,6 +45,12 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
   const [leaveOpen, setLeaveOpen] = useState(false); // controlled AlertDialog (Keluar)
   const { id, name, description, logo, members, userPosition } = business;
   const role = userPosition?.role || null;
+  const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(id);
+  const knowledgeLogo =
+    businessKnowledgeData?.data?.data?.primaryLogo ||
+    businessKnowledgeData?.data?.data?.primaryLogoUrl ||
+    "";
+  const businessImage = knowledgeLogo || logo || DEFAULT_BUSINESS_IMAGE;
 
   // ---- NAV GUARD: jangan navigate kalau ada modal/dialog terbuka
   const canNavigate = !(leaveOpen || isDeleteModalOpen);
@@ -112,7 +119,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
           {/* Image Section */}
           <div className="relative aspect-square bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg overflow-hidden">
             <Image
-              src={logo || DEFAULT_BUSINESS_IMAGE}
+              src={businessImage}
               alt="Gambar Bisnis"
               fill
               className="object-cover rounded-xl select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
