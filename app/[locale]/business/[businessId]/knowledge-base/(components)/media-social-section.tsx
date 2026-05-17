@@ -37,7 +37,7 @@ export function MediaSocialSection() {
   return (
     <div className="h-full">
       <Card className="h-full">
-        <CardContent className="pb-6">
+        <CardContent className="flex h-full flex-col pb-6">
           <div className="my-3 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-foreground">
               {b("socialMedia")}
@@ -54,7 +54,7 @@ export function MediaSocialSection() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid flex-1 content-center grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {SOCIAL_MEDIA_PLATFORMS.map((platformId) => {
               const platform = platforms.find(
                 (item) => item.platform === platformId
@@ -71,7 +71,7 @@ export function MediaSocialSection() {
                 >
                   <div
                     className={cn(
-                      "flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-md text-white",
+                      "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md text-white",
                       isConnected
                         ? mapEnumPlatform.getPlatformGradient(platformId)
                         : "bg-muted text-muted-foreground"
@@ -89,7 +89,7 @@ export function MediaSocialSection() {
                     <p className="text-sm font-normal text-muted-foreground">
                       {mapEnumPlatform.getPlatformLabel(platformId)}
                     </p>
-                    <p className="truncate text-lg leading-tight">
+                    <p className="text-md truncate leading-tight">
                       {isConnected
                         ? platform?.accountDisplayName || platform?.name
                         : b("notConnected")}

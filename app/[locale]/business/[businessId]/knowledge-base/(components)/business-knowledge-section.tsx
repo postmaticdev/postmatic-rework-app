@@ -33,6 +33,14 @@ export function BusinessKnowledgeSection() {
   const website = isLegacyUnusedValue(businessKnowledgeDetail?.website)
     ? b("notAvailable")
     : businessKnowledgeDetail?.website;
+  const colorToneHex = (
+    businessKnowledgeDetail?.colorTone ?? "FAFAFA"
+  )
+    .replace(/^#/, "")
+    .toUpperCase();
+  const normalizedColorToneHex = /^[0-9A-F]{6}$/.test(colorToneHex)
+    ? colorToneHex
+    : "FAFAFA";
 
   return (
     <div className="h-full">
@@ -109,16 +117,20 @@ export function BusinessKnowledgeSection() {
               <h3 className="mb-2 font-semibold text-foreground">
                 {b("colorTone")}
               </h3>
-              <div
-                className="h-10 w-20 rounded-md border-2 border-border"
-                style={{
-                  backgroundColor: `#${
-                    (
-                      businessKnowledgeDetail?.colorTone ?? ""
-                    ).replace(/^#/, "") || "FFFFFF"
-                  }`,
-                }}
-              />
+              <div className="flex h-10 w-40 items-center overflow-hidden rounded-md border border-border bg-background">
+                <div className="flex h-10 items-center justify-center border-r border-border px-1">
+                  <span
+                    className="size-8 rounded-md border border-black/5 shadow-sm"
+                    style={{ backgroundColor: `#${normalizedColorToneHex}` }}
+                    title={`#${normalizedColorToneHex}`}
+                  />
+                </div>
+
+                <div className="flex min-w-0 flex-1 items-center px-4 font-mono text-sm uppercase text-foreground">
+                  <span className="mr-2 text-muted-foreground">#</span>
+                  <span>{normalizedColorToneHex}</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

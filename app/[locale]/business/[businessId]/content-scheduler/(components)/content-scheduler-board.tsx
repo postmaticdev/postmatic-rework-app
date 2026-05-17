@@ -68,6 +68,7 @@ import {
 } from "date-fns";
 import {
   CalendarClock,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Edit,
@@ -454,6 +455,18 @@ export function ContentSchedulerBoard({
     setIsCancelDialogOpen(true);
   };
 
+  const handleDatePickerChange = (value: string) => {
+    if (!value) return;
+
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return;
+
+    setSelectedDate(date);
+    setCurrentMonth(startOfMonth(date));
+    setShowDateActionCard(false);
+    setDateActionMenuPosition(null);
+  };
+
   const handleConfirmCancelEvent = async () => {
     try {
       if (eventToCancel?.sourceType === "draft" && eventToCancel.draftMarker) {
@@ -574,18 +587,18 @@ export function ContentSchedulerBoard({
               </div>
 
               <div className="flex flex-col gap-2 sm:block">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => {
-                    setCurrentMonth(startOfMonth(new Date()));
-                    setSelectedDate(new Date());
-                    setShowDateActionCard(false);
-                    setDateActionMenuPosition(null);
-                  }}
-                >
-                  {t("today")}
-                </Button>
+                <label className="relative flex w-full items-center sm:w-auto">
+                  <CalendarDays className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="date"
+                    value={dateManipulation.ymd(selectedDate)}
+                    aria-label={t("today")}
+                    onChange={(event) =>
+                      handleDatePickerChange(event.target.value)
+                    }
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm ring-offset-background transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  />
+                </label>
 
                 <Button
                   type="button"
@@ -626,7 +639,8 @@ export function ContentSchedulerBoard({
                     const isCurrentMonth = isSameMonth(day, currentMonth);
                     const isSelected = isSameDay(day, selectedDate);
                     const isPast = isBefore(day, startOfDay(new Date()));
-                    const visibleEvents = dayEvents;
+                    const visibleEvents = dayEvents.slice(0, 2);
+                    const hiddenEventCount = dayEvents.length - visibleEvents.length;
 
                     return (
                       <button
@@ -686,6 +700,17 @@ export function ContentSchedulerBoard({
                               </div>
                             </div>
                           ))}
+                          {hiddenEventCount > 0 && (
+                            <div
+                              className={`min-w-0 overflow-hidden rounded-full bg-background-secondary text-muted-foreground sm:rounded-lg ${
+                                showCalendarEventDetails ? "rounded-md" : ""
+                              }`}
+                            >
+                              <div className="px-1 py-0.5 text-center text-[9px] font-semibold leading-tight sm:px-2 sm:py-1 sm:text-xs">
+                                + {hiddenEventCount} {t("more")}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </button>
                     );

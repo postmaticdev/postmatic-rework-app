@@ -101,7 +101,7 @@ export function RSSTrendSection({
   useEffect(() => {
     if (openRssModal) {
       handleAddRSS();
-      
+
     }
   }, [openRssModal, searchParams, router]);
 
@@ -128,7 +128,7 @@ export function RSSTrendSection({
       showToast("success", res.data.responseMessage);
       setIsDeleteModalOpen(false);
       setSelectedRSS(initialRSS); // Reset selectedRSS after deletion
-    } catch {}
+    } catch { }
   };
 
   const handleOpenDeleteModal = (rss: RssRes) => {
@@ -155,7 +155,7 @@ export function RSSTrendSection({
         });
         showToast("success", res.data.responseMessage);
       }
-    } catch {}
+    } catch { }
   };
 
   const e = useTranslations("errors");
@@ -261,9 +261,8 @@ export function RSSTrendSection({
               <SearchNotFound description={r("orAddRSS")} />
             ) : (
               <div
-                className={`space-y-3 ${
-                  rss.length > 3 ? "max-h-[500px] overflow-y-auto " : ""
-                }`}
+                className={`space-y-3 ${rss.length > 3 ? "max-h-[300px] overflow-y-auto " : ""
+                  }`}
               >
                 {rss.map((trend) => (
                   <Card key={trend.id} className="bg-background-secondary">
@@ -305,13 +304,13 @@ export function RSSTrendSection({
                                 </div>
                               </div>
 
-                              
+
                             </div>
                           </div>
                           <p className="text-xs sm:text-sm text-muted-foreground mb-3">
-                                {r("source")}:{" "}
-                                {trend?.masterRss?.publisher?.toUpperCase()}
-                              </p>
+                            {r("source")}:{" "}
+                            {trend?.masterRss?.publisher?.toUpperCase()}
+                          </p>
                           {/* Status Toggle */}
                           <div className="flex items-center gap-3">
                             {rssKnowledge.write && (

@@ -45,7 +45,7 @@ export function RoleKnowledgeSection() {
   return (
     <div className="h-full">
       <Card className="h-full">
-        <CardContent className="pb-6">
+        <CardContent className="flex h-full flex-col pb-6">
           <div className="my-3 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-foreground">
               {r("title")}
@@ -62,7 +62,7 @@ export function RoleKnowledgeSection() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid flex-1 content-center grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {roleTags.map((tag, index) => {
               const Icon = tag.icon;
               return (
@@ -71,12 +71,12 @@ export function RoleKnowledgeSection() {
                   className="flex items-center justify-start gap-4 rounded-md border p-3 text-sm font-medium shadow-sm"
                 >
                   <div
-                    className={`items-center justify-center rounded-sm p-2 ${tag.color}`}
+                    className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-sm p-2 ${tag.color}`}
                   >
                     <Icon className="h-6 w-6" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-sm font-normal">{tag.label}</span>
+                    <span className="text-sm font-normal text-muted-foreground">{tag.label}</span>
                     <span className="text-md truncate">{tag.value}</span>
                   </div>
                 </div>
