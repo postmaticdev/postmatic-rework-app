@@ -88,6 +88,12 @@ export default function Pricing() {
 
   const onSelectItem = (type: "token" | "subscription", id: string) => {
     queryClient.clear();
+    if (type === "token") {
+      router.push(
+        `/business/${businessId}/settings?tab=billing&topUp=token&amount=${id}`
+      );
+      return;
+    }
     router.push(
       `/business/${businessId}/pricing/checkout?type=${type}&productId=${id}`
     );

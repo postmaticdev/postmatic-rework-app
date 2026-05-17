@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,24 @@ import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 
 export function MediaSocialSection() {
   const { businessId } = useParams() as { businessId: string };
+  const searchParams = useSearchParams();
+  const hasPendingPlatform =
+    searchParams.has("platformTempCode") ||
+    searchParams.has("tempCode") ||
+    searchParams.has("connectedPlatformTempCode");
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const platforms = platformData?.data.data ?? [];
-  const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(false);
+  const [isPlatformModalOpen, setIsPlatformModalOpen] =
+    useState(hasPendingPlatform);
   const { access } = useRole();
   const { platformKnowledge } = access;
   const b = useTranslations("businessKnowledge");
+
+  useEffect(() => {
+    if (hasPendingPlatform) {
+      setIsPlatformModalOpen(true);
+    }
+  }, [hasPendingPlatform]);
 
   return (
     <div className="h-full">

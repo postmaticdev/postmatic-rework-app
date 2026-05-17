@@ -10,6 +10,10 @@ import {
   BusinessKnowledgeRes,
 } from "@/models/api/knowledge/business.type";
 import {
+  BusinessConnectedPlatformApiRes,
+  ConnectedPlatformAuthorizeUrlRes,
+  ConnectPlatformAccountRes,
+  PendingConnectedPlatformOauthRes,
   PlatformEnum,
   PlatformRes,
 } from "@/models/api/knowledge/platform.type";
@@ -575,11 +579,63 @@ export const useRssKnowledgeDelete = () => {
 
 // ============================== PLATFORM KNOWLEDGE ==============================
 
+const mapConnectedPlatform = (
+  item: BusinessConnectedPlatformApiRes
+): PlatformRes => {
+  const { socialPlatform, connectedPlatform } = item;
+  const isConnected = !!connectedPlatform;
+
+  return {
+    name: socialPlatform.name,
+    platform: socialPlatform.platformCode,
+    image: socialPlatform.logo,
+    status: isConnected
+      ? "connected"
+      : socialPlatform.isActive
+      ? "unconnected"
+      : "unavailable",
+    accountDisplayName: connectedPlatform?.platformUserName ?? null,
+    accountDisplayImage: connectedPlatform?.platformIconUrl ?? null,
+    connectUrl: null,
+    disconnectUrl: isConnected
+      ? `/business/connected-platform/${connectedPlatform.businessRootId}/${connectedPlatform.platformCode}`
+      : null,
+    accountId: connectedPlatform?.platformUserId ?? null,
+  };
+};
+
 const platformService = {
   getAll: (businessId: string, from?: string) => {
-    return api.get<BaseResponse<PlatformRes[]>>(
-      `/business/connected-platform/${businessId}`,
-      { params: { from } }
+    return api
+      .get<BaseResponse<BusinessConnectedPlatformApiRes[]>>(
+        `/business/connected-platform/${businessId}`,
+        { params: { from } }
+      )
+      .then((res) => {
+        const mapped = (res.data.data ?? []).map(mapConnectedPlatform);
+        return {
+          ...res,
+          data: {
+            ...res.data,
+            data: mapped,
+          },
+        } as unknown as Awaited<ReturnType<typeof api.get<BaseResponse<PlatformRes[]>>>>;
+      });
+  },
+  getAuthorizeUrl: (businessId: string, platform: PlatformEnum) => {
+    return api.get<BaseResponse<ConnectedPlatformAuthorizeUrlRes>>(
+      `/business/connected-platform/${businessId}/oauth/${platform}/authorize-url`
+    );
+  },
+  getPendingOauth: (businessId: string, tempCode: string) => {
+    return api.get<BaseResponse<PendingConnectedPlatformOauthRes>>(
+      `/business/connected-platform/${businessId}/oauth/pending/${tempCode}`
+    );
+  },
+  connectAccount: (businessId: string, tempCodeAccount: string) => {
+    return api.post<BaseResponse<ConnectPlatformAccountRes>>(
+      `/business/connected-platform/${businessId}/connect-account`,
+      { tempCodeAccount }
     );
   },
   disconnect: (businessId: string, platform: PlatformEnum) => {
@@ -597,6 +653,50 @@ export const usePlatformKnowledgeGetAll = (
     queryKey: ["platformKnowledge", businessId, from],
     queryFn: () => platformService.getAll(businessId, from),
     enabled: !!businessId,
+  });
+};
+
+export const usePlatformKnowledgeGetAuthorizeUrl = () => {
+  return useMutation({
+    mutationFn: ({
+      businessId,
+      platform,
+    }: {
+      businessId: string;
+      platform: PlatformEnum;
+    }) => platformService.getAuthorizeUrl(businessId, platform),
+  });
+};
+
+export const usePlatformKnowledgeGetPendingOauth = (
+  businessId: string,
+  tempCode: string | null
+) => {
+  return useQuery({
+    queryKey: ["platformKnowledgePendingOauth", businessId, tempCode],
+    queryFn: () => platformService.getPendingOauth(businessId, tempCode || ""),
+    enabled: !!businessId && !!tempCode,
+  });
+};
+
+export const usePlatformKnowledgeConnectAccount = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      businessId,
+      tempCodeAccount,
+    }: {
+      businessId: string;
+      tempCodeAccount: string;
+    }) => platformService.connectAccount(businessId, tempCodeAccount),
+    onSuccess: ({}) => {
+      queryClient.invalidateQueries({
+        queryKey: ["platformKnowledge"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["contentAutoGenerateGetSettings"],
+      });
+    },
   });
 };
 

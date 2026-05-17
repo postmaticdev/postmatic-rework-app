@@ -13,6 +13,14 @@ type NewScheduledPost = {
   businessRootId: number;
 };
 
+type NewScheduledPostCalendar = {
+  month: string;
+  days: {
+    date: string;
+    items: NewScheduledPost[];
+  }[];
+};
+
 const mapScheduledPost = (item: NewScheduledPost): UpcomingPostRes => ({
   id: item.id,
   date: item.publishAt,
@@ -62,13 +70,37 @@ const overviewService = {
     })) as unknown as ReturnType<typeof api.get<BaseResponse<CountPostRes>>>;
   },
   getUpcoming: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
+    const dateStart = filterQuery?.dateStart;
+    const dateEnd = filterQuery?.dateEnd;
+    const monthSearch =
+      dateStart && dateEnd && dateStart.slice(0, 7) === dateEnd.slice(0, 7)
+        ? dateStart.slice(0, 7)
+        : null;
+
+    if (monthSearch) {
+      return api
+        .get<BaseResponse<NewScheduledPostCalendar>>(
+          `/generative-content/image-post-scheduled/${businessId}/calendar-view`,
+          { params: { search: monthSearch } }
+        )
+        .then((res) => ({
+          ...res,
+          data: {
+            ...res.data,
+            data: (res.data.data?.days || [])
+              .flatMap((day) => day.items || [])
+              .map(mapScheduledPost),
+          },
+        })) as unknown as ReturnType<
+        typeof api.get<BaseResponse<UpcomingPostRes[]>>
+      >;
+    }
+
     return api
       .get<BaseResponse<NewScheduledPost[]>>(
         `/generative-content/image-post-scheduled/${businessId}`
       )
       .then((res) => {
-        const dateStart = filterQuery?.dateStart;
-        const dateEnd = filterQuery?.dateEnd;
         const items = (res.data.data || [])
           .filter((item) => {
             const date = item.publishAt.slice(0, 10);

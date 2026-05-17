@@ -9,12 +9,14 @@ export interface EWalletPld {
   productId: string;
   type: "subscription" | "token";
   discountCode?: string;
-  acquirer: "gopay" | "qris" | "";
+  acquirer: string;
 }
 
 export interface CheckoutRes {
   id: string;
   midtransId: string;
+  orderId?: string;
+  paymentCode?: string;
   productName: string;
   productType: string;
   totalAmount: number;

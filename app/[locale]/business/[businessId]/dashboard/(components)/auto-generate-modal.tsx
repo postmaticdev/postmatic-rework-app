@@ -13,7 +13,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useTranslations } from "next-intl";
-import { AutoGenerateReferencePanel } from "./auto-generate-reference-panel";
 import { CreateAutoGenerateScheduleRequest, AutoGenerateSchedule } from "@/models/api/content/auto-generate";
 import { showToast } from "@/helper/show-toast";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
@@ -22,7 +21,6 @@ import { useContentAutoGenerateCreateSchedule, useContentAutoGenerateUpdateSched
 import { useParams } from "next/navigation";
 import { AutoGenerateFormBasic } from "./auto-generate-form-basic";
 import { AutoGenerateFormAdvanced } from "./auto-generate-form-advance";
-import { AutoSelectedReferenceImage } from "./auto-selected-reference-image";
 import { TextField } from "@/components/forms/text-field";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
@@ -186,7 +184,6 @@ export function AutoGenerateModal({
       model: basic.model || "gpt-image-1",
       designStyle: basic.designStyle || "modern",
       ratio: basic.ratio || "1:1",
-      referenceImages: basic.referenceImage ? [basic.referenceImage] : [],
       category: basic.category || "sale",
       additionalPrompt: additionalPrompt.trim() || undefined,
       productKnowledgeId: basic.productKnowledgeId,
@@ -285,10 +282,6 @@ export function AutoGenerateModal({
         designStyle: editingSchedule.designStyle,
         prompt: editingSchedule.additionalPrompt || "",
         productKnowledgeId: editingSchedule.productKnowledgeId,
-        referenceImage:
-          editingSchedule.referenceImages && editingSchedule.referenceImages.length > 0
-            ? editingSchedule.referenceImages[0]
-            : null,
         productName: getProductNameById(editingSchedule.productKnowledgeId),
       });
 

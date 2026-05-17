@@ -207,7 +207,6 @@ export function AutoGenerate({
         model: schedule.model,
         designStyle: schedule.designStyle,
         ratio: schedule.ratio,
-        referenceImages: schedule.referenceImages || [],
         category: schedule.category,
         additionalPrompt: schedule.additionalPrompt || undefined,
         productKnowledgeId: schedule.productKnowledgeId,

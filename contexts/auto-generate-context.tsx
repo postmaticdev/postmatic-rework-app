@@ -32,7 +32,6 @@ import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import {
   AdvancedGenerate,
   GenerateContentAdvanceBase,
-  GenerateContentBase,
   ValidRatio,
 } from "@/models/api/content/image.type";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
@@ -41,42 +40,20 @@ import {
   useProductKnowledgeGetAll,
   useProductKnowledgeGetStatus,
 } from "@/services/knowledge.api";
-import {
-  useLibraryTemplateGetPublished,
-  useLibraryTemplateGetSaved,
-  useLibraryTemplateGetProductCategory,
-  useLibraryTemplateSave,
-  useLibraryTemplateDeleteSaved,
-} from "@/services/library.api";
 import { NEXT_PUBLIC_ENABLE_CONTENT_FEATURES } from "@/constants";
 import { usePathname } from "@/i18n/navigation";
 
-// Template interface
-export interface Template {
-  id: string;
-  name: string;
-  imageUrl: string;
-  categories: string[];
-  productCategories: string[];
-  publisher: {
-    id: string;
-    name: string;
-    image: string | null;
-  } | null;
-  createdAt: string;
-  updatedAt: string;
-  price: 0;
-  type: "saved" | "published";
-}
-
 // Form interfaces
-interface BasicForm extends GenerateContentBase {
+interface BasicForm {
+  ratio: ValidRatio;
+  category: string;
+  productKnowledgeId: string;
+  designStyle: string | null;
+  prompt: string | null;
   productName: string;
   productImage: string;
   customCategory: string;
   customDesignStyle: string;
-  referenceImageName: string | null;
-  referenceImagePublisher: string | null;
   caption: string;
   model: string;
   imageSize: string | null;
@@ -111,24 +88,6 @@ type Ctx = {
     setMask: Dispatch<SetStateAction<string | null>>;
   };
 
-  // Template Management
-  selectedTemplate: Template | null;
-  setSelectedTemplate: (template: Template | null) => void;
-  publishedTemplates: {
-    contents: Template[];
-    pagination: Pagination;
-    filterQuery: Partial<FilterQuery>;
-    setFilterQuery: (q: Partial<FilterQuery>) => void;
-    isLoading: boolean;
-  };
-  savedTemplates: {
-    contents: Template[];
-    pagination: Pagination;
-    filterQuery: Partial<FilterQuery>;
-    setFilterQuery: (q: Partial<FilterQuery>) => void;
-    isLoading: boolean;
-  };
-
   // Product Knowledge
   productKnowledges: {
     contents: ProductKnowledgeRes[];
@@ -149,24 +108,8 @@ type Ctx = {
   isLoading: boolean;
   setIsLoading: (item: boolean) => void;
 
-  // Unsave modal
-  unsaveModal: {
-    isOpen: boolean;
-    item: Template | null;
-    isLoading: boolean;
-  };
-  setUnsaveModal: (modal: { isOpen: boolean; item: Template | null; isLoading: boolean }) => void;
-
   // Handlers
-  onSaveUnsave: (item: Template) => void;
-  onConfirmUnsave: () => void;
-  onCloseUnsaveModal: () => void;
   onSelectProduct: (item: ProductKnowledgeRes | null) => void;
-  onSelectReferenceImage: (
-    imageUrl: string,
-    imageName: string | null,
-    template?: Template
-  ) => void;
   onSelectAiModel: (model: AiModelRes) => void;
   onResetAdvance: () => void;
 };
@@ -217,13 +160,10 @@ const initialFormBasic: BasicForm = {
   productKnowledgeId: "",
   prompt: "",
   ratio: "1:1",
-  referenceImage: null,
   productName: "",
   productImage: "",
   customCategory: "",
   customDesignStyle: "",
-  referenceImageName: null,
-  referenceImagePublisher: null,
   caption: "",
   model: "",
   imageSize: null,
@@ -286,17 +226,7 @@ export function AutoGenerateProvider({
   const [formAdvance, setFormAdvance] = useState<GenerateContentAdvanceBase>(initialFormAdvance);
   const [enabledAdvance, setEnabledAdvance] = useState<AdvancedGenerate>(initialEnabledAdvance);
   const [formMask, setFormMask] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [unsaveModal, setUnsaveModal] = useState<{
-    isOpen: boolean;
-    item: Template | null;
-    isLoading: boolean;
-  }>({
-    isOpen: false,
-    item: null,
-    isLoading: false,
-  });
 
   // ===== AI MODELS =====
   const { data: aiModelsRes, isLoading: isLoadingAiModels } =
@@ -333,193 +263,6 @@ export function AutoGenerateProvider({
       setEnabledAdvance(productKnowledgeRes.data.data);
     }
   }, [productKnowledgeRes]);
-
-  // ===== TEMPLATES =====
-  const { data: productCategoriesData } =
-    useLibraryTemplateGetProductCategory(autoGenerateEnabled);
-
-  // Published Templates
-  const [publishedPagination, setPublishedPagination] = useState<Pagination>(initialPagination);
-  const [publishedQuery, setPublishedQuery] = useState<Partial<FilterQuery>>({
-    limit: 10,
-    page: 1,
-    sortBy: "createdAt",
-    sort: "desc",
-  });
-  
-  // Fetch all data when category filter is applied, otherwise use normal pagination
-  const publishedApiQuery = useMemo(() => {
-    if (publishedQuery.productCategory) {
-      // Fetch all data for client-side filtering and pagination
-      return {
-        ...publishedQuery,
-        limit: 999, // Fetch all data
-        page: 1,
-      };
-    }
-    return publishedQuery;
-  }, [publishedQuery]);
-  
-  const { data: publishedRes, isLoading: isLoadingPublished } =
-    useLibraryTemplateGetPublished(
-      businessId,
-      publishedApiQuery,
-      autoGenerateEnabled
-    );
-  
-  useEffect(() => {
-    if (publishedRes) {
-      setPublishedPagination(publishedRes?.data?.pagination);
-    }
-  }, [publishedRes]);
-
-  const publishedData: Template[] = publishedRes?.data.data || [];
-
-  // Client-side filtering by productCategory
-  const allFilteredPublishedData = useMemo(() => {
-    if (!publishedQuery.productCategory) {
-      return publishedData;
-    }
-    
-    const selectedCategory = productCategoriesData?.data?.data?.find(
-      (cat) => cat.id === publishedQuery.productCategory
-    );
-    
-    if (!selectedCategory) {
-      return publishedData;
-    }
-    
-    return publishedData.filter(template => 
-      template.productCategories.includes(selectedCategory.indonesianName)
-    );
-  }, [publishedData, publishedQuery.productCategory, productCategoriesData]);
-
-  // Apply client-side pagination when category filter is active
-  const { paginatedData: filteredPublishedData, pagination: adjustedPublishedPagination } = useMemo(() => {
-    // If category filter is applied, do client-side pagination
-    if (publishedQuery.productCategory) {
-      const limit = publishedQuery.limit || 10;
-      const page = publishedQuery.page || 1;
-      const total = allFilteredPublishedData.length;
-      const totalPages = Math.max(1, Math.ceil(total / limit));
-      
-      // Slice data for current page
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginatedData = allFilteredPublishedData.slice(start, end);
-      
-      const pagination: Pagination = {
-        limit,
-        page,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      };
-      
-      return { paginatedData, pagination };
-    }
-    
-    // Otherwise use server-side pagination
-    return { paginatedData: allFilteredPublishedData, pagination: publishedPagination };
-  }, [allFilteredPublishedData, publishedQuery.productCategory, publishedQuery.limit, publishedQuery.page, publishedPagination]);
-
-  // Saved Templates
-  const [savedPagination, setSavedPagination] = useState<Pagination>(initialPagination);
-  const [savedQuery, setSavedQuery] = useState<Partial<FilterQuery>>({
-    limit: 10,
-    page: 1,
-    sortBy: "createdAt",
-    sort: "desc",
-  });
-  
-  // Fetch all data when category filter is applied, otherwise use normal pagination
-  const savedApiQuery = useMemo(() => {
-    if (savedQuery.productCategory) {
-      // Fetch all data for client-side filtering and pagination
-      return {
-        ...savedQuery,
-        limit: 999, // Fetch all data
-        page: 1,
-      };
-    }
-    return savedQuery;
-  }, [savedQuery]);
-  
-  const { data: savedRes, isLoading: isLoadingSaved } =
-    useLibraryTemplateGetSaved(businessId, savedApiQuery, autoGenerateEnabled);
-  
-  useEffect(() => {
-    if (savedRes) {
-      setSavedPagination(savedRes?.data?.pagination);
-    }
-  }, [savedRes]);
-
-  const savedData: Template[] = (savedRes?.data.data || []).map((item) => ({
-    id: item?.templateImageContent?.id,
-    name: item?.name,
-    imageUrl: item?.imageUrl,
-    categories: item?.templateImageContent?.templateImageCategories.map((cat) => cat.name) || [],
-    productCategories: item?.templateImageContent?.templateProductCategories.map((cat) => cat.indonesianName) || [],
-    price: 0,
-    publisher: item?.templateImageContent?.publisher || {
-      id: "",
-      name: "Postmatic",
-      image: null,
-    },
-    type: "saved",
-    createdAt: item?.createdAt,
-    updatedAt: item?.updatedAt,
-  }));
-
-  // Client-side filtering by productCategory for saved templates
-  const allFilteredSavedData = useMemo(() => {
-    if (!savedQuery.productCategory) {
-      return savedData;
-    }
-    
-    const selectedCategory = productCategoriesData?.data?.data?.find(
-      (cat) => cat.id === savedQuery.productCategory
-    );
-    
-    if (!selectedCategory) {
-      return savedData;
-    }
-    
-    return savedData.filter(template => 
-      template.productCategories.includes(selectedCategory.indonesianName)
-    );
-  }, [savedData, savedQuery.productCategory, productCategoriesData]);
-
-  // Apply client-side pagination when category filter is active
-  const { paginatedData: filteredSavedData, pagination: adjustedSavedPagination } = useMemo(() => {
-    // If category filter is applied, do client-side pagination
-    if (savedQuery.productCategory) {
-      const limit = savedQuery.limit || 10;
-      const page = savedQuery.page || 1;
-      const total = allFilteredSavedData.length;
-      const totalPages = Math.max(1, Math.ceil(total / limit));
-      
-      // Slice data for current page
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginatedData = allFilteredSavedData.slice(start, end);
-      
-      const pagination: Pagination = {
-        limit,
-        page,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      };
-      
-      return { paginatedData, pagination };
-    }
-    
-    // Otherwise use server-side pagination
-    return { paginatedData: allFilteredSavedData, pagination: savedPagination };
-  }, [allFilteredSavedData, savedQuery.productCategory, savedQuery.limit, savedQuery.page, savedPagination]);
 
   // Product Knowledges
   const [productPagination, setProductPagination] = useState<Pagination>(initialPagination);
@@ -561,35 +304,6 @@ export function AutoGenerateProvider({
     }
   }, [formBasic]);
 
-  const onSelectReferenceImage = useCallback((
-    imageUrl: string,
-    imageName: string | null,
-    template?: Template
-  ) => {
-    setFormBasic({
-      ...formBasic,
-      referenceImage: imageUrl,
-      referenceImageName: imageName,
-      referenceImagePublisher: template?.publisher?.name || null,
-    });
-
-    // Set selected template for visual feedback
-    if (template) {
-      setSelectedTemplate(template);
-    }
-
-    // Add automatic scrolling to form section
-    setTimeout(() => {
-      const formSectionElement =
-        document.getElementById("auto-generate-form-section");
-      console.log("Auto-scroll: formSectionElement found:", !!formSectionElement);
-      if (formSectionElement) {
-        console.log("Auto-scroll: scrolling to form section");
-        formSectionElement.scrollIntoView({ behavior: "smooth" });
-      }
-    }, 100);
-  }, [formBasic]);
-
   const onSelectAiModel = useCallback((model: AiModelRes) => {
     setSelectedAiModel(model);
     setFormBasic(prev => {
@@ -611,67 +325,6 @@ export function AutoGenerateProvider({
     setFormAdvance(initialFormAdvance);
   }, []);
 
-  // Save/Unsave handlers
-  const mSave = useLibraryTemplateSave();
-  const mUnsave = useLibraryTemplateDeleteSaved();
-  
-  const onSaveUnsave = useCallback(async (item: Template) => {
-    try {
-      switch (item.type) {
-        case "published":
-          const resPub = await mSave.mutateAsync({
-            businessId,
-            formData: {
-              templateImageContentId: item.id,
-            },
-          });
-          showToast("success", resPub.data.responseMessage);
-          break;
-        case "saved":
-          // Show confirmation modal for saved items
-          setUnsaveModal({
-            isOpen: true,
-            item: item,
-            isLoading: false,
-          });
-          break;
-      }
-    } catch (error) {
-      showToast("error", error);
-    }
-  }, [businessId, mSave]);
-
-  const onConfirmUnsave = useCallback(async () => {
-    if (!unsaveModal.item) return;
-
-    setUnsaveModal((prev) => ({ ...prev, isLoading: true }));
-    try {
-      const resUnpub = await mUnsave.mutateAsync({
-        businessId,
-        templateId: unsaveModal.item.id,
-      });
-      showToast("success", resUnpub.data.responseMessage);
-      setUnsaveModal({
-        isOpen: false,
-        item: null,
-        isLoading: false,
-      });
-    } catch (error) {
-      showToast("error", error);
-      setUnsaveModal((prev) => ({ ...prev, isLoading: false }));
-    }
-  }, [businessId, mUnsave, unsaveModal.item]);
-
-  const onCloseUnsaveModal = useCallback(() => {
-    if (!unsaveModal.isLoading) {
-      setUnsaveModal({
-        isOpen: false,
-        item: null,
-        isLoading: false,
-      });
-    }
-  }, [unsaveModal.isLoading]);
-
   // ===== FORM OBJECT =====
   const form = useMemo(() => ({
     basic: formBasic,
@@ -683,23 +336,6 @@ export function AutoGenerateProvider({
     mask: formMask,
     setMask: setFormMask,
   }), [formBasic, formAdvance, enabledAdvance, formMask]);
-
-  // ===== TEMPLATE OBJECTS =====
-  const publishedTemplates = useMemo(() => ({
-    contents: filteredPublishedData,
-    pagination: adjustedPublishedPagination,
-    filterQuery: publishedQuery,
-    setFilterQuery: setPublishedQuery,
-    isLoading: isLoadingPublished,
-  }), [filteredPublishedData, adjustedPublishedPagination, publishedQuery, isLoadingPublished]);
-
-  const savedTemplates = useMemo(() => ({
-    contents: filteredSavedData,
-    pagination: adjustedSavedPagination,
-    filterQuery: savedQuery,
-    setFilterQuery: setSavedQuery,
-    isLoading: isLoadingSaved,
-  }), [filteredSavedData, adjustedSavedPagination, savedQuery, isLoadingSaved]);
 
   const productKnowledges = useMemo(() => ({
     contents: products,
@@ -823,7 +459,6 @@ export function AutoGenerateProvider({
           model: scheduleData.model,
           designStyle: scheduleData.designStyle,
           ratio: scheduleData.ratio,
-          referenceImages: scheduleData.referenceImages,
           category: scheduleData.category,
           additionalPrompt: scheduleData.additionalPrompt || null,
           productKnowledgeId: scheduleData.productKnowledgeId,
@@ -971,7 +606,6 @@ export function AutoGenerateProvider({
               model: schedule.model,
               designStyle: schedule.designStyle,
               ratio: schedule.ratio,
-              referenceImages: schedule.referenceImages,
               category: schedule.category,
               additionalPrompt: schedule.additionalPrompt || undefined,
               productKnowledgeId: schedule.productKnowledgeId,
@@ -1010,7 +644,6 @@ export function AutoGenerateProvider({
                 model: draftSchedule.model,
                 designStyle: draftSchedule.designStyle,
                 ratio: draftSchedule.ratio,
-                referenceImages: draftSchedule.referenceImages,
                 category: draftSchedule.category,
                 additionalPrompt: draftSchedule.additionalPrompt || undefined,
                 productKnowledgeId: draftSchedule.productKnowledgeId,
@@ -1146,12 +779,6 @@ export function AutoGenerateProvider({
 
       // Form Management
       form,
-      selectedTemplate,
-      setSelectedTemplate,
-
-      // Template Management
-      publishedTemplates,
-      savedTemplates,
 
       // Product Knowledge
       productKnowledges,
@@ -1163,16 +790,8 @@ export function AutoGenerateProvider({
       isLoading,
       setIsLoading,
 
-      // Unsave modal
-      unsaveModal,
-      setUnsaveModal,
-
       // Handlers
-      onSaveUnsave,
-      onConfirmUnsave,
-      onCloseUnsaveModal,
       onSelectProduct,
-      onSelectReferenceImage,
       onSelectAiModel,
       onResetAdvance,
     }),
@@ -1190,18 +809,10 @@ export function AutoGenerateProvider({
       deleteScheduleDirectly,
       getSchedulesByDay,
       form,
-      selectedTemplate,
-      publishedTemplates,
-      savedTemplates,
       productKnowledges,
       aiModels,
       isLoading,
-      unsaveModal,
-      onSaveUnsave,
-      onConfirmUnsave,
-      onCloseUnsaveModal,
       onSelectProduct,
-      onSelectReferenceImage,
       onSelectAiModel,
       onResetAdvance,
     ]

@@ -57,7 +57,7 @@ type NewRepetitionItem = {
   modelName: string;
   platforms: string[];
   additionalPrompt: string | null;
-  additionalImages: string[];
+  additionalImages?: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -210,7 +210,6 @@ const mapRepetitionToAutoGenerateSettings = (
       model: item.modelName,
       designStyle: "",
       ratio: "1:1",
-      referenceImages: item.additionalImages || [],
       category: "",
       additionalPrompt: item.additionalPrompt,
       productKnowledgeId: String(item.businessProductId),
@@ -385,14 +384,36 @@ const mapImagePostCreateToJob = (post: NewImagePostCreateRes): JobRes => ({
   jobId: String(post.id),
 });
 
+let modelListPromise: Promise<NewGenerativeImageModel[]> | null = null;
+
+const getGenerativeImageModels = () => {
+  modelListPromise ??= api
+    .get<BaseResponse<NewGenerativeImageModel[]>>(
+      `/app/generative-image-model`
+    )
+    .then((res) => res.data.data || [])
+    .catch((error) => {
+      modelListPromise = null;
+      throw error;
+    });
+
+  return modelListPromise;
+};
+
 const resolveImageModelId = async (model: string) => {
   const directId = Number(model);
   if (Number.isFinite(directId) && directId > 0) return directId;
 
-  const res = await api.get<BaseResponse<NewGenerativeImageModel>>(
-    `/app/generative-image-model/${encodeURIComponent(model)}/model`
+  const models = await getGenerativeImageModels();
+  const found = models.find(
+    (item) => item.model === model || item.label === model
   );
-  return res.data.data.id;
+
+  if (!found) {
+    throw new Error(`Generative image model not found: ${model}`);
+  }
+
+  return found.id;
 };
 
 const toImagePostPayload = async (
@@ -1206,17 +1227,17 @@ export const useContentSchedulerTimezoneUpsertTimezone = () => {
 
 const aiModelService = {
   getAiModels: () => {
-    return api
-      .get<BaseResponse<NewGenerativeImageModel[]>>(
-        `/app/generative-image-model`
-      )
-      .then((res) => ({
-        ...res,
+    return getGenerativeImageModels()
+      .then((models) => ({
         data: {
-          ...res.data,
-          data: (res.data.data || [])
+          metaData: { code: 200, message: "OK" },
+          responseMessage: "GET_GENERATIVE_IMAGE_MODELS_SUCCESS",
+          data: models
             .filter((model) => model.isActive !== false)
             .map(mapAiModel),
+          validationErrors: null,
+          filterQuery: null,
+          pagination: null,
         },
       })) as unknown as ReturnType<typeof api.get<BaseResponse<AiModelRes[]>>>;
   },
@@ -1444,30 +1465,39 @@ const autoGenerateService = {
       },
     }) as unknown as ReturnType<typeof api.patch<AutoGeneratePreferenceResponse>>;
   },
-  createSchedule: (businessId: string, formData: CreateAutoGenerateScheduleRequest) => {
+  createSchedule: async (
+    businessId: string,
+    formData: CreateAutoGenerateScheduleRequest
+  ) => {
+    const appGenerativeImageModelId = await resolveImageModelId(formData.model);
+
     return api.post<AutoGenerateScheduleResponse>(
       `/generative-content/image-post-repetition/${businessId}`,
       {
-        appGenerativeImageModelId: Number(formData.model) || undefined,
+        appGenerativeImageModelId,
         businessProductId: Number(formData.productKnowledgeId),
         day: formData.day,
         time: formData.time,
         additionalPrompt: formData.additionalPrompt,
-        additionalImages: formData.referenceImages,
         platforms: formData.platforms,
       }
     );
   },
-  updateSchedule: (businessId: string, scheduleId: string, formData: UpdateAutoGenerateScheduleRequest) => {
+  updateSchedule: async (
+    businessId: string,
+    scheduleId: string,
+    formData: UpdateAutoGenerateScheduleRequest
+  ) => {
+    const appGenerativeImageModelId = await resolveImageModelId(formData.model);
+
     return api.put<AutoGenerateScheduleResponse>(
       `/generative-content/image-post-repetition/${businessId}/${scheduleId}`,
       {
-        appGenerativeImageModelId: Number(formData.model) || undefined,
+        appGenerativeImageModelId,
         businessProductId: Number(formData.productKnowledgeId),
         day: formData.day,
         time: formData.time,
         additionalPrompt: formData.additionalPrompt,
-        additionalImages: formData.referenceImages,
         platforms: formData.platforms,
       }
     );

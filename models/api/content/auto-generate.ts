@@ -11,7 +11,6 @@ export interface AutoGenerateSchedule {
   model: string;
   designStyle: string;
   ratio: string;
-  referenceImages: string[];
   category: string;
   additionalPrompt: string | null;
   productKnowledgeId: string;
@@ -71,7 +70,6 @@ export interface CreateAutoGenerateScheduleRequest {
   model: string;
   designStyle: string;
   ratio: string;
-  referenceImages: string[];
   category: string;
   additionalPrompt?: string;
   productKnowledgeId: string;

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { useLocale } from "next-intl";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Send, Zap } from "lucide-react";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,9 +14,13 @@ import { TopUpTokenDialog } from "./top-up-token-dialog";
 export function BillingInvoices() {
   const locale = useLocale();
   const { businessId } = useParams() as { businessId: string };
+  const searchParams = useSearchParams();
   const { data: tokenUsageData } = useTokenGetTokenUsage(businessId);
   const availableToken = tokenUsageData?.data?.data?.availableToken ?? 0;
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(
+    searchParams.get("topUp") === "token"
+  );
+  const topUpAmount = searchParams.get("amount") || undefined;
 
   return (
     <div className="space-y-6">
@@ -67,6 +71,7 @@ export function BillingInvoices() {
       <TopUpTokenDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
+        initialAmount={topUpAmount}
       />
     </div>
   );

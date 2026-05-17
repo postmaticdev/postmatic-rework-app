@@ -35,6 +35,7 @@ import { ContentLibrarySkeleton } from "@/components/grid-skeleton/content-libra
 import { useContentSchedulerTab } from "../page";
 import { useTranslations } from "next-intl";
 import { PersonalContentForm, PersonalPostModal } from "./personal-post-modal";
+import { useContentGenerate } from "@/contexts/content-generate-context";
 
 export interface FormDataDraft {
   direct: DirectPostContentPld;
@@ -132,7 +133,39 @@ export function ContentLibrary({
       search: searchQuery,
       limit: 50,
     });
-  const filteredPostedContent = postedContent?.data.data || [];
+  const { histories } = useContentGenerate();
+  const generatedHistoryContent: PostedImageRes[] = histories
+    .flatMap((group) => group.jobs)
+    .filter(
+      (job) =>
+        job.status === "done" &&
+        job.stage === "done" &&
+        (job.result?.images?.length || 0) > 0
+    )
+    .map((job) => ({
+      id: `job-${job.id}`,
+      images: job.result?.images || [],
+      ratio: job.result?.ratio || job.input.ratio || "",
+      category: job.result?.category || job.input.category || "",
+      designStyle: job.result?.designStyle || job.input.designStyle || "",
+      caption: job.result?.caption || job.input.caption || "",
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      deletedAt: "",
+      productKnowledgeId:
+        job.result?.productKnowledgeId || job.input.productKnowledgeId || "",
+      rootBusinessId: job.rootBusinessId,
+      readyToPost: true,
+      postedImageContents: [],
+      platforms: [],
+    }));
+  const filteredPostedContent = [
+    ...(postedContent?.data.data || []),
+    ...generatedHistoryContent,
+  ].filter((item, index, items) => {
+    const image = item.images[0] || item.id;
+    return items.findIndex((candidate) => (candidate.images[0] || candidate.id) === image) === index;
+  });
 
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const platforms = platformData?.data.data || [];

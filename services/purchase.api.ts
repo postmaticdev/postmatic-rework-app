@@ -22,6 +22,7 @@ type NewPaymentAction = {
 
 type NewPaymentCreated = {
   paymentId: string;
+  orderId?: string;
   status: string;
   paymentMethod: { code: string; name: string; type: string };
   expiresAt: string;
@@ -34,6 +35,28 @@ type NewPaymentCreated = {
   };
   tokenAmount: number;
   actions: NewPaymentAction[];
+};
+
+export type ImageTokenPriceRes = {
+  referral?: {
+    valid: boolean;
+    message: string;
+  };
+  calculation: {
+    itemPrice: number;
+    discountAmount: number;
+    afterDiscount: number;
+    adminFeeAmount: number;
+    subtotalBeforeTax: number;
+    taxAmount: number;
+    totalAmount: number;
+  };
+  paymentMethod: {
+    code: string;
+    name: string;
+    type: string;
+  };
+  tokenAmount: number;
 };
 
 type NewPaymentHistory = {
@@ -90,6 +113,8 @@ const mapPaymentDetails = (payment: NewPaymentCreated | NewPaymentHistory) => {
 const mapCheckout = (payment: NewPaymentCreated): CheckoutRes => ({
   id: payment.paymentId,
   midtransId: payment.paymentId,
+  orderId: payment.orderId,
+  paymentCode: payment.orderId,
   productName: `Image Token x${payment.tokenAmount}`,
   productType: "token",
   totalAmount: payment.calculation.totalAmount,
@@ -201,6 +226,24 @@ export const useBusinessPurchaseGetDetail = (
 // ============================== CHECKOUT PAY ==============================
 
 const checkoutPayService = {
+  checkImageTokenPrice: (
+    businessId: string,
+    payload: {
+      tokenAmount: number;
+      paymentMethod: string;
+      referralCode?: string;
+    }
+  ) => {
+    return api.get<BaseResponse<ImageTokenPriceRes>>(`/payment/image-token`, {
+      params: {
+        tokenAmount: payload.tokenAmount,
+        currencyCode: "IDR",
+        paymentMethod: payload.paymentMethod,
+        businessRootId: Number(businessId),
+        referralCode: payload.referralCode || undefined,
+      },
+    });
+  },
   eWallet: (businessId: string, formData: EWalletPld) => {
     return api.post<BaseResponse<CheckoutRes>>(
       `/payment/image-token`,
@@ -233,6 +276,38 @@ const checkoutPayService = {
       return res;
     });
   },
+};
+
+export const usePaymentImageTokenPrice = ({
+  businessId,
+  tokenAmount,
+  paymentMethod,
+  referralCode,
+  enabled = true,
+}: {
+  businessId: string;
+  tokenAmount: number;
+  paymentMethod: string;
+  referralCode?: string;
+  enabled?: boolean;
+}) => {
+  return useQuery({
+    queryKey: [
+      "paymentImageTokenPrice",
+      businessId,
+      tokenAmount,
+      paymentMethod,
+      referralCode,
+    ],
+    queryFn: () =>
+      checkoutPayService.checkImageTokenPrice(businessId, {
+        tokenAmount,
+        paymentMethod,
+        referralCode,
+      }),
+    enabled:
+      enabled && !!businessId && tokenAmount > 0 && !!paymentMethod,
+  });
 };
 
 export const useCheckoutPayEWallet = () => {
