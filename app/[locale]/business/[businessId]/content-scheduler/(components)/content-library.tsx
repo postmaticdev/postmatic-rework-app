@@ -244,7 +244,7 @@ export function ContentLibrary({
         generatedImageContentId: item.id,
       });
       showToast("success", res.data.responseMessage);
-    } catch {}
+    } catch { }
   };
 
   const handleRepostNow = async () => {
@@ -259,7 +259,7 @@ export function ContentLibrary({
       });
       showToast("success", res.data.responseMessage);
       onCloseModalView();
-    } catch {}
+    } catch { }
   };
 
   const handleSetFormDataView = (item: PostedImageRes) => {
@@ -325,7 +325,7 @@ export function ContentLibrary({
           break;
       }
       onCloseModalPost();
-    } catch {}
+    } catch { }
   };
 
   const handleCancelQueue = (item: ImageContentRes) => {
@@ -374,7 +374,7 @@ export function ContentLibrary({
       });
       showToast("success", res.data.responseMessage);
       onClosePersonalModal();
-    } catch {}
+    } catch { }
   };
 
   const renderItems = (): React.JSX.Element[] => {
@@ -504,14 +504,14 @@ export function ContentLibrary({
       <CardContent className="py-6 space-y-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between">
           <h2 className="text-2xl font-bold">{t("contentLibrary")}</h2>
-          <Button
+          {/* <Button
             className="bg-blue-600 hover:bg-blue-700 text-white flex items-center w-full md:w-auto"
             onClick={openPersonalModal}
             disabled={mCreatePersonal.isPending}
           >
             <Plus className="w-4 h-4" />
             {t("addContent")}
-          </Button>
+          </Button> */}
         </div>
 
         <div className="relative">

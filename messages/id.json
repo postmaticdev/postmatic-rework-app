@@ -326,7 +326,6 @@
     "scheduleSavedSuccessfully": "Jadwal berhasil disimpan",
     "scheduleSaveFailed": "Gagal menyimpan jadwal",
     "recentHistory": "Riwayat Terbaru",
-
     "clickToView": "Klik untuk melihat",
     "more": "lagi"
   },
@@ -349,6 +348,7 @@
     "payAsYouGo": "Pay as you go",
     "payAsYouGoDescription": "Top up token kapan saja saat workspace membutuhkan kredit tambahan.",
     "tokenBalance": "Saldo Token",
+    "tokenBalanceTooltip": "Token adalah kredit yang digunakan untuk generate konten AI dan fitur berbayar lainnya. Saldo akan berkurang sesuai fitur yang digunakan.",
     "topUpCredit": "Top up Credit",
     "viewPricing": "Lihat pricing",
     "topUpToken": "Top up Token",
@@ -406,7 +406,7 @@
     "contentRepetitionTab": "Pengulangan Konten",
     "autoGenerate": "Pengulangan Konten",
     "history": "Riwayat",
-    "contentLibrary": "Pustaka Konten",
+    "contentLibrary": "Riwayat Konten",
     "searchHere": "Cari disini",
     "noContent": "Belum ada konten",
     "noContentDescription": "Tambahkan konten baru",
@@ -957,7 +957,6 @@
     "zodMaxLengthCallToAction": "Ajakan bertindak harus kurang dari 200 karakter",
     "zodMaxLengthGoals": "Tujuan konten harus kurang dari 500 karakter"
   },
-
   "rssKnowledge": {
     "saveButton": "Simpan Perubahan",
     "notAvailable": "Tidak ada RSS",
@@ -1001,6 +1000,7 @@
   "analyticsCard": {
     "totalPosting": "Jumlah Postingan",
     "totalPostingSubtitle": "Jumlah postingan yang dipublikasikan dalam 30 hari terakhir",
+    "totalPostingSubtitlePeriod": "Jumlah postingan yang dipublikasikan dalam {period} terakhir",
     "totalUpcoming": "Konten mendatang",
     "totalUpcomingSubtitle": "Terjadwal untuk terbit dalam 30 hari"
   },

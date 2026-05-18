@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { Copy, ReceiptText, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +28,8 @@ import {
   useCheckoutPayEWallet,
   usePaymentImageTokenPrice,
 } from "@/services/purchase.api";
-import { CheckoutRes, PaymentAction } from "@/models/api/purchase/checkout.type";
+import { CheckoutRes } from "@/models/api/purchase/checkout.type";
+import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
@@ -39,9 +40,52 @@ interface TopUpTokenDialogProps {
   initialAmount?: string;
 }
 
+type ApiError = {
+  response?: {
+    data?: { responseMessage?: string; metaData?: { message?: string } };
+  };
+};
+
 const DEFAULT_TOKEN_AMOUNT = "200000";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
+
+const getPaymentStatusLabel = (status?: string) => {
+  switch (status) {
+    case "Success":
+      return "Berhasil";
+    case "Failed":
+      return "Gagal";
+    case "Canceled":
+      return "Dibatalkan";
+    case "Expired":
+      return "Kedaluwarsa";
+    case "Refunded":
+      return "Refund";
+    case "Denied":
+      return "Ditolak";
+    case "Pending":
+    default:
+      return "Menunggu Pembayaran";
+  }
+};
+
+const getPaymentStatusClassName = (status?: string) => {
+  switch (status) {
+    case "Success":
+      return "border-green-200 bg-green-50 text-green-700";
+    case "Failed":
+    case "Denied":
+      return "border-red-200 bg-red-50 text-red-700";
+    case "Canceled":
+    case "Expired":
+    case "Refunded":
+      return "border-gray-200 bg-gray-50 text-gray-700";
+    case "Pending":
+    default:
+      return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+};
 
 export function TopUpTokenDialog({
   isOpen,
@@ -55,6 +99,7 @@ export function TopUpTokenDialog({
   const [amount, setAmount] = useState(initialAmount || DEFAULT_TOKEN_AMOUNT);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [promoCode, setPromoCode] = useState("");
+  const [checkedPromoCode, setCheckedPromoCode] = useState("");
   const [checkoutResult, setCheckoutResult] = useState<CheckoutRes | null>(
     null
   );
@@ -87,7 +132,7 @@ export function TopUpTokenDialog({
     businessId,
     tokenAmount,
     paymentMethod,
-    referralCode: promoCode.trim() || undefined,
+    referralCode: checkedPromoCode || undefined,
     enabled: isOpen && !checkoutResult,
   });
 
@@ -96,10 +141,22 @@ export function TopUpTokenDialog({
   const isCreatingPayment =
     mCheckoutPayBank.isPending || mCheckoutPayEWallet.isPending;
   const price = priceQuery.data?.data?.data;
+  const priceQueryError = priceQuery.error as ApiError | null;
+  const isPromoCodeChecked =
+    !!checkedPromoCode && checkedPromoCode === promoCode.trim();
+  const isCheckingPromoCode =
+    isPromoCodeChecked && priceQuery.isFetching;
+  const promoCodeMessage = isPromoCodeChecked
+    ? price?.referral?.message ||
+    priceQueryError?.response?.data?.responseMessage ||
+    priceQueryError?.response?.data?.metaData?.message
+    : "";
 
   useEffect(() => {
     if (!isOpen) return;
     setAmount(initialAmount || DEFAULT_TOKEN_AMOUNT);
+    setPromoCode("");
+    setCheckedPromoCode("");
     setCheckoutResult(null);
   }, [initialAmount, isOpen]);
 
@@ -124,6 +181,35 @@ export function TopUpTokenDialog({
     }
   };
 
+  const handlePromoCodeChange = (value: string) => {
+    const nextPromoCode = value.toUpperCase();
+    setPromoCode(nextPromoCode);
+    if (checkedPromoCode && checkedPromoCode !== nextPromoCode.trim()) {
+      setCheckedPromoCode("");
+    }
+  };
+
+  const handleCheckPromoCode = async () => {
+    const nextPromoCode = promoCode.trim();
+    if (!nextPromoCode) {
+      showToast("error", "Please enter promo code.");
+      return;
+    }
+    if (!tokenAmount || tokenAmount <= 0) {
+      showToast("error", "Please enter a valid token amount.");
+      return;
+    }
+    if (!selectedMethod) {
+      showToast("error", t("toast.validation.selectPaymentMethod"));
+      return;
+    }
+
+    setCheckedPromoCode(nextPromoCode);
+    if (checkedPromoCode === nextPromoCode) {
+      await priceQuery.refetch();
+    }
+  };
+
   const handleCreatePayment = async () => {
     if (!tokenAmount || tokenAmount <= 0) {
       showToast("error", "Please enter a valid token amount.");
@@ -140,40 +226,52 @@ export function TopUpTokenDialog({
       const res =
         selectedMethod.type === "Virtual Account"
           ? await mCheckoutPayBank.mutateAsync({
-              businessId,
-              formData: {
-                bank: selectedMethod.code,
-                productId: String(tokenAmount),
-                type: "token",
-                discountCode,
-              },
-            })
+            businessId,
+            formData: {
+              bank: selectedMethod.code,
+              productId: String(tokenAmount),
+              type: "token",
+              discountCode,
+            },
+          })
           : await mCheckoutPayEWallet.mutateAsync({
-              businessId,
-              formData: {
-                productId: String(tokenAmount),
-                type: "token",
-                discountCode,
-                acquirer: selectedMethod.code.toLowerCase(),
-              },
-            });
+            businessId,
+            formData: {
+              productId: String(tokenAmount),
+              type: "token",
+              discountCode,
+              acquirer: selectedMethod.code.toLowerCase(),
+            },
+          });
 
-      setCheckoutResult(res.data.data);
+      let nextCheckout: CheckoutRes = {
+        ...res.data.data,
+        discountCode: discountCode || null,
+      };
+      try {
+        const detailRes = await businessPurchaseService.getDetail(
+          businessId,
+          nextCheckout.id
+        );
+        nextCheckout = mergeCheckoutWithPurchaseDetail(
+          nextCheckout,
+          detailRes.data.data
+        );
+      } catch {
+        // The creation response still contains the payment actions needed to pay.
+      }
+
+      setCheckoutResult(nextCheckout);
       queryClient.invalidateQueries({
         queryKey: ["businessPurchaseHistory", businessId],
       });
     } catch (error: unknown) {
-      type ApiError = {
-        response?: {
-          data?: { responseMessage?: string; metaData?: { message?: string } };
-        };
-      };
       const apiError = error as ApiError;
       showToast(
         "error",
         apiError.response?.data?.responseMessage ||
-          apiError.response?.data?.metaData?.message ||
-          t("toast.defaultError")
+        apiError.response?.data?.metaData?.message ||
+        t("toast.defaultError")
       );
     }
   };
@@ -186,8 +284,13 @@ export function TopUpTokenDialog({
         businessId,
         checkoutResult.id
       );
-      showToast("info", res.data.data.status);
-      queryClient.clear();
+      setCheckoutResult((current) =>
+        current ? mergeCheckoutWithPurchaseDetail(current, res.data.data) : current
+      );
+      showToast("info", getPaymentStatusLabel(res.data.data.status));
+      queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseHistory", businessId],
+      });
     } catch {
       showToast("error", t("toast.payment.paymentStatusCheckFailed"));
     } finally {
@@ -203,55 +306,47 @@ export function TopUpTokenDialog({
     }).format(new Date(value));
   };
 
-  const renderAction = (action: PaymentAction, index: number) => {
-    if (action.type === "image") {
-      return (
-        <div key={`${action.action}-${index}`} className="space-y-3">
-          <p className="text-sm font-medium text-foreground">{action.action}</p>
-          <div className="grid place-items-center rounded-lg border bg-white p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={action.value}
-              alt={action.action}
-              className="h-64 w-64 object-contain"
-            />
-          </div>
-        </div>
-      );
-    }
+  const qrCodeV2Action = checkoutResult?.paymentActions.find(
+    (action) => action.type === "image" && action.action === "generate-qr-code-v2"
+  );
+  const textPaymentAction = checkoutResult?.paymentActions.find(
+    (action) => action.type === "text"
+  );
 
-    if (action.type === "redirect") {
-      return (
-        <div key={`${action.action}-${index}`} className="space-y-3">
-          <p className="text-sm font-medium text-foreground">{action.action}</p>
-          <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="break-all font-mono text-sm">{action.value}</p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => window.open(action.value, "_blank", "noreferrer")}
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div key={`${action.action}-${index}`} className="space-y-3">
-        <p className="text-sm font-medium text-foreground">{action.action}</p>
-        <CopyableValue value={action.value} onCopy={handleCopy} />
-      </div>
-    );
-  };
+  const detailRows = checkoutResult
+    ? [
+      {
+        label: "Ref",
+        value:
+          checkoutResult.paymentCode ||
+          checkoutResult.orderId ||
+          checkoutResult.id,
+      },
+      { label: "Tgl Dibuat", value: formatDateTime(checkoutResult.createdAt) },
+      { label: "Tgl Diubah", value: formatDateTime(checkoutResult.updatedAt) },
+      { label: "Produk", value: checkoutResult.productName },
+      {
+        label: "Metode",
+        value: checkoutResult.method?.toUpperCase() || "-",
+      },
+      ...checkoutResult.paymentDetails.map((detail) => ({
+        label: detail.name,
+        value: formatIdr(detail.price),
+      })),
+      { label: "Total", value: formatIdr(checkoutResult.totalAmount) },
+      {
+        label: "Status Bayar",
+        value: getPaymentStatusLabel(checkoutResult.status),
+      },
+      { label: "Kode Affiliate", value: checkoutResult.discountCode || "-" },
+    ]
+    : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl overflow-hidden">
+      <DialogContent className="overflow-hidden">
         <DialogHeader className="px-6 py-5">
-          <DialogTitle className="text-2xl font-bold">
+          <DialogTitle >
             {checkoutResult ? "Payment Instruction" : "Pay as you go"}
           </DialogTitle>
         </DialogHeader>
@@ -259,7 +354,7 @@ export function TopUpTokenDialog({
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
           {!checkoutResult ? (
             <>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
                     Amount to add
@@ -306,20 +401,35 @@ export function TopUpTokenDialog({
                 </label>
                 <Input
                   value={promoCode}
-                  onChange={(event) => setPromoCode(event.target.value)}
+                  onChange={(event) => handlePromoCodeChange(event.target.value)}
                   placeholder="Enter promo code"
                   className="h-11 uppercase"
                 />
-                {price?.referral?.message ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCheckPromoCode}
+                  disabled={
+                    isCheckingPromoCode ||
+                    priceQuery.isLoading ||
+                    !promoCode.trim() ||
+                    !tokenAmount ||
+                    !paymentMethod
+                  }
+                  className="w-full"
+                >
+                  {isCheckingPromoCode ? "Checking..." : "Check promo code"}
+                </Button>
+                {promoCodeMessage ? (
                   <p
                     className={cn(
                       "text-xs",
-                      price.referral.valid
+                      price?.referral?.valid && !priceQueryError
                         ? "text-green-600"
-                        : "text-muted-foreground"
+                        : "text-red-600"
                     )}
                   >
-                    {price.referral.message}
+                    {promoCodeMessage}
                   </p>
                 ) : null}
               </div>
@@ -360,40 +470,85 @@ export function TopUpTokenDialog({
             </>
           ) : (
             <>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <InfoBox
-                  label="Payment code"
-                  value={checkoutResult.paymentCode || checkoutResult.id}
-                  onCopy={handleCopy}
-                />
-                <InfoBox
-                  label="Expiration time"
-                  value={formatDateTime(checkoutResult.expiredAt)}
-                />
+              <div className="flex flex-col gap-4 rounded-lg border border-amber-300 bg-amber-50/45 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Menunggu Pembayaran...
+                    </h3>
+                    <div className="space-y-1 text-sm text-foreground">
+                      <p>Silakan lakukan pembayaran untuk melanjutkan pesanan.</p>
+                      <p>
+                        Total yang harus dibayar:{" "}
+                        <span className="font-semibold">
+                          {formatIdr(checkoutResult.totalAmount)}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Berlaku sampai {formatDateTime(checkoutResult.expiredAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCheckPaymentStatus}
+                    disabled={isCheckingStatus}
+                    className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+                  >
+                    <RefreshCw
+                      className={cn("h-4 w-4", isCheckingStatus && "animate-spin")}
+                    />
+                    Refresh
+                  </Button>
+                </div>
+                <div className="grid min-h-56 min-w-56 place-items-center self-center rounded-md border bg-white p-3 shadow-sm">
+                  {qrCodeV2Action ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={qrCodeV2Action.value}
+                      alt="QRIS payment QR code"
+                      className="h-52 w-52 object-contain"
+                    />
+                  ) : textPaymentAction ? (
+                    <PaymentTextInstruction
+                      action={textPaymentAction.action}
+                      value={textPaymentAction.value}
+                      method={checkoutResult.method}
+                      onCopy={handleCopy}
+                    />
+                  ) : (
+                    <div className="grid h-52 w-52 place-items-center text-center text-sm text-muted-foreground">
+                      Instruksi pembayaran tidak tersedia.
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="rounded-lg border bg-muted/20 p-4">
-                <SummaryRow label="Product" value={checkoutResult.productName} />
-                <SummaryRow
-                  label="Method"
-                  value={checkoutResult.method?.toUpperCase()}
-                />
-                <SummaryRow
-                  label="Total"
-                  value={formatIdr(checkoutResult.totalAmount)}
-                  strong
-                />
-              </div>
-
-              <div className="space-y-5">
-                {checkoutResult.paymentActions.map(renderAction)}
+              <div className="rounded-lg border bg-background p-5">
+                <div className="mb-5 flex items-center gap-3 border-b pb-4">
+                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
+                    <ReceiptText className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Detail Order</h3>
+                </div>
+                <div className="space-y-3">
+                  {detailRows.map((row) => (
+                    <DetailOrderRow
+                      key={row.label}
+                      label={row.label}
+                      value={row.value}
+                      status={row.label === "Status Bayar" ? checkoutResult.status : undefined}
+                    />
+                  ))}
+                </div>
               </div>
             </>
           )}
         </div>
 
-        <DialogFooter className="px-6 py-4">
-          {!checkoutResult ? (
+        {!checkoutResult ? (
+          <DialogFooter className="px-6 py-4">
             <Button
               onClick={handleCreatePayment}
               disabled={
@@ -402,28 +557,35 @@ export function TopUpTokenDialog({
                 !tokenAmount ||
                 !paymentMethod
               }
-              className="ml-auto bg-blue-600 text-white hover:bg-blue-700"
+
             >
               {isCreatingPayment ? "Processing..." : "Continue"}
             </Button>
-          ) : (
-            <div className="ml-auto flex gap-2">
-              <Button variant="outline" onClick={() => setCheckoutResult(null)}>
-                Create another
-              </Button>
-              <Button
-                onClick={handleCheckPaymentStatus}
-                disabled={isCheckingStatus}
-                className="bg-blue-600 text-white hover:bg-blue-700"
-              >
-                {isCheckingStatus ? "Checking..." : "Check Payment Status"}
-              </Button>
-            </div>
-          )}
-        </DialogFooter>
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
+}
+
+function mergeCheckoutWithPurchaseDetail(
+  checkout: CheckoutRes,
+  detail: BusinessPurchaseRes
+): CheckoutRes {
+  return {
+    ...checkout,
+    productName: detail.productName || checkout.productName,
+    productType: detail.productType || checkout.productType,
+    totalAmount: detail.totalAmount,
+    method: detail.method || checkout.method,
+    expiredAt: detail.expiredAt || checkout.expiredAt,
+    status: detail.status || checkout.status,
+    createdAt: detail.createdAt || checkout.createdAt,
+    updatedAt: detail.updatedAt || checkout.updatedAt,
+    paymentDetails: detail.paymentDetails?.length
+      ? detail.paymentDetails
+      : checkout.paymentDetails,
+  };
 }
 
 function SummaryRow({
@@ -445,48 +607,67 @@ function SummaryRow({
   );
 }
 
-function CopyableValue({
+function DetailOrderRow({
+  label,
   value,
-  onCopy,
+  status,
 }: {
+  label: string;
   value: string;
-  onCopy: (value: string) => void;
+  status?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">
-      <p className="break-all font-mono text-sm font-semibold">{value}</p>
-      <Button type="button" variant="outline" size="icon" onClick={() => onCopy(value)}>
-        <Copy className="h-4 w-4" />
-      </Button>
+    <div className="grid grid-cols-[120px_1fr] items-start gap-4 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      {status ? (
+        <span
+          className={cn(
+            "w-fit rounded-md border px-2 py-1 text-sm font-medium",
+            getPaymentStatusClassName(status)
+          )}
+        >
+          {value}
+        </span>
+      ) : (
+        <span className="break-words font-medium text-foreground">{value}</span>
+      )}
     </div>
   );
 }
 
-function InfoBox({
-  label,
+function PaymentTextInstruction({
+  action,
   value,
+  method,
   onCopy,
 }: {
-  label: string;
+  action: string;
   value: string;
-  onCopy?: (value: string) => void;
+  method: string;
+  onCopy: (value: string) => void;
 }) {
+  const label =
+    action === "virtual-account"
+      ? `Virtual Account ${method?.toUpperCase() || ""}`.trim()
+      : action;
+
   return (
-    <div className="rounded-lg border bg-muted/20 p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <p className="break-all font-mono text-sm font-semibold">{value}</p>
-        {onCopy ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => onCopy(value)}
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
-        ) : null}
+    <div className="flex h-full w-full min-w-52 flex-col justify-center gap-3 text-center">
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <div className="rounded-lg border bg-muted/20 px-4 py-3">
+        <p className="break-all font-mono text-lg font-semibold text-foreground">
+          {value}
+        </p>
       </div>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => onCopy(value)}
+        className="w-full"
+      >
+        <Copy className="h-4 w-4" />
+        Copy
+      </Button>
     </div>
   );
 }

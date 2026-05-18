@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -17,7 +16,6 @@ import { useTokenGetAnalyticUsage } from "@/services/tier/token.api";
 import { useParams } from "next/navigation";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { useDateFormat } from "@/hooks/use-date-format";
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 
 interface CustomTooltipPayload {
@@ -133,38 +131,16 @@ interface Period {
   labelEnd: string;
 }
 
-// Period selector component
-const PeriodSelector = ({
-  period,
-  onPeriodChange,
-  periods,
-}: {
+interface AdvancedTokenChartProps {
   period: TimePeriod;
-  onPeriodChange: (period: TimePeriod) => void;
-  periods: Period[];
-}) => {
-  const t = useTranslations("periodSelector");
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">{t("period")}:</span>
-
-      {periods.map((p) => (
-        <Button
-          key={p.value}
-          onClick={() => onPeriodChange(p.value)}
-          variant={period === p.value ? "default" : "outline"}
-          size="sm"
-        >
-          {p.label}
-        </Button>
-      ))}
-    </div>
-  );
-};
+  selectedPeriod?: Pick<Period, "filterQuery" | "labelStart" | "labelEnd">;
+}
 
 // Main chart component
-export function AdvancedTokenChart() {
-  const [period, setPeriod] = useState<TimePeriod>("7d");
+export function AdvancedTokenChart({
+  period = "7d",
+  selectedPeriod,
+}: Partial<AdvancedTokenChartProps>) {
   const t = useTranslations("periodSelector");
   const { formatDate } = useDateFormat();
 
@@ -214,7 +190,7 @@ export function AdvancedTokenChart() {
   ];
 
   const { businessId } = useParams() as { businessId: string };
-  const findPeriod = periods.find((p) => p.value === period);
+  const findPeriod = selectedPeriod || periods.find((p) => p.value === period);
   const { data: tokenUsageData } = useTokenGetAnalyticUsage(
     businessId,
     findPeriod?.filterQuery
@@ -227,24 +203,16 @@ export function AdvancedTokenChart() {
     Total: item.Image + item.Video + item.LiveStream,
   }));
 
-  const dateRangeLabel = useMemo(
-    () => `${findPeriod?.labelStart} - ${findPeriod?.labelEnd}`,
-    [findPeriod]
-  );
   const d = useTranslations("dashboard");
   return (
     <ChartErrorBoundary>
       <div className="w-full bg-card rounded-lg p-4 border border-border">
         {/* Header with controls */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <div className="mb-6">
           <div>
             <h3 className="text-lg font-semibold text-foreground">
               {d("tokenUsageAnalysis")}
             </h3>
-            <p className="text-sm text-muted-foreground">{dateRangeLabel}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <PeriodSelector period={period} onPeriodChange={setPeriod} periods={periods} />
           </div>
         </div>
 

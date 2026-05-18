@@ -332,6 +332,8 @@
     "notAvailableDescription": "プラットフォームは利用できません"
   },
   "settings": {
+    "tokenBalance": "Token Balance",
+    "tokenBalanceTooltip": "Tokens are credits used for AI content generation and other paid features. Your balance decreases based on the feature you use.",
     "members": "メンバー",
     "historyTransactions": "取引履歴",
     "admin": "管理者",
@@ -794,6 +796,7 @@
   "analyticsCard": {
     "totalPosting": "投稿合計",
     "totalPostingSubtitle": "過去30日間に公開された投稿の合計",
+    "totalPostingSubtitlePeriod": "過去{period}に公開された投稿の合計",
     "totalUpcoming": "今後のコンテンツ",
     "totalUpcomingSubtitle": "今後30日間に公開予定"
   },

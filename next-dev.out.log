@@ -3,8 +3,8 @@
 > next dev --turbopack
 
    ▲ Next.js 15.5.2 (Turbopack)
-   - Local:        http://localhost:3002
-   - Network:      http://192.168.18.14:3002
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.18.14:3001
    - Environments: .env.local
 
  ✓ Starting...
@@ -12,5 +12,5 @@ Creating turbopack project {
   dir: 'C:\\Users\\lphai\\Documents\\postmatic-rework',
   testMode: true
 }
- ✓ Compiled middleware in 191ms
- ✓ Ready in 1858ms
+ ✓ Compiled middleware in 178ms
+ ✓ Ready in 1750ms

@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,11 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Copy } from "lucide-react";
-import {
-  BusinessPurchaseRes,
-  PaymentAction,
-} from "@/models/api/purchase/business.type";
+import { Copy, RefreshCw } from "lucide-react";
+import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { showToast } from "@/helper/show-toast";
 import { formatIdr } from "@/helper/formatter";
 import Image from "next/image";
@@ -26,7 +22,7 @@ import { businessPurchaseService } from "@/services/purchase.api";
 import { useParams } from "next/navigation";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 interface PurchaseDetailModalProps {
@@ -50,80 +46,37 @@ export function PurchaseDetailModal({
   const tToast = useTranslations();
   const { formatDate } = useDateFormat();
 
+  const paymentDetails = transaction?.paymentDetails ?? [];
+  const paymentActions = transaction?.paymentActions ?? [];
+  const qrCodeV2Action = paymentActions.find(
+    (action) => action.type === "image" && action.action === "generate-qr-code-v2"
+  );
+  const textPaymentAction = paymentActions.find(
+    (action) => action.type === "text"
+  );
+
+  useEffect(() => {
+    if (!isOpen || !transaction || transaction.status !== "Pending") return;
+    if (transaction.paymentActions.length > 0) return;
+
+    let ignore = false;
+    businessPurchaseService
+      .getDetail(businessId, transaction.id)
+      .then(({ data: res }) => {
+        if (!ignore) setTransaction(res.data);
+      })
+      .catch(() => {
+        if (!ignore) {
+          showToast("error", tToast("toast.payment.paymentStatusCheckFailed"));
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [businessId, isOpen, setTransaction, tToast, transaction]);
+
   if (!transaction) return null;
-
-  const { paymentDetails, paymentActions } = transaction;
-
-  const renderPaymentActions = (item: PaymentAction) => {
-    switch (item.type) {
-      case "claim":
-        return (
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">
-              {t("itemAlreadyClaimed")}
-            </div>
-          </div>
-        );
-      case "redirect":
-        return (
-          <div className="space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleRedirect(item.value)}
-            >
-              {t("clickToMakePayment")}
-            </Button>
-
-            <div className="text-sm text-muted-foreground">
-              {t("youWillBeRedirectedToThePaymentPage")}
-            </div>
-          </div>
-        );
-      case "text":
-        return (
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">{item.action}</div>
-            <div className="flex items-center space-x-2">
-              <Input
-                value={item.value}
-                readOnly
-                className="font-mono text-blue-600 font-bold bg-gray-50 text-sm sm:text-base flex-1"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleCopy(item.value)}
-                className="flex-shrink-0 px-3"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {t("use")} {item.action} {t("toMakePayment")}
-            </div>
-          </div>
-        );
-      case "image":
-        return (
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">{t("qris")}</div>
-            <div className="flex items-center space-x-2">
-              <Image
-                src={item.value}
-                alt={item.action}
-                width={600}
-                height={600}
-                className="aspect-square rounded-lg w-full h-auto"
-              />
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {t("useTheImageAboveToMakePayment")}
-            </div>
-          </div>
-        );
-    }
-  };
 
   const handleCopy = async (str: string) => {
     try {
@@ -145,10 +98,6 @@ export function PurchaseDetailModal({
       default:
         return "bg-gray-100 text-gray-800";
     }
-  };
-
-  const handleRedirect = (url: string) => {
-    window.open(url, "_blank");
   };
 
   const handleCheckPaymentStatus = async () => {
@@ -277,14 +226,65 @@ export function PurchaseDetailModal({
 
           {/* Payment Instruction Section */}
           {transaction.status === "Pending" && (
-            <Card>
-              <CardContent className="space-y-4 py-4">
-                <CardTitle>{t("paymentInstruction")}</CardTitle>
-                {paymentActions.map((act) => (
-                  <div key={act.id}>{renderPaymentActions(act)}</div>
-                ))}
-              </CardContent>
-            </Card>
+            <div className="flex flex-col gap-4 rounded-lg border border-amber-300 bg-amber-50/45 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Menunggu Pembayaran...
+                  </h3>
+                  <div className="space-y-1 text-sm text-foreground">
+                    <p>Silakan lakukan pembayaran untuk melanjutkan pesanan.</p>
+                    <p>
+                      Total yang harus dibayar:{" "}
+                      <span className="font-semibold">
+                        {formatIdr(transaction.totalAmount)}
+                      </span>
+                    </p>
+                    {transaction.expiredAt ? (
+                      <p className="text-muted-foreground">
+                        Berlaku sampai{" "}
+                        {formatDate(new Date(transaction.expiredAt))}{" "}
+                        {dateFormat.getHhMm(new Date(transaction.expiredAt))}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleCheckPaymentStatus()}
+                  disabled={isChecking}
+                  className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+                >
+                  <RefreshCw
+                    className={`${isChecking ? "animate-spin" : ""} h-4 w-4`}
+                  />
+                  Refresh
+                </Button>
+              </div>
+              <div className="grid min-h-56 min-w-56 place-items-center self-center rounded-md border bg-white p-3 shadow-sm">
+                {qrCodeV2Action ? (
+                  <Image
+                    src={qrCodeV2Action.value}
+                    alt="QRIS payment QR code"
+                    width={208}
+                    height={208}
+                    className="h-52 w-52 object-contain"
+                  />
+                ) : textPaymentAction ? (
+                  <PaymentTextInstruction
+                    action={textPaymentAction.action}
+                    value={textPaymentAction.value}
+                    method={transaction.method}
+                    onCopy={handleCopy}
+                  />
+                ) : (
+                  <div className="grid h-52 w-52 place-items-center text-center text-sm text-muted-foreground">
+                    Instruksi pembayaran tidak tersedia.
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Payment Details Section */}
@@ -348,5 +348,42 @@ export function PurchaseDetailModal({
         </DialogFooterWithButton>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PaymentTextInstruction({
+  action,
+  value,
+  method,
+  onCopy,
+}: {
+  action: string;
+  value: string;
+  method: string;
+  onCopy: (value: string) => void;
+}) {
+  const label =
+    action === "virtual-account"
+      ? `Virtual Account ${method?.toUpperCase() || ""}`.trim()
+      : action;
+
+  return (
+    <div className="flex h-full w-full min-w-52 flex-col justify-center gap-3 text-center">
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <div className="rounded-lg border bg-muted/20 px-4 py-3">
+        <p className="break-all font-mono text-lg font-semibold text-foreground">
+          {value}
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => onCopy(value)}
+        className="w-full"
+      >
+        <Copy className="h-4 w-4" />
+        Copy
+      </Button>
+    </div>
   );
 }

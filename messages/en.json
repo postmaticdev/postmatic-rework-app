@@ -284,7 +284,6 @@
     "at": "at",
     "pleaseSelectDay": "Please select a day",
     "pleaseSelectTime": "Please select a time",
-
     "pleaseSelectTimeAndPlatform": "Please select time and at least one platform",
     "namaBisnis": "Business Name",
     "kategori": "Category",
@@ -299,10 +298,8 @@
     "harga": "Price",
     "hashtag": "Hashtags",
     "cancel": "Cancel",
-
     "pleaseSelectProduct": "Please select a product",
     "pleaseSelectPlatform": "Please select at least one platform",
-
     "promosiDiskon": "Promotion & Discount",
     "productShowcase": "Product Showcase",
     "testimoniReviewPelanggan": "Customer Testimonials & Reviews",
@@ -327,7 +324,6 @@
     "scheduleStatus": "Schedule Status",
     "active": "Active",
     "inactive": "Inactive",
-
     "recentHistory": "Recent History",
     "generatedImages": "Generated Images",
     "clickToView": "Click to view",
@@ -352,6 +348,7 @@
     "payAsYouGo": "Pay as you go",
     "payAsYouGoDescription": "Top up tokens whenever your workspace needs more generation credits.",
     "tokenBalance": "Token Balance",
+    "tokenBalanceTooltip": "Tokens are credits used for AI content generation and other paid features. Your balance decreases based on the feature you use.",
     "topUpCredit": "Top up Credit",
     "viewPricing": "View pricing",
     "topUpToken": "Top Up Token",
@@ -409,7 +406,7 @@
     "contentRepetitionTab": "Content Repetition",
     "autoGenerate": "Content Repetition",
     "history": "History",
-    "contentLibrary": "Content Library",
+    "contentLibrary": "History Content",
     "searchHere": "Search here",
     "noContent": "No content",
     "noContentDescription": "Add new content",
@@ -1003,6 +1000,7 @@
   "analyticsCard": {
     "totalPosting": "Total Posting",
     "totalPostingSubtitle": "Total posting published in the last 30 days",
+    "totalPostingSubtitlePeriod": "Total posting published in the last {period}",
     "totalUpcoming": "Upcoming Content",
     "totalUpcomingSubtitle": "Scheduled to be published in the next 30 days"
   },

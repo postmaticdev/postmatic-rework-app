@@ -14,10 +14,17 @@ import { UserPurchaseRes } from "@/models/api/purchase/user.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 type NewPaymentAction = {
-  name: string;
+  id?: string;
+  name?: string;
+  action?: string;
   value: string;
-  valueType: "image" | "link" | "text";
-  method: string;
+  valueType?: "image" | "link" | "text" | "redirect";
+  type?: "image" | "redirect" | "text" | "claim";
+  method?: string;
+  paymentPurchaseId?: string;
+  deletedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type NewPaymentCreated = {
@@ -26,6 +33,10 @@ type NewPaymentCreated = {
   status: string;
   paymentMethod: { code: string; name: string; type: string };
   expiresAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  referralCode?: string | null;
+  discountCode?: string | null;
   calculation: {
     itemPrice: number;
     discountAmount: number;
@@ -61,6 +72,8 @@ export type ImageTokenPriceRes = {
 
 type NewPaymentHistory = {
   id: string;
+  orderId?: string;
+  paymentCode?: string;
   productAmount: number;
   status: string;
   currency: string;
@@ -77,21 +90,32 @@ type NewPaymentHistory = {
   midtransExpiredAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  actions?: NewPaymentAction[];
+  paymentActions?: NewPaymentAction[];
+  paymentAction?: NewPaymentAction[];
 };
 
 const titleStatus = (status: string) =>
   `${status.slice(0, 1).toUpperCase()}${status.slice(1).toLowerCase()}`;
 
 const mapActions = (actions: NewPaymentAction[] = []) =>
-  actions.map((action) => ({
-    action: action.name,
-    value: action.value,
-    type:
-      action.valueType === "link"
-        ? ("redirect" as const)
-        : (action.valueType as "image" | "text"),
-    method: action.method,
-  }));
+  actions.map((action) => {
+    const rawType = action.type || action.valueType;
+    return {
+      action: action.action || action.name || "",
+      value: action.value,
+      type:
+        rawType === "link"
+          ? ("redirect" as const)
+          : (rawType as "image" | "redirect" | "text" | "claim"),
+      method: action.method || "GET",
+    };
+  });
+
+const getPaymentActions = (payment: NewPaymentCreated | NewPaymentHistory) =>
+  payment.actions || ("paymentActions" in payment && payment.paymentActions) ||
+  ("paymentAction" in payment && payment.paymentAction) ||
+  [];
 
 const mapPaymentDetails = (payment: NewPaymentCreated | NewPaymentHistory) => {
   if ("calculation" in payment) {
@@ -127,14 +151,17 @@ const mapCheckout = (payment: NewPaymentCreated): CheckoutRes => ({
   profileId: "",
   rootBusinessId: "",
   deletedAt: null,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  paymentActions: mapActions(payment.actions),
+  createdAt: payment.createdAt || "",
+  updatedAt: payment.updatedAt || "",
+  paymentActions: mapActions(getPaymentActions(payment)),
   paymentDetails: mapPaymentDetails(payment),
+  discountCode: payment.referralCode || payment.discountCode || null,
 });
 
 const mapHistory = (payment: NewPaymentHistory): BusinessPurchaseRes => ({
   id: payment.id,
+  orderId: payment.orderId,
+  paymentCode: payment.paymentCode || payment.orderId,
   totalAmount: payment.totalAmount,
   method: payment.paymentMethod,
   productName: payment.productName,
@@ -143,7 +170,14 @@ const mapHistory = (payment: NewPaymentHistory): BusinessPurchaseRes => ({
   expiredAt: payment.midtransExpiredAt ?? undefined,
   createdAt: payment.createdAt,
   updatedAt: payment.updatedAt,
-  paymentActions: [],
+  paymentActions: mapActions(getPaymentActions(payment)).map((action, index) => ({
+    id: `${payment.id}-${action.action}-${index}`,
+    paymentPurchaseId: payment.id,
+    deletedAt: null,
+    createdAt: payment.createdAt,
+    updatedAt: payment.updatedAt,
+    ...action,
+  })),
   paymentDetails: mapPaymentDetails(payment),
   profile: { name: "", email: "", members: [] },
 });

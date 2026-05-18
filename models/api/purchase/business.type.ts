@@ -1,5 +1,7 @@
 export interface BusinessPurchaseRes {
   id: string;
+  orderId?: string;
+  paymentCode?: string;
   totalAmount: number;
   method: string;
   productName: string;

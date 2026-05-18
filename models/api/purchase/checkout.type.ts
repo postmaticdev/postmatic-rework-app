@@ -41,7 +41,7 @@ export interface CheckoutRes {
 export interface PaymentAction {
   action: string;
   value: string;
-  type: "image" | "redirect" | "text";
+  type: "image" | "redirect" | "text" | "claim";
   method: string;
 }
 
