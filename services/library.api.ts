@@ -31,6 +31,7 @@ type CreatorImage = {
   name: string;
   imageUrl: string | null;
   isPublished?: boolean;
+  notShowingReason?: string | null;
   price?: number;
   publisher: {
     id: string;
@@ -149,10 +150,9 @@ const getCreatorImageTemplates = (filterQuery?: Partial<FilterQuery>) => {
   const { productCategory, category, ...rest } = filterQuery || {};
 
   return api
-    .get<BaseResponseFiltered<CreatorImage[]>>(`/creator/image`, {
+    .get<BaseResponseFiltered<CreatorImage[]>>(`/creator/library`, {
       params: {
         ...rest,
-        published: true,
         category: productCategory || undefined,
         typeCategoryId: category || undefined,
       },
@@ -202,38 +202,79 @@ const mapRssCategory = (category: RssCategoryRes): RssCategoryRes => ({
   id: String(category.id),
 });
 
+type BackendRssArticle = Omit<RssArticleRes, "imageUrl" | "masterRssId"> & {
+  thumbnail?: string | null;
+  imageUrl?: string | null;
+  masterRssId?: string | number;
+  feedId?: string | number;
+  feedTitle?: string;
+};
+
+const mapRssArticle = (article: BackendRssArticle): RssArticleRes => ({
+  title: article.title ?? "",
+  url: article.url ?? "",
+  summary: article.summary ?? "",
+  imageUrl: article.imageUrl || article.thumbnail || null,
+  thumbnail: article.thumbnail || article.imageUrl || null,
+  publishedAt: article.publishedAt ?? "",
+  masterRssId: String(article.masterRssId ?? article.feedId ?? ""),
+  feedId: article.feedId ? String(article.feedId) : undefined,
+  feedTitle: article.feedTitle,
+  deletedAt: article.deletedAt ?? "",
+  publisher: article.publisher ?? "",
+});
+
 // ============================== LIBRARY ==============================
 
 const libraryService = {
-  RSSArticle: (_businessId: string) => {
-    return Promise.resolve({
-      data: {
-        metaData: { code: 200, message: "OK" },
-        responseMessage: "RSS_ARTICLE_ENDPOINT_NOT_AVAILABLE",
-        data: [],
-      },
-    }) as unknown as ReturnType<typeof api.get<BaseResponse<RssArticleRes[]>>>;
+  RSSArticle: (
+    businessId: string,
+    filterQuery?: Partial<FilterQuery> & { onlyWithImage?: boolean }
+  ) => {
+    return api
+      .get<BaseResponseFiltered<BackendRssArticle[]>>(
+        `/app/rss/article/${businessId}`,
+        { params: filterQuery }
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: getArrayData<BackendRssArticle>(res.data.data).map(
+            mapRssArticle
+          ),
+        },
+      })) as unknown as ReturnType<
+      typeof api.get<BaseResponseFiltered<RssArticleRes[]>>
+    >;
   },
   RSSData: (filterQuery?: Partial<FilterQuery>) => {
-    return api.get<BaseResponse<RssLibraryRes[]>>(`/app/rss`, {
-      params: filterQuery,
+    const { category, ...rest } = filterQuery || {};
+
+    return api.get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
+      params: {
+        ...rest,
+        category: category || undefined,
+      },
     }).then((res) => ({
       ...res,
       data: {
         ...res.data,
-        data: (Array.isArray(res.data.data) ? res.data.data : []).map(
+        data: getArrayData<RssLibraryRes>(res.data.data).map(
           mapRssLibrary
         ),
       },
     }));
   },
-  RSSCategory: () => {
-    return api.get<BaseResponse<RssCategoryRes[]>>(`/app/rss/category`).then(
+  RSSCategory: (filterQuery?: Partial<FilterQuery>) => {
+    return api.get<BaseResponseFiltered<RssCategoryRes[]>>(`/app/rss/category`, {
+      params: filterQuery,
+    }).then(
       (res) => ({
         ...res,
         data: {
           ...res.data,
-          data: (Array.isArray(res.data.data) ? res.data.data : []).map(
+          data: getArrayData<RssCategoryRes>(res.data.data).map(
             mapRssCategory
           ),
         },
@@ -245,10 +286,14 @@ const libraryService = {
   },
 };
 
-export const useLibraryRSSArticle = (businessId: string, enabled = true) => {
+export const useLibraryRSSArticle = (
+  businessId: string,
+  filterQuery?: Partial<FilterQuery> & { onlyWithImage?: boolean },
+  enabled = true
+) => {
   return useQuery({
-    queryKey: ["libraryRSSArticle"],
-    queryFn: () => libraryService.RSSArticle(businessId),
+    queryKey: ["libraryRSSArticle", businessId, filterQuery],
+    queryFn: () => libraryService.RSSArticle(businessId, filterQuery),
     enabled: enabled && !!businessId,
   });
 };
@@ -260,10 +305,10 @@ export const useLibraryRSSData = (filterQuery?: Partial<FilterQuery>) => {
   });
 };
 
-export const useLibraryRSSCategory = () => {
+export const useLibraryRSSCategory = (filterQuery?: Partial<FilterQuery>) => {
   return useQuery({
-    queryKey: ["libraryRSSCategory"],
-    queryFn: () => libraryService.RSSCategory(),
+    queryKey: ["libraryRSSCategory", filterQuery],
+    queryFn: () => libraryService.RSSCategory(filterQuery),
   });
 };
 export const useLibraryTime = () => {
@@ -301,10 +346,9 @@ const templateService = {
   getPublished: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     const { productCategory, category, ...rest } = filterQuery || {};
     return api
-      .get<BaseResponseFiltered<CreatorImage[]>>(`/creator/image`, {
+      .get<BaseResponseFiltered<CreatorImage[]>>(`/creator/library`, {
         params: {
           ...rest,
-          published: true,
           category: productCategory || undefined,
           typeCategoryId: category || undefined,
         },

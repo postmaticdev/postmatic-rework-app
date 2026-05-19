@@ -12,10 +12,10 @@ import {
 } from "@/services/content/content.api";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AutoGenerateModal } from "./auto-generate-modal";
 import { AutoGenerateHistoryModal } from "./auto-generate-history-modal";
-import { Clock, Edit, History, Send } from "lucide-react";
+import { Clock, Edit, History, Plus, Send, X } from "lucide-react";
 import Image from "next/image";
 import {
   Dialog,
@@ -30,6 +30,12 @@ import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { cn } from "@/lib/utils";
 import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AutoGenerateProps {
   handleIfNoPlatformConnected: () => void;
@@ -43,11 +49,8 @@ export function AutoGenerate({
   scheduleListClassName = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4",
 }: AutoGenerateProps) {
   const {
-    enabled: globalEnabled,
-    setGlobalEnabled,
     getSchedulesByDay,
     deleteScheduleDirectly,
-    onUpsert,
   } = useAutoGenerate();
 
   const { businessId } = useParams() as { businessId: string };
@@ -66,6 +69,7 @@ export function AutoGenerate({
     useState<AutoGenerateSchedule | null>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedRepeatDays, setSelectedRepeatDays] = useState<number[]>([]);
   const [scheduleToDelete, setScheduleToDelete] = useState<{
     id: string;
     name: string;
@@ -80,15 +84,43 @@ export function AutoGenerate({
         platform.status === "connected"
     ).length || 0;
 
-  const DAYS = [
-    { value: 0, label: t("sunday") },
-    { value: 1, label: t("monday") },
-    { value: 2, label: t("tuesday") },
-    { value: 3, label: t("wednesday") },
-    { value: 4, label: t("thursday") },
-    { value: 5, label: t("friday") },
-    { value: 6, label: t("saturday") },
-  ];
+  const DAYS = useMemo(
+    () => [
+      { value: 0, label: t("sunday") },
+      { value: 1, label: t("monday") },
+      { value: 2, label: t("tuesday") },
+      { value: 3, label: t("wednesday") },
+      { value: 4, label: t("thursday") },
+      { value: 5, label: t("friday") },
+      { value: 6, label: t("saturday") },
+    ],
+    [t]
+  );
+
+  const visibleDayValues = useMemo(() => {
+    const daysWithSchedules = DAYS.filter(
+      (day) => getSchedulesByDay(day.value).length > 0
+    ).map((day) => day.value);
+
+    return Array.from(new Set([...daysWithSchedules, ...selectedRepeatDays]))
+      .sort((a, b) => a - b);
+  }, [DAYS, getSchedulesByDay, selectedRepeatDays]);
+
+  const visibleDays = DAYS.filter((day) => visibleDayValues.includes(day.value));
+  const selectableDays = DAYS.filter(
+    (day) => !visibleDayValues.includes(day.value)
+  );
+
+  const handleSelectRepeatDay = (day: number) => {
+    setSelectedRepeatDays((current) =>
+      current.includes(day) ? current : [...current, day]
+    );
+  };
+
+  const handleRemoveRepeatDay = (day: number) => {
+    if (getSchedulesByDay(day).length > 0) return;
+    setSelectedRepeatDays((current) => current.filter((item) => item !== day));
+  };
 
   const handleAddScheduleToDay = (day: number) => {
     setSelectedDay(day);
@@ -291,56 +323,70 @@ export function AutoGenerate({
                   <History className="h-4 w-4 mr-2" />
                   {t("history")}
                 </Button>
-                <Switch
-                  checked={globalEnabled}
-                  onCheckedChange={async (v) => {
-                    console.log("Global switch toggled:", v);
-                    if (lenConnectedPlatform === 0) {
-                      handleIfNoPlatformConnected();
-                      return;
-                    }
-                    setGlobalEnabled(v);
-                    // Immediately save the preference change
-                    try {
-                      await onUpsert();
-                      console.log("Global preference updated successfully:", v);
-                    } catch (error) {
-                      console.error(
-                        "Failed to update global preference:",
-                        error
-                      );
-                    }
-                  }}
-                  onClick={() => {
-                    if (lenConnectedPlatform === 0) {
-                      handleIfNoPlatformConnected();
-                    }
-                  }}
-                />
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                {globalEnabled ? (
-                  <p>{t("autoGenerateEnabled")}</p>
-                ) : (
-                  <p>{t("autoGenerateDisabled")}</p>
-                )}
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {t("autoGenerateEnabled")}
+                </p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      disabled={selectableDays.length === 0}
+                      className="bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {t("addRepetitionDay")}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {selectableDays.map((day) => (
+                      <DropdownMenuItem
+                        key={day.value}
+                        onClick={() => handleSelectRepeatDay(day.value)}
+                      >
+                        {day.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
-              {/* 7 Day Cards - Only show when enabled */}
-              {globalEnabled && (
-                <div className={scheduleListClassName}>
-                  {DAYS.map((day) => {
-                    const daySchedules = getSchedulesByDay(day.value);
-                    return (
-                      <Card key={day.value} className="bg-background-secondary">
-                        <CardContent className="space-y-3 p-4">
+              <div className={scheduleListClassName}>
+                {visibleDays.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-muted-foreground/35 bg-background-secondary px-4 py-8 text-center text-sm text-muted-foreground">
+                    Pilih hari repetisi dengan tombol tambah.
+                  </div>
+                ) : null}
+                {visibleDays.map((day) => {
+                  const daySchedules = getSchedulesByDay(day.value);
+                  const canRemoveDay =
+                    daySchedules.length === 0 &&
+                    selectedRepeatDays.includes(day.value);
+                  return (
+                    <Card key={day.value} className="bg-background-secondary">
+                      <CardContent className="space-y-3 p-4">
                         <div className="space-y-3">
-                          <h3 className="font-semibold text-center">
-                            {day.label}
-                          </h3>
+                          <div className="flex items-center justify-center gap-2">
+                            <h3 className="font-semibold text-center">
+                              {day.label}
+                            </h3>
+                            {canRemoveDay ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleRemoveRepeatDay(day.value)}
+                                aria-label={`Hapus ${day.label}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                          </div>
 
                           {/* Existing Schedules */}
                           <div className="space-y-2">
@@ -396,12 +442,11 @@ export function AutoGenerate({
                             {t("addScheduleFull")}
                           </Button>
                         </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </CardContent>

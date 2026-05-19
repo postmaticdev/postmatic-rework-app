@@ -285,6 +285,7 @@
     "saturday": "Sabtu",
     "addScheduleShort": "Tambah",
     "addScheduleFull": "Tambah Jadwal",
+    "addRepetitionDay": "Tambahkan Hari Repetisi",
     "noRepetitionSchedule": "Belum ada jadwal repetisi",
     "scheduleTime": "Waktu Jadwal",
     "confirmDeleteSchedule": "Apakah Anda yakin ingin menghapus jadwal ini?",

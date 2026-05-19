@@ -25,8 +25,11 @@ export interface RssArticleRes {
   url: string;
   summary: string;
   imageUrl: string | null;
+  thumbnail?: string | null;
   publishedAt: string;
   masterRssId: string;
+  feedId?: string;
+  feedTitle?: string;
   deletedAt: string;
   publisher: string;
 }

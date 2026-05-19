@@ -51,6 +51,7 @@ type NewRepetitionItem = {
   id: number;
   day: number;
   time: string;
+  isActive?: boolean;
   businessRootId: number;
   businessProductId: number;
   appGenerativeImageModelId: number;
@@ -113,6 +114,28 @@ type NewBusinessImageContent = {
   imageUrls: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+type NewImagePostUploadHistoryPlatform = {
+  id: number;
+  platformCode: PlatformEnum;
+  platformName: string;
+  jobStatus: string;
+  postUrl: string | null;
+  errorMessage: string | null;
+  executedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type NewImagePostUploadHistory = {
+  imagePostScheduleId: number;
+  publishAt: string;
+  caption: string | null;
+  imageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  platforms: NewImagePostUploadHistoryPlatform[];
 };
 
 type NewGenerativeImageModel = {
@@ -203,7 +226,7 @@ const mapRepetitionToAutoGenerateSettings = (
     day: day.day,
     schedules: day.items.map((item) => ({
       id: String(item.id),
-      isActive: true,
+      isActive: item.isActive ?? true,
       day: item.day,
       time: item.time,
       platforms: item.platforms as PlatformEnum[],
@@ -243,6 +266,19 @@ const mapScheduledToQueue = (item: NewScheduledPost): QueueRes => ({
   imageUrl: item.imageUrl,
   status: item.status,
   chatSessionId: item.chatSessionId ?? null,
+});
+
+const toScheduledPostPayload = (formData: QueuePld) => ({
+  imageUrl: formData.imageUrl || formData.generatedImageContentId || undefined,
+  caption: formData.caption,
+  status: formData.status || "ready",
+  withChatAI: formData.withChatAI ?? false,
+  businessProductId: formData.businessProductId
+    ? Number(formData.businessProductId)
+    : undefined,
+  chatSessionId: formData.chatSessionId ?? undefined,
+  platforms: formData.platforms || [],
+  publishAt: formatPublishAt(formData.dateTime),
 });
 
 const mapImagePostStatus = (status: string) => {
@@ -354,6 +390,43 @@ const mapBusinessImageContent = (
   postedImageContents: [],
   platforms: [],
 });
+
+const mapUploadHistoryToPostedContent = (
+  item: NewImagePostUploadHistory,
+  businessId: string
+): PostedImageRes => {
+  const successfulPlatforms = (item.platforms || []).filter(
+    (platform) => platform.jobStatus?.toLowerCase() === "success"
+  );
+
+  return {
+    id: String(item.imagePostScheduleId),
+    images: item.imageUrl ? [item.imageUrl] : [],
+    ratio: "1:1",
+    category: "",
+    designStyle: "",
+    caption: item.caption || "",
+    readyToPost: true,
+    productKnowledgeId: "",
+    rootBusinessId: businessId,
+    deletedAt: null,
+    createdAt: item.createdAt || item.publishAt,
+    updatedAt: item.updatedAt || item.publishAt,
+    platforms: successfulPlatforms.map((platform) => platform.platformCode),
+    postedImageContents: successfulPlatforms.map((platform) => ({
+      id: String(platform.id),
+      platform: platform.platformCode,
+      url: platform.postUrl || "",
+      caption: item.caption || "",
+      images: item.imageUrl ? [item.imageUrl] : [],
+      postId: String(item.imagePostScheduleId),
+      generatedImageContentId: String(item.imagePostScheduleId),
+      deletedAt: null,
+      createdAt: platform.createdAt || item.createdAt,
+      updatedAt: platform.updatedAt || item.updatedAt,
+    })),
+  };
+};
 
 const toBusinessImagePayload = (
   formData: Partial<SaveContentPld & EditContentPld> & {
@@ -720,9 +793,11 @@ export const useContentPersonalCreate = () => {
 // ============================== CAPTION ==============================
 const captionService = {
   enhanceCaption: (businessId: string, formData: EnhanceCaptionPld) => {
+    const imageUrl = formData.imageUrl || formData.images?.[0] || "";
+
     return api.post<BaseResponse<EnhanceCaptionRes>>(
-      `/content/caption/enhance/${businessId}`,
-      formData
+      `/generative-content/caption/${businessId}/generate`,
+      { imageUrl }
     );
   },
 };
@@ -834,21 +909,17 @@ const postedService = {
     filterQuery?: Partial<FilterQuery>
   ) => {
     return api
-      .get<BaseResponse<NewBusinessImageContent[]>>(
-        `/business/image-content/${businessId}`,
+      .get<BaseResponse<NewImagePostUploadHistory[]>>(
+        `/generative-content/image-post-common/${businessId}/upload-history`,
         { params: filterQuery }
       )
       .then((res) => ({
         ...res,
         data: {
           ...res.data,
-          data: (res.data.data || [])
-            .filter((item) => item.readyToPost)
-            .map((item) => ({
-              ...mapBusinessImageContent(item),
-              postedImageContents: [],
-              platforms: [],
-            })),
+          data: (res.data.data || []).map((item) =>
+            mapUploadHistoryToPostedContent(item, businessId)
+          ),
         },
       })) as unknown as ReturnType<
       typeof api.get<BaseResponse<PostedImageRes[]>>
@@ -872,6 +943,7 @@ export const useContentPostedGetAllPostedImage = (
   return useQuery({
     queryKey: ["contentPostedGetAllPostedImage", businessId, filterQuery],
     queryFn: () => postedService.getAllPostedImage(businessId, filterQuery),
+    enabled: !!businessId,
   });
 };
 
@@ -989,7 +1061,12 @@ const schedulerManualService = {
       )
       .then((res) => {
         const groups = new Map<string, QueuePostingRes["posts"]>();
-        (res.data.data || []).forEach((item) => {
+        (res.data.data || [])
+          .filter((item) => {
+            const status = item.status?.toLowerCase();
+            return status === "ready" || (status === "draft" && Boolean(item.imageUrl));
+          })
+          .forEach((item) => {
           const date = item.publishAt.slice(0, 10);
           groups.set(date, [
             ...(groups.get(date) || []),
@@ -1033,18 +1110,7 @@ const schedulerManualService = {
     return api
       .post<BaseResponse<NewScheduledPost>>(
         `/generative-content/image-post-scheduled/${businessId}`,
-        {
-          imageUrl: formData.imageUrl || formData.generatedImageContentId,
-          caption: formData.caption,
-          status: formData.status || "ready",
-          withChatAI: formData.withChatAI || undefined,
-          businessProductId: formData.businessProductId
-            ? Number(formData.businessProductId)
-            : undefined,
-          chatSessionId: formData.chatSessionId || undefined,
-          platforms: formData.platforms,
-          publishAt: formatPublishAt(formData.dateTime),
-        }
+        toScheduledPostPayload(formData)
       )
       .then((res) => ({
         ...res,
@@ -1059,18 +1125,7 @@ const schedulerManualService = {
     return api
       .put<BaseResponse<NewScheduledPost>>(
         `/generative-content/image-post-scheduled/${businessId}/${idScheduler}`,
-        {
-          imageUrl: formData.imageUrl || formData.generatedImageContentId,
-          caption: formData.caption,
-          status: formData.status || "ready",
-          withChatAI: formData.withChatAI || undefined,
-          businessProductId: formData.businessProductId
-            ? Number(formData.businessProductId)
-            : undefined,
-          chatSessionId: formData.chatSessionId || undefined,
-          platforms: formData.platforms,
-          publishAt: formatPublishAt(formData.dateTime),
-        }
+        toScheduledPostPayload(formData)
       )
       .then((res) => ({
         ...res,
@@ -1478,6 +1533,7 @@ const autoGenerateService = {
         businessProductId: Number(formData.productKnowledgeId),
         day: formData.day,
         time: formData.time,
+        isActive: formData.isActive,
         additionalPrompt: formData.additionalPrompt,
         platforms: formData.platforms,
       }
@@ -1497,6 +1553,7 @@ const autoGenerateService = {
         businessProductId: Number(formData.productKnowledgeId),
         day: formData.day,
         time: formData.time,
+        isActive: formData.isActive,
         additionalPrompt: formData.additionalPrompt,
         platforms: formData.platforms,
       }

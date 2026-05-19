@@ -53,7 +53,7 @@ payload for queue
 */
 export interface QueuePld {
   platforms: PlatformEnum[];
-  generatedImageContentId: string;
+  generatedImageContentId?: string;
   imageUrl?: string;
   dateTime: string;
   caption: string;

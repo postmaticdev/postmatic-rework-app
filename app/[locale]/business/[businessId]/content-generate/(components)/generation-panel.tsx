@@ -1,12 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
+import { helperService } from "@/services/helper.api";
 import { GenerateFormSelectRss } from "./generate-form-select-rss";
 import { SelectedArticleRss } from "./selected-article-rss";
 import { SelectedReferenceImage } from "./selected-reference-image";
@@ -15,13 +23,14 @@ import {
   AlertCircle,
   Bot,
   Check,
+  ImagePlus,
   Loader2,
   Newspaper,
   Pencil,
   Plus,
   Send,
+  X,
 } from "lucide-react";
-import { GenerateFormAdvanced } from "./generate-form-advanced";
 import { GenerateFormBasic } from "./generate-form-basic";
 
 export function GenerationPanel() {
@@ -32,11 +41,15 @@ export function GenerationPanel() {
     selectedHistory,
     selectedGeneratedImageUrl,
     histories,
+    rss,
     onSelectGeneratedImage,
     onSubmitGenerate,
   } = useContentGenerate();
   const t = useTranslations("generationPanel");
   const [isTrendDialogOpen, setIsTrendDialogOpen] = useState(false);
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const attachInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentThread = useMemo(() => {
     if (!selectedHistory) return [];
@@ -47,7 +60,7 @@ export function GenerationPanel() {
       .filter(
         (job) =>
           job.input.productKnowledgeId ===
-            selectedHistory.input.productKnowledgeId &&
+          selectedHistory.input.productKnowledgeId &&
           new Date(job.createdAt).toDateString() === selectedDate
       )
       .sort(
@@ -57,7 +70,24 @@ export function GenerationPanel() {
   }, [histories, selectedHistory]);
 
   const handleRegenerate = () => {
-    onSubmitGenerate({ mode: "regenerate" });
+    onSubmitGenerate({ mode: "regenerate", additionalImages: attachedImages });
+    setAttachedImages([]);
+  };
+
+  const handleAttachImage = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingAttachment(true);
+      const imageUrl = await helperService.uploadSingleImage({ image: file });
+      setAttachedImages((current) => [...current, imageUrl]);
+    } finally {
+      setIsUploadingAttachment(false);
+      if (attachInputRef.current) attachInputRef.current.value = "";
+    }
   };
 
   const selectedImage =
@@ -66,50 +96,46 @@ export function GenerationPanel() {
   if (mode === "regenerate" && selectedHistory) {
     return (
       <div className="flex h-full min-h-0 flex-col">
-     
+
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
           {currentThread.map((job, jobIndex) => {
-            const productImage = job.product?.images?.[0];
-            const shouldShowProductImage =
-              jobIndex === 0 &&
-              Boolean(productImage) &&
-              productImage !== job.input.referenceImage;
+            const promptImages = Array.from(
+              new Set(
+                [
+                  ...(jobIndex === 0 ? job.product?.images || [] : []),
+                  job.input.referenceImage,
+                ].filter(Boolean) as string[]
+              )
+            );
 
             return (
               <div key={job.id} className="space-y-3">
                 {job.input.prompt ||
-                job.input.referenceImage ||
-                shouldShowProductImage ? (
+                  job.input.referenceImage ||
+                  promptImages.length > 0 ? (
                   <div className="ml-auto flex max-w-[78%] flex-col items-end gap-2">
-                    {job.input.referenceImage || shouldShowProductImage ? (
+                    {promptImages.length > 0 ? (
                       <div className="flex flex-wrap items-center justify-end gap-2">
-                        {shouldShowProductImage ? (
-                          <Image
-                            src={productImage || DEFAULT_PLACEHOLDER_IMAGE}
-                            alt="product image"
-                            width={160}
-                            height={160}
-                            className="h-20 w-20 rounded-lg border object-cover sm:h-24 sm:w-24"
-                          />
-                        ) : null}
-                        {shouldShowProductImage && job.input.referenceImage ? (
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-card">
-                            <Plus className="h-4 w-4 text-muted-foreground" />
+                        {promptImages.map((imageUrl, imageIndex) => (
+                          <div
+                            key={`${imageUrl}-${imageIndex}`}
+                            className="flex items-center gap-2"
+                          >
+                            {imageIndex > 0 ? (
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-card">
+                                <Plus className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            ) : null}
+                            <Image
+                              src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                              alt={`prompt image ${imageIndex + 1}`}
+                              width={160}
+                              height={160}
+                              className="h-20 w-20 rounded-lg border object-cover sm:h-24 sm:w-24"
+                            />
                           </div>
-                        ) : null}
-                        {job.input.referenceImage ? (
-                          <Image
-                            src={
-                              job.input.referenceImage ||
-                              DEFAULT_PLACEHOLDER_IMAGE
-                            }
-                            alt="reference image"
-                            width={160}
-                            height={160}
-                            className="h-20 w-20 rounded-lg border object-cover sm:h-24 sm:w-24"
-                          />
-                        ) : null}
+                        ))}
                       </div>
                     ) : null}
                     {job.input.prompt ? (
@@ -201,11 +227,39 @@ export function GenerationPanel() {
 
         <div className="border-t bg-card px-6 py-3 lg:sticky lg:bottom-0 lg:right-0 lg:z-10 lg:border lg:border-border">
           <div className="space-y-3">
-            
+
             <div className="flex h-full gap-3">
               <div className="min-w-0 flex-1 rounded-2xl border border-input bg-background-secondary p-3">
+                {attachedImages.length > 0 ? (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {attachedImages.map((imageUrl, index) => (
+                      <div key={`${imageUrl}-${index}`} className="relative">
+                        <Image
+                          src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                          alt={`attached image ${index + 1}`}
+                          width={96}
+                          height={96}
+                          className="h-16 w-16 rounded-md object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="icon"
+                          className="absolute -right-2 -top-2 h-6 w-6 rounded-full"
+                          onClick={() =>
+                            setAttachedImages((current) =>
+                              current.filter((_, itemIndex) => itemIndex !== index)
+                            )
+                          }
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {selectedGeneratedImageUrl &&
-                form.basic.referenceImageName === "Selected image" ? (
+                  form.basic.referenceImageName === "Selected image" ? (
                   <Image
                     src={selectedGeneratedImageUrl || DEFAULT_PLACEHOLDER_IMAGE}
                     alt="selected edit reference"
@@ -236,6 +290,29 @@ export function GenerationPanel() {
               </Button>
             </div>
           </div>
+          <input
+            ref={attachInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAttachImage}
+          />
+          <div className="mt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => attachInputRef.current?.click()}
+              disabled={isUploadingAttachment || isLoading}
+            >
+              {isUploadingAttachment ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ImagePlus className="h-4 w-4" />
+              )}
+              Attach image
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -245,23 +322,22 @@ export function GenerationPanel() {
     <>
       <div id="generation-panel" className="h-full flex flex-col">
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          
+
 
           <SelectedReferenceImage />
           <GenerateFormBasic />
 
-              <Button
-                type="button"
-                variant="default"
-                onClick={() => setIsTrendDialogOpen(true)}
-                className="w-full h-14"
-              >
-                <Newspaper className="h-4 w-4" />
-                {t("addLatestTrend")}
-              </Button>
+          <Button
+            type="button"
+            variant="default"
+            onClick={() => setIsTrendDialogOpen(true)}
+            className="w-full h-14"
+          >
+            <Newspaper className="h-4 w-4" />
+            {t("addLatestTrend")}
+          </Button>
 
           <SelectedArticleRss />
-          <GenerateFormAdvanced />
         </div>
       </div>
 
@@ -273,6 +349,16 @@ export function GenerationPanel() {
           <div className="flex-1 overflow-y-auto p-6">
             <GenerateFormSelectRss />
           </div>
+          {!form.rss && rss.articles.length !== 0 && (
+            <DialogFooter>
+              <PaginationControls
+                pagination={rss.pagination}
+                setFilterQuery={rss.setFilterQuery}
+                filterQuery={rss.filterQuery}
+                className="border-t-0 pt-0"
+              />
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </>

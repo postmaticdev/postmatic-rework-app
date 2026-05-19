@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -48,10 +48,19 @@ export function RSSModal({
 }: RSSModalProps) {
   const [rssAction, setRssAction] = useState<"add" | "edit" | "select">(mode);
 
-  const { data: rssCategoryLib } = useLibraryRSSCategory();
+  useEffect(() => {
+    if (isOpen) setRssAction(mode);
+  }, [isOpen, mode]);
+
+  const { data: rssCategoryLib } = useLibraryRSSCategory({
+    limit: 100,
+    sortBy: "name",
+    sort: "asc",
+  });
   const { data: rssDataLib } = useLibraryRSSData({
     sortBy: "title",
     sort: "asc",
+    limit: 100,
     category: formValue.masterRssCategoryId,
   });
 
@@ -62,7 +71,11 @@ export function RSSModal({
     field: keyof (AddRssPld & { id: string; masterRssCategoryId: string }),
     value: string | boolean
   ) => {
-    onChange({ ...formValue, [field]: value });
+    onChange({
+      ...formValue,
+      [field]: value,
+      ...(field === "masterRssCategoryId" ? { masterRssId: "" } : {}),
+    });
   };
 
   const handleSave = () => {

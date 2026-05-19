@@ -11,21 +11,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { UploadPhoto } from "@/components/forms/upload-photo";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import { cn } from "@/lib/utils";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import {
   useContentCaptionEnhance,
-  useContentPersonalCreate,
   useContentSchedulerManualAddToQueue,
+  useContentSchedulerManualEditQueue,
 } from "@/services/content/content.api";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { CalendarDays, Loader2, Send, Sparkles } from "lucide-react";
@@ -38,16 +34,13 @@ interface ContentSchedulerUploadDialogProps {
   onClose: () => void;
   onScheduled: () => void;
   onNeedPlatformConnect: () => void;
-}
-
-function buildTimeOptions() {
-  return Array.from({ length: 48 }, (_, index) => {
-    const hour = Math.floor(index / 2)
-      .toString()
-      .padStart(2, "0");
-    const minute = index % 2 === 0 ? "00" : "30";
-    return `${hour}:${minute}`;
-  });
+  editDraft?: {
+    id: number;
+    date: Date;
+    image: string;
+    caption: string;
+    platforms: PlatformEnum[];
+  } | null;
 }
 
 export function ContentSchedulerUploadDialog({
@@ -56,13 +49,14 @@ export function ContentSchedulerUploadDialog({
   onClose,
   onScheduled,
   onNeedPlatformConnect,
+  editDraft,
 }: ContentSchedulerUploadDialogProps) {
   const { businessId } = useParams() as { businessId: string };
   const t = useTranslations("contentScheduler");
   const locale = useLocale();
   const { data: platformsData } = usePlatformKnowledgeGetAll(businessId);
-  const createPersonalMutation = useContentPersonalCreate();
   const scheduleMutation = useContentSchedulerManualAddToQueue();
+  const editScheduleMutation = useContentSchedulerManualEditQueue();
   const enhanceCaptionMutation = useContentCaptionEnhance();
 
   const [image, setImage] = useState<string | null>(null);
@@ -70,18 +64,27 @@ export function ContentSchedulerUploadDialog({
   const [date, setDate] = useState("");
   const [time, setTime] = useState("08:00");
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
+  const [draftScheduleId, setDraftScheduleId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    const nextDate = selectedDate
-      ? dateManipulation.ymd(selectedDate)
-      : dateManipulation.ymd(new Date());
+    const nextDateSource = editDraft?.date || selectedDate || new Date();
+    const nextDate = dateManipulation.ymd(nextDateSource);
+    const nextTime = `${nextDateSource
+      .getHours()
+      .toString()
+      .padStart(2, "0")}:${nextDateSource
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+
     setDate(nextDate);
-    setTime("08:00");
-    setSelectedPlatforms([]);
-    setImage(null);
-    setCaption("");
-  }, [isOpen, selectedDate]);
+    setTime(editDraft ? nextTime : "08:00");
+    setSelectedPlatforms(editDraft?.platforms || []);
+    setImage(editDraft?.image || null);
+    setCaption(editDraft?.caption || "");
+    setDraftScheduleId(editDraft?.id || null);
+  }, [editDraft, isOpen, selectedDate]);
 
   const connectedPlatforms = useMemo(
     () =>
@@ -92,7 +95,14 @@ export function ContentSchedulerUploadDialog({
   );
 
   const hasConnectedPlatforms = connectedPlatforms.length > 0;
-  const timeOptions = useMemo(() => buildTimeOptions(), []);
+  const platformOptions = useMemo(
+    () =>
+      SOCIAL_MEDIA_PLATFORMS.map((platform) => ({
+        platform,
+        isConnected: connectedPlatforms.some((item) => item.platform === platform),
+      })),
+    [connectedPlatforms]
+  );
 
   const formattedDate = selectedDate
     ? new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
@@ -104,7 +114,8 @@ export function ContentSchedulerUploadDialog({
     : "";
 
   const togglePlatform = (platform: PlatformEnum) => {
-    if (!hasConnectedPlatforms) {
+    const isConnected = connectedPlatforms.some((item) => item.platform === platform);
+    if (!isConnected) {
       onNeedPlatformConnect();
       return;
     }
@@ -126,14 +137,55 @@ export function ContentSchedulerUploadDialog({
       const response = await enhanceCaptionMutation.mutateAsync({
         businessId,
         formData: {
-          images: [image],
-          model: "gemini",
-          currentCaption: caption,
+          imageUrl: image,
         },
       });
 
       setCaption(response.data.data.caption);
       showToast("success", response.data.responseMessage);
+    } catch (error) {
+      showToast("error", error);
+    }
+  };
+
+  const handleImageChange = async (nextImage: string | null) => {
+    setImage(nextImage);
+
+    if (!nextImage) {
+      if (!editDraft) setDraftScheduleId(null);
+      return;
+    }
+
+    try {
+      if (draftScheduleId) {
+        await editScheduleMutation.mutateAsync({
+          businessId,
+          idScheduler: draftScheduleId,
+          formData: {
+            imageUrl: nextImage,
+            caption,
+            platforms: selectedPlatforms,
+            dateTime: new Date(`${date}T${time}`).toISOString(),
+            status: "draft",
+            withChatAI: false,
+          },
+        });
+        return;
+      }
+
+      const draft = await scheduleMutation.mutateAsync({
+        businessId,
+        formData: {
+          imageUrl: nextImage,
+          caption: "",
+          platforms: [],
+          dateTime: new Date(`${date}T${time}`).toISOString(),
+          status: "draft",
+          withChatAI: false,
+        },
+      });
+
+      setDraftScheduleId(draft.data.data.id);
     } catch (error) {
       showToast("error", error);
     }
@@ -162,24 +214,27 @@ export function ContentSchedulerUploadDialog({
     }
 
     try {
-      const createdDraft = await createPersonalMutation.mutateAsync({
-        businessId,
-        formData: {
-          images: [image],
-          caption,
-        },
-      });
+      const formData = {
+        imageUrl: image,
+        caption,
+        platforms: selectedPlatforms,
+        dateTime: new Date(`${date}T${time}`).toISOString(),
+        status: "ready" as const,
+        withChatAI: false,
+      };
 
-      await scheduleMutation.mutateAsync({
-        businessId,
-        formData: {
-          generatedImageContentId: createdDraft.data.data.id,
-          imageUrl: image,
-          caption,
-          platforms: selectedPlatforms,
-          dateTime: new Date(`${date}T${time}`).toISOString(),
-        },
-      });
+      if (draftScheduleId) {
+        await editScheduleMutation.mutateAsync({
+          businessId,
+          idScheduler: draftScheduleId,
+          formData,
+        });
+      } else {
+        await scheduleMutation.mutateAsync({
+          businessId,
+          formData,
+        });
+      }
 
       showToast("success", t("postScheduledSuccess"));
       onScheduled();
@@ -189,11 +244,11 @@ export function ContentSchedulerUploadDialog({
   };
 
   const isSubmitting =
-    createPersonalMutation.isPending || scheduleMutation.isPending;
+    scheduleMutation.isPending || editScheduleMutation.isPending;
   const minDate = dateManipulation.ymd(new Date());
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("schedulerDialogTitle")}</DialogTitle>
@@ -201,10 +256,10 @@ export function ContentSchedulerUploadDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="grid gap-4 md:grid-cols-[120px_1fr]">
+          <div className="grid gap-8 md:grid-cols-[160px_1fr]">
             <UploadPhoto
               label={t("fileUpload")}
-              onImageChange={setImage}
+              onImageChange={handleImageChange}
               currentImage={image}
             />
 
@@ -255,18 +310,13 @@ export function ContentSchedulerUploadDialog({
 
               <label className="space-y-2">
                 <span className="text-sm font-medium">{t("selectTime")}</span>
-                <Select value={time} onValueChange={setTime}>
-                  <SelectTrigger className="h-11 rounded-2xl bg-background-secondary">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  type="time"
+                  value={time}
+                  step={60}
+                  onChange={(event) => setTime(event.target.value)}
+                  className="h-11 rounded-2xl bg-background-secondary"
+                />
               </label>
             </div>
           </section>
@@ -274,24 +324,40 @@ export function ContentSchedulerUploadDialog({
           <section className="rounded-3xl border border-border bg-card p-5">
             <div className="mb-4 text-xl font-semibold">{t("choosePlatforms")}</div>
             <div className="grid gap-3 sm:grid-cols-3">
-                {connectedPlatforms.map((platform) => {
-                  const isSelected = selectedPlatforms.includes(platform.platform);
+                {platformOptions.map(({ platform, isConnected }) => {
+                  const isSelected =
+                    isConnected && selectedPlatforms.includes(platform);
                   return (
                     <button
-                      key={platform.platform}
+                      key={platform}
                       type="button"
-                      onClick={() => togglePlatform(platform.platform)}
-                      className={`flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors ${
-                      isSelected
-                        ? "border-primary bg-primary text-white"
-                        : "border-border bg-background-secondary"
-                    }`}
+                      onClick={() => togglePlatform(platform)}
+                      disabled={!isConnected}
+                      className={cn(
+                        "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
+                        isSelected
+                          ? "border-primary bg-primary text-white"
+                          : "border-border bg-background-secondary",
+                        !isConnected &&
+                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
+                      )}
                   >
                     {mapEnumPlatform.getPlatformIcon(
-                      platform.platform,
-                      isSelected ? "text-white" : ""
+                      platform,
+                      isSelected
+                        ? "text-white"
+                        : !isConnected
+                        ? "text-muted-foreground"
+                        : ""
                     )}
-                    <span>{mapEnumPlatform.getPlatformLabel(platform.platform)}</span>
+                    <span className="flex flex-col leading-tight">
+                      <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
+                      {!isConnected && (
+                        <span className="text-[11px] font-normal">
+                          {t("notConnected")}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 );
               })}

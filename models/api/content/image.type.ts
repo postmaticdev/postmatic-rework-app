@@ -211,8 +211,9 @@ export interface PersonalContentPld {
   Payload for Enhance Caption
 */
 export interface EnhanceCaptionPld {
-  images: string[];
-  model: string;
+  imageUrl?: string;
+  images?: string[];
+  model?: string;
   currentCaption?: string | null;
 }
 
@@ -221,7 +222,13 @@ export interface EnhanceCaptionPld {
 */
 export interface EnhanceCaptionRes {
   caption: string;
-  tokenUsed: number;
+  tokenUsed?: number;
+  modelName?: string;
+  modelProvider?: string;
+  promptTokenCount?: number;
+  outputTokenCount?: number;
+  totalTokenCount?: number;
+  deductedToken?: number;
 }
 
 /*

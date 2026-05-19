@@ -209,8 +209,16 @@ export function AutoGenerateProvider({
   const { businessId } = useParams() as { businessId: string };
   const pathname = usePathname();
   const t = useTranslations();
+  const browserPathname =
+    typeof window !== "undefined" ? window.location.pathname : "";
+  const autoGenerateRouteSegments = ["dashboard", "content-scheduler"];
+  const isAutoGenerateRoute =
+    autoGenerateRouteSegments.some(
+      (segment) => pathname.includes(segment) || browserPathname.includes(segment)
+    );
   const autoGenerateEnabled =
-    NEXT_PUBLIC_ENABLE_CONTENT_FEATURES && pathname.includes("dashboard");
+    NEXT_PUBLIC_ENABLE_CONTENT_FEATURES && isAutoGenerateRoute;
+  const autoGenerateFormDataEnabled = isAutoGenerateRoute;
   const mUpdatePreference = useContentAutoGenerateUpdatePreference();
   const mCreateSchedule = useContentAutoGenerateCreateSchedule();
   const mUpdateSchedule = useContentAutoGenerateUpdateSchedule();
@@ -230,7 +238,7 @@ export function AutoGenerateProvider({
 
   // ===== AI MODELS =====
   const { data: aiModelsRes, isLoading: isLoadingAiModels } =
-    useContentAiModelGetAiModels(autoGenerateEnabled);
+    useContentAiModelGetAiModels(autoGenerateFormDataEnabled);
   const [selectedAiModel, setSelectedAiModel] = useState<AiModelRes | null>(null);
 
   // Set default AI model when models are loaded
@@ -275,7 +283,7 @@ export function AutoGenerateProvider({
   const { data: productRes } = useProductKnowledgeGetAll(
     businessId,
     productQuery,
-    autoGenerateEnabled
+    autoGenerateFormDataEnabled
   );
   
   useEffect(() => {
@@ -370,6 +378,20 @@ export function AutoGenerateProvider({
   const [loading, setLoading] = useState(false);
   const inflightRef = useRef(false);
 
+  // (opsional) reset ketika businessId berubah total
+  useEffect(() => {
+    // reset ke kosong saat ganti bisnis, sampai data baru datang
+    baseRef.current = {
+      enabled: false,
+      schedules: {
+        preference: { isActive: false },
+        schedules: Array.from({ length: 7 }, (_, i) => ({ day: i, schedules: [] })),
+      },
+    };
+    draftRef.current = structuredClone(baseRef.current);
+    bump();
+  }, [businessId]);
+
   // === SYNC: ketika data API datang atau businessId berubah ===
   useEffect(() => {
     const server = settingsData?.data?.data as AutoGenerateSettings | undefined;
@@ -384,21 +406,7 @@ export function AutoGenerateProvider({
 
     // trigger re-render agar UI update
     bump();
-  }, [settingsData?.data?.data]);
-
-  // (opsional) reset ketika businessId berubah total
-  useEffect(() => {
-    // reset ke kosong saat ganti bisnis, sampai data baru datang
-    baseRef.current = {
-      enabled: false,
-      schedules: {
-        preference: { isActive: false },
-        schedules: Array.from({ length: 7 }, (_, i) => ({ day: i, schedules: [] })),
-      },
-    };
-    draftRef.current = structuredClone(baseRef.current);
-    bump();
-  }, [businessId]);
+  }, [businessId, settingsData?.data?.data]);
 
   // ===== Helpers =====
   // Calculate isChanged dynamically

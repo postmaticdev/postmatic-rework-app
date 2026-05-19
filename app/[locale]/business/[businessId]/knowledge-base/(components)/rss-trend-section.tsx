@@ -77,6 +77,7 @@ export function RSSTrendSection({
   const { rssKnowledge } = access;
   const [searchQuery, setSearchQuery] = useState("");
   const [rssErrors, setRssErrors] = useState<Record<string, string>>({});
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   const { data: rssData } = useRssKnowledgeGetById(businessId, {
     search: searchQuery,
@@ -141,7 +142,8 @@ export function RSSTrendSection({
     setSelectedRSS(initialRSS); // Reset selectedRSS when closing modal
   };
 
-  const handleToggleStatus = async (rssKnowledgeId: string) => {
+  const handleToggleStatus = async (rssKnowledgeId: string, isActive: boolean) => {
+    setUpdatingStatusId(rssKnowledgeId);
     try {
       const findRss = rss.find((r) => r.id === rssKnowledgeId);
       if (findRss) {
@@ -149,13 +151,17 @@ export function RSSTrendSection({
           businessId,
           rssKnId: rssKnowledgeId,
           formData: {
-            ...findRss,
-            isActive: !findRss.isActive,
+            title: findRss.title,
+            masterRssId: findRss.masterRssId,
+            isActive,
           },
         });
         showToast("success", res.data.responseMessage);
       }
-    } catch { }
+    } catch { 
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
 
   const e = useTranslations("errors");
@@ -180,13 +186,21 @@ export function RSSTrendSection({
         const res = await mRssKnowledgeUpdate.mutateAsync({
           businessId,
           rssKnId: item.id,
-          formData: item,
+          formData: {
+            title: item.title,
+            masterRssId: item.masterRssId,
+            isActive: item.isActive,
+          },
         });
         showToast("success", res.data.responseMessage);
       } else {
         const res = await mRssKnowledgeCreate.mutateAsync({
           businessId,
-          formData: item,
+          formData: {
+            title: item.title,
+            masterRssId: item.masterRssId,
+            isActive: item.isActive,
+          },
         });
         showToast("success", res.data.responseMessage);
       }
@@ -316,9 +330,10 @@ export function RSSTrendSection({
                             {rssKnowledge.write && (
                               <Switch
                                 checked={trend.isActive}
-                                onCheckedChange={() =>
-                                  handleToggleStatus(trend.id)
+                                onCheckedChange={(checked) =>
+                                  handleToggleStatus(trend.id, checked)
                                 }
+                                disabled={updatingStatusId === trend.id}
                                 className="data-[state=checked]:bg-primary"
                               />
                             )}

@@ -15,6 +15,7 @@ import {
   GenerateContentBase,
   GenerateContentRes,
   GenerateContentRssBase,
+  ImagePostChatRes,
   ValidRatio,
 } from "@/models/api/content/image.type";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
@@ -28,11 +29,15 @@ import {
 } from "@/models/socket-content";
 import {
   useContentDraftSaveDraftContent,
+  useContentImagePostChatGetById,
+  useContentImagePostChatSendImageMessage,
   useContentJobGetAllJob,
   useContentJobKnowledgeOnJob,
   useContentJobMaskOnJob,
   useContentJobRssOnJob,
   useContentAiModelGetAiModels,
+  useContentSchedulerManualAddToQueue,
+  useContentSchedulerManualEditQueue,
 } from "@/services/content/content.api";
 import {
   useProductKnowledgeGetAll,
@@ -168,6 +173,10 @@ interface ContentGenerateContext {
   histories: GetAllJob[];
   selectedHistory: JobData | null;
   selectedGeneratedImageUrl: string | null;
+  schedulerDraftPost: {
+    id: number;
+    chatSessionId: number | null;
+  } | null;
   onSelectHistory: (
     item: JobData | null,
     options?: { selectedImageUrl?: string | null }
@@ -203,7 +212,8 @@ interface ContentGenerateContext {
   onSubmitGenerate: (overrides?: {
     mode?: ContentMode;
     maskUrl?: string;
-  }) => void;
+    additionalImages?: string[];
+  }) => Promise<void>;
   onSaveDraft: () => void;
   onResetAdvance: () => void;
   onSelectAiModel: (model: AiModelRes) => void;
@@ -360,6 +370,12 @@ const pickDefaultAiModel = (models: AiModelRes[]) =>
 const notLoadingJobStatus: JobStatus[] = ["done", "error"];
 const notLoadingJobStages: JobStage[] = ["done", "error"];
 
+const sleep = (ms: number) =>
+  new Promise((resolve) => window.setTimeout(resolve, ms));
+
+const schedulerFirstGeneratePrompt =
+  "Buat gambar konten promosi produk yang menarik untuk media sosial berdasarkan produk yang dipilih.";
+
 function upsertJobIntoHistory(groups: GetAllJob[], incoming: JobData) {
   let jobWasUpdated = false;
   let jobWasInserted = false;
@@ -416,6 +432,129 @@ function upsertJobIntoHistory(groups: GetAllJob[], incoming: JobData) {
   ];
 }
 
+function removeJobsFromHistory(
+  groups: GetAllJob[],
+  shouldRemove: (job: JobData) => boolean
+) {
+  return groups
+    .map((group) => ({
+      ...group,
+      jobs: group.jobs.filter((job) => !shouldRemove(job)),
+    }))
+    .filter((group) => group.jobs.length > 0);
+}
+
+function buildSchedulerChatJobs({
+  chat,
+  businessId,
+  productKnowledgeId,
+  model,
+  ratio,
+  imageSize,
+  productName,
+  productImage,
+  referenceImage,
+  caption,
+}: {
+  chat: ImagePostChatRes;
+  businessId: string;
+  productKnowledgeId: string;
+  model: string;
+  ratio: ValidRatio;
+  imageSize?: string | null;
+  productName?: string;
+  productImage?: string;
+  referenceImage?: string | null;
+  caption?: string;
+}) {
+  const bubbles = [...(chat.bubbles || [])].sort(
+    (left, right) =>
+      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+  );
+  const userBubbles = bubbles.filter((bubble) => bubble.role === "user");
+
+  return userBubbles.map((userBubble, index) => {
+    const nextUser = userBubbles[index + 1];
+    const systemBubble = bubbles.find((bubble) => {
+      if (bubble.role !== "system") return false;
+      const bubbleTime = new Date(bubble.createdAt).getTime();
+      const userTime = new Date(userBubble.createdAt).getTime();
+      const nextUserTime = nextUser
+        ? new Date(nextUser.createdAt).getTime()
+        : Number.POSITIVE_INFINITY;
+      return bubbleTime >= userTime && bubbleTime < nextUserTime;
+    });
+    const userImages =
+      userBubble.images?.map((item) => item.imageUrl).filter(Boolean) || [];
+    const referenceImages = userImages.filter(
+      (imageUrl) => imageUrl && imageUrl !== productImage
+    );
+    const effectiveReferenceImage =
+      index === 0
+        ? referenceImages[0] || referenceImage || null
+        : userImages[0] || null;
+    const firstPromptImages = Array.from(
+      new Set(
+        [productImage, ...referenceImages, referenceImage].filter(
+          Boolean
+        ) as string[]
+      )
+    );
+    const resultImages =
+      systemBubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
+    const effectiveRatio =
+      (systemBubble?.imageRatio || userBubble.imageRatio || ratio || "1:1") as ValidRatio;
+    const isError = Boolean(systemBubble?.errorMessage);
+
+    return {
+      id: `chat-${userBubble.id}`,
+      type: "knowledge",
+      rootBusinessId: businessId,
+      status: isError ? "error" : resultImages.length ? "done" : "processing",
+      stage: isError ? "error" : resultImages.length ? "done" : "processing",
+      progress: isError || resultImages.length ? 100 : 10,
+      createdAt: userBubble.createdAt,
+      updatedAt: systemBubble?.updatedAt || userBubble.updatedAt,
+      input: {
+        rss: null,
+        ratio: effectiveRatio,
+        prompt: userBubble.prompt || "",
+        caption: caption || "",
+        category: "",
+        designStyle: "",
+        referenceImage: effectiveReferenceImage,
+        advancedGenerate: initialFormAdvance,
+        productKnowledgeId,
+        model: model || String(userBubble.appGenerativeImageModelId || ""),
+        imageSize,
+      },
+      error: systemBubble?.errorMessage
+        ? { message: systemBubble.errorMessage, stack: null, attempt: 1 }
+        : null,
+      product: {
+        name: productName || "",
+        description: "",
+        category: "",
+        currency: "IDR",
+        price: 0,
+        images: index === 0 ? firstPromptImages : [],
+      },
+      result: resultImages.length
+        ? {
+            images: resultImages,
+            ratio: effectiveRatio,
+            category: "",
+            designStyle: "",
+            caption: caption || "",
+            referenceImages: [],
+            productKnowledgeId,
+            tokenUsed: 0,
+          }
+        : null,
+    } satisfies JobData;
+  });
+}
+
 const ContentGenerateContext = createContext<
   ContentGenerateContext | undefined
 >(undefined);
@@ -442,8 +581,13 @@ export const ContentGenerateProvider = ({
     browserPathname.includes("content-generate");
   const contentFeaturesEnabled =
     NEXT_PUBLIC_ENABLE_CONTENT_FEATURES && isContentGenerateRoute;
+  const contentGenerateFormDataEnabled = isContentGenerateRoute;
+  const scheduleDateParam = searchParams.get("scheduleDate");
   const selectedHistoryRouteId = searchParams.get("selectedHistoryId");
   const selectedHistoryRouteImage = searchParams.get("selectedHistoryImage");
+  const routeChatSessionId = searchParams.get("chatSessionId");
+  const routeScheduledPostId = searchParams.get("editSchedulerManualPostingId");
+  const routeBusinessProductId = searchParams.get("businessProductId");
   const shouldFetchHistories =
     contentFeaturesEnabled &&
     Boolean(selectedHistoryRouteId || selectedHistoryRouteImage);
@@ -459,7 +603,12 @@ export const ContentGenerateProvider = ({
     contentFeaturesEnabled
   );
   const { data: aiModelsRes, isLoading: isLoadingAiModels } =
-    useContentAiModelGetAiModels(contentFeaturesEnabled);
+    useContentAiModelGetAiModels(contentGenerateFormDataEnabled);
+  const { refetch: refetchRouteChat } = useContentImagePostChatGetById(
+    businessId,
+    routeChatSessionId,
+    false
+  );
 
   const [histories, setHistories] = useState<GetAllJob[]>([]);
   const lastHistoryRouteRefetchKeyRef = useRef<string | null>(null);
@@ -513,7 +662,17 @@ export const ContentGenerateProvider = ({
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
     null
   );
+  const [schedulerDraftPost, setSchedulerDraftPost] = useState<{
+    id: number;
+    chatSessionId: number | null;
+  } | null>(null);
+  const syncedSchedulerImageRef = useRef<string | null>(null);
   const [isDraftSaved, setIsDraftSaved] = useState<boolean>(false);
+
+  useEffect(() => {
+    setSchedulerDraftPost(null);
+    syncedSchedulerImageRef.current = null;
+  }, [scheduleDateParam]);
   
   // AI Models state
   const [selectedAiModel, setSelectedAiModel] = useState<AiModelRes | null>(null);
@@ -607,7 +766,8 @@ export const ContentGenerateProvider = ({
       form.setAdvance(initialFormAdvance);
     }
     setFormRss(null);
-    setIsDraftSaved(false); // Reset draft saved state when selecting new history
+      setIsDraftSaved(false); // Reset draft saved state when selecting new history
+      setSchedulerDraftPost(null);
   }, [aiModelsRes, selectedAiModel]);
 
   const onSelectGeneratedImage = useCallback(
@@ -657,88 +817,57 @@ export const ContentGenerateProvider = ({
 
   /**
    *
-   * LIBRARY RSS (client-side pagination)
+   * LIBRARY RSS
    *
    */
-  const { data: rssArtRes } = useLibraryRSSArticle(
-    businessId,
-    contentFeaturesEnabled
-  );
-
-  // state query (hanya simpan apa yang perlu dari filter/pagination di client)
   const [rssQuery, setRssQuery] = useState<Partial<FilterQuery>>({
     limit: 10,
     page: 1,
-    // opsional: q / search / sort
-    // q: "",
+    sort: "desc",
+    sortBy: "publishedAt",
   });
 
-  // semua artikel dari server (tanpa pagination)
+  const { data: rssArtRes } = useLibraryRSSArticle(
+    businessId,
+    {
+      ...rssQuery,
+      onlyWithImage: true,
+    },
+    contentFeaturesEnabled
+  );
+
   const allArticles: RssArticleRes[] = useMemo(
     () => rssArtRes?.data?.data ?? [],
     [rssArtRes?.data?.data]
   );
 
-  // opsional: filter/search di client
-  const filteredArticles = useMemo(() => {
-    const q = rssQuery.search?.toString().trim().toLowerCase();
-    if (!q) return allArticles;
-    return allArticles.filter((a) => {
-      // sesuaikan field yang ingin dicari
-      const title = a.title?.toLowerCase() ?? "";
-      const source = a.publisher?.toLowerCase() ?? "";
-      return title.includes(q) || source.includes(q);
-    });
-  }, [allArticles, rssQuery]);
-
-  // turunkan pagination dari total & query
   const rssPagination: Pagination = useMemo(() => {
-    const limit = Math.max(1, Number(rssQuery.limit) || 10);
-    const total = filteredArticles.length;
-    const totalPages = Math.max(1, Math.ceil(total / limit));
-    // clamp page supaya selalu valid
-    let page = Number(rssQuery.page) || 1;
-    page = Math.min(Math.max(1, page), totalPages);
+    const serverPagination = rssArtRes?.data?.pagination;
+    if (serverPagination) return serverPagination;
 
     return {
-      limit,
-      page,
-      total,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
+      ...initialPagination,
+      limit: Number(rssQuery.limit) || initialPagination.limit,
+      page: Number(rssQuery.page) || initialPagination.page,
     };
-  }, [filteredArticles.length, rssQuery.limit, rssQuery.page]);
+  }, [rssArtRes?.data?.pagination, rssQuery.limit, rssQuery.page]);
 
-  // potong artikel berdasarkan page & limit
-  const pagedArticles: RssArticleRes[] = useMemo(() => {
-    const { page, limit } = rssPagination;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    return filteredArticles.slice(start, end);
-  }, [filteredArticles, rssPagination]);
-
-  // setter filterQuery yang merge + clamp bila perlu
-  const setFilterQuery = useCallback(
-    (q: Partial<FilterQuery>) => {
-      setRssQuery((prev) => {
-        const next = { ...prev, ...q };
-        const limit = Math.max(1, Number(next.limit) || 10);
-        const totalPages = Math.max(
-          1,
-          Math.ceil((filteredArticles.length || 0) / limit)
-        );
-        let page = Number(next.page) || 1;
-        // jika limit berubah (menyusut), pastikan page tetap valid
-        page = Math.min(Math.max(1, page), totalPages);
-        return { ...next, limit, page };
-      });
-    },
-    [filteredArticles.length]
-  );
+  const setFilterQuery = useCallback((q: Partial<FilterQuery>) => {
+    setRssQuery((prev) => ({
+      ...prev,
+      ...q,
+      page:
+        (q.search !== undefined && q.search !== prev.search) ||
+        (q.limit !== undefined && q.limit !== prev.limit) ||
+        (q.sort !== undefined && q.sort !== prev.sort) ||
+        (q.sortBy !== undefined && q.sortBy !== prev.sortBy)
+          ? 1
+          : q.page ?? prev.page,
+    }));
+  }, []);
 
   const rss: ContentGenerateContext["rss"] = {
-    articles: pagedArticles,
+    articles: allArticles,
     pagination: rssPagination,
     filterQuery: rssQuery,
     setFilterQuery,
@@ -808,6 +937,94 @@ export const ContentGenerateProvider = ({
   };
 
   useEffect(() => {
+    if (!routeChatSessionId || !routeScheduledPostId) return;
+    const selectedHistoryImage = searchParams.get("selectedHistoryImage");
+    const scheduleDate = searchParams.get("scheduleDate");
+    const routeKey = `${routeScheduledPostId}|${routeChatSessionId}|${selectedHistoryImage || ""}`;
+
+    if (lastAppliedHistoryRouteKeyRef.current === routeKey) return;
+
+    let isActive = true;
+    setMode("regenerate");
+    setTab("knowledge");
+    setSchedulerDraftPost({
+      id: Number(routeScheduledPostId),
+      chatSessionId: Number(routeChatSessionId),
+    });
+
+    refetchRouteChat().then((result) => {
+      if (!isActive) return;
+
+      const productKnowledgeId = routeBusinessProductId || "";
+      const chat = result.data?.data?.data;
+      if (!chat) return;
+
+      const restoredJobs = buildSchedulerChatJobs({
+        chat,
+        businessId,
+        productKnowledgeId,
+        model: form.basic.model,
+        ratio: form.basic.ratio,
+        imageSize: form.basic.imageSize,
+        productName: form.basic.productName,
+        productImage: selectedHistoryImage || form.basic.productImage,
+        referenceImage: form.basic.referenceImage,
+        caption: form.basic.caption,
+      });
+      if (restoredJobs.length === 0) return;
+
+      const latestJob = restoredJobs[restoredJobs.length - 1];
+      const imageUrl =
+        latestJob.result?.images?.[0] ||
+        selectedHistoryImage ||
+        "";
+
+      setHistories((prev) => {
+        const withoutThread = removeJobsFromHistory(
+          prev,
+          (job) =>
+            job.id.startsWith("chat-") &&
+            job.input.productKnowledgeId === productKnowledgeId
+        );
+        return restoredJobs.reduce(
+          (groups, job) => upsertJobIntoHistory(groups, job),
+          withoutThread
+        );
+      });
+      setSelectedJobId(latestJob.id);
+      setSelectedGeneratedImageUrl(imageUrl || null);
+      setFormBasic((prev) => ({
+        ...prev,
+        productKnowledgeId,
+        productImage: imageUrl || prev.productImage,
+        referenceImage: imageUrl || prev.referenceImage,
+        prompt: "",
+      }));
+      if (scheduleDate) {
+        syncedSchedulerImageRef.current = imageUrl || null;
+      }
+      lastAppliedHistoryRouteKeyRef.current = routeKey;
+      setLoadingState(false);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    businessId,
+    form.basic.caption,
+    form.basic.imageSize,
+    form.basic.model,
+    form.basic.ratio,
+    refetchRouteChat,
+    routeBusinessProductId,
+    routeChatSessionId,
+    routeScheduledPostId,
+    searchParams,
+  ]);
+
+  useEffect(() => {
+    if (routeChatSessionId) return;
     const selectedHistoryId = searchParams.get("selectedHistoryId");
     const selectedHistoryImage = searchParams.get("selectedHistoryImage");
     const routeKey = `${selectedHistoryId || ""}|${selectedHistoryImage || ""}`;
@@ -938,18 +1155,17 @@ export const ContentGenerateProvider = ({
       if (value === undefined || value === null) return;
       params.set(key, String(value));
     });
-    params.set("published", "true");
     if (productCategory) params.set("category", String(productCategory));
     if (category) params.set("typeCategoryId", String(category));
 
     const token = getBrowserAccessToken();
 
-    fetch(`/api/backend/creator/image?${params.toString()}`, {
+    fetch(`/api/backend/creator/library?${params.toString()}`, {
       signal: controller.signal,
       headers: token ? { "X-Postmatic-AccessToken": token } : undefined,
     })
       .then((response) => {
-        if (!response.ok) throw new Error(`creator/image ${response.status}`);
+        if (!response.ok) throw new Error(`creator/library ${response.status}`);
         return response.json();
       })
       .then((body) => {
@@ -1180,7 +1396,7 @@ export const ContentGenerateProvider = ({
   const { data: productRes } = useProductKnowledgeGetAll(
     businessId,
     productQuery,
-    contentFeaturesEnabled
+    contentGenerateFormDataEnabled
   );
   useEffect(() => {
     if (productRes) {
@@ -1322,16 +1538,286 @@ export const ContentGenerateProvider = ({
   const mGenerateKnowledge = useContentJobKnowledgeOnJob();
   const mGenerateRss = useContentJobRssOnJob();
   const mGenerateMask = useContentJobMaskOnJob();
+  const mCreateScheduledPost = useContentSchedulerManualAddToQueue();
+  const mEditScheduledPost = useContentSchedulerManualEditQueue();
+  const mSendImageChatMessage = useContentImagePostChatSendImageMessage();
+  const { refetch: refetchSchedulerChat } = useContentImagePostChatGetById(
+    businessId,
+    schedulerDraftPost?.chatSessionId,
+    false
+  );
+
+  const sendSchedulerChatMessageWithRetry = async (
+    chatSessionId: string | number,
+    formData: Parameters<
+      typeof mSendImageChatMessage.mutateAsync
+    >[0]["formData"]
+  ) => {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      try {
+        if (attempt > 0) {
+          await sleep(1000 * attempt);
+        }
+
+        return await mSendImageChatMessage.mutateAsync({
+          businessId,
+          chatSessionId,
+          formData,
+        });
+      } catch (error) {
+        lastError = error;
+        const status =
+          (error as { response?: { status?: number }; status?: number })
+            ?.response?.status ||
+          (error as { response?: { status?: number }; status?: number })
+            ?.status;
+
+        if (status && status !== 404 && status !== 409 && status !== 425) {
+          break;
+        }
+      }
+    }
+
+    throw lastError;
+  };
+
+  const submitSchedulerChatGenerate = async (
+    effMode: ContentMode,
+    additionalImages: string[] = []
+  ) => {
+    const scheduleDate = searchParams.get("scheduleDate");
+    const scheduleTime = searchParams.get("scheduleTime") || "08:00";
+
+    if (!scheduleDate) return false;
+
+    if (!form.basic.productKnowledgeId) {
+      showToast("error", t("toast.validation.selectProduct"));
+      return true;
+    }
+
+    const isFirstSchedulerBubble = !selectedHistory;
+
+    if (effMode === "rss" && !form.rss && isFirstSchedulerBubble) {
+      showToast("error", t("toast.validation.selectRSS"));
+      return true;
+    }
+
+    const draft =
+      !isFirstSchedulerBubble && schedulerDraftPost
+        ? schedulerDraftPost
+        :
+      (
+        await mCreateScheduledPost.mutateAsync({
+          businessId,
+          formData: {
+            caption: "",
+            platforms: [],
+            dateTime: new Date(`${scheduleDate}T${scheduleTime}`).toISOString(),
+            status: "draft",
+            withChatAI: true,
+            businessProductId: form.basic.productKnowledgeId,
+          },
+        })
+      ).data.data;
+
+    const chatSessionId = draft.chatSessionId;
+    if (!chatSessionId) {
+      showToast("error", "Chat session belum tersedia dari scheduled post.");
+      return true;
+    }
+
+    const pendingJobId = `chat-pending-${draft.id}-${Date.now()}`;
+    const now = new Date().toISOString();
+    const firstPrompt =
+      form.basic.prompt?.trim() ||
+      (isFirstSchedulerBubble ? schedulerFirstGeneratePrompt : "");
+    const firstRss =
+      isFirstSchedulerBubble && effMode === "rss" ? form.rss : null;
+    const chatAdditionalImages = Array.from(
+      new Set(
+        (
+          isFirstSchedulerBubble
+            ? [form.basic.referenceImage, ...additionalImages]
+            : additionalImages
+        ).filter(Boolean) as string[]
+      )
+    );
+    const promptImages = Array.from(
+      new Set(
+        (
+          isFirstSchedulerBubble
+            ? [form.basic.productImage, ...chatAdditionalImages]
+            : chatAdditionalImages
+        ).filter(Boolean) as string[]
+      )
+    );
+    const baseChatJob: JobData = {
+      id: pendingJobId,
+      type: "knowledge",
+      rootBusinessId: businessId,
+      status: "processing",
+      stage: "processing",
+      progress: 10,
+      createdAt: now,
+      updatedAt: now,
+      input: {
+        rss: firstRss,
+        ratio: form.basic.ratio,
+        prompt: firstPrompt,
+        caption: form.basic.caption,
+        category: "",
+        designStyle: "",
+        referenceImage: isFirstSchedulerBubble
+          ? form.basic.referenceImage
+          : chatAdditionalImages[0] || null,
+        advancedGenerate: initialFormAdvance,
+        productKnowledgeId: form.basic.productKnowledgeId,
+        model: form.basic.model,
+        imageSize: form.basic.imageSize,
+      },
+      error: null,
+      product: {
+        name: form.basic.productName,
+        description: "",
+        category: "",
+        currency: "IDR",
+        price: 0,
+        images: promptImages,
+      },
+      result: null,
+    };
+
+    setSchedulerDraftPost({
+      id: draft.id,
+      chatSessionId,
+    });
+    setHistories((prev) => upsertJobIntoHistory(prev, baseChatJob));
+    setSelectedJobId(pendingJobId);
+    setSelectedGeneratedImageUrl(null);
+    setMode("regenerate");
+
+    await sleep(500);
+
+    const chatPayload = {
+      model: form.basic.model,
+      additionalImages: chatAdditionalImages,
+      prompt: firstPrompt,
+      ratio: form.basic.ratio,
+      rss:
+        isFirstSchedulerBubble && effMode === "rss"
+          ? form.rss || undefined
+          : undefined,
+    };
+
+    let chatRes: Awaited<ReturnType<typeof sendSchedulerChatMessageWithRetry>>;
+    try {
+      chatRes = await sendSchedulerChatMessageWithRetry(
+        chatSessionId,
+        chatPayload
+      );
+    } catch (error) {
+      setHistories((prev) =>
+        upsertJobIntoHistory(prev, {
+          ...baseChatJob,
+          status: "error",
+          stage: "error",
+          progress: 100,
+          updatedAt: new Date().toISOString(),
+          error: {
+            message:
+              (error as { response?: { data?: { responseMessage?: string } } })
+                ?.response?.data?.responseMessage ||
+              (error as Error)?.message ||
+              "Image chat belum siap. Coba generate ulang.",
+            stack: null,
+            attempt: 4,
+          },
+        })
+      );
+      showToast("error", error);
+      return true;
+    }
+
+    const systemBubble = chatRes.data.data.systemBubble;
+    const userBubble = chatRes.data.data.userBubble;
+    const images =
+      systemBubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
+    const chatJob: JobData = {
+      ...baseChatJob,
+      id: `chat-${userBubble.id}`,
+      createdAt: userBubble.createdAt || baseChatJob.createdAt,
+      status: images.length ? "done" : "processing",
+      stage: images.length ? "done" : "processing",
+      progress: images.length ? 100 : 10,
+      updatedAt: systemBubble?.updatedAt || now,
+      error: systemBubble?.errorMessage
+        ? { message: systemBubble.errorMessage, stack: null, attempt: 1 }
+        : null,
+      result: images.length
+        ? {
+            images,
+            ratio: form.basic.ratio,
+            category: "",
+            designStyle: "",
+            caption: form.basic.caption,
+            referenceImages: [],
+            productKnowledgeId: form.basic.productKnowledgeId,
+            tokenUsed: 0,
+          }
+        : null,
+    };
+
+    if (images.length) {
+      await mEditScheduledPost.mutateAsync({
+        businessId,
+        idScheduler: draft.id,
+        formData: {
+          imageUrl: images[0],
+          caption: form.basic.caption || "",
+          platforms: [],
+          dateTime: new Date(`${scheduleDate}T${scheduleTime}`).toISOString(),
+          status: "draft",
+          withChatAI: true,
+          businessProductId: form.basic.productKnowledgeId,
+          chatSessionId,
+        },
+      });
+    }
+
+    setHistories((prev) =>
+      upsertJobIntoHistory(
+        removeJobsFromHistory(prev, (job) => job.id === pendingJobId),
+        chatJob
+      )
+    );
+    setSelectedJobId(chatJob.id);
+    setSelectedGeneratedImageUrl(images[0] || null);
+    setFormBasic((prev) => ({
+      ...prev,
+      prompt: "",
+      productImage: images[0] || prev.productImage,
+    }));
+    showToast("success", t("toast.contentGeneration.waiting"));
+    return true;
+  };
 
   const onSubmitGenerate = async (overrides?: {
     mode?: ContentMode;
     maskUrl?: string;
+    additionalImages?: string[];
   }) => {
     try {
       if (isLoading) return; // tetap cegah spam
       setIsLoading(true);
 
       const effMode = overrides?.mode ?? mode;
+      const handledBySchedulerChat = await submitSchedulerChatGenerate(
+        effMode,
+        overrides?.additionalImages || []
+      );
+      if (handledBySchedulerChat) return;
 
       switch (effMode) {
         case "knowledge":
@@ -1791,6 +2277,80 @@ export const ContentGenerateProvider = ({
       notLoadingJobStages.includes(selectedHistory.stage);
     if (isFinal || isConnected) return;
 
+    const isSchedulerChatJob = selectedHistory.id.startsWith("chat-");
+    if (isSchedulerChatJob) {
+      if (!schedulerDraftPost?.chatSessionId) return;
+
+      const intervalId = window.setInterval(async () => {
+        const result = await refetchSchedulerChat().catch(() => null);
+        if (!result) return;
+
+        const chat = result.data?.data?.data;
+        if (!chat) return;
+
+        const chatJobs = buildSchedulerChatJobs({
+          chat,
+          businessId,
+          productKnowledgeId: selectedHistory.input.productKnowledgeId,
+          model: selectedHistory.input.model,
+          ratio: selectedHistory.input.ratio,
+          imageSize: selectedHistory.input.imageSize,
+          productName: selectedHistory.product.name,
+          productImage: selectedHistory.product.images[0],
+          referenceImage: selectedHistory.input.referenceImage,
+          caption: selectedHistory.input.caption || "",
+        });
+        const latestJob = chatJobs[chatJobs.length - 1];
+        const latestImage = latestJob?.result?.images?.[0] || "";
+
+        if (!latestJob || latestJob.stage === "processing") {
+          return;
+        }
+
+        setHistories((prev) => {
+          const withoutThread = removeJobsFromHistory(
+            prev,
+            (job) =>
+              job.id.startsWith("chat-") &&
+              job.input.productKnowledgeId ===
+                selectedHistory.input.productKnowledgeId
+          );
+          return chatJobs.reduce(
+            (groups, job) => upsertJobIntoHistory(groups, job),
+            withoutThread
+          );
+        });
+        setSelectedJobId(latestJob.id);
+        setSelectedGeneratedImageUrl(latestImage || null);
+
+        if (
+          latestImage &&
+          syncedSchedulerImageRef.current !== latestImage &&
+          scheduleDateParam
+        ) {
+          syncedSchedulerImageRef.current = latestImage;
+          await mEditScheduledPost.mutateAsync({
+            businessId,
+            idScheduler: schedulerDraftPost.id,
+            formData: {
+              imageUrl: latestImage,
+              caption: selectedHistory.input.caption || "",
+              platforms: [],
+              dateTime: new Date(
+                `${scheduleDateParam}T${searchParams.get("scheduleTime") || "08:00"}`
+              ).toISOString(),
+              status: "draft",
+              withChatAI: true,
+              businessProductId: selectedHistory.input.productKnowledgeId,
+              chatSessionId: schedulerDraftPost.chatSessionId,
+            },
+          });
+        }
+      }, 5000);
+
+      return () => window.clearInterval(intervalId);
+    }
+
     const intervalId = window.setInterval(async () => {
       const result = await refetchHistories();
       const refreshedGroups = result.data?.data?.data || [];
@@ -1809,7 +2369,13 @@ export const ContentGenerateProvider = ({
   }, [
     contentFeaturesEnabled,
     isConnected,
+    businessId,
+    mEditScheduledPost,
     refetchHistories,
+    refetchSchedulerChat,
+    scheduleDateParam,
+    schedulerDraftPost,
+    searchParams,
     selectedHistory,
   ]);
 
@@ -1843,6 +2409,7 @@ export const ContentGenerateProvider = ({
         histories,
         selectedHistory,
         selectedGeneratedImageUrl,
+        schedulerDraftPost,
         onSelectHistory,
         onSelectGeneratedImage,
         selectedTemplate,

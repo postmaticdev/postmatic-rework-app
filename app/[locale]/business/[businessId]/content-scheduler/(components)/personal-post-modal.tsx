@@ -59,9 +59,7 @@ export function PersonalPostModal({
       const res = await mEnhanceCaption.mutateAsync({
         businessId,
         formData: {
-          images: [form.image],
-          model: "gemini",
-          currentCaption: form.caption || "",
+          imageUrl: form.image,
         },
       });
       setForm((prev) => ({ ...prev, caption: res.data.data.caption }));

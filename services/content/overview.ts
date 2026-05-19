@@ -1,14 +1,21 @@
 import { api } from "@/config/api";
 import { BaseResponse, FilterQuery } from "@/models/api/base-response.type";
-import { CountPostRes, UpcomingPostRes } from "@/models/api/content/overview";
+import {
+  CountPostRes,
+  PostOverviewRes,
+  UpcomingPostRes,
+} from "@/models/api/content/overview";
 import { useQuery } from "@tanstack/react-query";
 
 type NewScheduledPost = {
   id: number;
   publishAt: string;
   status: string;
+  withChatAI?: boolean;
   caption: string | null;
   imageUrl: string | null;
+  chatSessionId?: number | null;
+  businessProductId?: number | null;
   platforms: UpcomingPostRes["platforms"];
   businessRootId: number;
 };
@@ -24,6 +31,10 @@ type NewScheduledPostCalendar = {
 const mapScheduledPost = (item: NewScheduledPost): UpcomingPostRes => ({
   id: item.id,
   date: item.publishAt,
+  status: item.status,
+  withChatAI: item.withChatAI ?? false,
+  chatSessionId: item.chatSessionId ?? null,
+  businessProductId: item.businessProductId ?? null,
   images: item.imageUrl ? [item.imageUrl] : [],
   platforms: item.platforms || [],
   type: "manual",
@@ -44,7 +55,17 @@ const mapScheduledPost = (item: NewScheduledPost): UpcomingPostRes => ({
   },
 });
 
+const isVisibleScheduledPost = (item: NewScheduledPost) => {
+  const status = item.status?.toLowerCase();
+  return status === "ready" || (status === "draft" && Boolean(item.imageUrl));
+};
+
 const overviewService = {
+  getPostOverview: (businessId: string) => {
+    return api.get<BaseResponse<PostOverviewRes>>(
+      `/generative-content/image-post-common/${businessId}/overview`
+    );
+  },
   getCountPosted: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     return Promise.resolve({
       data: {
@@ -89,6 +110,7 @@ const overviewService = {
             ...res.data,
             data: (res.data.data?.days || [])
               .flatMap((day) => day.items || [])
+              .filter(isVisibleScheduledPost)
               .map(mapScheduledPost),
           },
         })) as unknown as ReturnType<
@@ -102,6 +124,7 @@ const overviewService = {
       )
       .then((res) => {
         const items = (res.data.data || [])
+          .filter(isVisibleScheduledPost)
           .filter((item) => {
             const date = item.publishAt.slice(0, 10);
             return (!dateStart || date >= dateStart) && (!dateEnd || date <= dateEnd);
@@ -119,6 +142,14 @@ const overviewService = {
       typeof api.get<BaseResponse<UpcomingPostRes[]>>
     >;
   },
+};
+
+export const useContentPostCommonGetOverview = (businessId: string) => {
+  return useQuery({
+    queryKey: ["contentPostCommonOverview", businessId],
+    queryFn: () => overviewService.getPostOverview(businessId),
+    enabled: !!businessId,
+  });
 };
 
 export const useContentOverviewGetCountPosted = (

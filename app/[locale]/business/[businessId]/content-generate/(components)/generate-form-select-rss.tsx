@@ -1,8 +1,6 @@
 import { NoContent } from "@/components/base/no-content";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PaginationControls } from "@/components/ui/pagination-controls";
-import { PaginationWithControls } from "@/components/ui/pagination-with-controls";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { useDateFormat } from "@/hooks/use-date-format";
@@ -20,9 +18,12 @@ export const GenerateFormSelectRss = () => {
   const { data: rssData } = useRssKnowledgeGetById(businessId, {
     sortBy: "title",
     sort: "asc",
+    limit: 100,
   });
 
-  const rssKnowledges = rssData?.data.data || [];
+  const rssKnowledges = (rssData?.data.data || []).filter(
+    (rss) => rss.isActive
+  );
   
   const t = useTranslations("generationPanel");
   const { rss, form, isLoading } = useContentGenerate();
@@ -60,16 +61,6 @@ export const GenerateFormSelectRss = () => {
         )
       )}
 
-      {rss.articles.length !== 0 && rssKnowledges.length !== 0 && (
-        <PaginationWithControls
-          currData={rss.articles.length}
-          pagination={rss.pagination}
-          setFilterQuery={rss.setFilterQuery}
-          showSort={false}
-          filterQuery={rss.filterQuery}
-          className="mb-4"
-        />
-      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {rss.articles.map((article, index) => (
           <Card
@@ -124,13 +115,6 @@ export const GenerateFormSelectRss = () => {
           </Card>
         ))}
       </div>
-      {rss.articles.length !== 0 && rssKnowledges.length !== 0 && (
-        <PaginationControls
-          pagination={rss.pagination}
-          setFilterQuery={rss.setFilterQuery}
-          filterQuery={rss.filterQuery}
-        />
-      )}
     </>
   );
 };

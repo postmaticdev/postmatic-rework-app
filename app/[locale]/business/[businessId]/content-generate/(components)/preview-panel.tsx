@@ -18,11 +18,9 @@ import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { cn } from "@/lib/utils";
 import {
   removeSchedulerDraftMarker,
-  upsertSchedulerDraftMarker,
 } from "@/lib/scheduler-draft-markers";
 import {
   useContentCaptionEnhance,
-  useContentDraftSaveDraftContent,
   useContentSchedulerManualAddToQueue,
   useContentSchedulerManualEditQueue,
 } from "@/services/content/content.api";
@@ -53,6 +51,7 @@ export function PreviewPanel() {
     form,
     selectedHistory,
     selectedGeneratedImageUrl,
+    schedulerDraftPost,
     onSelectHistory,
     isLoading,
     onSubmitGenerate,
@@ -64,7 +63,6 @@ export function PreviewPanel() {
   const t = useTranslations("previewPanel");
   const schedulerT = useTranslations("contentGenerateScheduler");
   const mEnhanceCaption = useContentCaptionEnhance();
-  const mSaveDraft = useContentDraftSaveDraftContent();
   const mSchedulePost = useContentSchedulerManualAddToQueue();
   const mEditSchedulePost = useContentSchedulerManualEditQueue();
 
@@ -82,23 +80,9 @@ export function PreviewPanel() {
   const [time, setTime] = useState("08:00");
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-  const [autoSavedDraftId, setAutoSavedDraftId] = useState<string | null>(null);
-  const autoSaveKeyRef = useRef<string | null>(null);
-  const isMountedRef = useRef(true);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
   useEffect(() => {
     if (scheduleDate) {
       setDate(scheduleDate);
-      setAutoSavedDraftId(null);
-      autoSaveKeyRef.current = null;
     }
   }, [scheduleDate]);
 
@@ -139,72 +123,6 @@ export function PreviewPanel() {
   const minDate = dateManipulation.ymd(new Date());
   const minTime = date === minDate ? formatTimeInput(new Date()) : undefined;
 
-  useEffect(() => {
-    if (
-      !schedulerMode ||
-      !scheduleDate ||
-      !selectedHistory?.result ||
-      !selectedImageUrl ||
-      editSchedulerManualPostingId
-    ) {
-      return;
-    }
-
-    const autoSaveKey = `${scheduleDate}:${selectedHistory.id}:${selectedImageUrl}`;
-    if (autoSaveKeyRef.current === autoSaveKey || mSaveDraft.isPending) {
-      return;
-    }
-
-    autoSaveKeyRef.current = autoSaveKey;
-    mSaveDraft
-      .mutateAsync({
-        businessId,
-        formData: {
-          caption: form.basic.caption || selectedHistory.result.caption || "",
-          category:
-            selectedHistory.result.category || selectedHistory.input.category || "",
-          designStyle:
-            selectedHistory.result.designStyle ||
-            selectedHistory.input.designStyle ||
-            "",
-          ratio: selectedHistory.result.ratio || selectedHistory.input.ratio || "",
-          images: [selectedImageUrl],
-          productKnowledgeId: selectedHistory.input.productKnowledgeId || "",
-          referenceImages:
-            selectedHistory.result.referenceImages ||
-            (selectedHistory.input.referenceImage
-              ? [selectedHistory.input.referenceImage]
-              : []),
-        },
-      })
-      .then((savedDraft) => {
-        const draftId = savedDraft.data.data.id;
-        if (isMountedRef.current) {
-          setAutoSavedDraftId(draftId);
-        }
-        upsertSchedulerDraftMarker(businessId, {
-          draftId,
-          jobId: selectedHistory.id,
-          date: scheduleDate,
-          image: selectedImageUrl,
-          caption: form.basic.caption || selectedHistory.result?.caption || "",
-          createdAt: new Date().toISOString(),
-        });
-      })
-      .catch(() => {
-        autoSaveKeyRef.current = null;
-      });
-  }, [
-    businessId,
-    editSchedulerManualPostingId,
-    form.basic.caption,
-    mSaveDraft,
-    scheduleDate,
-    schedulerMode,
-    selectedHistory,
-    selectedImageUrl,
-  ]);
-
   const handleGenerateClick = () => {
     if (schedulerMode && selectedHistory) {
       setIsSummaryOpen(true);
@@ -232,9 +150,7 @@ export function PreviewPanel() {
       const res = await mEnhanceCaption.mutateAsync({
         businessId,
         formData: {
-          images: [imageUrl],
-          model: "gemini",
-          currentCaption: form.basic.caption || "",
+          imageUrl,
         },
       });
       form.setBasic({ ...form.basic, caption: res.data.data.caption });
@@ -284,45 +200,24 @@ export function PreviewPanel() {
     }
 
     try {
-      const generatedImageContentId =
-        autoSavedDraftId ||
-        (
-          await mSaveDraft.mutateAsync({
-            businessId,
-            formData: {
-              caption: form.basic.caption || selectedHistory.result.caption || "",
-              category:
-                selectedHistory.result.category ||
-                selectedHistory.input.category ||
-                "",
-              designStyle:
-                selectedHistory.result.designStyle ||
-                selectedHistory.input.designStyle ||
-                "",
-              ratio:
-                selectedHistory.result.ratio || selectedHistory.input.ratio || "",
-              images: selectedImageUrl
-                ? [selectedImageUrl]
-                : selectedHistory.result.images || [],
-              productKnowledgeId: selectedHistory.input.productKnowledgeId || "",
-              referenceImages:
-                selectedHistory.result.referenceImages ||
-                (selectedHistory.input.referenceImage
-                  ? [selectedHistory.input.referenceImage]
-                  : []),
-            },
-          })
-        ).data.data.id;
-
       const formData = {
-        generatedImageContentId,
         imageUrl: selectedImageUrl,
         caption: form.basic.caption || selectedHistory.result.caption || "",
         platforms: connectedSelectedPlatforms,
         dateTime: scheduledAt.toISOString(),
+        status: "ready" as const,
+        withChatAI: true,
+        businessProductId: selectedHistory.input.productKnowledgeId,
+        chatSessionId: schedulerDraftPost?.chatSessionId || undefined,
       };
 
-      if (editSchedulerManualPostingId) {
+      if (schedulerDraftPost) {
+        await mEditSchedulePost.mutateAsync({
+          businessId,
+          idScheduler: schedulerDraftPost.id,
+          formData,
+        });
+      } else if (editSchedulerManualPostingId) {
         await mEditSchedulePost.mutateAsync({
           businessId,
           idScheduler: Number(editSchedulerManualPostingId),
@@ -336,7 +231,9 @@ export function PreviewPanel() {
       }
 
       setIsSummaryOpen(false);
-      removeSchedulerDraftMarker(businessId, generatedImageContentId);
+      if (schedulerDraftPost) {
+        removeSchedulerDraftMarker(businessId, String(schedulerDraftPost.id));
+      }
       router.push(`/business/${businessId}/content-scheduler?selectedDate=${date}`);
     } catch (error) {
       showToast("error", error);
@@ -344,7 +241,6 @@ export function PreviewPanel() {
   };
 
   const isScheduling =
-    mSaveDraft.isPending ||
     mSchedulePost.isPending ||
     mEditSchedulePost.isPending;
 

@@ -52,6 +52,7 @@ type BackendRssRes = Omit<RssRes, "masterRssId" | "masterRss"> & {
   appRssFeed?: {
     id: string | number;
     title: string;
+    url?: string;
     publisher?: string;
     appRssCategory?: {
       id: string | number;
@@ -151,6 +152,7 @@ const mapRssKnowledge = (rss?: Partial<BackendRssRes> | null): RssRes => {
   const feed = item.masterRss ?? {
     id: String(item.appRssFeed?.id ?? item.appRssId ?? item.masterRssId ?? ""),
     title: item.appRssFeed?.title ?? "",
+    url: item.appRssFeed?.url ?? "",
     publisher: item.appRssFeed?.publisher ?? "",
     masterRssCategory: {
       id: String(item.appRssFeed?.appRssCategory?.id ?? ""),
@@ -182,7 +184,7 @@ const mapRssKnowledge = (rss?: Partial<BackendRssRes> | null): RssRes => {
 const toRssPayload = (formData: AddRssPld) => ({
   title: formData.title,
   isActive: formData.isActive,
-  appRssFeedId: formData.masterRssId,
+  appRssFeedId: Number(formData.masterRssId),
 });
 
 // ============================== BUSINESS KNOWLEDGE ==============================

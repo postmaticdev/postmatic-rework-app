@@ -12,5 +12,5 @@ Creating turbopack project {
   dir: 'C:\\Users\\lphai\\Documents\\postmatic-rework',
   testMode: true
 }
- ✓ Compiled middleware in 178ms
- ✓ Ready in 1750ms
+ ✓ Compiled middleware in 163ms
+ ✓ Ready in 1579ms

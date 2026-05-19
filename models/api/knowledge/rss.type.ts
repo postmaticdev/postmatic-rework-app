@@ -34,6 +34,7 @@ export interface MasterRss {
   title: string;
   id: string;
   publisher: string;
+  url?: string;
   masterRssCategory: MasterRssCategory;
 }
 
