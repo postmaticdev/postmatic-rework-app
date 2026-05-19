@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormNewBusiness } from "@/contexts/form-new-business-context";
+import { showToast } from "@/helper/show-toast";
 import { useRouter } from "@/i18n/navigation";
+import countryCodes from "@/lib/country-code.json";
+import {
+  WebsiteScrapperBusinessProduct,
+  WebsiteScrapperHistoryItem,
+} from "@/models/api/website-scrapper.type";
+import {
+  useWebsiteScrapperCreate,
+  websiteScrapperService,
+} from "@/services/website-scrapper.api";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -24,18 +35,21 @@ import { useTranslations } from "next-intl";
 type FlowPhase = "input" | "loading" | "result";
 
 type WebsiteDraft = {
+  sourceId: number | null;
+  primaryLogoUrl: string;
   name: string;
   category: string;
   description: string;
   website: string;
-  location: string;
-  uniqueSellingPoint: string;
-  visionMission: string;
+  businessPhone: string;
+  countryCode: string;
   colorTone: string;
   targetAudience: string;
   contentTone: string;
   hashtags: string;
-  callToAction: string;
+  metadataTitle: string;
+  metadataDescription: string;
+  firstProduct: WebsiteScrapperBusinessProduct | null;
 };
 
 function normalizeUrl(value: string) {
@@ -43,19 +57,97 @@ function normalizeUrl(value: string) {
   return /^https?:\/\//i.test(value) ? value.trim() : `https://${value.trim()}`;
 }
 
-function startCase(value: string) {
+function normalizeHexColor(value?: string | null) {
+  const clean = (value ?? "").trim().replace(/^#/, "");
+  if (!clean) return "#2563eb";
+  if (/^[0-9a-fA-F]{6}$/.test(clean)) return `#${clean}`;
+  if (/^[0-9a-fA-F]{3}$/.test(clean)) {
+    const expanded = clean
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("");
+    return `#${expanded}`;
+  }
+  return "#2563eb";
+}
+
+function toColorToneValue(value: string) {
+  return normalizeHexColor(value).replace(/^#/, "").toUpperCase();
+}
+
+function resolveCountryCode(rawCountryCode: string, rawPhone: string) {
+  const normalizedCountryCode = rawCountryCode.trim();
+
+  if (/^\+\d+$/.test(normalizedCountryCode)) return normalizedCountryCode;
+  if (/^\d+$/.test(normalizedCountryCode)) return `+${normalizedCountryCode}`;
+
+  if (/^[A-Za-z]{2}$/.test(normalizedCountryCode)) {
+    const match = (countryCodes as Array<{ code: string; dial_code: string }>).find(
+      (item) => item.code.toUpperCase() === normalizedCountryCode.toUpperCase()
+    );
+    if (match?.dial_code) return match.dial_code;
+  }
+
+  const fromPhone = rawPhone.trim().match(/^\+(\d{1,4})/);
+  if (fromPhone?.[1]) return `+${fromPhone[1]}`;
+
+  return "+62";
+}
+
+function stripCountryCodeFromPhone(rawPhone: string, countryCode: string) {
+  const phoneDigits = rawPhone.replace(/[^\d]/g, "");
+  const countryDigits = countryCode.replace(/[^\d]/g, "");
+
+  if (!phoneDigits) return "";
+  if (!countryDigits) return phoneDigits;
+  if (!phoneDigits.startsWith(countryDigits)) return phoneDigits;
+
+  return phoneDigits.slice(countryDigits.length);
+}
+
+function parseHashtags(value: string) {
   return value
-    .split(/[-_\s]+/)
+    .split(",")
+    .map((item) => item.trim())
     .filter(Boolean)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(" ");
+    .map((item) => (item.startsWith("#") ? item.slice(1) : item));
+}
+
+function mapScrapperToDraft(item: WebsiteScrapperHistoryItem): WebsiteDraft {
+  const data = item.data;
+  const businessKnowledge = data?.businessKnowledge;
+  const businessRole = data?.businessRole;
+  const metadata = data?.metadata;
+  const firstProduct = data?.businessProducts?.[0] ?? null;
+
+  return {
+    sourceId: item.id,
+    primaryLogoUrl:
+      businessKnowledge?.primaryLogoUrl || metadata?.brandImage || "",
+    name: businessKnowledge?.name || metadata?.title || "",
+    category: businessKnowledge?.category || "",
+    description: businessKnowledge?.description || metadata?.description || "",
+    website: businessKnowledge?.websiteUrl || item.url || "",
+    businessPhone: businessKnowledge?.businessPhone || "",
+    countryCode: businessKnowledge?.countryCode || "",
+    colorTone: normalizeHexColor(businessKnowledge?.colorTone),
+    targetAudience: businessRole?.targetAudience || "",
+    contentTone: businessRole?.tone || "",
+    hashtags: (businessRole?.hashtags || []).join(", "),
+    metadataTitle: metadata?.title || "",
+    metadataDescription: metadata?.description || "",
+    firstProduct,
+  };
 }
 
 export default function NewBusinessWebsitePage() {
   const router = useRouter();
+  const { setFormData } = useFormNewBusiness();
   const t = useTranslations("newBusinessWebsite");
   const b = useTranslations("businessKnowledge");
   const r = useTranslations("roleKnowledge");
+  const mWebsiteScrapper = useWebsiteScrapperCreate();
+  const pollingSessionRef = useRef(0);
 
   const loadingSteps = useMemo(
     () => [
@@ -71,18 +163,21 @@ export default function NewBusinessWebsitePage() {
   const [websiteInput, setWebsiteInput] = useState("");
   const [activeLoadingStep, setActiveLoadingStep] = useState(0);
   const [draft, setDraft] = useState<WebsiteDraft>({
-    name: t("sampleName"),
-    category: t("sampleCategory"),
-    description: t("sampleDescription"),
+    sourceId: null,
+    primaryLogoUrl: "",
+    name: "",
+    category: "",
+    description: "",
     website: "",
-    location: t("sampleLocation"),
-    uniqueSellingPoint: t("sampleUniqueSellingPoint"),
-    visionMission: t("sampleVisionMission"),
+    businessPhone: "",
+    countryCode: "",
     colorTone: "#2563eb",
-    targetAudience: t("sampleTargetAudience"),
-    contentTone: t("sampleContentTone"),
-    hashtags: t("sampleHashtags"),
-    callToAction: t("sampleCallToAction"),
+    targetAudience: "",
+    contentTone: "",
+    hashtags: "",
+    metadataTitle: "",
+    metadataDescription: "",
+    firstProduct: null,
   });
 
   useEffect(() => {
@@ -92,44 +187,18 @@ export default function NewBusinessWebsitePage() {
       setActiveLoadingStep((current) => (current + 1) % loadingSteps.length);
     }, 1100);
 
-    const timeoutId = window.setTimeout(() => {
-      const normalized = normalizeUrl(websiteInput);
-
-      let generatedName = t("sampleName");
-      try {
-        const hostname = new URL(normalized).hostname.replace(/^www\./, "");
-        const baseName = hostname.split(".")[0];
-        if (baseName) {
-          generatedName = startCase(baseName);
-        }
-      } catch {
-        generatedName = t("sampleName");
-      }
-
-      setDraft({
-        name: generatedName,
-        category: t("sampleCategory"),
-        description: t("sampleDescription"),
-        website: normalized,
-        location: t("sampleLocation"),
-        uniqueSellingPoint: t("sampleUniqueSellingPoint"),
-        visionMission: t("sampleVisionMission"),
-        colorTone: "#2563eb",
-        targetAudience: t("sampleTargetAudience"),
-        contentTone: t("sampleContentTone"),
-        hashtags: t("sampleHashtags"),
-        callToAction: t("sampleCallToAction"),
-      });
-      setPhase("result");
-    }, 3200);
-
     return () => {
       window.clearInterval(intervalId);
-      window.clearTimeout(timeoutId);
     };
-  }, [loadingSteps.length, phase, t, websiteInput]);
+  }, [loadingSteps.length, phase]);
 
-  const canContinue = websiteInput.trim().length > 0;
+  useEffect(() => {
+    return () => {
+      pollingSessionRef.current += 1;
+    };
+  }, []);
+
+  const canContinue = websiteInput.trim().length > 0 && !mWebsiteScrapper.isPending;
 
   const updateDraft = <K extends keyof WebsiteDraft>(
     key: K,
@@ -137,6 +206,169 @@ export default function NewBusinessWebsitePage() {
   ) => {
     setDraft((current) => ({ ...current, [key]: value }));
   };
+
+  const resetToInput = () => {
+    pollingSessionRef.current += 1;
+    setPhase("input");
+    setActiveLoadingStep(0);
+  };
+
+  const prefillManualForm = () => {
+    const finalCountryCode = resolveCountryCode(
+      draft.countryCode,
+      draft.businessPhone
+    );
+    const finalPhone = stripCountryCodeFromPhone(
+      draft.businessPhone,
+      finalCountryCode
+    );
+    const finalHashtags = parseHashtags(draft.hashtags);
+
+    setFormData((current) => ({
+      ...current,
+      step1: {
+        ...current.step1,
+        primaryLogo: draft.primaryLogoUrl || current.step1.primaryLogo,
+        name: draft.name,
+        category: draft.category,
+        description: draft.description,
+        website: draft.website,
+        businessPhone: finalPhone,
+        countryCode: finalCountryCode,
+        colorTone: toColorToneValue(draft.colorTone),
+      },
+      step2: draft.firstProduct
+        ? {
+            ...current.step2,
+            name: draft.firstProduct.name || current.step2.name,
+            category: draft.firstProduct.category || current.step2.category,
+            description:
+              draft.firstProduct.description || current.step2.description,
+            price: Number(draft.firstProduct.price || 0),
+            currency: draft.firstProduct.currency || current.step2.currency,
+            images:
+              draft.firstProduct.imageUrls?.length > 0
+                ? draft.firstProduct.imageUrls
+                : current.step2.images,
+          }
+        : current.step2,
+      step3: {
+        ...current.step3,
+        targetAudience: draft.targetAudience,
+        tone: draft.contentTone,
+        hashtags: finalHashtags,
+      },
+    }));
+  };
+
+  const waitForFinalScrapperResult = async (
+    id: number,
+    session: number
+  ): Promise<WebsiteScrapperHistoryItem> => {
+    const maxAttempt = 40;
+    const delayMs = 2000;
+
+    for (let attempt = 0; attempt < maxAttempt; attempt += 1) {
+      if (pollingSessionRef.current !== session) {
+        throw new Error("SCRAPPER_CANCELLED");
+      }
+
+      const response = await websiteScrapperService.getHistoryById(id);
+      const item = response.data.data;
+      const processState = item.processState?.toLowerCase();
+      const status = item.status?.toLowerCase();
+
+      if (
+        processState === "completed" ||
+        processState === "failed" ||
+        status === "success" ||
+        status === "error"
+      ) {
+        return item;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    }
+
+    throw new Error("Process timed out. Please try again.");
+  };
+
+  const handleScrapWebsite = async () => {
+    if (!canContinue) return;
+
+    const normalized = normalizeUrl(websiteInput);
+    setWebsiteInput(normalized);
+    setPhase("loading");
+    setActiveLoadingStep(0);
+
+    const session = pollingSessionRef.current + 1;
+    pollingSessionRef.current = session;
+
+    try {
+      const queuedResponse = await mWebsiteScrapper.mutateAsync({
+        websiteUrl: normalized,
+      });
+
+      const queuedJob = queuedResponse.data.data;
+      const finalResult = await waitForFinalScrapperResult(queuedJob.id, session);
+
+      if (pollingSessionRef.current !== session) return;
+
+      const isErrorResult =
+        finalResult.processState?.toLowerCase() === "failed" ||
+        finalResult.status?.toLowerCase() === "error";
+
+      if (isErrorResult) {
+        throw new Error(
+          finalResult.errorReason || "Website analysis failed. Please try again."
+        );
+      }
+
+      if (!finalResult.data) {
+        throw new Error(
+          "Website analysis is still processing. Please try again in a few moments."
+        );
+      }
+
+      setDraft(mapScrapperToDraft(finalResult));
+      setPhase("result");
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "SCRAPPER_CANCELLED"
+      ) {
+        return;
+      }
+
+      if (pollingSessionRef.current === session) {
+        setPhase("input");
+        setActiveLoadingStep(0);
+      }
+
+      showToast("error", error);
+    }
+  };
+
+  const insightItems = useMemo(() => {
+    const fromScrapper = [
+      draft.metadataTitle,
+      draft.metadataDescription,
+      draft.targetAudience,
+      draft.contentTone,
+    ].filter((item) => item.trim().length > 0);
+
+    if (fromScrapper.length >= 3) {
+      return fromScrapper.slice(0, 3);
+    }
+
+    return [t("insight1"), t("insight2"), t("insight3")];
+  }, [
+    draft.contentTone,
+    draft.metadataDescription,
+    draft.metadataTitle,
+    draft.targetAudience,
+    t,
+  ]);
 
   return (
     <div className="ai-glow-page relative min-h-screen overflow-hidden bg-background">
@@ -156,12 +388,11 @@ export default function NewBusinessWebsitePage() {
               }
 
               if (phase === "loading") {
-                setPhase("input");
-                setActiveLoadingStep(0);
+                resetToInput();
                 return;
               }
 
-              setPhase("input");
+              resetToInput();
             }}
           >
             <ArrowLeft className="size-4" />
@@ -216,10 +447,7 @@ export default function NewBusinessWebsitePage() {
                   <Button
                     className="h-14 rounded-full text-base shadow-[0_18px_40px_rgba(37,99,235,0.35)]"
                     disabled={!canContinue}
-                    onClick={() => {
-                      setActiveLoadingStep(0);
-                      setPhase("loading");
-                    }}
+                    onClick={handleScrapWebsite}
                   >
                     {t("continue")}
                     <ArrowRight className="size-4" />
@@ -306,16 +534,16 @@ export default function NewBusinessWebsitePage() {
                   <Button
                     variant="outline"
                     className="rounded-full border-white/40 bg-white/65 dark:bg-white/5"
-                    onClick={() => {
-                      setPhase("input");
-                      setActiveLoadingStep(0);
-                    }}
+                    onClick={resetToInput}
                   >
                     {t("regenerate")}
                   </Button>
                   <Button
                     className="rounded-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
-                    onClick={() => router.push("/business/new-business/manual")}
+                    onClick={() => {
+                      prefillManualForm();
+                      router.push("/business/new-business/manual");
+                    }}
                   >
                     {t("manualCta")}
                     <ArrowRight className="size-4" />
@@ -326,6 +554,19 @@ export default function NewBusinessWebsitePage() {
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
                 <div className="grid gap-6">
                   <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                        {b("logoBrand")}
+                      </label>
+                      <Input
+                        value={draft.primaryLogoUrl}
+                        onChange={(event) =>
+                          updateDraft("primaryLogoUrl", event.target.value)
+                        }
+                        className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                      />
+                    </div>
+
                     <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                       <label className="mb-2 block text-sm font-medium text-muted-foreground">
                         {b("brandName")}
@@ -376,62 +617,16 @@ export default function NewBusinessWebsitePage() {
 
                     <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                       <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {b("location")}
+                        {b("phone")}
                       </label>
                       <Input
-                        value={draft.location}
-                        onChange={(event) => updateDraft("location", event.target.value)}
+                        value={draft.businessPhone}
+                        onChange={(event) =>
+                          updateDraft("businessPhone", event.target.value)
+                        }
                         className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
                       />
                     </div>
-                  </div>
-
-                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {b("uniqueSellingPoint")}
-                      </label>
-                      <Textarea
-                        value={draft.uniqueSellingPoint}
-                        onChange={(event) =>
-                          updateDraft("uniqueSellingPoint", event.target.value)
-                        }
-                        className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Palette className="size-4" />
-                        {b("colorTone")}
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="size-16 rounded-2xl border border-white/70 shadow-inner"
-                          style={{ backgroundColor: draft.colorTone }}
-                        />
-                        <Input
-                          value={draft.colorTone}
-                          onChange={(event) =>
-                            updateDraft("colorTone", event.target.value)
-                          }
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                      {b("visionMission")}
-                    </label>
-                    <Textarea
-                      value={draft.visionMission}
-                      onChange={(event) =>
-                        updateDraft("visionMission", event.target.value)
-                      }
-                      className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                    />
                   </div>
 
                   <div className="grid gap-6 lg:grid-cols-2">
@@ -463,7 +658,7 @@ export default function NewBusinessWebsitePage() {
                     </div>
                   </div>
 
-                  <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
                     <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                       <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <Tags className="size-4" />
@@ -479,16 +674,23 @@ export default function NewBusinessWebsitePage() {
                     </div>
 
                     <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {r("callToAction")}
+                      <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <Palette className="size-4" />
+                        {b("colorTone")}
                       </label>
-                      <Textarea
-                        value={draft.callToAction}
-                        onChange={(event) =>
-                          updateDraft("callToAction", event.target.value)
-                        }
-                        className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="size-16 rounded-2xl border border-white/70 shadow-inner"
+                          style={{ backgroundColor: normalizeHexColor(draft.colorTone) }}
+                        />
+                        <Input
+                          value={draft.colorTone}
+                          onChange={(event) =>
+                            updateDraft("colorTone", event.target.value)
+                          }
+                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -500,7 +702,7 @@ export default function NewBusinessWebsitePage() {
                       {t("insightsTitle")}
                     </div>
                     <div className="space-y-3">
-                      {[t("insight1"), t("insight2"), t("insight3")].map((item) => (
+                      {insightItems.map((item) => (
                         <div
                           key={item}
                           className="rounded-2xl border border-blue-200/60 bg-blue-500/[0.08] p-4 text-sm leading-6 text-foreground dark:border-blue-300/10"
@@ -525,7 +727,9 @@ export default function NewBusinessWebsitePage() {
                       </p>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {[draft.category, draft.colorTone, draft.name].map((item) => (
+                      {[draft.category, draft.colorTone, draft.name]
+                        .filter((item) => item.trim().length > 0)
+                        .map((item) => (
                         <div
                           key={item}
                           className={cn(
@@ -536,6 +740,11 @@ export default function NewBusinessWebsitePage() {
                         </div>
                       ))}
                     </div>
+                    {draft.sourceId && (
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        ID: {draft.sourceId}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
