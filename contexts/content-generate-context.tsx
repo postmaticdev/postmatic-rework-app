@@ -8,6 +8,7 @@ import {
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { createSocket, destroySocket, getSocket } from "@/lib/socket";
+import { upsertSchedulerDraftMarker } from "@/lib/scheduler-draft-markers";
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import {
   AdvancedGenerate,
@@ -472,6 +473,7 @@ function buildSchedulerChatJobs({
       new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
   );
   const userBubbles = bubbles.filter((bubble) => bubble.role === "user");
+  const seedImages = [productImage, referenceImage].filter(Boolean) as string[];
 
   return userBubbles.map((userBubble, index) => {
     const nextUser = userBubbles[index + 1];
@@ -486,22 +488,33 @@ function buildSchedulerChatJobs({
     });
     const userImages =
       userBubble.images?.map((item) => item.imageUrl).filter(Boolean) || [];
-    const referenceImages = userImages.filter(
+    const userAdditionalImages = (userBubble.additionalImages || []).filter(
+      Boolean
+    );
+    const userPromptImages = Array.from(
+      new Set([...userImages, ...userAdditionalImages])
+    );
+    const referenceImages = userPromptImages.filter(
       (imageUrl) => imageUrl && imageUrl !== productImage
     );
     const effectiveReferenceImage =
       index === 0
-        ? referenceImages[0] || referenceImage || null
-        : userImages[0] || null;
+        ? referenceImage || referenceImages[0] || null
+        : userPromptImages[0] || null;
     const firstPromptImages = Array.from(
       new Set(
-        [productImage, ...referenceImages, referenceImage].filter(
-          Boolean
-        ) as string[]
+        (
+          seedImages.length > 0
+            ? [...seedImages, ...userPromptImages]
+            : userPromptImages
+        ).filter(Boolean)
       )
     );
     const resultImages =
       systemBubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
+    const resultImageItemIds = (systemBubble?.images || [])
+      .map((item) => item.id)
+      .filter((itemId): itemId is number => Number.isFinite(itemId));
     const effectiveRatio =
       (systemBubble?.imageRatio || userBubble.imageRatio || ratio || "1:1") as ValidRatio;
     const isError = Boolean(systemBubble?.errorMessage);
@@ -520,6 +533,8 @@ function buildSchedulerChatJobs({
         ratio: effectiveRatio,
         prompt: userBubble.prompt || "",
         caption: caption || "",
+        additionalImages: userPromptImages,
+        systemBubbleId: systemBubble?.id || null,
         category: "",
         designStyle: "",
         referenceImage: effectiveReferenceImage,
@@ -537,11 +552,14 @@ function buildSchedulerChatJobs({
         category: "",
         currency: "IDR",
         price: 0,
-        images: index === 0 ? firstPromptImages : [],
+        images: index === 0 ? firstPromptImages : userPromptImages,
       },
       result: resultImages.length
         ? {
             images: resultImages,
+            imageItemIds: resultImageItemIds.length
+              ? resultImageItemIds
+              : undefined,
             ratio: effectiveRatio,
             category: "",
             designStyle: "",
@@ -958,6 +976,29 @@ export const ContentGenerateProvider = ({
       const productKnowledgeId = routeBusinessProductId || "";
       const chat = result.data?.data?.data;
       if (!chat) return;
+      const existingThreadJobs = histories
+        .flatMap((group) => group.jobs)
+        .filter(
+          (job) =>
+            job.id.startsWith("chat-") &&
+            !job.id.startsWith("chat-pending-") &&
+            job.input.productKnowledgeId === productKnowledgeId
+        )
+        .sort(
+          (left, right) =>
+            new Date(left.createdAt).getTime() -
+            new Date(right.createdAt).getTime()
+        );
+      const existingThreadJobsById = new Map(
+        existingThreadJobs.map((job) => [job.id, job])
+      );
+      const seedJob = existingThreadJobs[0];
+      const seedProductImage =
+        seedJob?.product?.images?.[0] ||
+        selectedHistoryImage ||
+        form.basic.productImage;
+      const seedReferenceImage =
+        seedJob?.input?.referenceImage || form.basic.referenceImage;
 
       const restoredJobs = buildSchedulerChatJobs({
         chat,
@@ -967,13 +1008,49 @@ export const ContentGenerateProvider = ({
         ratio: form.basic.ratio,
         imageSize: form.basic.imageSize,
         productName: form.basic.productName,
-        productImage: selectedHistoryImage || form.basic.productImage,
-        referenceImage: form.basic.referenceImage,
+        productImage: seedProductImage,
+        referenceImage: seedReferenceImage,
         caption: form.basic.caption,
       });
-      if (restoredJobs.length === 0) return;
+      const mergedRestoredJobs = restoredJobs.map((job) => {
+        const existingJob = existingThreadJobsById.get(job.id);
+        return {
+          ...job,
+          input: {
+            ...job.input,
+            referenceImage:
+              job.input.referenceImage || existingJob?.input.referenceImage || null,
+            additionalImages:
+              job.input.additionalImages?.length
+                ? job.input.additionalImages
+                : existingJob?.input.additionalImages || [],
+            systemBubbleId:
+              typeof job.input.systemBubbleId === "number"
+                ? job.input.systemBubbleId
+                : existingJob?.input.systemBubbleId || null,
+          },
+          result:
+            job.result && existingJob?.result
+              ? {
+                  ...job.result,
+                  imageItemIds:
+                    job.result.imageItemIds?.length
+                      ? job.result.imageItemIds
+                      : existingJob.result.imageItemIds,
+                }
+              : job.result || existingJob?.result || null,
+          product: {
+            ...job.product,
+            images:
+              job.product.images.length > 0
+                ? job.product.images
+                : existingJob?.product.images || [],
+          },
+        };
+      });
+      if (mergedRestoredJobs.length === 0) return;
 
-      const latestJob = restoredJobs[restoredJobs.length - 1];
+      const latestJob = mergedRestoredJobs[mergedRestoredJobs.length - 1];
       const imageUrl =
         latestJob.result?.images?.[0] ||
         selectedHistoryImage ||
@@ -982,11 +1059,9 @@ export const ContentGenerateProvider = ({
       setHistories((prev) => {
         const withoutThread = removeJobsFromHistory(
           prev,
-          (job) =>
-            job.id.startsWith("chat-") &&
-            job.input.productKnowledgeId === productKnowledgeId
+          (job) => job.id.startsWith("chat-pending-")
         );
-        return restoredJobs.reduce(
+        return mergedRestoredJobs.reduce(
           (groups, job) => upsertJobIntoHistory(groups, job),
           withoutThread
         );
@@ -1018,6 +1093,7 @@ export const ContentGenerateProvider = ({
     form.basic.ratio,
     refetchRouteChat,
     routeBusinessProductId,
+    histories,
     routeChatSessionId,
     routeScheduledPostId,
     searchParams,
@@ -1114,7 +1190,7 @@ export const ContentGenerateProvider = ({
   const [publishedPagination, setPublishedPagination] =
     useState<Pagination>(initialPagination);
   const [publishedQuery, setPublishedQuery] = useState<Partial<FilterQuery>>({
-    limit: 7,
+    limit: 10,
     page: 1,
     search: "",
     sortBy: "createdAt",
@@ -1635,6 +1711,15 @@ export const ContentGenerateProvider = ({
       (isFirstSchedulerBubble ? schedulerFirstGeneratePrompt : "");
     const firstRss =
       isFirstSchedulerBubble && effMode === "rss" ? form.rss : null;
+    const selectedSystemBubbleId =
+      form.basic.referenceImageName === "Selected image" &&
+      typeof selectedHistory?.input?.systemBubbleId === "number"
+        ? selectedHistory.input.systemBubbleId
+        : undefined;
+    const replyBubbleChatId =
+      selectedSystemBubbleId && Number.isFinite(selectedSystemBubbleId)
+        ? selectedSystemBubbleId
+        : undefined;
     const chatAdditionalImages = Array.from(
       new Set(
         (
@@ -1667,6 +1752,7 @@ export const ContentGenerateProvider = ({
         ratio: form.basic.ratio,
         prompt: firstPrompt,
         caption: form.basic.caption,
+        additionalImages: chatAdditionalImages,
         category: "",
         designStyle: "",
         referenceImage: isFirstSchedulerBubble
@@ -1689,6 +1775,18 @@ export const ContentGenerateProvider = ({
       result: null,
     };
 
+    upsertSchedulerDraftMarker(businessId, {
+      draftId: String(draft.id),
+      jobId: pendingJobId,
+      date: scheduleDate,
+      time: scheduleTime,
+      image: form.basic.productImage || "",
+      caption: form.basic.caption || "",
+      chatSessionId: chatSessionId,
+      businessProductId: form.basic.productKnowledgeId || null,
+      createdAt: now,
+    });
+
     setSchedulerDraftPost({
       id: draft.id,
       chatSessionId,
@@ -1705,6 +1803,7 @@ export const ContentGenerateProvider = ({
       additionalImages: chatAdditionalImages,
       prompt: firstPrompt,
       ratio: form.basic.ratio,
+      bubbleChatId: replyBubbleChatId,
       rss:
         isFirstSchedulerBubble && effMode === "rss"
           ? form.rss || undefined
@@ -1755,9 +1854,16 @@ export const ContentGenerateProvider = ({
       error: systemBubble?.errorMessage
         ? { message: systemBubble.errorMessage, stack: null, attempt: 1 }
         : null,
+      input: {
+        ...baseChatJob.input,
+        systemBubbleId: systemBubble?.id || null,
+      },
       result: images.length
         ? {
             images,
+            imageItemIds: (systemBubble?.images || [])
+              .map((item) => item.id)
+              .filter((itemId): itemId is number => Number.isFinite(itemId)),
             ratio: form.basic.ratio,
             category: "",
             designStyle: "",
@@ -1768,6 +1874,18 @@ export const ContentGenerateProvider = ({
           }
         : null,
     };
+
+    upsertSchedulerDraftMarker(businessId, {
+      draftId: String(draft.id),
+      jobId: chatJob.id,
+      date: scheduleDate,
+      time: scheduleTime,
+      image: images[0] || form.basic.productImage || "",
+      caption: form.basic.caption || "",
+      chatSessionId: chatSessionId,
+      businessProductId: form.basic.productKnowledgeId || null,
+      createdAt: chatJob.createdAt || now,
+    });
 
     if (images.length) {
       await mEditScheduledPost.mutateAsync({
@@ -2287,6 +2405,24 @@ export const ContentGenerateProvider = ({
 
         const chat = result.data?.data?.data;
         if (!chat) return;
+        const existingThreadJobs = histories
+          .flatMap((group) => group.jobs)
+          .filter(
+            (job) =>
+              job.id.startsWith("chat-") &&
+              !job.id.startsWith("chat-pending-") &&
+              job.input.productKnowledgeId ===
+                selectedHistory.input.productKnowledgeId
+          )
+          .sort(
+            (left, right) =>
+              new Date(left.createdAt).getTime() -
+              new Date(right.createdAt).getTime()
+          );
+        const existingThreadJobsById = new Map(
+          existingThreadJobs.map((job) => [job.id, job])
+        );
+        const seedJob = existingThreadJobs[0];
 
         const chatJobs = buildSchedulerChatJobs({
           chat,
@@ -2296,11 +2432,52 @@ export const ContentGenerateProvider = ({
           ratio: selectedHistory.input.ratio,
           imageSize: selectedHistory.input.imageSize,
           productName: selectedHistory.product.name,
-          productImage: selectedHistory.product.images[0],
-          referenceImage: selectedHistory.input.referenceImage,
+          productImage:
+            seedJob?.product?.images?.[0] ||
+            selectedHistory.product.images[0],
+          referenceImage:
+            seedJob?.input?.referenceImage || selectedHistory.input.referenceImage,
           caption: selectedHistory.input.caption || "",
         });
-        const latestJob = chatJobs[chatJobs.length - 1];
+        const mergedChatJobs = chatJobs.map((job) => {
+          const existingJob = existingThreadJobsById.get(job.id);
+          return {
+            ...job,
+            input: {
+              ...job.input,
+              referenceImage:
+                job.input.referenceImage ||
+                existingJob?.input.referenceImage ||
+                null,
+              additionalImages:
+                job.input.additionalImages?.length
+                  ? job.input.additionalImages
+                  : existingJob?.input.additionalImages || [],
+              systemBubbleId:
+                typeof job.input.systemBubbleId === "number"
+                  ? job.input.systemBubbleId
+                  : existingJob?.input.systemBubbleId || null,
+            },
+            result:
+              job.result && existingJob?.result
+                ? {
+                    ...job.result,
+                    imageItemIds:
+                      job.result.imageItemIds?.length
+                        ? job.result.imageItemIds
+                        : existingJob.result.imageItemIds,
+                  }
+                : job.result || existingJob?.result || null,
+            product: {
+              ...job.product,
+              images:
+                job.product.images.length > 0
+                  ? job.product.images
+                  : existingJob?.product.images || [],
+            },
+          };
+        });
+        const latestJob = mergedChatJobs[mergedChatJobs.length - 1];
         const latestImage = latestJob?.result?.images?.[0] || "";
 
         if (!latestJob || latestJob.stage === "processing") {
@@ -2310,12 +2487,9 @@ export const ContentGenerateProvider = ({
         setHistories((prev) => {
           const withoutThread = removeJobsFromHistory(
             prev,
-            (job) =>
-              job.id.startsWith("chat-") &&
-              job.input.productKnowledgeId ===
-                selectedHistory.input.productKnowledgeId
+            (job) => job.id.startsWith("chat-pending-")
           );
-          return chatJobs.reduce(
+          return mergedChatJobs.reduce(
             (groups, job) => upsertJobIntoHistory(groups, job),
             withoutThread
           );
@@ -2329,6 +2503,17 @@ export const ContentGenerateProvider = ({
           scheduleDateParam
         ) {
           syncedSchedulerImageRef.current = latestImage;
+          upsertSchedulerDraftMarker(businessId, {
+            draftId: String(schedulerDraftPost.id),
+            jobId: latestJob.id,
+            date: scheduleDateParam,
+            time: searchParams.get("scheduleTime") || "08:00",
+            image: latestImage,
+            caption: selectedHistory.input.caption || "",
+            chatSessionId: schedulerDraftPost.chatSessionId,
+            businessProductId: selectedHistory.input.productKnowledgeId || null,
+            createdAt: latestJob.createdAt || new Date().toISOString(),
+          });
           await mEditScheduledPost.mutateAsync({
             businessId,
             idScheduler: schedulerDraftPost.id,
@@ -2377,6 +2562,7 @@ export const ContentGenerateProvider = ({
     schedulerDraftPost,
     searchParams,
     selectedHistory,
+    histories,
   ]);
 
   const aiModels: ContentGenerateContext["aiModels"] = {

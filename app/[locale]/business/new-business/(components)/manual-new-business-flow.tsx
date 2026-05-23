@@ -157,7 +157,7 @@ export function ManualNewBusinessFlow() {
 
   return (
     <div className="min-h-screen overflow-hidden rounded bg-transparent md:flex">
-      <div className="mx-auto mb-22 mt-18 flex w-full flex-col md:mt-22 md:w-2/3 lg:w-2/5">
+      <div className="mx-auto mb-22 mt-18 flex w-full flex-col md:mt-18 md:w-2/3 lg:w-2/5">
         <div className="fixed top-0 right-0 left-0 z-50 w-full border-b border-border bg-background p-2 md:w-2/3 md:p-4 dark:bg-card lg:w-2/5">
           <div className="mb-2 flex items-center gap-3">
             <Link href="/" className="cursor-pointer">

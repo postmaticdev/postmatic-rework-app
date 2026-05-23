@@ -98,6 +98,8 @@ export interface JobData {
     ratio: ValidRatio;
     prompt: string | null;
     caption: string | null;
+    additionalImages?: string[];
+    systemBubbleId?: number | null;
     category: string;
     designStyle: string;
     referenceImage: string | null;
@@ -123,6 +125,7 @@ export interface Product {
 
 export interface Result {
   images: string[];
+  imageItemIds?: number[];
   ratio: ValidRatio;
   category: string;
   designStyle: string;

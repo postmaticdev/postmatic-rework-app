@@ -52,13 +52,13 @@ export function HistoryTransactions() {
             <CardTitle className="text-lg sm:text-xl font-bold text-foreground  ">
               {t("historyTransactions")}
             </CardTitle>
-            <PaginationWithControls
+            {/* <PaginationWithControls
               pagination={pagination}
               filterQuery={filterQuery}
               setFilterQuery={setFilterQuery}
               currData={transactions.length}
               showSort={false}
-            />
+            /> */}
             {transactions.length > 0 ? (
               <div>
                 <table className="w-full ">

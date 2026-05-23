@@ -2,8 +2,11 @@ export interface SchedulerDraftMarker {
   draftId: string;
   jobId: string;
   date: string;
+  time?: string;
   image: string;
   caption: string;
+  chatSessionId?: string | number | null;
+  businessProductId?: string | number | null;
   createdAt: string;
 }
 
@@ -36,8 +39,17 @@ export function getSchedulerDraftMarkers(businessId: string) {
         typeof item?.draftId === "string" &&
         typeof item?.jobId === "string" &&
         typeof item?.date === "string" &&
+        (item?.time === undefined || typeof item?.time === "string") &&
         typeof item?.image === "string" &&
         typeof item?.caption === "string" &&
+        (item?.chatSessionId === undefined ||
+          item?.chatSessionId === null ||
+          typeof item?.chatSessionId === "string" ||
+          typeof item?.chatSessionId === "number") &&
+        (item?.businessProductId === undefined ||
+          item?.businessProductId === null ||
+          typeof item?.businessProductId === "string" ||
+          typeof item?.businessProductId === "number") &&
         typeof item?.createdAt === "string"
     );
   } catch {

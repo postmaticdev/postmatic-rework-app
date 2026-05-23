@@ -256,6 +256,7 @@ export interface ImagePostChatBubbleRes {
   imageRatio: string | null;
   replyToBubbleId: number | null;
   appGenerativeImageModelId: number | null;
+  additionalImages?: string[] | null;
   errorMessage: string | null;
   images: ImagePostChatBubbleImageRes[] | null;
   createdAt: string;
@@ -280,6 +281,14 @@ export interface SendImageChatMessageRes {
   userBubble: ImagePostChatBubbleRes;
   systemBubble: ImagePostChatBubbleRes | null;
   processState: "queued" | "processing" | "done" | "error" | string;
+}
+
+export interface ImageWatermarkRes {
+  generatedImagePostItemId: number;
+  isFreeUser: boolean;
+  isWatermarked: boolean;
+  isCached: boolean;
+  imageUrls: string[];
 }
 
 /*

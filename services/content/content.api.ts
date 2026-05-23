@@ -20,6 +20,7 @@ import {
   EnhanceCaptionRes,
   ImagePostChatRes,
   ImagePostChatSessionRes,
+  ImageWatermarkRes,
   SendImageChatMessagePld,
   SendImageChatMessageRes,
 } from "@/models/api/content/image.type";
@@ -97,7 +98,7 @@ type NewImagePost = {
   category: string | null;
   referenceImageUrl: string | null;
   imageSize: string | null;
-  items: { imageUrl: string; tokenUsed: number }[];
+  items: { id?: number; imageUrl: string; tokenUsed: number }[];
   caption: { captionText: string; tokenUsed: number } | null;
   createdAt: string;
   updatedAt: string;
@@ -313,6 +314,9 @@ const mapImagePostMode = (mode: string) => {
 
 const mapImagePostToJobGroup = (post: NewImagePost): GetAllJob => {
   const images = post.items.map((item) => item.imageUrl);
+  const imageItemIds = (post.items || [])
+    .map((item) => item.id)
+    .filter((itemId): itemId is number => Number.isFinite(itemId));
   const caption = post.caption?.captionText || "";
   const mappedStatus = mapImagePostStatus(post.status);
 
@@ -357,6 +361,7 @@ const mapImagePostToJobGroup = (post: NewImagePost): GetAllJob => {
         },
         result: {
           images,
+          imageItemIds: imageItemIds.length ? imageItemIds : undefined,
           ratio: post.ratio as never,
           category: post.category || "",
           designStyle: post.designStyle || "",
@@ -848,6 +853,17 @@ const imagePostChatService = {
   },
 };
 
+const imageWatermarkService = {
+  getImageWatermark: (generatedImagePostItemId: number) => {
+    return api.get<BaseResponse<ImageWatermarkRes>>(
+      "/generative-content/image-watermark",
+      {
+        params: { generatedImagePostItemId },
+      }
+    );
+  },
+};
+
 export const useContentImagePostChatGetAll = (
   businessId: string,
   filterQuery?: Partial<FilterQuery>,
@@ -898,6 +914,16 @@ export const useContentImagePostChatSendImageMessage = () => {
         queryKey: ["contentImagePostChatGetAll", businessId],
       });
     },
+  });
+};
+
+export const useContentImageWatermarkGet = () => {
+  return useMutation({
+    mutationFn: ({
+      generatedImagePostItemId,
+    }: {
+      generatedImagePostItemId: number;
+    }) => imageWatermarkService.getImageWatermark(generatedImagePostItemId),
   });
 };
 

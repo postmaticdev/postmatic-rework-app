@@ -13,7 +13,7 @@ import Image from "next/image";
 import { FormDataView } from "./content-library";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { PostedImageContent } from "@/models/api/content/image.type";
-import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
+import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { useParams } from "next/navigation";
@@ -38,25 +38,43 @@ export function ViewPostModal({
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const platforms = platformData?.data.data || [];
   const t = useTranslations("contentScheduler");
-  const mappedPlatforms = platforms.map((platform) => ({
-    id: platform.platform,
-    name: platform.name,
-    isActive: platform.status === "connected",
-    status: platform.status,
-    hint:
-      platform.status === "connected"
-        ? null
-        : platform.status === "unconnected"
-        ? t("unconnected")
-        : t("notAvailable"),
-  }));
+
+  const socialPlatforms = SOCIAL_MEDIA_PLATFORMS;
+
+  const mappedPlatforms = socialPlatforms.map((platformCode) => {
+    const platform = platforms.find((item) => item.platform === platformCode);
+    const status = platform?.status ?? "unconnected";
+
+    return {
+      id: platformCode,
+      name: platform?.name ?? mapEnumPlatform.getPlatformLabel(platformCode),
+      isActive: status === "connected",
+      status,
+      hint:
+        status === "connected"
+          ? null
+          : status === "unconnected"
+            ? t("unconnected")
+            : t("notAvailable"),
+    };
+  });
 
   const unavailablePlatforms = mappedPlatforms.filter(
     (platform) => !platform.isActive
   );
 
+  const postedImageContents =
+    formData?.data?.postedImageContents?.filter((platform) =>
+      socialPlatforms.includes(platform.platform)
+    ) || [];
+
+  const postedPlatforms = new Set<PlatformEnum>([
+    ...(formData?.data?.platforms || []),
+    ...postedImageContents.map((item) => item.platform),
+  ]);
+
   const unPostedPlatforms = mappedPlatforms.filter(
-    (platform) => !formData?.data?.platforms.includes(platform.id)
+    (platform) => !postedPlatforms.has(platform.id)
   );
 
   const handleShowPosted = (item: PostedImageContent) => {
@@ -106,11 +124,7 @@ export function ViewPostModal({
               width={500}
               height={500}
             />
-            <div className="absolute top-2 right-2">
-              <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded">
-                {formData?.data?.category}
-              </span>
-            </div>
+
           </div>
 
           {/* Post Details */}
@@ -137,11 +151,11 @@ export function ViewPostModal({
           </div>
 
           {/* Posted Platforms */}
-          {formData?.data?.postedImageContents.length > 0 && (
+          {postedImageContents.length > 0 && (
             <div className="space-y-3">
               <h3 className="font-medium text-sm">{t("postedTo")}</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {formData?.data?.postedImageContents.map((platform) => (
+                {postedImageContents.map((platform) => (
                   <Button
                     key={platform.id}
                     variant="outline"
@@ -167,11 +181,10 @@ export function ViewPostModal({
                   <Button
                     key={platform.id}
                     variant="outline"
-                    className={`h-10 justify-start space-x-2 ${
-                      isSelectedPlatform(platform.id)
+                    className={`h-10 justify-start space-x-2 ${isSelectedPlatform(platform.id)
                         ? "bg-blue-600 text-white border-blue-600"
                         : "hover:bg-muted"
-                    }`}
+                      }`}
                     disabled={isDisabledPlatform(platform.id)}
                     onClick={() => handleSelectUnpostedPlatform(platform.id)}
                   >

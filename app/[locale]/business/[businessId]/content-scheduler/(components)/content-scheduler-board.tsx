@@ -69,7 +69,6 @@ import {
 } from "date-fns";
 import {
   CalendarClock,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Edit,
@@ -147,6 +146,7 @@ export function ContentSchedulerBoard({
   } | null>(null);
   const calendarContainerRef = useRef<HTMLDivElement | null>(null);
   const dateActionMenuRef = useRef<HTMLDivElement | null>(null);
+  const monthDatePickerRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const selectedDateQuery = searchParams.get("selectedDate");
@@ -316,24 +316,45 @@ export function ContentSchedulerBoard({
 
   const draftEvents = useMemo<SchedulerEvent[]>(
     () =>
-      draftMarkers.map((marker) => ({
-        id: `draft-${marker.draftId}`,
-        title: "Draft",
-        date: new Date(`${marker.date}T00:00:00`),
-        time: "",
-        image: marker.image || DEFAULT_PLACEHOLDER_IMAGE,
-        type: "draft",
-        platforms: [],
-        schedulerManualPostingId: null,
-        withChatAI: false,
-        chatSessionId: null,
-        businessProductId: null,
-        generatedImageContent: null,
-        sourceType: "draft",
-        draftMarker: marker,
-        historyJob: null,
-      })),
-    [draftMarkers]
+      draftMarkers
+        .filter(
+          (marker) =>
+            marker.time &&
+            marker.chatSessionId !== undefined &&
+            !manualEvents.some(
+              (event) => String(event.schedulerManualPostingId || "") === marker.draftId
+            )
+        )
+        .map((marker) => ({
+          id: `draft-${marker.draftId}`,
+          title: "Draft",
+          date: new Date(`${marker.date}T00:00:00`),
+          time: marker.time || "",
+          image: marker.image || DEFAULT_PLACEHOLDER_IMAGE,
+          type: "draft",
+          platforms: [],
+          schedulerManualPostingId:
+            Number.isNaN(Number(marker.draftId)) ? null : Number(marker.draftId),
+          withChatAI: true,
+          chatSessionId:
+            marker.chatSessionId === null || marker.chatSessionId === undefined
+              ? null
+              : Number.isNaN(Number(marker.chatSessionId))
+                ? null
+                : Number(marker.chatSessionId),
+          businessProductId:
+            marker.businessProductId === null ||
+              marker.businessProductId === undefined
+              ? null
+              : Number.isNaN(Number(marker.businessProductId))
+                ? null
+                : Number(marker.businessProductId),
+          generatedImageContent: null,
+          sourceType: "draft",
+          draftMarker: marker,
+          historyJob: null,
+        })),
+    [draftMarkers, manualEvents]
   );
 
   const historyDraftEvents = useMemo<SchedulerEvent[]>(() => {
@@ -531,10 +552,30 @@ export function ContentSchedulerBoard({
       return;
     }
 
-    if (
-      (event.sourceType === "draft" || event.sourceType === "history-draft") &&
-      event.draftMarker
-    ) {
+    if (event.sourceType === "draft" && event.draftMarker) {
+      const scheduleDate = eventIsPast
+        ? dateManipulation.ymd(today)
+        : event.draftMarker.date;
+      const params = new URLSearchParams({
+        scheduleDate,
+        scheduleTime: event.draftMarker.time || event.time || "08:00",
+        editSchedulerManualPostingId: event.draftMarker.draftId,
+        selectedHistoryId: event.draftMarker.jobId,
+        selectedHistoryImage: event.draftMarker.image,
+      });
+      if (event.draftMarker.chatSessionId !== undefined && event.draftMarker.chatSessionId !== null) {
+        params.set("chatSessionId", String(event.draftMarker.chatSessionId));
+      }
+      if (event.draftMarker.businessProductId !== undefined && event.draftMarker.businessProductId !== null) {
+        params.set("businessProductId", String(event.draftMarker.businessProductId));
+      }
+
+      setIsHistoryDialogOpen(false);
+      router.push(`/business/${businessId}/content-generate?${params.toString()}`);
+      return;
+    }
+
+    if (event.sourceType === "history-draft" && event.draftMarker) {
       const scheduleDate = eventIsPast
         ? dateManipulation.ymd(today)
         : event.draftMarker.date;
@@ -593,6 +634,19 @@ export function ContentSchedulerBoard({
     setCurrentMonth(startOfMonth(date));
     setShowDateActionCard(false);
     setDateActionMenuPosition(null);
+  };
+
+  const openMonthDatePicker = () => {
+    const input = monthDatePickerRef.current;
+    if (!input) return;
+
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+
+    input.focus();
+    input.click();
   };
 
   const handleConfirmCancelEvent = async () => {
@@ -683,15 +737,12 @@ export function ContentSchedulerBoard({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card>
           <CardContent className="p-3 sm:p-6">
-            <div className="mb-4 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative mx-auto flex h-10 w-[260px] shrink-0 items-center justify-center sm:mx-0 sm:w-[300px]">
-                <h2 className="w-full px-12 text-center text-lg font-bold sm:px-14 sm:text-xl">
-                  {monthLabel}
-                </h2>
+            <div className="mb-4 sm:mb-6">
+              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
                 <Button
                   variant="outline"
                   size="icon"
-                  className="absolute left-0 shrink-0"
+                  className="shrink-0 justify-self-start"
                   onClick={() => {
                     setCurrentMonth((current) => subMonths(current, 1));
                     setShowDateActionCard(false);
@@ -700,10 +751,29 @@ export function ContentSchedulerBoard({
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
+                <div className="relative mx-auto flex justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 w-auto min-w-[160px] px-4 text-center text-lg font-bold capitalize sm:min-w-[220px] sm:text-xl"
+                    onClick={openMonthDatePicker}
+                  >
+                    {monthLabel}
+                  </Button>
+                  <input
+                    ref={monthDatePickerRef}
+                    type="date"
+                    value={dateManipulation.ymd(selectedDate)}
+                    aria-label={t("today")}
+                    onChange={(event) => handleDatePickerChange(event.target.value)}
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-px w-px -translate-x-1/2 -translate-y-1/2 opacity-0"
+                    tabIndex={-1}
+                  />
+                </div>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="absolute right-0 shrink-0"
+                  className="shrink-0 justify-self-end"
                   onClick={() => {
                     setCurrentMonth((current) => addMonths(current, 1));
                     setShowDateActionCard(false);
@@ -713,21 +783,7 @@ export function ContentSchedulerBoard({
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-
-              <div className="flex flex-col gap-2 sm:block">
-                <label className="relative flex w-full items-center sm:w-auto">
-                  <CalendarDays className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="date"
-                    value={dateManipulation.ymd(selectedDate)}
-                    aria-label={t("today")}
-                    onChange={(event) =>
-                      handleDatePickerChange(event.target.value)
-                    }
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm ring-offset-background transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                  />
-                </label>
-
+              <div className="mt-2 sm:mt-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -779,17 +835,15 @@ export function ContentSchedulerBoard({
                           ? "min-h-[104px]"
                           : "min-h-[76px]"
                           } ${isToday
-                            ? "bg-blue-50"
+                            ? "bg-blue-50 dark:bg-blue-950/60"
                             : isCurrentMonth
                               ? "bg-card"
                               : "bg-background-secondary/50"
-                          } ${isSelected ? "ring-1 ring-inset ring-primary/30" : ""} ${isToday ? "hover:bg-blue-100/80" : "hover:bg-primary/5"
+                          } ${isSelected ? "ring-1 ring-inset ring-primary/30" : ""} ${isToday ? "hover:bg-blue-100/80 dark:hover:bg-blue-900/60" : "hover:bg-primary/5"
                           }`}
                       >
                         <div
-                          className={`mb-2 text-sm font-semibold sm:mb-3 sm:text-base xl:text-lg ${isToday
-                            ? "text-primary"
-                            : isCurrentMonth
+                          className={`mb-2 text-sm font-semibold sm:mb-3 sm:text-base xl:text-lg ${isToday ? "inline-flex h-7 min-w-7 items-center justify-center self-end rounded-full bg-blue-600 px-2 text-white sm:h-8 sm:min-w-8 dark:bg-blue-500" : isCurrentMonth
                               ? "text-foreground"
                               : "text-muted-foreground"
                             }`}
@@ -960,7 +1014,7 @@ export function ContentSchedulerBoard({
           <AutoGenerate
             handleIfNoPlatformConnected={handleIfNoPlatformConnected}
             cardClassName="flex-1 xl:max-h-[calc(100vh-8.5rem)] xl:overflow-hidden"
-            scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(100vh-19rem)] xl:overflow-y-auto xl:pr-1"
+            scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(80vh-19rem)] xl:overflow-y-auto xl:pr-1"
           />
         </div>
       </div>

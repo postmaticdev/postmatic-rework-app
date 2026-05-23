@@ -48,8 +48,25 @@ type ApiError = {
 };
 
 const DEFAULT_TOKEN_AMOUNT = "200000";
+const MAX_TOKEN_AMOUNT = 1_000_000_000;
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
+const clampTokenAmount = (value: string) => {
+  const digits = onlyDigits(value);
+  if (!digits) return "";
+
+  const parsed = Number(digits);
+  if (!Number.isFinite(parsed) || parsed <= 0) return "";
+
+  return String(Math.min(parsed, MAX_TOKEN_AMOUNT));
+};
+
+const formatTokenAmountInput = (value: string, locale: string) => {
+  const clamped = clampTokenAmount(value);
+  if (!clamped) return "";
+
+  return Number(clamped).toLocaleString(locale);
+};
 
 const getPaymentStatusLabel = (status?: string) => {
   switch (status) {
@@ -97,7 +114,12 @@ export function TopUpTokenDialog({
   const locale = useLocale();
   const t = useTranslations();
   const queryClient = useQueryClient();
-  const [amount, setAmount] = useState(initialAmount || DEFAULT_TOKEN_AMOUNT);
+  const defaultTokenAmountDisplay = Number(DEFAULT_TOKEN_AMOUNT).toLocaleString(
+    locale
+  );
+  const [amount, setAmount] = useState(() =>
+    formatTokenAmountInput(initialAmount || DEFAULT_TOKEN_AMOUNT, locale)
+  );
   const [paymentMethod, setPaymentMethod] = useState("");
   const [promoCode, setPromoCode] = useState("");
   const [checkedPromoCode, setCheckedPromoCode] = useState("");
@@ -107,7 +129,7 @@ export function TopUpTokenDialog({
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  const tokenAmount = Number(onlyDigits(amount));
+  const tokenAmount = Number(clampTokenAmount(amount) || 0);
 
   const productDetail = useAppProductGetProductDetail({
     rootBusinessId: businessId,
@@ -156,11 +178,11 @@ export function TopUpTokenDialog({
 
   useEffect(() => {
     if (!isOpen) return;
-    setAmount(initialAmount || DEFAULT_TOKEN_AMOUNT);
+    setAmount(formatTokenAmountInput(initialAmount || DEFAULT_TOKEN_AMOUNT, locale));
     setPromoCode("");
     setCheckedPromoCode("");
     setCheckoutResult(null);
-  }, [initialAmount, isOpen]);
+  }, [initialAmount, isOpen, locale]);
 
   useEffect(() => {
     if (!paymentMethod && methodOptions.length > 0) {
@@ -216,6 +238,10 @@ export function TopUpTokenDialog({
     if (checkedPromoCode === nextPromoCode) {
       await priceQuery.refetch();
     }
+  };
+
+  const handleAmountChange = (value: string) => {
+    setAmount(formatTokenAmountInput(value, locale));
   };
 
   const handleCreatePayment = async () => {
@@ -405,15 +431,13 @@ export function TopUpTokenDialog({
                   </label>
                   <Input
                     value={amount}
-                    onChange={(event) =>
-                      setAmount(onlyDigits(event.target.value))
-                    }
-                    placeholder="200000"
+                    onChange={(event) => handleAmountChange(event.target.value)}
+                    placeholder={defaultTokenAmountDisplay}
                     className="h-11"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Enter the token amount you want to buy.
-                  </p>
+                  {/* <p className="text-xs text-muted-foreground">
+                    Enter the token amount you want to buy. Max 1,000,000,000.
+                  </p> */}
                 </div>
 
                 <div className="space-y-2">
@@ -443,27 +467,28 @@ export function TopUpTokenDialog({
                 <label className="text-sm font-medium text-foreground">
                   Promo code
                 </label>
-                <Input
-                  value={promoCode}
-                  onChange={(event) => handlePromoCodeChange(event.target.value)}
-                  placeholder="Enter promo code"
-                  className="h-11 uppercase"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCheckPromoCode}
-                  disabled={
-                    isCheckingPromoCode ||
-                    priceQuery.isLoading ||
-                    !promoCode.trim() ||
-                    !tokenAmount ||
-                    !paymentMethod
-                  }
-                  className="w-full"
-                >
-                  {isCheckingPromoCode ? "Checking..." : "Check promo code"}
-                </Button>
+                <div className="relative">
+                  <Input
+                    value={promoCode}
+                    onChange={(event) => handlePromoCodeChange(event.target.value)}
+                    placeholder="Enter promo code"
+                    className="h-11 pr-20 uppercase"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCheckPromoCode}
+                    disabled={
+                      isCheckingPromoCode ||
+                      priceQuery.isLoading ||
+                      !promoCode.trim() ||
+                      !tokenAmount ||
+                      !paymentMethod
+                    }
+                    className="absolute right-1 top-1/2 h-9 -translate-y-1/2 px-3 text-sm"
+                  >
+                    {isCheckingPromoCode ? "Checking..." : "check"}
+                  </Button>
+                </div>
                 {promoCodeMessage ? (
                   <p
                     className={cn(

@@ -137,7 +137,7 @@ export function Header() {
   const locale = useLocale();
 
   return (
-    <header className="flex items-center justify-between w-full px-4 sm:px-6 py-4 bg-card border-b border-border fixed top-0 left-0 right-0 z-50">
+    <header className="flex items-center justify-between w-full px-4 sm:px-6 py-2 bg-card border-b border-border fixed top-0 left-0 right-0 z-50">
       {/* Logo Section */}
       <div className="flex items-center gap-2 sm:gap-3">
         <Link href="/" className="cursor-pointer">
@@ -201,7 +201,7 @@ export function Header() {
                           buildSettingsPath(currentBusiness.id, "overview")
                         )
                       }
-                     
+
                     >
                       <BarChart3 className="h-4 w-4 text-foreground" />
                       Overview

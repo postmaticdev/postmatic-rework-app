@@ -382,48 +382,80 @@ export function AutoGenerate({
                           </div>
 
                           {/* Existing Schedules */}
-                          <div className="space-y-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 ">
                             {daySchedules.length === 0 ? (
                               <div className="rounded-lg border border-dashed border-muted-foreground/35 bg-card/70 px-3 py-4 text-center text-sm text-muted-foreground">
                                 {t("noRepetitionSchedule")}
                               </div>
                             ) : (
-                              daySchedules.map((schedule) => (
-                                <div
-                                  key={schedule.id}
-                                  className="flex items-center gap-3"
-                                >
-                                  <button
-                                    type="button"
-                                    className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg bg-card px-3 py-2 text-left transition-colors hover:bg-primary/10"
-                                    onClick={() => handleEditSchedule(schedule)}
+                              daySchedules.map((schedule, index) => {
+                                const shouldSpanFullOnSm =
+                                  daySchedules.length % 2 === 1 &&
+                                  index === daySchedules.length - 1;
+
+                                return (
+                                  <div
+                                    key={schedule.id}
+                                    className={cn(
+                                      "flex items-center gap-3",
+                                      shouldSpanFullOnSm
+                                        ? "sm:col-span-2 col-span-1"
+                                        : ""
+                                    )}
                                   >
-                                    <div className="flex min-w-0 items-center gap-2">
-                                      <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                      <span className="truncate text-sm font-medium">
-                                        {schedule.time}
-                                      </span>
-                                      <div className="flex shrink-0 items-center gap-1">
-                                        {schedule.platforms.map((platform) => (
-                                          <span
-                                            className="text-xs font-medium"
-                                            key={platform}
-                                          >
-                                            {mapEnumPlatform.getPlatformIcon(platform)}
-                                          </span>
-                                        ))}
+                                    <button
+                                      type="button"
+                                      className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg bg-card px-3 py-2 text-left transition-colors hover:bg-primary/10"
+                                      onClick={(event) => {
+                                        const target = event.target as HTMLElement;
+                                        if (
+                                          target.closest(
+                                            '[data-toggle-schedule="true"]'
+                                          )
+                                        ) {
+                                          return;
+                                        }
+                                        handleEditSchedule(schedule);
+                                      }}
+                                    >
+                                      <div className="flex min-w-0 items-center gap-2">
+                                        <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        <span className="truncate text-sm font-medium">
+                                          {schedule.time}
+                                        </span>
+                                        <div className="flex shrink-0 items-center gap-1">
+                                          {schedule.platforms.map((platform) => (
+                                            <span
+                                              className="text-xs font-medium"
+                                              key={platform}
+                                            >
+                                              {mapEnumPlatform.getPlatformIcon(platform)}
+                                            </span>
+                                          ))}
+                                        </div>
                                       </div>
-                                    </div>
-                                    <Edit className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                  </button>
-                                  <Switch
-                                    checked={schedule.isActive}
-                                    onCheckedChange={() =>
-                                      handleToggleSchedule(schedule.id)
-                                    }
-                                  />
-                                </div>
-                              ))
+                                      <div className="flex items-center gap-2">
+                                        <Edit className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        <div
+                                          data-toggle-schedule="true"
+                                          onClick={(event) => event.stopPropagation()}
+                                          onPointerDown={(event) =>
+                                            event.stopPropagation()
+                                          }
+                                        >
+                                          <Switch
+                                            className="z-50"
+                                            checked={schedule.isActive}
+                                            onCheckedChange={() =>
+                                              handleToggleSchedule(schedule.id)
+                                            }
+                                          />
+                                        </div>
+                                      </div>
+                                    </button>
+                                  </div>
+                                );
+                              })
                             )}
                           </div>
 

@@ -561,6 +561,7 @@
     "showLong": "Show more...",
     "changeArticle": "Change article",
     "visitSource": "Visit source",
+    "removeSelectedTrend": "Delete",
     "plannerTitle": "Business Knowledge",
     "plannerDescription": "Configure your product, model, ratio, and knowledge before generating content.",
     "rssOptionalTitle": "Trending context is optional",

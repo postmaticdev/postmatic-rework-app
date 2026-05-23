@@ -30,7 +30,7 @@ export const GenerateFormSelectRss = ({
   const rssKnowledges = (rssData?.data.data || []).filter(
     (rss) => rss.isActive
   );
-  
+
   const t = useTranslations("generationPanel");
   const { rss, form, isLoading } = useContentGenerate();
   const router = useRouter();
@@ -73,31 +73,34 @@ export const GenerateFormSelectRss = ({
             key={`${article?.imageUrl}:${index}`}
             className="p-4 hover:shadow-md transition-shadow"
           >
-            <div className="space-y-3">
-              {/* Article Image */}
-              <div className="w-full h-48 rounded-lg overflow-hidden relative">
-                <Image
-                  src={article.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                  alt={article.title}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
-              </div>
+            <div className="space-y-4">
+              <div className="flex items-start gap-4">
 
-              {/* Article Content */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-sm line-clamp-2 leading-relaxed flex-1 pr-2 ">
-                  {article.title}
-                </h3>
-                <span className="text-xs mb-1 text-muted-foreground whitespace-nowrap">
-                  {formatDate(new Date(article.publishedAt))}{" "}
-                  {dateFormat.getHhMm(new Date(article.publishedAt))}
-                </span>
+                {/* Article Image */}
+                <div className="relative h-36 w-24 shrink-0 overflow-hidden rounded-lg">
+                  <Image
+                    src={article.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                    alt={article.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
+                </div>
 
-                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
-                  {article.summary}
-                </p>
+                {/* Article Content */}
+                <div className="min-w-0 flex-1 space-y-2">
+                  <h3 className="line-clamp-2 pr-2 text-sm font-medium leading-relaxed">
+                    {article.title}
+                  </h3>
+                  <span className="mb-1 block text-xs text-muted-foreground">
+                    {formatDate(new Date(article.publishedAt))}{" "}
+                    {dateFormat.getHhMm(new Date(article.publishedAt))}
+                  </span>
+
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                    {article.summary}
+                  </p>
+                </div>
               </div>
 
               {/* Use Button */}

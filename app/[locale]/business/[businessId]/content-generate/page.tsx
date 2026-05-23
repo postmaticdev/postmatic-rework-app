@@ -47,7 +47,12 @@ export default function ContentGenerate() {
           <GenerationPanel />
         </div>
 
-        <div className="w-full bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden">
+        <div
+          className={cn(
+            "w-full bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden",
+            mode === "regenerate" && "hidden lg:block"
+          )}
+        >
           <PreviewPanel />
         </div>
       </div>

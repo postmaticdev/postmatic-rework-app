@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { Link } from "@/i18n/navigation";
@@ -53,32 +53,20 @@ export const SelectedArticleRss = ({ onChangeArticle }: SelectedArticleRssProps)
         </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="text-xs"
+            className="flex-1 text-xs"
             onClick={onChangeArticle}
             disabled={isLoading}
           >
             {t("changeArticle")}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="text-red-600 hover:text-red-700 hover:border-red-300"
-            onClick={() => form.onRssSelect(null)}
-            disabled={isLoading}
-            aria-label="Remove article selection"
-            title="Remove article selection"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-          <Link href={form.rss.url} prefetch={false} target="_blank">
+          <Link href={form.rss.url} prefetch={false} target="_blank" className="flex-1">
             <Button
               size="sm"
-              className="bg-blue-500 hover:bg-blue-600 text-white text-xs"
+              className="w-full bg-blue-500 text-xs text-white hover:bg-blue-600"
             >
               {t("visitSource")}
               <ExternalLink className="ml-1 h-3 w-3" />

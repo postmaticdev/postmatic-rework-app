@@ -53,19 +53,19 @@ export default function BusinessClientLayout({
   const pathEquals = (pattern: string) =>
     businessId ? pathname === applyBusinessId(pattern) : matchPattern(pattern);
 
-  
-  
-  
+
+
+
   const isCheckoutPath = (() => {
     const base = businessId
-    ? CHECKOUT_PATTERN.replace("[businessId]", businessId)
-    : "/business/[^/]+/pricing/checkout";
+      ? CHECKOUT_PATTERN.replace("[businessId]", businessId)
+      : "/business/[^/]+/pricing/checkout";
     const re = businessId
-    ? new RegExp("^" + base + "(?:/[^/]+)?$") // checkout atau checkout/<something>
-    : new RegExp("^" + base + "(?:/[^/]+)?$");
+      ? new RegExp("^" + base + "(?:/[^/]+)?$") // checkout atau checkout/<something>
+      : new RegExp("^" + base + "(?:/[^/]+)?$");
     return re.test(pathname);
   })();
-  
+
   const isSkipHeader = SKIP_HEADER_PATHS.some(pathEquals);
   const isSkipSidebar = isCheckoutPath || SKIP_SIDEBAR_PATHS.some(pathEquals);
   // Header:
@@ -83,10 +83,10 @@ export default function BusinessClientLayout({
   // - Checkout: header hanya di mobile -> beri mt-22 di mobile, hilangkan di md+
   // - Selain itu: jika header tampil, mt-22; kalau tidak, tanpa margin
   const headerMarginClass = isCheckoutPath
-    ? "mt-22 md:mt-0"
+    ? "mt-18 md:mt-0"
     : isSkipHeader
       ? ""
-      : "mt-22";
+      : "mt-18";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

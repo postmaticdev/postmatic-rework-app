@@ -48,6 +48,7 @@ export function PreviewPanel() {
   const searchParams = useSearchParams();
   const { businessId } = useParams() as { businessId: string };
   const {
+    mode,
     form,
     selectedHistory,
     selectedGeneratedImageUrl,
@@ -243,6 +244,28 @@ export function PreviewPanel() {
   const isScheduling =
     mSchedulePost.isPending ||
     mEditSchedulePost.isPending;
+
+  useEffect(() => {
+    const handleOpenScheduleSummary = () => {
+      if (mode !== "regenerate" || !schedulerMode) return;
+      if (!selectedHistory) {
+        showToast("error", schedulerT("generateFirst"));
+        return;
+      }
+      setIsSummaryOpen(true);
+    };
+
+    window.addEventListener(
+      "content-generate:open-schedule-summary",
+      handleOpenScheduleSummary
+    );
+    return () => {
+      window.removeEventListener(
+        "content-generate:open-schedule-summary",
+        handleOpenScheduleSummary
+      );
+    };
+  }, [mode, schedulerMode, selectedHistory, schedulerT]);
 
   return (
     <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6">

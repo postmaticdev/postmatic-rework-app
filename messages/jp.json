@@ -460,7 +460,8 @@
     "showShort": "閉じる...",
     "showLong": "もっと見る...",
     "changeArticle": "記事を変更",
-    "visitSource": "ソースを訪問"
+    "visitSource": "ソースを訪問",
+    "removeSelectedTrend": "削除"
   },
   "previewPanel": {
     "history": "履歴",

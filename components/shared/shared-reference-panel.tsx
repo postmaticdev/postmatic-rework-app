@@ -5,12 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Search, Upload, Loader2 } from "lucide-react";
 import {
   PaginationControls,
-  PaginationWithControls,
 } from "@/components/ui/pagination";
 import { helperService } from "@/services/helper.api";
 import { showToast } from "@/helper/show-toast";
 import { TemplateGridSkeleton } from "@/components/grid-skeleton/template-grid-skeleton";
-import { useLibraryTemplateGetProductCategory } from "@/services/library.api";
 import { useTranslations } from "next-intl";
 import { SharedTemplateCard } from "@/components/shared/shared-template-card";
 import { SharedReferenceFullviewModal } from "@/components/shared/shared-reference-fullview-modal";
@@ -102,8 +100,6 @@ export function SharedReferencePanel({
   const [selectedTemplateForModal, setSelectedTemplateForModal] = useState<Template | null>(
     null
   );
-
-  const { data: productCategoriesData } = useLibraryTemplateGetProductCategory();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -281,16 +277,6 @@ export function SharedReferencePanel({
               />
             </div>
 
-            {/* Pagination Controls */}
-            <PaginationWithControls
-              pagination={publishedTemplates.pagination}
-              filterQuery={publishedTemplates.filterQuery}
-              currData={publishedTemplates.contents.length}
-              setFilterQuery={publishedTemplates.setFilterQuery}
-              productCategories={productCategoriesData?.data?.data || []}
-              showSort={true}
-            />
-
             {/* Template Grid */}
             {publishedTemplates.isLoading ? (
               <TemplateGridSkeleton />
@@ -333,14 +319,6 @@ export function SharedReferencePanel({
               />
             </div>
 
-            <PaginationWithControls
-              pagination={savedTemplates.pagination}
-              filterQuery={savedTemplates.filterQuery}
-              currData={savedTemplates.contents.length}
-              setFilterQuery={savedTemplates.setFilterQuery}
-              productCategories={productCategoriesData?.data?.data || []}
-              showSort={false}
-            />
             {/* Saved References Grid */}
             {savedTemplates.isLoading ? (
               <TemplateGridSkeleton />
