@@ -1,14 +1,18 @@
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { ExternalLink, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-export const SelectedArticleRss = () => {
+interface SelectedArticleRssProps {
+  onChangeArticle: () => void;
+}
+
+export const SelectedArticleRss = ({ onChangeArticle }: SelectedArticleRssProps) => {
   const { form, isLoading } = useContentGenerate();
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations("generationPanel");
@@ -54,10 +58,22 @@ export const SelectedArticleRss = () => {
             variant="outline"
             size="sm"
             className="text-xs"
-            onClick={() => form.onRssSelect(null)}
+            onClick={onChangeArticle}
             disabled={isLoading}
           >
             {t("changeArticle")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="text-red-600 hover:text-red-700 hover:border-red-300"
+            onClick={() => form.onRssSelect(null)}
+            disabled={isLoading}
+            aria-label="Remove article selection"
+            title="Remove article selection"
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
           <Link href={form.rss.url} prefetch={false} target="_blank">
             <Button

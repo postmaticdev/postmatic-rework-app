@@ -33,6 +33,7 @@ import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 
 interface TopUpTokenDialogProps {
   isOpen: boolean;
@@ -104,6 +105,7 @@ export function TopUpTokenDialog({
     null
   );
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   const tokenAmount = Number(onlyDigits(amount));
 
@@ -165,6 +167,12 @@ export function TopUpTokenDialog({
       setPaymentMethod(methodOptions[0].code);
     }
   }, [methodOptions, paymentMethod]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [isOpen]);
 
   const handleClose = (open: boolean) => {
     if (!open) {
@@ -306,11 +314,47 @@ export function TopUpTokenDialog({
     }).format(new Date(value));
   };
 
-  const qrCodeV2Action = checkoutResult?.paymentActions.find(
-    (action) => action.type === "image" && action.action === "generate-qr-code-v2"
+  const getPaymentCountdown = (expiredAt?: string) => {
+    if (!expiredAt) return null;
+    const diffMs = new Date(expiredAt).getTime() - now;
+    if (diffMs <= 0) {
+      return {
+        text: "Batas pembayaran telah berakhir.",
+        expired: true,
+      };
+    }
+
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const hhmmss = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+      2,
+      "0"
+    )}:${String(seconds).padStart(2, "0")}`;
+
+    return {
+      text: days > 0 ? `Sisa waktu pembayaran: ${days} hari ${hhmmss}` : `Sisa waktu pembayaran: ${hhmmss}`,
+      expired: false,
+    };
+  };
+
+  const paymentCountdown = getPaymentCountdown(checkoutResult?.expiredAt);
+
+  const qrCodeAction =
+    checkoutResult?.paymentActions.find(
+      (action) => action.type === "image" && action.action === "generate-qr-code"
+    ) ||
+    checkoutResult?.paymentActions.find(
+      (action) => action.type === "image" && action.action === "generate-qr-code-v2"
+    ) ||
+    checkoutResult?.paymentActions.find((action) => action.type === "image");
+  const virtualAccountAction = checkoutResult?.paymentActions.find(
+    (action) => action.type === "text" && action.action === "virtual-account"
   );
   const textPaymentAction = checkoutResult?.paymentActions.find(
-    (action) => action.type === "text"
+    (action) => action.type === "text" && action.action !== "virtual-account"
   );
 
   const detailRows = checkoutResult
@@ -470,7 +514,7 @@ export function TopUpTokenDialog({
             </>
           ) : (
             <>
-              <div className="flex flex-col gap-4 rounded-lg border border-amber-300 bg-amber-50/45 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-4 rounded-lg border border-amber-300 bg-amber-50/45 p-5 dark:border-amber-700 dark:bg-amber-950/20 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-foreground">
@@ -487,6 +531,34 @@ export function TopUpTokenDialog({
                       <p className="text-muted-foreground">
                         Berlaku sampai {formatDateTime(checkoutResult.expiredAt)}
                       </p>
+                      {paymentCountdown ? (
+                        <p
+                          className={cn(
+                            "font-medium",
+                            paymentCountdown.expired
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-amber-700 dark:text-amber-400"
+                          )}
+                        >
+                          {paymentCountdown.text}
+                        </p>
+                      ) : null}
+                      {virtualAccountAction ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border bg-white/80 p-2 dark:border-zinc-700 dark:bg-zinc-900/70">
+                          <div className="min-w-[200px] flex-1 rounded-md border bg-background px-3 py-2 font-mono text-base font-semibold tracking-wide dark:border-zinc-700">
+                            {virtualAccountAction.value}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleCopy(virtualAccountAction.value)}
+                            className="shrink-0"
+                          >
+                            <Copy className="h-4 w-4" />
+                            Salin
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <Button
@@ -494,7 +566,7 @@ export function TopUpTokenDialog({
                     variant="outline"
                     onClick={handleCheckPaymentStatus}
                     disabled={isCheckingStatus}
-                    className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+                    className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:hover:text-blue-200"
                   >
                     <RefreshCw
                       className={cn("h-4 w-4", isCheckingStatus && "animate-spin")}
@@ -502,14 +574,16 @@ export function TopUpTokenDialog({
                     Refresh
                   </Button>
                 </div>
-                <div className="grid min-h-56 min-w-56 place-items-center self-center rounded-md border bg-white p-3 shadow-sm">
-                  {qrCodeV2Action ? (
+                <div className="grid min-h-56 min-w-56 place-items-center self-center rounded-md border bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                  {qrCodeAction ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={qrCodeV2Action.value}
+                      src={qrCodeAction.value}
                       alt="QRIS payment QR code"
                       className="h-52 w-52 object-contain"
                     />
+                  ) : virtualAccountAction ? (
+                    <VirtualAccountLogo method={checkoutResult.method} />
                   ) : textPaymentAction ? (
                     <PaymentTextInstruction
                       action={textPaymentAction.action}
@@ -565,6 +639,46 @@ export function TopUpTokenDialog({
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+const BANK_LOGO_BY_METHOD: Record<string, string> = {
+  bca: "/bca.png",
+  bni: "/bni.png",
+  mandiri: "/mandiri.png",
+  permata: "/permata.png",
+  cimb: "/cimbniaga.png",
+  cimbniaga: "/cimbniaga.png",
+};
+
+const getBankLogoByMethod = (method?: string) => {
+  const normalized = (method || "").toLowerCase().replace(/[\s_-]/g, "");
+  return BANK_LOGO_BY_METHOD[normalized];
+};
+
+const getBankLabelByMethod = (method?: string) =>
+  (method || "Bank").replace(/[_-]/g, " ").toUpperCase();
+
+function VirtualAccountLogo({ method }: { method: string }) {
+  const logoSrc = getBankLogoByMethod(method);
+  const bankLabel = getBankLabelByMethod(method);
+
+  return (
+    <div className="grid h-52 w-52 place-items-center rounded-md border border-muted bg-muted/10 p-4">
+      {logoSrc ? (
+        <Image
+          src={logoSrc}
+          alt={`Logo ${bankLabel}`}
+          width={180}
+          height={90}
+          className="h-auto w-full object-contain"
+        />
+      ) : (
+        <div className="text-center text-base font-semibold text-muted-foreground">
+          Virtual Account {bankLabel}
+        </div>
+      )}
+    </div>
   );
 }
 

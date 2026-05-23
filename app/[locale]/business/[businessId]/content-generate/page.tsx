@@ -24,11 +24,11 @@ export default function ContentGenerate() {
   }, []);
 
   return (
-    <main className="flex-1 flex flex-col relative md:ml-0">
-      <div className="flex-1 flex flex-col lg:flex-row lg:max-h-screen">
+    <main className="relative flex flex-col md:ml-0 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div
           className={cn(
-            "w-full lg:w-1/3 border-r bg-card overflow-y-auto relative",
+            "relative w-full overflow-y-auto border-r bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden",
             mode === "regenerate" ? "hidden" : "w-full lg:w-1/3"
           )}
         >
@@ -40,14 +40,14 @@ export default function ContentGenerate() {
 
         <div
           className={cn(
-            "w-full border-r bg-card relative",
+            "relative w-full border-r bg-card lg:min-h-0 lg:overflow-hidden",
             mode === "regenerate" ? "w-full lg:w-2/3" : "w-full lg:w-1/3"
           )}
         >
           <GenerationPanel />
         </div>
 
-        <div className="w-full bg-card lg:w-1/3">
+        <div className="w-full bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden">
           <PreviewPanel />
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,8 @@ import { ContentLibrarySkeleton } from "@/components/grid-skeleton/content-libra
 import { useContentSchedulerTab } from "../page";
 import { useTranslations } from "next-intl";
 import { PersonalContentForm, PersonalPostModal } from "./personal-post-modal";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 
 export interface FormDataDraft {
   direct: DirectPostContentPld;
@@ -117,6 +119,10 @@ export function ContentLibrary({
   const t = useTranslations("contentScheduler");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [historyFilterQuery, setHistoryFilterQuery] = useState<Partial<FilterQuery>>({
+    page: 1,
+    limit: 8,
+  });
 
   const { data: draftContent, isLoading: isLoadingDraft } =
     useContentDraftGetAllDraftImage(businessId, {
@@ -136,8 +142,38 @@ export function ContentLibrary({
     const image = item.images[0] || item.id;
     return items.findIndex((candidate) => (candidate.images[0] || candidate.id) === image) === index;
   });
+  const currentContent =
+    type === "draft" ? filteredContentDraft : filteredPostedContent;
+  const historyPagination = useMemo<Pagination>(() => {
+    const total = currentContent.length;
+    const limit = Math.max(historyFilterQuery.limit || 1, 1);
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+    const page = Math.min(Math.max(historyFilterQuery.page || 1, 1), totalPages);
+
+    return {
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+  }, [currentContent.length, historyFilterQuery.limit, historyFilterQuery.page]);
+  const paginatedContent = useMemo(() => {
+    const start = (historyPagination.page - 1) * historyPagination.limit;
+    return currentContent.slice(start, start + historyPagination.limit);
+  }, [currentContent, historyPagination.limit, historyPagination.page]);
   const isLoadingContent =
     type === "draft" ? isLoadingDraft : isLoadingPosted;
+
+  useEffect(() => {
+    setHistoryFilterQuery((prev) => ({ ...prev, page: 1 }));
+  }, [searchQuery, type]);
+
+  useEffect(() => {
+    if (historyPagination.page === historyFilterQuery.page) return;
+    setHistoryFilterQuery((prev) => ({ ...prev, page: historyPagination.page }));
+  }, [historyFilterQuery.page, historyPagination.page]);
 
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const platforms = platformData?.data.data || [];
@@ -352,7 +388,7 @@ export function ContentLibrary({
   const renderItems = (): React.JSX.Element[] => {
     switch (type) {
       case "draft":
-        return filteredContentDraft.map((content) => (
+        return (paginatedContent as ImageContentRes[]).map((content) => (
           <div
             key={content.id}
             className="relative border border-border bg-card  shadow-sm p-3 rounded-lg  group transition-all duration-300 hover:scale-105 cursor-pointer"
@@ -422,7 +458,7 @@ export function ContentLibrary({
           </div>
         ));
       case "posted":
-        return filteredPostedContent.map((content) => (
+        return (paginatedContent as PostedImageRes[]).map((content) => (
           <div
             key={content?.id}
             className="relative group border border-border bg-card  shadow-sm p-4 rounded-lg group transition-all duration-300 hover:scale-105 cursor-pointer"
@@ -470,6 +506,8 @@ export function ContentLibrary({
         return [];
     }
   };
+  const renderedItems = renderItems();
+  const hasNoResults = currentContent.length === 0;
 
   return (
     <Card>
@@ -497,7 +535,7 @@ export function ContentLibrary({
         </div>
         {isLoadingContent ? (
           <ContentLibrarySkeleton count={8} />
-        ) : renderItems().length === 0 && searchQuery === "" ? (
+        ) : hasNoResults && searchQuery === "" ? (
           <NoContent
             icon={BookOpen}
             title={t("noContent")}
@@ -507,11 +545,23 @@ export function ContentLibrary({
               router.push(`/business/${businessId}/content-scheduler`)
             }
           />
-        ) : renderItems().length === 0 ? (
+        ) : hasNoResults ? (
           <SearchNotFound description="" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {renderItems()}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {renderedItems}
+            </div>
+            <PaginationControls
+              pagination={historyPagination}
+              filterQuery={historyFilterQuery}
+              setFilterQuery={(query) =>
+                setHistoryFilterQuery((prev) => ({
+                  ...prev,
+                  ...query,
+                }))
+              }
+            />
           </div>
         )}
 

@@ -79,11 +79,11 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
       dateStart: dateManipulation.ymd(new Date()),
       dateEnd: onDashboard
         ? dateManipulation.ymd(
-            new Date(new Date().setDate(new Date().getDate() + 30))
-          )
+          new Date(new Date().setDate(new Date().getDate() + 30))
+        )
         : dateManipulation.ymd(
-            new Date(new Date().setDate(new Date().getDate() + 365))
-          ),
+          new Date(new Date().setDate(new Date().getDate() + 365))
+        ),
     });
   const upcomings = dataUpcoming?.data.data || [];
 
@@ -168,7 +168,7 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
         }
       }
       setIsConfirmDialogOpen(false);
-    } catch {}
+    } catch { }
   };
 
   const handleSubmit = async () => {
@@ -205,11 +205,12 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
           onCloseModal();
           break;
       }
-    } catch {}
+    } catch { }
   };
 
   return (
-    <Card className="h-full">
+
+    <Card className="xl:max-h-[22.5rem] xl:overflow-y-auto">
       <CardContent className="p-6">
         <div className="space-y-6">
           <div className="flex flex-col justify-between">
@@ -228,13 +229,13 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
           {isLoadingUpcoming ? (
             <UpcomingPostsSkeleton />
           ) : upcomings.length === 0 ? (
-            
+
             <NoContent
               icon={ClipboardClock}
               title={t("noContent")}
               titleDescription={t("noContentDescription")}
-              />
-             
+            />
+
           ) : (
             <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
               {upcomings.map((post, index) => (

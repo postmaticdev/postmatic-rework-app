@@ -12,7 +12,13 @@ import { useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-export const GenerateFormSelectRss = () => {
+interface GenerateFormSelectRssProps {
+  onArticleSelected?: () => void;
+}
+
+export const GenerateFormSelectRss = ({
+  onArticleSelected,
+}: GenerateFormSelectRssProps) => {
   const { businessId } = useParams() as { businessId: string };
   const { formatDate } = useDateFormat();
   const { data: rssData } = useRssKnowledgeGetById(businessId, {
@@ -96,7 +102,7 @@ export const GenerateFormSelectRss = () => {
 
               {/* Use Button */}
               <Button
-                onClick={() =>
+                onClick={() => {
                   form.onRssSelect({
                     imageUrl: article.imageUrl,
                     publishedAt: article.publishedAt,
@@ -104,8 +110,9 @@ export const GenerateFormSelectRss = () => {
                     summary: article.summary,
                     title: article.title,
                     url: article.url,
-                  })
-                }
+                  });
+                  onArticleSelected?.();
+                }}
                 disabled={!!form.rss || isLoading}
                 className="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
               >

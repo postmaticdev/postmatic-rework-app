@@ -24,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { dateFormat } from "@/helper/date-format";
 import { dateManipulation } from "@/helper/date-manipulation";
@@ -136,6 +137,10 @@ export function ContentSchedulerBoard({
   const [draftMarkers, setDraftMarkers] = useState<SchedulerDraftMarker[]>([]);
   const [showCalendarEventDetails, setShowCalendarEventDetails] = useState(false);
   const [showDateActionCard, setShowDateActionCard] = useState(false);
+  const [historyFilterQuery, setHistoryFilterQuery] = useState({
+    page: 1,
+    limit: 5,
+  });
   const [dateActionMenuPosition, setDateActionMenuPosition] = useState<{
     top: number;
     left: number;
@@ -389,6 +394,46 @@ export function ContentSchedulerBoard({
     () => mergedEvents.filter((item) => isSameDay(item.date, selectedDate)),
     [mergedEvents, selectedDate]
   );
+  const selectedDateEventsPagination = useMemo(() => {
+    const total = selectedDateEvents.length;
+    const limit = Math.max(historyFilterQuery.limit || 1, 1);
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+    const page = Math.min(Math.max(historyFilterQuery.page || 1, 1), totalPages);
+    const startIndex = (page - 1) * limit;
+
+    return {
+      pageEvents: selectedDateEvents.slice(startIndex, startIndex + limit),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    };
+  }, [historyFilterQuery.limit, historyFilterQuery.page, selectedDateEvents]);
+
+  useEffect(() => {
+    setHistoryFilterQuery((prev) => {
+      if (prev.page === 1) return prev;
+      return { ...prev, page: 1 };
+    });
+  }, [selectedDate]);
+
+  useEffect(() => {
+    const { page } = selectedDateEventsPagination.pagination;
+    if (page === historyFilterQuery.page) return;
+
+    setHistoryFilterQuery((prev) => ({
+      ...prev,
+      page,
+    }));
+  }, [
+    historyFilterQuery.page,
+    selectedDateEventsPagination.pagination.page,
+    selectedDateEventsPagination.pagination.totalPages,
+  ]);
 
   const calendarDays = useMemo(
     () =>
@@ -884,8 +929,8 @@ export function ContentSchedulerBoard({
 
           <AutoGenerate
             handleIfNoPlatformConnected={handleIfNoPlatformConnected}
-            cardClassName="flex-1"
-            scheduleListClassName="flex flex-col gap-4"
+            cardClassName="flex-1 xl:max-h-[calc(100vh-8.5rem)] xl:overflow-hidden"
+            scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(100vh-19rem)] xl:overflow-y-auto xl:pr-1"
           />
         </div>
       </div>
@@ -931,8 +976,9 @@ export function ContentSchedulerBoard({
             </div>
           </DialogHeader>
 
-          <div className="flex-1 space-y-3 overflow-y-auto p-4 pt-0 sm:p-6 sm:pt-0">
-            {selectedDateEvents.map((event) => (
+          <div className="flex-1 overflow-y-auto p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="space-y-3">
+            {selectedDateEventsPagination.pageEvents.map((event) => (
               <div
                 key={event.id}
                 className="flex items-center gap-3 rounded-2xl bg-background-secondary p-3"
@@ -1016,6 +1062,20 @@ export function ContentSchedulerBoard({
                 </DropdownMenu>
               </div>
             ))}
+            </div>
+            {selectedDateEvents.length > 0 && (
+              <PaginationControls
+                className="mt-4"
+                pagination={selectedDateEventsPagination.pagination}
+                filterQuery={historyFilterQuery}
+                setFilterQuery={(query) =>
+                  setHistoryFilterQuery((prev) => ({
+                    ...prev,
+                    ...query,
+                  }))
+                }
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>

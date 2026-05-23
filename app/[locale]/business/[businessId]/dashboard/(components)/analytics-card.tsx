@@ -1,9 +1,12 @@
+import type { ReactNode } from "react";
+
 interface AnalyticsCardProps {
   title: string;
   subtitle: string;
   value: string;
   breakdown?: Array<{ label: string; value: number; color: string }>;
   details?: Array<{ label: string; value: string }>;
+  titleIcon?: ReactNode;
 }
 
 export function AnalyticsCard({
@@ -12,10 +15,18 @@ export function AnalyticsCard({
   value,
   breakdown,
   details,
+  titleIcon,
 }: AnalyticsCardProps) {
   return (
     <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
-      <h3 className="font-semibold text-foreground mb-1">{title}</h3>
+      <div className="mb-1 flex items-center gap-2">
+        {titleIcon && (
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            {titleIcon}
+          </span>
+        )}
+        <h3 className="font-semibold text-foreground">{title}</h3>
+      </div>
       <p className="text-sm text-muted-foreground mb-4">{subtitle}</p>
 
       <div className="text-3xl font-bold text-foreground mb-4">{value}</div>

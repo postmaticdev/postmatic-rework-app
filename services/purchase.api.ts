@@ -45,7 +45,7 @@ type NewPaymentCreated = {
     totalAmount: number;
   };
   tokenAmount: number;
-  actions: NewPaymentAction[];
+  actions?: NewPaymentAction[] | NewPaymentAction;
 };
 
 export type ImageTokenPriceRes = {
@@ -90,16 +90,23 @@ type NewPaymentHistory = {
   midtransExpiredAt?: string | null;
   createdAt: string;
   updatedAt: string;
-  actions?: NewPaymentAction[];
-  paymentActions?: NewPaymentAction[];
-  paymentAction?: NewPaymentAction[];
+  actions?: NewPaymentAction[] | NewPaymentAction;
+  paymentActions?: NewPaymentAction[] | NewPaymentAction;
+  paymentAction?: NewPaymentAction[] | NewPaymentAction;
 };
 
 const titleStatus = (status: string) =>
   `${status.slice(0, 1).toUpperCase()}${status.slice(1).toLowerCase()}`;
 
-const mapActions = (actions: NewPaymentAction[] = []) =>
-  actions.map((action) => {
+type PaymentActionPayload = NewPaymentAction[] | NewPaymentAction | null | undefined;
+
+const normalizeActions = (actions: PaymentActionPayload): NewPaymentAction[] => {
+  if (!actions) return [];
+  return Array.isArray(actions) ? actions : [actions];
+};
+
+const mapActions = (actions: PaymentActionPayload) =>
+  normalizeActions(actions).map((action) => {
     const rawType = action.type || action.valueType;
     return {
       action: action.action || action.name || "",

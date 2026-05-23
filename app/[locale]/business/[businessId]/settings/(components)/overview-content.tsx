@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 import { useDateFormat } from "@/hooks/use-date-format";
 import type { FilterQuery } from "@/models/api/base-response.type";
 import type { TimePeriod } from "@/lib/chart-data-generator";
+import { CalendarClock, FileText } from "lucide-react";
 
 interface Period {
   value: TimePeriod;
@@ -180,6 +181,7 @@ export function OverviewContent() {
               })}
               value={totalCountPosted.toString()}
               breakdown={mappedCountPosted}
+              titleIcon={<FileText className="h-3.5 w-3.5" />}
             />
 
             <AnalyticsCard
@@ -187,6 +189,7 @@ export function OverviewContent() {
               subtitle={a("totalUpcomingSubtitle")}
               value={totalCountUpcoming.toString()}
               breakdown={mappedCountUpcoming}
+              titleIcon={<CalendarClock className="h-3.5 w-3.5" />}
             />
 
             <TokenUsageCard />
@@ -202,9 +205,9 @@ export function OverviewContent() {
               selectedPeriod={selectedPeriod}
             />
           </div>
-          <div>
-            <SchedulePost onDashboard={true} />
-          </div>
+
+          <SchedulePost onDashboard={true} />
+
         </div>
       </section>
     </div>

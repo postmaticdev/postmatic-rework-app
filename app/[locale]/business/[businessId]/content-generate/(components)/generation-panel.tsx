@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +50,12 @@ export function GenerationPanel() {
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isTrendDialogOpen && form.rss) {
+      setIsTrendDialogOpen(false);
+    }
+  }, [form.rss, isTrendDialogOpen]);
 
   const currentThread = useMemo(() => {
     if (!selectedHistory) return [];
@@ -331,13 +337,19 @@ export function GenerationPanel() {
             type="button"
             variant="default"
             onClick={() => setIsTrendDialogOpen(true)}
+            disabled={!!form.rss || isLoading}
             className="w-full h-14"
           >
             <Newspaper className="h-4 w-4" />
             {t("addLatestTrend")}
           </Button>
 
-          <SelectedArticleRss />
+          <SelectedArticleRss
+            onChangeArticle={() => {
+              form.onRssSelect(null);
+              setIsTrendDialogOpen(true);
+            }}
+          />
         </div>
       </div>
 
@@ -347,7 +359,9 @@ export function GenerationPanel() {
             <DialogTitle>{t("generateByTrend")}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-6">
-            <GenerateFormSelectRss />
+            <GenerateFormSelectRss
+              onArticleSelected={() => setIsTrendDialogOpen(false)}
+            />
           </div>
           {!form.rss && rss.articles.length !== 0 && (
             <DialogFooter>
