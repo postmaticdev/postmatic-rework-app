@@ -74,9 +74,9 @@ export function ContentSchedulerUploadDialog({
       .getHours()
       .toString()
       .padStart(2, "0")}:${nextDateSource
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
 
     setDate(nextDate);
     setTime(editDraft ? nextTime : "08:00");
@@ -106,11 +106,11 @@ export function ContentSchedulerUploadDialog({
 
   const formattedDate = selectedDate
     ? new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }).format(selectedDate)
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(selectedDate)
     : "";
 
   const togglePlatform = (platform: PlatformEnum) => {
@@ -293,7 +293,7 @@ export function ContentSchedulerUploadDialog({
             <div className="mb-4 text-xl font-semibold">
               {t("chooseDateTime")}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 grid-cols-2 ">
               <label className="space-y-2">
                 <span className="text-sm font-medium">{t("selectDate")}</span>
                 <div className="flex items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
@@ -323,32 +323,32 @@ export function ContentSchedulerUploadDialog({
 
           <section className="rounded-3xl border border-border bg-card p-5">
             <div className="mb-4 text-xl font-semibold">{t("choosePlatforms")}</div>
-            <div className="grid gap-3 sm:grid-cols-3">
-                {platformOptions.map(({ platform, isConnected }) => {
-                  const isSelected =
-                    isConnected && selectedPlatforms.includes(platform);
-                  return (
-                    <button
-                      key={platform}
-                      type="button"
-                      onClick={() => togglePlatform(platform)}
-                      disabled={!isConnected}
-                      className={cn(
-                        "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
-                        isSelected
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-background-secondary",
-                        !isConnected &&
-                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
-                      )}
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+              {platformOptions.map(({ platform, isConnected }) => {
+                const isSelected =
+                  isConnected && selectedPlatforms.includes(platform);
+                return (
+                  <button
+                    key={platform}
+                    type="button"
+                    onClick={() => togglePlatform(platform)}
+                    disabled={!isConnected}
+                    className={cn(
+                      "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
+                      isSelected
+                        ? "border-primary bg-primary text-white"
+                        : "border-border bg-background-secondary",
+                      !isConnected &&
+                      "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
+                    )}
                   >
                     {mapEnumPlatform.getPlatformIcon(
                       platform,
                       isSelected
                         ? "text-white"
                         : !isConnected
-                        ? "text-muted-foreground"
-                        : ""
+                          ? "text-muted-foreground"
+                          : ""
                     )}
                     <span className="flex flex-col leading-tight">
                       <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>

@@ -259,8 +259,8 @@ export function ContentSchedulerBoard({
           item.status?.toLowerCase() === "draft"
             ? "draft"
             : item.type === "manual"
-            ? "manual"
-            : "repetition",
+              ? "manual"
+              : "repetition",
         platforms: item.platforms,
         schedulerManualPostingId: item.schedulerManualPostingId,
         withChatAI: item.withChatAI ?? false,
@@ -476,12 +476,34 @@ export function ContentSchedulerBoard({
       year: "numeric",
     }).format(date);
 
+  const today = startOfDay(new Date());
+  const isPastDate = (date: Date) => isBefore(startOfDay(date), today);
+
+  const isEventEditable = (event: SchedulerEvent) => {
+    if (isPastDate(event.date)) {
+      return event.type === "draft";
+    }
+
+    return (
+      event.sourceType === "draft" ||
+      event.sourceType === "history-draft" ||
+      (event.sourceType === "manual" && !!event.schedulerManualPostingId)
+    );
+  };
+
   const handleViewEvent = (event: SchedulerEvent) => {
     setViewEvent(event);
     setIsViewDialogOpen(true);
   };
 
   const handleEditEvent = (event: SchedulerEvent) => {
+    const eventIsPast = isPastDate(event.date);
+
+    if (eventIsPast && event.type !== "draft") {
+      handleViewEvent(event);
+      return;
+    }
+
     if (
       event.type === "draft" &&
       event.sourceType === "manual" &&
@@ -490,10 +512,15 @@ export function ContentSchedulerBoard({
       event.schedulerManualPostingId &&
       event.generatedImageContent
     ) {
-      setSelectedDate(event.date);
+      const updatedEditDate = new Date(
+        eventIsPast ? today.getTime() : event.date.getTime()
+      );
+      updatedEditDate.setHours(event.date.getHours(), event.date.getMinutes(), 0, 0);
+
+      setSelectedDate(updatedEditDate);
       setEditingUploadDraft({
         id: event.schedulerManualPostingId,
-        date: event.date,
+        date: updatedEditDate,
         image: event.generatedImageContent.images[0] || event.image,
         caption: event.generatedImageContent.caption || "",
         platforms: event.platforms,
@@ -508,8 +535,11 @@ export function ContentSchedulerBoard({
       (event.sourceType === "draft" || event.sourceType === "history-draft") &&
       event.draftMarker
     ) {
+      const scheduleDate = eventIsPast
+        ? dateManipulation.ymd(today)
+        : event.draftMarker.date;
       const params = new URLSearchParams({
-        scheduleDate: event.draftMarker.date,
+        scheduleDate,
         selectedHistoryId: event.draftMarker.jobId,
         selectedHistoryImage: event.draftMarker.image,
       });
@@ -596,17 +626,13 @@ export function ContentSchedulerBoard({
 
       setIsCancelDialogOpen(false);
       setEventToCancel(null);
-    } catch {}
+    } catch { }
   };
 
   const openDateAction = (
     date: Date,
     event: ReactMouseEvent<HTMLButtonElement>
   ) => {
-    if (isBefore(date, startOfDay(new Date()))) {
-      return;
-    }
-
     const dateEvents = mergedEvents.filter((item) => isSameDay(item.date, date));
 
     if (dateEvents.length > 0) {
@@ -614,6 +640,10 @@ export function ContentSchedulerBoard({
       setShowDateActionCard(false);
       setDateActionMenuPosition(null);
       setIsHistoryDialogOpen(true);
+      return;
+    }
+
+    if (isPastDate(date)) {
       return;
     }
 
@@ -630,9 +660,9 @@ export function ContentSchedulerBoard({
 
     const menuRightEdge = Math.min(
       triggerRect.left -
-        containerRect.left +
-        triggerRect.width -
-        12,
+      containerRect.left +
+      triggerRect.width -
+      12,
       containerRect.width - 12
     );
     const menuTop = Math.min(
@@ -654,14 +684,14 @@ export function ContentSchedulerBoard({
         <Card>
           <CardContent className="p-3 sm:p-6">
             <div className="mb-4 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-                <h2 className="min-w-0 flex-1 text-lg font-bold sm:flex-none sm:text-xl ">
+              <div className="relative mx-auto flex h-10 w-[260px] shrink-0 items-center justify-center sm:mx-0 sm:w-[300px]">
+                <h2 className="w-full px-12 text-center text-lg font-bold sm:px-14 sm:text-xl">
                   {monthLabel}
                 </h2>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="shrink-0"
+                  className="absolute left-0 shrink-0"
                   onClick={() => {
                     setCurrentMonth((current) => subMonths(current, 1));
                     setShowDateActionCard(false);
@@ -673,7 +703,7 @@ export function ContentSchedulerBoard({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="shrink-0"
+                  className="absolute right-0 shrink-0"
                   onClick={() => {
                     setCurrentMonth((current) => addMonths(current, 1));
                     setShowDateActionCard(false);
@@ -736,7 +766,7 @@ export function ContentSchedulerBoard({
                     );
                     const isCurrentMonth = isSameMonth(day, currentMonth);
                     const isSelected = isSameDay(day, selectedDate);
-                    const isPast = isBefore(day, startOfDay(new Date()));
+                    const isToday = isSameDay(day, today);
                     const visibleEvents = dayEvents.slice(0, 2);
                     const hiddenEventCount = dayEvents.length - visibleEvents.length;
 
@@ -745,20 +775,24 @@ export function ContentSchedulerBoard({
                         key={day.toISOString()}
                         type="button"
                         onClick={(event) => openDateAction(day, event)}
-                        className={`flex min-w-0 flex-col justify-start border-b border-r px-1 py-1.5 text-right align-top transition-colors sm:min-h-[116px] sm:px-2 sm:py-2 xl:min-h-[85px] ${
-                          showCalendarEventDetails
-                            ? "min-h-[104px]"
-                            : "min-h-[76px]"
-                        } ${
-                          isCurrentMonth ? "bg-card" : "bg-background-secondary/50"
-                        } ${isSelected ? "bg-primary/5" : ""} ${
-                          isPast ? "cursor-not-allowed opacity-60" : "hover:bg-primary/5"
-                        }`}
+                        className={`flex min-w-0 flex-col justify-start border-b border-r px-1 py-1.5 text-right align-top transition-colors sm:min-h-[116px] sm:px-2 sm:py-2 xl:min-h-[85px] ${showCalendarEventDetails
+                          ? "min-h-[104px]"
+                          : "min-h-[76px]"
+                          } ${isToday
+                            ? "bg-blue-50"
+                            : isCurrentMonth
+                              ? "bg-card"
+                              : "bg-background-secondary/50"
+                          } ${isSelected ? "ring-1 ring-inset ring-primary/30" : ""} ${isToday ? "hover:bg-blue-100/80" : "hover:bg-primary/5"
+                          }`}
                       >
                         <div
-                          className={`mb-2 text-sm font-semibold sm:mb-3 sm:text-base xl:text-lg ${
-                            isCurrentMonth ? "text-foreground" : "text-muted-foreground"
-                          }`}
+                          className={`mb-2 text-sm font-semibold sm:mb-3 sm:text-base xl:text-lg ${isToday
+                            ? "text-primary"
+                            : isCurrentMonth
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                            }`}
                         >
                           {format(day, "d")}
                         </div>
@@ -767,17 +801,15 @@ export function ContentSchedulerBoard({
                           {visibleEvents.map((event) => (
                             <div
                               key={event.id}
-                              className={`min-w-0 overflow-hidden ${
-                                showCalendarEventDetails
-                                  ? "rounded-md"
-                                  : "rounded-full sm:rounded-lg"
-                              } ${
-                                event.type === "manual"
+                              className={`min-w-0 overflow-hidden ${showCalendarEventDetails
+                                ? "rounded-md"
+                                : "rounded-full sm:rounded-lg"
+                                } ${event.type === "manual"
                                   ? "bg-rose-100 text-rose-600"
                                   : event.type === "draft"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-violet-100 text-violet-600"
-                              }`}
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-violet-100 text-violet-600"
+                                }`}
                             >
                               <div
                                 className={
@@ -787,9 +819,8 @@ export function ContentSchedulerBoard({
                                 }
                               />
                               <div
-                                className={`px-1 py-0.5 text-[9px] leading-tight sm:px-2 sm:py-1 sm:text-xs ${
-                                  showCalendarEventDetails ? "block" : "hidden sm:block"
-                                }`}
+                                className={`px-1 py-0.5 text-[9px] leading-tight sm:px-2 sm:py-1 sm:text-xs ${showCalendarEventDetails ? "block" : "hidden sm:block"
+                                  }`}
                               >
                                 <div className="truncate font-medium">
                                   {event.title}
@@ -800,9 +831,8 @@ export function ContentSchedulerBoard({
                           ))}
                           {hiddenEventCount > 0 && (
                             <div
-                              className={`min-w-0 overflow-hidden rounded-full bg-background-secondary text-muted-foreground sm:rounded-lg ${
-                                showCalendarEventDetails ? "rounded-md" : ""
-                              }`}
+                              className={`min-w-0 overflow-hidden rounded-full bg-background-secondary text-muted-foreground sm:rounded-lg ${showCalendarEventDetails ? "rounded-md" : ""
+                                }`}
                             >
                               <div className="px-1 py-0.5 text-center text-[9px] font-semibold leading-tight sm:px-2 sm:py-1 sm:text-xs">
                                 + {hiddenEventCount} {t("more")}
@@ -825,13 +855,13 @@ export function ContentSchedulerBoard({
                       transform: "translateX(-100%)",
                     }}
                   >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingUploadDraft(null);
-                      setIsUploadDialogOpen(true);
-                      setShowDateActionCard(false);
-                      setDateActionMenuPosition(null);
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingUploadDraft(null);
+                        setIsUploadDialogOpen(true);
+                        setShowDateActionCard(false);
+                        setDateActionMenuPosition(null);
                       }}
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-background-secondary"
                     >
@@ -869,8 +899,8 @@ export function ContentSchedulerBoard({
             <CardContent className="space-y-5 p-4 sm:p-6">
               <div className="text-2xl font-bold">{t("overview")}</div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
-                <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-2">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
                   <div className="rounded-md bg-rose-100 p-2 text-rose-500">
                     <CalendarClock className="h-5 w-5" />
                   </div>
@@ -884,7 +914,7 @@ export function ContentSchedulerBoard({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-2">
+                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
                   <div className="rounded-md bg-amber-100 p-2 text-amber-500">
                     <Repeat2 className="h-5 w-5" />
                   </div>
@@ -898,7 +928,7 @@ export function ContentSchedulerBoard({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-2">
+                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
                   <div className="rounded-md bg-blue-100 p-2 text-blue-500">
                     <FileClock className="h-5 w-5" />
                   </div>
@@ -913,10 +943,10 @@ export function ContentSchedulerBoard({
                 </div>
               </div>
 
-             
-                <TimezoneSelector />
-              
-           
+
+              <TimezoneSelector />
+
+
 
               <Link href={`/business/${businessId}/knowledge-base`}>
                 <Button className="w-full">
@@ -951,11 +981,11 @@ export function ContentSchedulerBoard({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem
-                  onClick={() => {
-                    setIsHistoryDialogOpen(false);
-                    setEditingUploadDraft(null);
-                    setIsUploadDialogOpen(true);
-                  }}
+                    onClick={() => {
+                      setIsHistoryDialogOpen(false);
+                      setEditingUploadDraft(null);
+                      setIsUploadDialogOpen(true);
+                    }}
                   >
                     <PencilLine className="h-4 w-4" />
                     {t("uploadFile")}
@@ -978,90 +1008,84 @@ export function ContentSchedulerBoard({
 
           <div className="flex-1 overflow-y-auto p-4 pt-0 sm:p-6 sm:pt-0">
             <div className="space-y-3">
-            {selectedDateEventsPagination.pageEvents.map((event) => (
-              <div
-                key={event.id}
-                className="flex items-center gap-3 rounded-2xl bg-background-secondary p-3"
-              >
-                <Image
-                  src={event.image}
-                  alt={event.title}
-                  width={56}
-                  height={56}
-                  className="h-14 w-14 shrink-0 rounded-xl object-cover"
-                />
+              {selectedDateEventsPagination.pageEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center gap-3 rounded-2xl bg-background-secondary p-3"
+                >
+                  <Image
+                    src={event.image}
+                    alt={event.title}
+                    width={56}
+                    height={56}
+                    className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                  />
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <div className="truncate text-base font-semibold sm:text-lg">
-                      {event.title}
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        event.type === "manual"
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <div className="truncate text-base font-semibold sm:text-lg">
+                        {event.title}
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${event.type === "manual"
                           ? "bg-rose-500 text-white"
                           : event.type === "draft"
-                          ? "bg-amber-500 text-white"
-                          : "bg-violet-600 text-white"
-                      }`}
-                    >
-                      {event.type === "manual"
-                        ? t("scheduledBadge")
-                        : event.type === "draft"
-                        ? "Draft"
-                        : t("repetitionBadge")}
-                    </span>
+                            ? "bg-amber-500 text-white"
+                            : "bg-violet-600 text-white"
+                          }`}
+                      >
+                        {event.type === "manual"
+                          ? t("scheduledBadge")
+                          : event.type === "draft"
+                            ? "Draft"
+                            : t("repetitionBadge")}
+                      </span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {formatFullDate(event.date)} - {event.time}{" "}
+                      {timezoneData?.data.data.offset || ""}
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {formatFullDate(event.date)} - {event.time}{" "}
-                    {timezoneData?.data.data.offset || ""}
-                  </div>
-                </div>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                      <span className="sr-only">{t("scheduledHistoryActions")}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuItem onClick={() => handleViewEvent(event)}>
-                      <Eye className="h-4 w-4" />
-                      {t("viewPost")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={
-                        event.sourceType !== "draft" &&
-                        event.sourceType !== "history-draft" &&
-                        (event.sourceType !== "manual" ||
-                          !event.schedulerManualPostingId)
-                      }
-                      onClick={() => handleEditEvent(event)}
-                    >
-                      <Edit className="h-4 w-4" />
-                      {t("editPost")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={
-                        !event.generatedImageContent &&
-                        event.sourceType !== "draft"
-                      }
-                      onClick={() => handleAskCancelEvent(event)}
-                      className="text-red-600 focus:text-red-600"
-                    >
-                      <X className="h-4 w-4" />
-                      {t("cancelQueue")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">{t("scheduledHistoryActions")}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onClick={() => handleViewEvent(event)}>
+                        <Eye className="h-4 w-4" />
+                        {t("viewPost")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!isEventEditable(event)}
+                        onClick={() => handleEditEvent(event)}
+                      >
+                        <Edit className="h-4 w-4" />
+                        {t("editPost")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={
+                          !event.generatedImageContent &&
+                          event.sourceType !== "draft"
+                        }
+                        onClick={() => handleAskCancelEvent(event)}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                        {t("cancelQueue")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
             </div>
             {selectedDateEvents.length > 0 && (
               <PaginationControls

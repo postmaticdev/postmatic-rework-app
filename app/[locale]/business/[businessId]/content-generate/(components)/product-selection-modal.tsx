@@ -48,7 +48,7 @@ export function ProductSelectionModal({
           <DialogDescription>
             {m("selectProductDescription")}
           </DialogDescription>
-               {/* Search */}
+          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
@@ -66,18 +66,17 @@ export function ProductSelectionModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
-     
+
 
           {/* Product List */}
           <div className="space-y-3 ">
             {productKnowledges.contents.map((product) => (
               <Card
                 key={product.id}
-                className={`cursor-pointer transition-colors ${
-                  product?.id === tempSelected?.id
-                    ? "ring-2 ring-inset ring-blue-500 bg-card/50"
-                    : "hover:bg-card/50"
-                }`}
+                className={`cursor-pointer transition-colors ${product?.id === tempSelected?.id
+                  ? "ring-2 ring-inset ring-blue-500 bg-card/50"
+                  : "hover:bg-card/50"
+                  }`}
                 onClick={() => {
                   if (product?.id === tempSelected?.id) {
                     setTempSelected(null);
@@ -86,19 +85,24 @@ export function ProductSelectionModal({
                   }
                 }}
               >
-                <CardContent className="p-4">
+                <CardContent className="relative p-4">
+                  {tempSelected?.id === product.id && (
+                    <div className="absolute right-4 top-4 z-10 h-6 w-6 rounded-full bg-blue-500 sm:hidden flex items-center justify-center">
+                      <Check className="h-4 w-4 text-white" />
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <div className="flex items-center gap-2 mb-1">
 
-                    <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image
-                        src={product.images[0] || DEFAULT_PRODUCT_IMAGE}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="flex flex-col sm:hidden items-start gap-2 mb-1">
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                        <Image
+                          src={product.images[0] || DEFAULT_PRODUCT_IMAGE}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="flex flex-col sm:hidden items-start gap-2 mb-1">
                         <h3 className="font-medium text-foreground">
                           {product.name}
                         </h3>
@@ -123,15 +127,15 @@ export function ProductSelectionModal({
                       </p>
 
                       <p className="text-sm font-medium text-foreground">
-                            {formatPriceWithCurrency(
-                              product.price,
-                              product.currency
-                            )}
-                          </p>
+                        {formatPriceWithCurrency(
+                          product.price,
+                          product.currency
+                        )}
+                      </p>
                     </div>
 
                     {tempSelected?.id === product.id && (
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="hidden h-6 w-6 rounded-full bg-blue-500 sm:flex items-center justify-center">
                         <Check className="w-4 h-4 text-white" />
                       </div>
                     )}

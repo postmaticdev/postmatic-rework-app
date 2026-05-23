@@ -144,7 +144,7 @@ export function AutoGenerate({
       .map((p) => mapEnumPlatform.getPlatformLabel(p))
       .join(", ");
     const scheduleName = `${platformNames} - ${schedule.time}`;
-    
+
     setScheduleToDelete({
       id: schedule.id,
       name: scheduleName,
@@ -154,7 +154,7 @@ export function AutoGenerate({
 
   const handleConfirmDelete = async () => {
     if (!scheduleToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       await deleteScheduleDirectly(scheduleToDelete.id);
@@ -207,14 +207,14 @@ export function AutoGenerate({
       // Check if schedule has no platforms
       if (!schedule.platforms || schedule.platforms.length === 0) {
         console.log("Schedule has no platforms");
-        
+
         // If no connected platforms, show modal to connect platform
         if (lenConnectedPlatform === 0) {
           console.log("No connected platforms available");
           handleIfNoPlatformConnected();
           return;
         }
-        
+
         // If there are connected platforms, open edit modal to select platforms
         console.log("Connected platforms available, opening edit modal");
         showToast("info", t("pleaseSelectPlatform"));
@@ -315,22 +315,6 @@ export function AutoGenerate({
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-bold">{t("autoGenerate")}</h1>
               <div className="flex flex-row gap-2 items-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsHistoryModalOpen(true)}
-                >
-                  <History className="h-4 w-4 mr-2" />
-                  {t("history")}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  {t("autoGenerateEnabled")}
-                </p>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -353,6 +337,15 @@ export function AutoGenerate({
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {t("autoGenerateEnabled")}
+                </p>
+
               </div>
 
               <div className={scheduleListClassName}>

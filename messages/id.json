@@ -285,7 +285,7 @@
     "saturday": "Sabtu",
     "addScheduleShort": "Tambah",
     "addScheduleFull": "Tambah Jadwal",
-    "addRepetitionDay": "Tambahkan Hari Repetisi",
+    "addRepetitionDay": "Tambah Repetisi",
     "noRepetitionSchedule": "Belum ada jadwal repetisi",
     "scheduleTime": "Waktu Jadwal",
     "confirmDeleteSchedule": "Apakah Anda yakin ingin menghapus jadwal ini?",
@@ -398,6 +398,7 @@
     "checkPaymentStatus": "Cek Status Pembayaran"
   },
   "contentScheduler": {
+    "notConnected": "Belum Terhubung",
     "generateCaption": "Buat Caption (menggunakan Token)",
     "addContentManually": "Tambah Konten Manual",
     "addContentManuallyDescription": "Tambahkan foto dan caption secara manual ke pustaka konten Anda.",

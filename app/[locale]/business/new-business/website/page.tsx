@@ -19,7 +19,6 @@ import {
 } from "@/services/website-scrapper.api";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Globe,
@@ -239,18 +238,18 @@ export default function NewBusinessWebsitePage() {
       },
       step2: draft.firstProduct
         ? {
-            ...current.step2,
-            name: draft.firstProduct.name || current.step2.name,
-            category: draft.firstProduct.category || current.step2.category,
-            description:
-              draft.firstProduct.description || current.step2.description,
-            price: Number(draft.firstProduct.price || 0),
-            currency: draft.firstProduct.currency || current.step2.currency,
-            images:
-              draft.firstProduct.imageUrls?.length > 0
-                ? draft.firstProduct.imageUrls
-                : current.step2.images,
-          }
+          ...current.step2,
+          name: draft.firstProduct.name || current.step2.name,
+          category: draft.firstProduct.category || current.step2.category,
+          description:
+            draft.firstProduct.description || current.step2.description,
+          price: Number(draft.firstProduct.price || 0),
+          currency: draft.firstProduct.currency || current.step2.currency,
+          images:
+            draft.firstProduct.imageUrls?.length > 0
+              ? draft.firstProduct.imageUrls
+              : current.step2.images,
+        }
         : current.step2,
       step3: {
         ...current.step3,
@@ -377,33 +376,6 @@ export default function NewBusinessWebsitePage() {
       <div className="ai-glow-orb ai-glow-orb-3" />
 
       <div className="relative z-10 flex min-h-screen flex-col px-4 py-4 sm:px-6 sm:py-6">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            className="rounded-full border-white/30 bg-white/65 px-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] backdrop-blur-md dark:bg-white/5"
-            onClick={() => {
-              if (phase === "input") {
-                router.push("/business/new-business");
-                return;
-              }
-
-              if (phase === "loading") {
-                resetToInput();
-                return;
-              }
-
-              resetToInput();
-            }}
-          >
-            <ArrowLeft className="size-4" />
-            {t("back")}
-          </Button>
-
-          <div className="rounded-full border border-blue-400/20 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase backdrop-blur-sm dark:text-blue-200">
-            {t("dummyBadge")}
-          </div>
-        </div>
-
         {phase === "input" && (
           <div className="flex flex-1 items-center justify-center py-8">
             <Card className="w-full max-w-2xl rounded-[2rem] border-white/50 bg-white/78 p-6 shadow-[0_24px_100px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.84)] sm:p-8">
@@ -436,14 +408,8 @@ export default function NewBusinessWebsitePage() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Button
-                    variant="outline"
-                    className="h-14 rounded-full border-blue-300/30 bg-blue-500/10 text-blue-800 hover:bg-blue-500/15 dark:text-blue-100"
-                    onClick={() => router.push("/business/new-business/manual")}
-                  >
-                    {t("noWebsiteYet")}
-                  </Button>
+                <div className="grid gap-3">
+
                   <Button
                     className="h-14 rounded-full text-base shadow-[0_18px_40px_rgba(37,99,235,0.35)]"
                     disabled={!canContinue}
@@ -730,15 +696,15 @@ export default function NewBusinessWebsitePage() {
                       {[draft.category, draft.colorTone, draft.name]
                         .filter((item) => item.trim().length > 0)
                         .map((item) => (
-                        <div
-                          key={item}
-                          className={cn(
-                            "rounded-full border border-blue-300/35 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-900 dark:text-blue-100"
-                          )}
-                        >
-                          {item}
-                        </div>
-                      ))}
+                          <div
+                            key={item}
+                            className={cn(
+                              "rounded-full border border-blue-300/35 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-900 dark:text-blue-100"
+                            )}
+                          >
+                            {item}
+                          </div>
+                        ))}
                     </div>
                     {draft.sourceId && (
                       <p className="mt-3 text-xs text-muted-foreground">

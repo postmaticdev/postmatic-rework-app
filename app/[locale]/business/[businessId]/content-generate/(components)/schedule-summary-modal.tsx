@@ -98,7 +98,7 @@ export function ScheduleSummaryModal({
           <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
             <div className="space-y-2">
               <div className="text-sm font-medium">{t("scheduleAt")}</div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 grid-cols-2">
                 <div className="flex items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
                   <CalendarDays className="h-4 w-4 text-primary" />
                   <input
@@ -123,7 +123,7 @@ export function ScheduleSummaryModal({
 
             <div className="space-y-2">
               <div className="text-sm font-medium">{t("choosePlatform")}</div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {platforms.map(({ platform, isConnected }) => {
                   const isSelected =
                     isConnected && selectedPlatforms.includes(platform);
@@ -139,7 +139,7 @@ export function ScheduleSummaryModal({
                           ? "border-primary bg-primary text-white"
                           : "border-border bg-background-secondary",
                         !isConnected &&
-                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
+                        "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
                       )}
                     >
                       {mapEnumPlatform.getPlatformIcon(
@@ -147,8 +147,8 @@ export function ScheduleSummaryModal({
                         isSelected
                           ? "text-white"
                           : !isConnected
-                          ? "text-muted-foreground"
-                          : ""
+                            ? "text-muted-foreground"
+                            : ""
                       )}
                       <span className="flex flex-col leading-tight">
                         <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>

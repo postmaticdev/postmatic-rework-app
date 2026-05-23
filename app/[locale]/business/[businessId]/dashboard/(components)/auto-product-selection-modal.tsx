@@ -85,7 +85,12 @@ export function AutoProductSelectionModal({
                   }
                 }}
               >
-                <CardContent className="p-4">
+                <CardContent className="relative p-4">
+                  {tempSelected?.id === product.id && (
+                    <div className="absolute right-4 top-4 z-10 h-6 w-6 rounded-full bg-blue-500 sm:hidden flex items-center justify-center">
+                      <Check className="h-4 w-4 text-white" />
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <div className="flex items-center gap-2 mb-1">
 
@@ -130,7 +135,7 @@ export function AutoProductSelectionModal({
                     </div>
 
                     {tempSelected?.id === product.id && (
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="hidden h-6 w-6 rounded-full bg-blue-500 sm:flex items-center justify-center">
                         <Check className="w-4 h-4 text-white" />
                       </div>
                     )}

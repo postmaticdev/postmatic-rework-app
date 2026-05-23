@@ -476,11 +476,7 @@ export function ContentLibrary({
                   height={500}
                 />
 
-                <div className="absolute top-2 right-2">
-                  <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded">
-                    {content?.category}
-                  </span>
-                </div>
+
               </div>
 
               {/* Tag */}

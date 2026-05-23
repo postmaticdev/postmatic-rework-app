@@ -254,7 +254,7 @@ export function PreviewPanel() {
               alt="logo"
               width={200}
               height={200}
-              className="w-8 h-8"
+              className="w-8 h-8 rounded-full"
             />
             <span className="font-medium text-sm">{businessName}</span>
           </div>
@@ -350,7 +350,7 @@ export function PreviewPanel() {
         {schedulerMode && (
           <>
             <div className="p-4 border-b">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 grid-cols-2">
                 <div className="flex items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
                   <CalendarDays className="h-4 w-4 text-primary" />
                   <input
@@ -376,7 +376,7 @@ export function PreviewPanel() {
               <div className="text-sm font-semibold">
                 {schedulerT("choosePlatform")}
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
                 {platformOptions.map(({ platform, isConnected }) => {
                   const isSelected =
                     isConnected && selectedPlatforms.includes(platform);
@@ -392,7 +392,7 @@ export function PreviewPanel() {
                           ? "border-primary bg-primary text-white"
                           : "border-border bg-background-secondary",
                         !isConnected &&
-                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
+                        "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
                       )}
                     >
                       {mapEnumPlatform.getPlatformIcon(
@@ -400,8 +400,8 @@ export function PreviewPanel() {
                         isSelected
                           ? "text-white"
                           : !isConnected
-                          ? "text-muted-foreground"
-                          : ""
+                            ? "text-muted-foreground"
+                            : ""
                       )}
                       <span className="flex flex-col leading-tight">
                         <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
@@ -462,10 +462,10 @@ export function PreviewPanel() {
               ? schedulerT("schedulePost")
               : schedulerT("generateContent")
             : isLoading
-            ? t("loading")
-            : selectedHistory
-            ? t("regenerate")
-            : t("generate")}
+              ? t("loading")
+              : selectedHistory
+                ? t("regenerate")
+                : t("generate")}
         </Button>
       </div>
 

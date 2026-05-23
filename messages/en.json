@@ -268,7 +268,7 @@
     "saturday": "Saturday",
     "addScheduleShort": "Add",
     "addScheduleFull": "Add Schedule",
-    "addRepetitionDay": "Add Repetition Day",
+    "addRepetitionDay": "Add Repetition",
     "noRepetitionSchedule": "No repetition schedule yet",
     "scheduleTime": "Schedule Time",
     "confirmDeleteSchedule": "Are you sure you want to delete this schedule?",
@@ -398,6 +398,7 @@
     "checkPaymentStatus": "Check Payment Status"
   },
   "contentScheduler": {
+    "notConnected": "Not Connected",
     "generateCaption": "Generate Caption (using Token)",
     "addContentManually": "Add Content Manually",
     "addContentManuallyDescription": "Add photo and caption manually to your library.",

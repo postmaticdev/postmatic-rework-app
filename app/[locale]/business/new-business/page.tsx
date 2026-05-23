@@ -22,7 +22,7 @@ export default function NewBusinessEntryPage() {
               <Sparkles className="size-3.5" />
               {t("badge")}
             </div>
-            <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+            <h1 className="break-words text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
               {t("title")}
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
@@ -34,45 +34,45 @@ export default function NewBusinessEntryPage() {
             <Button
               asChild
               variant="outline"
-              className="group h-auto justify-between rounded-[1.5rem] border-border/70 bg-white/70 px-5 py-5 text-left shadow-[0_10px_35px_rgba(15,23,42,0.06)] transition-transform hover:-translate-y-0.5 hover:bg-white dark:bg-white/5 dark:hover:bg-white/[0.08]"
+              className="group h-auto justify-between whitespace-normal rounded-[1.5rem] border-border/70 bg-white/70 px-5 py-5 text-left shadow-[0_10px_35px_rgba(15,23,42,0.06)] transition-transform hover:-translate-y-0.5 hover:bg-white dark:bg-white/5 dark:hover:bg-white/[0.08]"
             >
               <Link href="/business/new-business/manual">
-                <span className="flex items-start gap-4">
+                <span className="flex min-w-0 items-start gap-4">
                   <span className="flex size-12 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg dark:bg-blue-500/20 dark:text-blue-100">
                     <PencilLine className="size-5" />
                   </span>
-                  <span className="space-y-1">
+                  <span className="min-w-0 space-y-1">
                     <span className="block text-base font-semibold text-foreground">
                       {t("manualTitle")}
                     </span>
-                    <span className="block text-sm leading-6 text-muted-foreground">
+                    <span className="block break-words text-sm leading-6 text-muted-foreground">
                       {t("manualDescription")}
                     </span>
                   </span>
                 </span>
-                <ArrowRight className="size-5 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
 
             <Button
               asChild
-              className="group h-auto justify-between rounded-[1.5rem] bg-primary px-5 py-5 text-left text-white shadow-[0_18px_50px_rgba(37,99,235,0.35)] transition-transform hover:-translate-y-0.5 hover:bg-primary/90"
+              className="group h-auto justify-between whitespace-normal rounded-[1.5rem] bg-primary px-5 py-5 text-left text-white shadow-[0_18px_50px_rgba(37,99,235,0.35)] transition-transform hover:-translate-y-0.5 hover:bg-primary/90"
             >
               <Link href="/business/new-business/website">
-                <span className="flex items-start gap-4">
+                <span className="flex min-w-0 items-start gap-4">
                   <span className="flex size-12 items-center justify-center rounded-2xl bg-white/16 text-white backdrop-blur-sm">
                     <Globe className="size-5" />
                   </span>
-                  <span className="space-y-1">
+                  <span className="min-w-0 space-y-1">
                     <span className="block text-base font-semibold">
                       {t("websiteTitle")}
                     </span>
-                    <span className="block text-sm leading-6 text-blue-100">
+                    <span className="block break-words text-sm leading-6 text-blue-100">
                       {t("websiteDescription")}
                     </span>
                   </span>
                 </span>
-                <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="size-5 shrink-0 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
           </div>
