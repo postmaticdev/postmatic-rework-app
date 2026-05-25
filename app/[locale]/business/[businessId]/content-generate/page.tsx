@@ -24,7 +24,7 @@ export default function ContentGenerate() {
   }, []);
 
   return (
-    <main className="relative flex flex-col md:ml-0 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
+    <main className="relative flex min-h-0 flex-1 flex-col md:ml-0 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div
           className={cn(
@@ -41,7 +41,9 @@ export default function ContentGenerate() {
         <div
           className={cn(
             "relative w-full border-r bg-card lg:min-h-0 lg:overflow-hidden",
-            mode === "regenerate" ? "w-full lg:w-2/3" : "w-full lg:w-1/3"
+            mode === "regenerate"
+              ? "flex-1 min-h-0 w-full lg:w-2/3"
+              : "w-full lg:w-1/3"
           )}
         >
           <GenerationPanel />

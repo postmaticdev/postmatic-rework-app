@@ -269,6 +269,8 @@
     "addScheduleShort": "Add",
     "addScheduleFull": "Add Schedule",
     "addRepetitionDay": "Add Repetition",
+    "emptyRepetitionDayTitle": "No repetition day yet",
+    "emptyRepetitionDayDescription": "Choose a repetition day using the add button.",
     "noRepetitionSchedule": "No repetition schedule yet",
     "scheduleTime": "Schedule Time",
     "confirmDeleteSchedule": "Are you sure you want to delete this schedule?",
@@ -570,7 +572,10 @@
     "aiRegenerateDescription": "Continue refining the generated visual in a chat-like workflow.",
     "generatedResult": "Generated Result",
     "regeneratePrompt": "Ask AI to revise this content",
-    "regeneratePromptPlaceholder": "Example: add a Vespa behind the subject and make the vibe more nostalgic."
+    "regeneratePromptPlaceholder": "Example: add a Vespa behind the subject and make the vibe more nostalgic.",
+    "copyPrompt": "Copy prompt",
+    "copyPromptSuccess": "Prompt copied",
+    "copyPromptFailed": "Failed to copy prompt"
   },
   "previewPanel": {
     "enhanceCaption": "Enhance Caption",

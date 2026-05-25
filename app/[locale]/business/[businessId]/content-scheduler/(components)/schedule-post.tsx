@@ -210,9 +210,9 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
 
   return (
 
-    <Card className="xl:max-h-[22.5rem] xl:overflow-y-auto">
-      <CardContent className="p-6">
-        <div className="space-y-6">
+    <Card className={onDashboard ? "xl:h-[22.5rem]" : undefined}>
+      <CardContent className="flex h-full flex-col p-6">
+        <div className="flex min-h-0 flex-1 flex-col space-y-6">
           <div className="flex flex-col justify-between">
             <h2
               className={
@@ -237,7 +237,7 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
             />
 
           ) : (
-            <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
               {upcomings.map((post, index) => (
                 <Card key={index} className="bg-card">
                   <CardContent className="p-4">

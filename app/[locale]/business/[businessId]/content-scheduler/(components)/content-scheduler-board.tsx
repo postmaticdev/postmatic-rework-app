@@ -24,7 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PaginationControls } from "@/components/ui/pagination-controls";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { dateFormat } from "@/helper/date-format";
 import { dateManipulation } from "@/helper/date-manipulation";
@@ -102,6 +101,7 @@ type SchedulerEvent = {
   businessProductId: number | null;
   generatedImageContent: GeneratedImageContent | null;
   sourceType: "manual" | "auto" | "repetition" | "draft" | "history-draft";
+  status: string | null;
   draftMarker: SchedulerDraftMarker | null;
   historyJob: JobData | null;
 };
@@ -136,10 +136,6 @@ export function ContentSchedulerBoard({
   const [draftMarkers, setDraftMarkers] = useState<SchedulerDraftMarker[]>([]);
   const [showCalendarEventDetails, setShowCalendarEventDetails] = useState(false);
   const [showDateActionCard, setShowDateActionCard] = useState(false);
-  const [historyFilterQuery, setHistoryFilterQuery] = useState({
-    page: 1,
-    limit: 5,
-  });
   const [dateActionMenuPosition, setDateActionMenuPosition] = useState<{
     top: number;
     left: number;
@@ -268,6 +264,7 @@ export function ContentSchedulerBoard({
         businessProductId: item.businessProductId ?? null,
         generatedImageContent: item.generatedImageContent,
         sourceType: item.type,
+        status: item.status?.toLowerCase() ?? null,
         draftMarker: null,
         historyJob: null,
       })),
@@ -307,6 +304,7 @@ export function ContentSchedulerBoard({
               businessProductId: null,
               generatedImageContent: null,
               sourceType: "repetition" as const,
+              status: null,
               draftMarker: null,
               historyJob: null,
             }))
@@ -351,6 +349,7 @@ export function ContentSchedulerBoard({
                 : Number(marker.businessProductId),
           generatedImageContent: null,
           sourceType: "draft",
+          status: null,
           draftMarker: marker,
           historyJob: null,
         })),
@@ -390,6 +389,7 @@ export function ContentSchedulerBoard({
           businessProductId: null,
           generatedImageContent: null,
           sourceType: "history-draft" as const,
+          status: null,
           draftMarker: {
             draftId: `history-${job.id}`,
             jobId: job.id,
@@ -415,46 +415,6 @@ export function ContentSchedulerBoard({
     () => mergedEvents.filter((item) => isSameDay(item.date, selectedDate)),
     [mergedEvents, selectedDate]
   );
-  const selectedDateEventsPagination = useMemo(() => {
-    const total = selectedDateEvents.length;
-    const limit = Math.max(historyFilterQuery.limit || 1, 1);
-    const totalPages = Math.max(Math.ceil(total / limit), 1);
-    const page = Math.min(Math.max(historyFilterQuery.page || 1, 1), totalPages);
-    const startIndex = (page - 1) * limit;
-
-    return {
-      pageEvents: selectedDateEvents.slice(startIndex, startIndex + limit),
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
-  }, [historyFilterQuery.limit, historyFilterQuery.page, selectedDateEvents]);
-
-  useEffect(() => {
-    setHistoryFilterQuery((prev) => {
-      if (prev.page === 1) return prev;
-      return { ...prev, page: 1 };
-    });
-  }, [selectedDate]);
-
-  useEffect(() => {
-    const { page } = selectedDateEventsPagination.pagination;
-    if (page === historyFilterQuery.page) return;
-
-    setHistoryFilterQuery((prev) => ({
-      ...prev,
-      page,
-    }));
-  }, [
-    historyFilterQuery.page,
-    selectedDateEventsPagination.pagination.page,
-    selectedDateEventsPagination.pagination.totalPages,
-  ]);
 
   const calendarDays = useMemo(
     () =>
@@ -510,6 +470,21 @@ export function ContentSchedulerBoard({
       event.sourceType === "history-draft" ||
       (event.sourceType === "manual" && !!event.schedulerManualPostingId)
     );
+  };
+  const canCancelEvent = (event: SchedulerEvent) => {
+    if (
+      event.sourceType === "manual" &&
+      event.status === "ready" &&
+      isPastDate(event.date)
+    ) {
+      return false;
+    }
+
+    if (event.sourceType === "draft") {
+      return true;
+    }
+
+    return Boolean(event.generatedImageContent);
   };
 
   const handleViewEvent = (event: SchedulerEvent) => {
@@ -594,8 +569,11 @@ export function ContentSchedulerBoard({
       return;
     }
 
+    const scheduleDate = eventIsPast
+      ? dateManipulation.ymd(today)
+      : dateManipulation.ymd(event.date);
     const params = new URLSearchParams({
-      scheduleDate: dateManipulation.ymd(event.date),
+      scheduleDate,
       scheduleTime: event.time,
       editSchedulerManualPostingId: String(event.schedulerManualPostingId),
       selectedHistoryImage: event.generatedImageContent.images[0] || "",
@@ -620,6 +598,10 @@ export function ContentSchedulerBoard({
   };
 
   const handleAskCancelEvent = (event: SchedulerEvent) => {
+    if (!canCancelEvent(event)) {
+      return;
+    }
+
     setEventToCancel(event);
     setIsCancelDialogOpen(true);
   };
@@ -1062,7 +1044,7 @@ export function ContentSchedulerBoard({
 
           <div className="flex-1 overflow-y-auto p-4 pt-0 sm:p-6 sm:pt-0">
             <div className="space-y-3">
-              {selectedDateEventsPagination.pageEvents.map((event) => (
+              {selectedDateEvents.map((event) => (
                 <div
                   key={event.id}
                   className="flex items-center gap-3 rounded-2xl bg-background-secondary p-3"
@@ -1126,10 +1108,7 @@ export function ContentSchedulerBoard({
                         {t("editPost")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        disabled={
-                          !event.generatedImageContent &&
-                          event.sourceType !== "draft"
-                        }
+                        disabled={!canCancelEvent(event)}
                         onClick={() => handleAskCancelEvent(event)}
                         className="text-red-600 focus:text-red-600"
                       >
@@ -1141,19 +1120,6 @@ export function ContentSchedulerBoard({
                 </div>
               ))}
             </div>
-            {selectedDateEvents.length > 0 && (
-              <PaginationControls
-                className="mt-4"
-                pagination={selectedDateEventsPagination.pagination}
-                filterQuery={historyFilterQuery}
-                setFilterQuery={(query) =>
-                  setHistoryFilterQuery((prev) => ({
-                    ...prev,
-                    ...query,
-                  }))
-                }
-              />
-            )}
           </div>
         </DialogContent>
       </Dialog>

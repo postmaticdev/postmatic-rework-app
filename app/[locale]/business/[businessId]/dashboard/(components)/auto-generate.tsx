@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { NoContent } from "@/components/base/no-content";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { LogoLoader } from "@/components/base/logo-loader";
@@ -73,6 +74,7 @@ export function AutoGenerate({
   const [scheduleToDelete, setScheduleToDelete] = useState<{
     id: string;
     name: string;
+    day: number;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -148,6 +150,7 @@ export function AutoGenerate({
     setScheduleToDelete({
       id: schedule.id,
       name: scheduleName,
+      day: schedule.day,
     });
     setIsDeleteModalOpen(true);
   };
@@ -157,7 +160,17 @@ export function AutoGenerate({
 
     setIsDeleting(true);
     try {
+      const shouldRemoveRepeatDay =
+        getSchedulesByDay(scheduleToDelete.day).length <= 1;
+
       await deleteScheduleDirectly(scheduleToDelete.id);
+
+      if (shouldRemoveRepeatDay) {
+        setSelectedRepeatDays((current) =>
+          current.filter((day) => day !== scheduleToDelete.day)
+        );
+      }
+
       setIsDeleteModalOpen(false);
       setIsModalOpen(false);
       showToast("success", t("scheduleDeletedSuccessfully"));
@@ -350,8 +363,12 @@ export function AutoGenerate({
 
               <div className={scheduleListClassName}>
                 {visibleDays.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-muted-foreground/35 bg-background-secondary px-4 py-8 text-center text-sm text-muted-foreground">
-                    Pilih hari repetisi dengan tombol tambah.
+                  <div className="rounded-lg border border-dashed border-muted-foreground/35 bg-background-secondary px-4">
+                    <NoContent
+                      icon={Clock}
+                      title={t("emptyRepetitionDayTitle")}
+                      titleDescription={t("emptyRepetitionDayDescription")}
+                    />
                   </div>
                 ) : null}
                 {visibleDays.map((day) => {
@@ -384,7 +401,7 @@ export function AutoGenerate({
                           {/* Existing Schedules */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 ">
                             {daySchedules.length === 0 ? (
-                              <div className="rounded-lg border border-dashed border-muted-foreground/35 bg-card/70 px-3 py-4 text-center text-sm text-muted-foreground">
+                              <div className="col-span-2 rounded-lg border border-dashed border-muted-foreground/35 bg-card/70 px-3 py-4 text-center text-sm text-muted-foreground">
                                 {t("noRepetitionSchedule")}
                               </div>
                             ) : (

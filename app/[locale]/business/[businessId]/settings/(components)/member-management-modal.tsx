@@ -31,7 +31,7 @@ import {
 import { useParams } from "next/navigation";
 import { MemberRole } from "@/models/api/business/index.type";
 import { showToast } from "@/helper/show-toast";
-import { MemberStatus, MembersInvitePld } from "@/models/api/member/index.type";
+import { MembersInvitePld } from "@/models/api/member/index.type";
 
 import { JOINED_STATUS, } from "./members-table";
 import { useTranslations } from "next-intl";
@@ -53,8 +53,9 @@ export function MemberManagementModal({
   });
 
   const { businessId } = useParams() as { businessId: string };
+  const resolvedBusinessId = businessIdFromProps || businessId || "";
   const { data: dataMembers } = useMemberGetAllMembers(
-    businessIdFromProps || businessId || ""
+    resolvedBusinessId
   );
   const members = dataMembers?.data?.data || [];
   const mInvite = useMemberInvite();
@@ -64,7 +65,7 @@ export function MemberManagementModal({
   const handleAddMember = async () => {
     try {
       const res = await mInvite.mutateAsync({
-        businessId: businessIdFromProps || businessId || "",
+        businessId: resolvedBusinessId,
         formData,
       });
       showToast("success", res.data.responseMessage);
@@ -77,7 +78,10 @@ export function MemberManagementModal({
 
   const handleDeleteMember = async (id: string) => {
     try {
-      const res = await mDelete.mutateAsync({ businessId, idData: id });
+      const res = await mDelete.mutateAsync({
+        businessId: resolvedBusinessId,
+        idData: id,
+      });
       showToast("success", res.data.responseMessage);
     } catch {}
   };
@@ -87,7 +91,7 @@ export function MemberManagementModal({
       const findMember = members.find((member) => member.id === id);
       if (findMember?.role === role) return;
       const res = await mUpdateRole.mutateAsync({
-        businessId,
+        businessId: resolvedBusinessId,
         formData: {
           memberId: id,
           role,

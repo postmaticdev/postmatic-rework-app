@@ -91,9 +91,10 @@ export const useMemberInvite = () => {
       businessId: string;
       formData: MembersInvitePld;
     }) => memberService.invite(businessId, formData),
-    onSuccess: ({ data }) => {
+    onSuccess: ({ data }, variables) => {
+      const keyBusinessId = String(variables.businessId || data?.data?.rootBusinessId || "");
       queryClient.invalidateQueries({
-        queryKey: ["members", data.data.rootBusinessId],
+        queryKey: ["members", keyBusinessId],
       });
     },
   });
@@ -109,9 +110,10 @@ export const useMemberResend = () => {
       businessId: string;
       formData: ResendEmailPld;
     }) => memberService.resend(businessId, formData),
-    onSuccess: ({ data }) => {
+    onSuccess: ({ data }, variables) => {
+      const keyBusinessId = String(variables.businessId || data?.data?.rootBusinessId || "");
       queryClient.invalidateQueries({
-        queryKey: ["members", data.data.rootBusinessId],
+        queryKey: ["members", keyBusinessId],
       });
     },
   });
@@ -127,9 +129,10 @@ export const useMemberUpdateRole = () => {
       businessId: string;
       formData: EditRolePld;
     }) => memberService.updateRole(businessId, formData),
-    onSuccess: ({ data }) => {
+    onSuccess: ({ data }, variables) => {
+      const keyBusinessId = String(variables.businessId || data?.data?.rootBusinessId || "");
       queryClient.invalidateQueries({
-        queryKey: ["members", data.data.rootBusinessId],
+        queryKey: ["members", keyBusinessId],
       });
     },
   });
@@ -138,9 +141,10 @@ export const useMemberUpdateRole = () => {
 export const useMemberDelete = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    onSuccess: ({ data }) => {
+    onSuccess: ({ data }, variables) => {
+      const keyBusinessId = String(variables.businessId || data?.data?.rootBusinessId || "");
       queryClient.invalidateQueries({
-        queryKey: ["members", data.data.rootBusinessId],
+        queryKey: ["members", keyBusinessId],
       });
     },
     mutationFn: ({

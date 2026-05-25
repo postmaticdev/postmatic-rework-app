@@ -280,7 +280,7 @@ export function Header() {
               </div>
             </div>
             <Link
-              href={`/business/${businessId}/pricing?tab=extraToken`}
+              href={`/business/${businessId}/settings?tab=billing&topUp=token`}
               className="w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-4 h-4 text-white" />

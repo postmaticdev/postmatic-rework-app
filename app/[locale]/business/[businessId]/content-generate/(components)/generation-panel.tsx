@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { showToast } from "@/helper/show-toast";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogFooterWithTwoButtons,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
@@ -21,10 +24,12 @@ import { SelectedArticleRss } from "./selected-article-rss";
 import { SelectedReferenceImage } from "./selected-reference-image";
 import { useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
   AlertCircle,
   Bot,
   Check,
+  Copy,
   Loader2,
   Newspaper,
   Pencil,
@@ -36,6 +41,15 @@ import {
 import { GenerateFormBasic } from "./generate-form-basic";
 import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
+
+type KnowledgeImageOption = {
+  id: string;
+  imageUrl: string;
+  sourceLabel: string;
+  title: string;
+};
+
+type KnowledgeTab = "logo" | "product" | "avatar";
 
 export function GenerationPanel() {
   const { businessId } = useParams() as { businessId: string };
@@ -61,6 +75,7 @@ export function GenerationPanel() {
   const [selectedKnowledgeImages, setSelectedKnowledgeImages] = useState<
     string[]
   >([]);
+  const [activeKnowledgeTab, setActiveKnowledgeTab] = useState<KnowledgeTab>("logo");
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
   const { data: businessData } = useBusinessGetById(businessId);
@@ -99,26 +114,23 @@ export function GenerationPanel() {
       );
   }, [histories, selectedHistory]);
 
-  const knowledgeImageOptions = useMemo(() => {
-    const options: Array<{
-      id: string;
-      imageUrl: string;
-      sourceLabel: string;
-      title: string;
-    }> = [];
-    const imageSet = new Set<string>();
+  const logoImageOptions = useMemo<KnowledgeImageOption[]>(() => {
     const businessLogo = businessData?.data?.data?.logo || "";
-    const products = productKnowledgeData?.data?.data || [];
-
-    if (businessLogo) {
-      imageSet.add(businessLogo);
-      options.push({
+    if (!businessLogo) return [];
+    return [
+      {
         id: "business-logo",
         imageUrl: businessLogo,
         sourceLabel: "Business Logo",
         title: "Business Logo",
-      });
-    }
+      },
+    ];
+  }, [businessData?.data?.data?.logo]);
+
+  const productImageOptions = useMemo<KnowledgeImageOption[]>(() => {
+    const products = productKnowledgeData?.data?.data || [];
+    const imageSet = new Set<string>();
+    const options: KnowledgeImageOption[] = [];
 
     products.forEach((product) => {
       product.images.forEach((imageUrl, imageIndex) => {
@@ -134,7 +146,13 @@ export function GenerationPanel() {
     });
 
     return options;
-  }, [businessData?.data?.data?.logo, productKnowledgeData?.data?.data]);
+  }, [productKnowledgeData?.data?.data]);
+
+  const currentKnowledgeOptions = useMemo<KnowledgeImageOption[]>(() => {
+    if (activeKnowledgeTab === "logo") return logoImageOptions;
+    if (activeKnowledgeTab === "product") return productImageOptions;
+    return [];
+  }, [activeKnowledgeTab, logoImageOptions, productImageOptions]);
 
   const handleRegenerate = () => {
     onSubmitGenerate({ mode: "regenerate", additionalImages: attachedImages });
@@ -159,6 +177,7 @@ export function GenerationPanel() {
 
   const handleOpenKnowledgeDialog = () => {
     setSelectedKnowledgeImages([]);
+    setActiveKnowledgeTab("logo");
     setIsKnowledgeDialogOpen(true);
   };
 
@@ -176,11 +195,20 @@ export function GenerationPanel() {
   const schedulerMode = Boolean(searchParams.get("scheduleDate"));
   const selectedEditReferenceImage =
     selectedGeneratedImageUrl &&
-    form.basic.referenceImageName === "Selected image"
+      form.basic.referenceImageName === "Selected image"
       ? selectedGeneratedImageUrl
       : null;
   const handleOpenScheduleSummary = () => {
     window.dispatchEvent(new Event("content-generate:open-schedule-summary"));
+  };
+
+  const handleCopyPrompt = async (prompt: string) => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      showToast("success", t("copyPromptSuccess"));
+    } catch {
+      showToast("error", t("copyPromptFailed"));
+    }
   };
 
   if (mode === "regenerate" && selectedHistory) {
@@ -188,22 +216,22 @@ export function GenerationPanel() {
       <>
         <div className="flex h-full min-h-0 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6">
-          {currentThread.map((job) => {
-            const additionalPromptImages = job.input.additionalImages || [];
-            const promptImages = Array.from(
-              new Set(
-                [
-                  ...additionalPromptImages,
-                  ...(job.product?.images || []),
-                  job.input.referenceImage,
-                ].filter(Boolean) as string[]
-              )
-            );
+            {currentThread.map((job) => {
+              const additionalPromptImages = job.input.additionalImages || [];
+              const promptImages = Array.from(
+                new Set(
+                  [
+                    ...additionalPromptImages,
+                    ...(job.product?.images || []),
+                    job.input.referenceImage,
+                  ].filter(Boolean) as string[]
+                )
+              );
 
-            return (
-              <div key={job.id} className="space-y-3">
-                {job.input.prompt ||
-                  promptImages.length > 0 ? (
+              return (
+                <div key={job.id} className="space-y-3">
+                  {job.input.prompt ||
+                    promptImages.length > 0 ? (
                     <div className="ml-auto flex max-w-[78%] flex-col items-end gap-2">
                       {promptImages.length > 0 ? (
                         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -229,8 +257,21 @@ export function GenerationPanel() {
                         </div>
                       ) : null}
                       {job.input.prompt ? (
-                        <div className="rounded-3xl bg-background-secondary px-4 py-3 text-sm">
-                          {job.input.prompt}
+                        <div className="relative max-w-full">
+                          <div className="rounded-3xl bg-background-secondary px-4 py-3 pr-12 text-sm break-words">
+                            {job.input.prompt}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute bottom-1.5 right-1.5 h-7 w-7 rounded-full border border-input bg-card/90 hover:bg-muted"
+                            onClick={() => handleCopyPrompt(job.input.prompt || "")}
+                            title={t("copyPrompt")}
+                            aria-label={t("copyPrompt")}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       ) : null}
                     </div>
@@ -433,22 +474,54 @@ export function GenerationPanel() {
           open={isKnowledgeDialogOpen}
           onOpenChange={(open) => {
             setIsKnowledgeDialogOpen(open);
-            if (!open) setSelectedKnowledgeImages([]);
+            if (!open) {
+              setSelectedKnowledgeImages([]);
+              setActiveKnowledgeTab("logo");
+            }
           }}
         >
-          <DialogContent className="max-w-3xl">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Import from Knowledge</DialogTitle>
+              <DialogDescription>Import Photos from your knowledge base</DialogDescription>
             </DialogHeader>
-            <div className="max-h-[65vh] space-y-3 overflow-y-auto pr-1">
-              {knowledgeImageOptions.length === 0 ? (
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex flex-row rounded-lg bg-card p-1 justify-between overflow-x-auto">
+                {([
+                  { id: "logo", label: "Logo" },
+                  { id: "product", label: "Product" },
+                  { id: "avatar", label: "Avatar" },
+                ] as const).map((tab) => (
+                  <Button
+                    key={tab.id}
+                    type="button"
+                    variant={activeKnowledgeTab === tab.id ? "default" : "ghost"}
+                    onClick={() => setActiveKnowledgeTab(tab.id)}
+                    className={cn(
+                      "flex-1 p-5",
+                      activeKnowledgeTab === tab.id
+                        ? "bg-primary text-white"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {tab.label}
+                  </Button>
+                ))}
+              </div>
+
+              {activeKnowledgeTab === "avatar" ? (
                 <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                  No knowledge images found. Add business logo or product images
-                  first.
+                  Avatar source will be available soon.
+                </div>
+              ) : currentKnowledgeOptions.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  {activeKnowledgeTab === "logo"
+                    ? "No logo found. Add business logo first."
+                    : "No product images found. Add product images first."}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {knowledgeImageOptions.map((item) => {
+                  {currentKnowledgeOptions.map((item) => {
                     const isSelected = selectedKnowledgeImages.includes(
                       item.imageUrl
                     );
@@ -457,11 +530,12 @@ export function GenerationPanel() {
                       <button
                         key={item.id}
                         type="button"
-                        className={`overflow-hidden rounded-lg border text-left transition ${
+                        className={cn(
+                          "group overflow-hidden rounded-xl border bg-card text-left transition-all duration-300",
                           isSelected
-                            ? "border-blue-500 ring-2 ring-blue-500/30"
-                            : "border-border hover:border-blue-300"
-                        }`}
+                            ? "border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
+                            : "border-border hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
+                        )}
                         onClick={() =>
                           setSelectedKnowledgeImages((current) =>
                             current.includes(item.imageUrl)
@@ -470,14 +544,16 @@ export function GenerationPanel() {
                           )
                         }
                       >
-                        <Image
-                          src={item.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                          alt={item.title}
-                          width={240}
-                          height={180}
-                          className="h-28 w-full object-cover"
-                        />
-                        <div className="space-y-0.5 p-2">
+                        <div className="overflow-hidden">
+                          <Image
+                            src={item.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                            alt={item.title}
+                            width={240}
+                            height={180}
+                            className="h-28 w-full object-cover transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
+                          />
+                        </div>
+                        <div className="space-y-0.5 p-2.5">
                           <p className="line-clamp-1 text-xs font-semibold text-foreground">
                             {item.title}
                           </p>
@@ -491,25 +567,27 @@ export function GenerationPanel() {
                 </div>
               )}
             </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
+            <DialogFooterWithTwoButtons
+              primaryButton={{
+                message: "Add Selected",
+                onClick: () => {
+                  if (selectedKnowledgeImages.length === 0) return;
+                  handleAttachFromKnowledge();
+                },
+                className:
+                  selectedKnowledgeImages.length === 0
+                    ? "pointer-events-none opacity-50"
+                    : "",
+              }}
+              secondaryButton={{
+                message: "Cancel",
+                onClick: () => {
                   setIsKnowledgeDialogOpen(false);
                   setSelectedKnowledgeImages([]);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={handleAttachFromKnowledge}
-                disabled={selectedKnowledgeImages.length === 0}
-              >
-                Add Selected
-              </Button>
-            </DialogFooter>
+                },
+                variant: "outline",
+              }}
+            />
           </DialogContent>
         </Dialog>
       </>

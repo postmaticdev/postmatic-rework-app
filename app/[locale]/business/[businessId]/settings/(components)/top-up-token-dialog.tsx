@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Copy, ReceiptText, RefreshCw } from "lucide-react";
+import { ReceiptText, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,7 +33,7 @@ import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
-import Image from "next/image";
+import { PaymentInstructionCard } from "./payment-instruction-card";
 
 interface TopUpTokenDialogProps {
   isOpen: boolean;
@@ -367,21 +367,18 @@ export function TopUpTokenDialog({
   };
 
   const paymentCountdown = getPaymentCountdown(checkoutResult?.expiredAt);
-
-  const qrCodeAction =
-    checkoutResult?.paymentActions.find(
-      (action) => action.type === "image" && action.action === "generate-qr-code"
-    ) ||
-    checkoutResult?.paymentActions.find(
-      (action) => action.type === "image" && action.action === "generate-qr-code-v2"
-    ) ||
-    checkoutResult?.paymentActions.find((action) => action.type === "image");
-  const virtualAccountAction = checkoutResult?.paymentActions.find(
-    (action) => action.type === "text" && action.action === "virtual-account"
-  );
-  const textPaymentAction = checkoutResult?.paymentActions.find(
-    (action) => action.type === "text" && action.action !== "virtual-account"
-  );
+  const paymentStatus = checkoutResult?.status;
+  const isPendingPayment = !paymentStatus || paymentStatus === "Pending";
+  const isSuccessPayment = paymentStatus === "Success";
+  const statusLabel = getPaymentStatusLabel(paymentStatus);
+  const statusTitle = isPendingPayment
+    ? "Menunggu Pembayaran..."
+    : isSuccessPayment
+      ? "Pembayaran Berhasil"
+      : statusLabel;
+  const statusDescription = isPendingPayment
+    ? "Silakan lakukan pembayaran untuk melanjutkan pesanan."
+    : "Transaksi ini sudah diproses.";
 
   const detailRows = checkoutResult
     ? [
@@ -406,7 +403,7 @@ export function TopUpTokenDialog({
       { label: "Total", value: formatIdr(checkoutResult.totalAmount) },
       {
         label: "Status Bayar",
-        value: getPaymentStatusLabel(checkoutResult.status),
+        value: statusLabel,
       },
       { label: "Kode Affiliate", value: checkoutResult.discountCode || "-" },
     ]
@@ -539,90 +536,20 @@ export function TopUpTokenDialog({
             </>
           ) : (
             <>
-              <div className="flex flex-col gap-4 rounded-lg border border-amber-300 bg-amber-50/45 p-5 dark:border-amber-700 dark:bg-amber-950/20 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      Menunggu Pembayaran...
-                    </h3>
-                    <div className="space-y-1 text-sm text-foreground">
-                      <p>Silakan lakukan pembayaran untuk melanjutkan pesanan.</p>
-                      <p>
-                        Total yang harus dibayar:{" "}
-                        <span className="font-semibold">
-                          {formatIdr(checkoutResult.totalAmount)}
-                        </span>
-                      </p>
-                      <p className="text-muted-foreground">
-                        Berlaku sampai {formatDateTime(checkoutResult.expiredAt)}
-                      </p>
-                      {paymentCountdown ? (
-                        <p
-                          className={cn(
-                            "font-medium",
-                            paymentCountdown.expired
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-amber-700 dark:text-amber-400"
-                          )}
-                        >
-                          {paymentCountdown.text}
-                        </p>
-                      ) : null}
-                      {virtualAccountAction ? (
-                        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border bg-white/80 p-2 dark:border-zinc-700 dark:bg-zinc-900/70">
-                          <div className="min-w-[200px] flex-1 rounded-md border bg-background px-3 py-2 font-mono text-base font-semibold tracking-wide dark:border-zinc-700">
-                            {virtualAccountAction.value}
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => handleCopy(virtualAccountAction.value)}
-                            className="shrink-0"
-                          >
-                            <Copy className="h-4 w-4" />
-                            Salin
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleCheckPaymentStatus}
-                    disabled={isCheckingStatus}
-                    className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:hover:text-blue-200"
-                  >
-                    <RefreshCw
-                      className={cn("h-4 w-4", isCheckingStatus && "animate-spin")}
-                    />
-                    Refresh
-                  </Button>
-                </div>
-                <div className="grid min-h-56 min-w-56 place-items-center self-center rounded-md border bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                  {qrCodeAction ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={qrCodeAction.value}
-                      alt="QRIS payment QR code"
-                      className="h-52 w-52 object-contain"
-                    />
-                  ) : virtualAccountAction ? (
-                    <VirtualAccountLogo method={checkoutResult.method} />
-                  ) : textPaymentAction ? (
-                    <PaymentTextInstruction
-                      action={textPaymentAction.action}
-                      value={textPaymentAction.value}
-                      method={checkoutResult.method}
-                      onCopy={handleCopy}
-                    />
-                  ) : (
-                    <div className="grid h-52 w-52 place-items-center text-center text-sm text-muted-foreground">
-                      Instruksi pembayaran tidak tersedia.
-                    </div>
-                  )}
-                </div>
-              </div>
+              <PaymentInstructionCard
+                status={paymentStatus}
+                statusTitle={statusTitle}
+                statusDescription={statusDescription}
+                totalAmount={checkoutResult.totalAmount}
+                expiresAtLabel={formatDateTime(checkoutResult.expiredAt)}
+                paymentCountdown={paymentCountdown}
+                paymentActions={checkoutResult.paymentActions}
+                method={checkoutResult.method}
+                isPending={isPendingPayment}
+                isRefreshing={isCheckingStatus}
+                onRefresh={handleCheckPaymentStatus}
+                onCopy={handleCopy}
+              />
 
               <div className="rounded-lg border bg-background p-5">
                 <div className="mb-5 flex items-center gap-3 border-b pb-4">
@@ -664,46 +591,6 @@ export function TopUpTokenDialog({
         ) : null}
       </DialogContent>
     </Dialog>
-  );
-}
-
-const BANK_LOGO_BY_METHOD: Record<string, string> = {
-  bca: "/bca.png",
-  bni: "/bni.png",
-  mandiri: "/mandiri.png",
-  permata: "/permata.png",
-  cimb: "/cimbniaga.png",
-  cimbniaga: "/cimbniaga.png",
-};
-
-const getBankLogoByMethod = (method?: string) => {
-  const normalized = (method || "").toLowerCase().replace(/[\s_-]/g, "");
-  return BANK_LOGO_BY_METHOD[normalized];
-};
-
-const getBankLabelByMethod = (method?: string) =>
-  (method || "Bank").replace(/[_-]/g, " ").toUpperCase();
-
-function VirtualAccountLogo({ method }: { method: string }) {
-  const logoSrc = getBankLogoByMethod(method);
-  const bankLabel = getBankLabelByMethod(method);
-
-  return (
-    <div className="grid h-52 w-52 place-items-center rounded-md border border-muted bg-muted/10 p-4">
-      {logoSrc ? (
-        <Image
-          src={logoSrc}
-          alt={`Logo ${bankLabel}`}
-          width={180}
-          height={90}
-          className="h-auto w-full object-contain"
-        />
-      ) : (
-        <div className="text-center text-base font-semibold text-muted-foreground">
-          Virtual Account {bankLabel}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -770,43 +657,6 @@ function DetailOrderRow({
       ) : (
         <span className="break-words font-medium text-foreground">{value}</span>
       )}
-    </div>
-  );
-}
-
-function PaymentTextInstruction({
-  action,
-  value,
-  method,
-  onCopy,
-}: {
-  action: string;
-  value: string;
-  method: string;
-  onCopy: (value: string) => void;
-}) {
-  const label =
-    action === "virtual-account"
-      ? `Virtual Account ${method?.toUpperCase() || ""}`.trim()
-      : action;
-
-  return (
-    <div className="flex h-full w-full min-w-52 flex-col justify-center gap-3 text-center">
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <div className="rounded-lg border bg-muted/20 px-4 py-3">
-        <p className="break-all font-mono text-lg font-semibold text-foreground">
-          {value}
-        </p>
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => onCopy(value)}
-        className="w-full"
-      >
-        <Copy className="h-4 w-4" />
-        Copy
-      </Button>
     </div>
   );
 }

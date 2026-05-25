@@ -270,7 +270,9 @@ export function MobileMenu() {
                      </div>
                      <button
                        onClick={() => {
-                         router.push(`/business/${businessId}/pricing`);
+                         router.push(
+                           `/business/${businessId}/settings?tab=billing&topUp=token`
+                         );
                          setIsOpen(false);
                        }}
                        className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"

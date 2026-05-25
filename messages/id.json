@@ -286,6 +286,8 @@
     "addScheduleShort": "Tambah",
     "addScheduleFull": "Tambah Jadwal",
     "addRepetitionDay": "Tambah Repetisi",
+    "emptyRepetitionDayTitle": "Belum ada hari repetisi",
+    "emptyRepetitionDayDescription": "Pilih hari repetisi dengan tombol tambah.",
     "noRepetitionSchedule": "Belum ada jadwal repetisi",
     "scheduleTime": "Waktu Jadwal",
     "confirmDeleteSchedule": "Apakah Anda yakin ingin menghapus jadwal ini?",
@@ -570,7 +572,10 @@
     "aiRegenerateDescription": "Lanjutkan revisi visual yang sudah dihasilkan dengan alur seperti chat AI.",
     "generatedResult": "Hasil Generate",
     "regeneratePrompt": "Minta AI merevisi konten ini",
-    "regeneratePromptPlaceholder": "Contoh: tambahkan vespa di belakang subjek dan buat nuansanya lebih nostalgia."
+    "regeneratePromptPlaceholder": "Contoh: tambahkan vespa di belakang subjek dan buat nuansanya lebih nostalgia.",
+    "copyPrompt": "Salin prompt",
+    "copyPromptSuccess": "Prompt berhasil disalin",
+    "copyPromptFailed": "Gagal menyalin prompt"
   },
   "previewPanel": {
     "enhanceCaption": "Tingkatkan Caption",
