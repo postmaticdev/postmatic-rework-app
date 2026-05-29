@@ -536,10 +536,10 @@ export function ContentLibrary({
             icon={BookOpen}
             title={t("noContent")}
             titleDescription={t("noContentDescription")}
-            buttonText={t("addContent")}
-            onButtonClick={() =>
-              router.push(`/business/${businessId}/content-scheduler`)
-            }
+          // buttonText={t("addContent")}
+          // onButtonClick={() =>
+          //   router.push(`/business/${businessId}/content-scheduler`)
+          // }
           />
         ) : hasNoResults ? (
           <SearchNotFound description="" />

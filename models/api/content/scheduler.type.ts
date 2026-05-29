@@ -59,6 +59,7 @@ export interface QueuePld {
   caption: string;
   status?: "draft" | "ready";
   withChatAI?: boolean;
+  shareAsReference?: boolean;
   businessProductId?: string;
   chatSessionId?: string | number | null;
 }

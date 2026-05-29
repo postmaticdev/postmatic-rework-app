@@ -158,7 +158,7 @@ export function RSSTrendSection({
         });
         showToast("success", res.data.responseMessage);
       }
-    } catch { 
+    } catch {
     } finally {
       setUpdatingStatusId(null);
     }
@@ -268,8 +268,8 @@ export function RSSTrendSection({
                 icon={TrendingUp}
                 title={r("notAvailable")}
                 titleDescription={r("notAvailableDescription")}
-                buttonText={r("notAvailableButton")}
-                onButtonClick={handleAddRSS}
+              //buttonText={r("notAvailableButton")}
+              //onButtonClick={handleAddRSS}
               />
             ) : rss.length === 0 ? (
               <SearchNotFound description={r("orAddRSS")} />

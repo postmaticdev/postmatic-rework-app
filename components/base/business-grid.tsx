@@ -36,8 +36,8 @@ export function BusinessGrid() {
           icon={ChartNoAxesCombined}
           title="Tidak ada bisnis yang ditemukan"
           titleDescription="Tambahkan bisnis baru"
-          buttonText="Tambah Bisnis"
-          onButtonClick={() => router.push("/business/new-business")}
+        // buttonText="Tambah Bisnis"
+        // onButtonClick={() => router.push("/business/new-business")}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4 md:mt-6">

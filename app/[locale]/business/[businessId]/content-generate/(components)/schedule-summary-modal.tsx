@@ -99,14 +99,14 @@ export function ScheduleSummaryModal({
             <div className="space-y-2">
               <div className="text-sm font-medium">{t("scheduleAt")}</div>
               <div className="grid gap-3 grid-cols-2">
-                <div className="flex items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
+                <div className="flex h-12 items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
                   <CalendarDays className="h-4 w-4 text-primary" />
                   <input
                     type="date"
                     value={date}
                     min={minDate}
                     onChange={(event) => onDateChange(event.target.value)}
-                    className="h-11 w-full bg-transparent text-sm outline-none"
+                    className="h-full w-full bg-transparent text-sm outline-none"
                   />
                 </div>
 
@@ -116,7 +116,7 @@ export function ScheduleSummaryModal({
                   min={minTime}
                   step={60}
                   onChange={(event) => onTimeChange(event.target.value)}
-                  className="h-11 rounded-2xl bg-background-secondary"
+                  className="h-12 rounded-2xl bg-background-secondary"
                 />
               </div>
             </div>

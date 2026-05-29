@@ -184,7 +184,7 @@ export function ProductSection() {
         showToast(
           "error",
           getFirstValidationMessage(apiValidationErrors) ||
-            t("errors.formValidation")
+          t("errors.formValidation")
         );
         return;
       }
@@ -206,26 +206,26 @@ export function ProductSection() {
           <h2 className="text-lg font-semibold text-foreground">{p("title")}</h2>
 
           <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    type="text"
-                    placeholder={p("searchPlaceholder")}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-background"
-                  />
-                </div>
-                {productKnowledge.write && (
-                  <Button
-                    className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap"
-                    onClick={handleAddProduct}
-                  >
-                    <Plus className="w-4 h-4" />
-                    {p("addProduct")}
-                  </Button>
-                )}
-              </div>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                type="text"
+                placeholder={p("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-background"
+              />
+            </div>
+            {productKnowledge.write && (
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap"
+                onClick={handleAddProduct}
+              >
+                <Plus className="w-4 h-4" />
+                {p("addProduct")}
+              </Button>
+            )}
+          </div>
 
 
           {/* Product List */}
@@ -234,16 +234,15 @@ export function ProductSection() {
               icon={ShoppingBag}
               title={p("notAvailable")}
               titleDescription={p("notAvailableDescription")}
-              buttonText={p("notAvailableButton")}
-              onButtonClick={handleAddProduct}
+            // buttonText={p("notAvailableButton")}
+            //onButtonClick={handleAddProduct}
             />
           ) : products.length === 0 ? (
             <SearchNotFound description={p("orAddProduct")} />
           ) : (
             <div
-              className={`space-y-3 ${
-                products.length > 3 ? "max-h-[500px] overflow-y-auto " : ""
-              }`}
+              className={`space-y-3 ${products.length > 3 ? "max-h-[500px] overflow-y-auto " : ""
+                }`}
             >
               {products.map((product) => (
                 <Card key={product.id} className="bg-background-secondary">

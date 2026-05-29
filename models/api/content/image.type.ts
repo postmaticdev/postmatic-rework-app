@@ -255,6 +255,7 @@ export interface ImagePostChatBubbleRes {
   prompt: string;
   imageRatio: string | null;
   replyToBubbleId: number | null;
+  replyToBubble?: ImagePostChatBubbleRes | null;
   appGenerativeImageModelId: number | null;
   additionalImages?: string[] | null;
   errorMessage: string | null;

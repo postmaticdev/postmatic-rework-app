@@ -274,6 +274,7 @@ const toScheduledPostPayload = (formData: QueuePld) => ({
   caption: formData.caption,
   status: formData.status || "ready",
   withChatAI: formData.withChatAI ?? false,
+  shareAsReference: formData.shareAsReference ?? formData.withChatAI ?? false,
   businessProductId: formData.businessProductId
     ? Number(formData.businessProductId)
     : undefined,
@@ -1090,7 +1091,13 @@ const schedulerManualService = {
         (res.data.data || [])
           .filter((item) => {
             const status = item.status?.toLowerCase();
-            return status === "ready" || (status === "draft" && Boolean(item.imageUrl));
+            return (
+              status === "ready" ||
+              (status === "draft" &&
+                (Boolean(item.imageUrl) ||
+                  Boolean(item.withChatAI) ||
+                  Boolean(item.chatSessionId)))
+            );
           })
           .forEach((item) => {
           const date = item.publishAt.slice(0, 10);

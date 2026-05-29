@@ -242,33 +242,54 @@ export function ContentSchedulerBoard({
 
   const manualEvents = useMemo<SchedulerEvent[]>(
     () =>
-      (upcomingData?.data.data || []).map((item) => ({
-        id: `upcoming-${item.id}`,
-        title:
-          item.status?.toLowerCase() === "draft"
-            ? "Draft"
-            : item.title || t("scheduledPostLabel"),
-        date: new Date(item.date),
-        time: dateFormat.getHhMm(new Date(item.date)),
-        image: item.images[0] || DEFAULT_PLACEHOLDER_IMAGE,
-        type:
-          item.status?.toLowerCase() === "draft"
-            ? "draft"
-            : item.type === "manual"
-              ? "manual"
-              : "repetition",
-        platforms: item.platforms,
-        schedulerManualPostingId: item.schedulerManualPostingId,
-        withChatAI: item.withChatAI ?? false,
-        chatSessionId: item.chatSessionId ?? null,
-        businessProductId: item.businessProductId ?? null,
-        generatedImageContent: item.generatedImageContent,
-        sourceType: item.type,
-        status: item.status?.toLowerCase() ?? null,
-        draftMarker: null,
-        historyJob: null,
-      })),
-    [t, upcomingData?.data.data]
+      (upcomingData?.data.data || []).map((item) => {
+        const matchingDraftMarker = draftMarkers.find(
+          (marker) =>
+            String(item.schedulerManualPostingId || item.id) === marker.draftId
+        );
+        const markerImage = matchingDraftMarker?.image || "";
+        const realImages = item.images.length
+          ? item.images
+          : markerImage
+            ? [markerImage]
+            : [];
+        const displayImage = realImages[0] || DEFAULT_PLACEHOLDER_IMAGE;
+
+        return {
+          id: `upcoming-${item.id}`,
+          title:
+            item.status?.toLowerCase() === "draft"
+              ? "Draft"
+              : item.title || t("scheduledPostLabel"),
+          date: new Date(item.date),
+          time: dateFormat.getHhMm(new Date(item.date)),
+          image: displayImage,
+          type:
+            item.status?.toLowerCase() === "draft"
+              ? "draft"
+              : item.type === "manual"
+                ? "manual"
+                : "repetition",
+          platforms: item.platforms,
+          schedulerManualPostingId: item.schedulerManualPostingId,
+          withChatAI: item.withChatAI ?? false,
+          chatSessionId: item.chatSessionId ?? null,
+          businessProductId: item.businessProductId ?? null,
+          generatedImageContent: {
+            ...item.generatedImageContent,
+            images: realImages,
+            caption:
+              item.generatedImageContent.caption ||
+              matchingDraftMarker?.caption ||
+              "",
+          },
+          sourceType: item.type,
+          status: item.status?.toLowerCase() ?? null,
+          draftMarker: null,
+          historyJob: null,
+        };
+      }),
+    [draftMarkers, t, upcomingData?.data.data]
   );
 
   const repetitionEvents = useMemo<SchedulerEvent[]>(() => {
@@ -576,7 +597,7 @@ export function ContentSchedulerBoard({
       scheduleDate,
       scheduleTime: event.time,
       editSchedulerManualPostingId: String(event.schedulerManualPostingId),
-      selectedHistoryImage: event.generatedImageContent.images[0] || "",
+      selectedHistoryImage: event.generatedImageContent.images[0] || event.image || "",
       platforms: event.platforms.join(","),
     });
     if (event.chatSessionId) {

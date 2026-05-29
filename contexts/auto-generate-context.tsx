@@ -372,7 +372,7 @@ export function AutoGenerateProvider({
     structuredClone(baseRef.current)
   );
 
-  const [, setVersion] = useState(0);
+  const [version, setVersion] = useState(0);
   const bump = () => setVersion((v) => v + 1);
 
   const [loading, setLoading] = useState(false);
@@ -410,16 +410,13 @@ export function AutoGenerateProvider({
 
   // ===== Helpers =====
   // Calculate isChanged dynamically
-  const isChanged = stableSig(draftRef.current) !== stableSig(baseRef.current);
-  
-  // Debug logging for isChanged calculation
-  console.log('isChanged calculation:', {
-    draftEnabled: draftRef.current.enabled,
-    baseEnabled: baseRef.current.enabled,
-    draftSig: stableSig(draftRef.current),
-    baseSig: stableSig(baseRef.current),
-    isChanged
-  });
+  const isChanged = useMemo(
+    () => {
+      void version;
+      return stableSig(draftRef.current) !== stableSig(baseRef.current);
+    },
+    [version]
+  );
 
   // ===== Mutators =====
   const setGlobalEnabled = useCallback((next: boolean) => {
@@ -768,42 +765,47 @@ export function AutoGenerateProvider({
 
   // ===== Value =====
   const value = useMemo<Ctx>(
-    () => ({
-      // Auto Generate Settings
-      enabled: draftRef.current.enabled,
-      schedules: draftRef.current.schedules,
-      isValueChanged: isChanged,
-      loading,
-      onUpsert,
-      confirmLeave,
-      guardedNavigate,
-      setGlobalEnabled,
-      toggleDay,
-      addSchedule,
-      updateSchedule,
-      removeSchedule,
-      deleteScheduleDirectly,
-      getSchedulesByDay,
+    () => {
+      void version;
 
-      // Form Management
-      form,
+      return {
+        // Auto Generate Settings
+        enabled: draftRef.current.enabled,
+        schedules: draftRef.current.schedules,
+        isValueChanged: isChanged,
+        loading,
+        onUpsert,
+        confirmLeave,
+        guardedNavigate,
+        setGlobalEnabled,
+        toggleDay,
+        addSchedule,
+        updateSchedule,
+        removeSchedule,
+        deleteScheduleDirectly,
+        getSchedulesByDay,
 
-      // Product Knowledge
-      productKnowledges,
+        // Form Management
+        form,
 
-      // AI Models
-      aiModels,
+        // Product Knowledge
+        productKnowledges,
 
-      // Loading state
-      isLoading,
-      setIsLoading,
+        // AI Models
+        aiModels,
 
-      // Handlers
-      onSelectProduct,
-      onSelectAiModel,
-      onResetAdvance,
-    }),
+        // Loading state
+        isLoading,
+        setIsLoading,
+
+        // Handlers
+        onSelectProduct,
+        onSelectAiModel,
+        onResetAdvance,
+      };
+    },
     [
+      version,
       isChanged,
       loading,
       onUpsert,

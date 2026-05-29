@@ -1,0 +1,13 @@
+
+> pstmtcc@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.9 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.1.9:3001
+   - Environments: .env.local
+
+ ✓ Starting...
+Creating turbopack project { dir: 'C:\\Users\\ASUS\\Documents\\postmatic-rework', testMode: true }
+ ✓ Compiled middleware in 234ms
+ ✓ Ready in 2s

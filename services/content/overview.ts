@@ -57,7 +57,13 @@ const mapScheduledPost = (item: NewScheduledPost): UpcomingPostRes => ({
 
 const isVisibleScheduledPost = (item: NewScheduledPost) => {
   const status = item.status?.toLowerCase();
-  return status === "ready" || (status === "draft" && Boolean(item.imageUrl));
+  return (
+    status === "ready" ||
+    (status === "draft" &&
+      (Boolean(item.imageUrl) ||
+        Boolean(item.withChatAI) ||
+        Boolean(item.chatSessionId)))
+  );
 };
 
 const overviewService = {
@@ -180,5 +186,7 @@ export const useContentOverviewGetUpcoming = (
   return useQuery({
     queryKey: ["contentOverviewUpcoming", businessId, filterQuery],
     queryFn: () => overviewService.getUpcoming(businessId, filterQuery),
+    enabled: !!businessId,
+    refetchInterval: 10000,
   });
 };

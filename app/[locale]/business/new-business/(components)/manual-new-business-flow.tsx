@@ -75,7 +75,7 @@ export function ManualNewBusinessFlow() {
 
       const id = business.data.data.id;
 
-      router.push(`/business/${id}/pricing?isNewBusiness=true`);
+      router.push(`/business/${id}/content-scheduler`);
     } catch (error) {
       console.log(error);
       showToast("error", error);

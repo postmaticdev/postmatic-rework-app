@@ -208,6 +208,7 @@ export function PreviewPanel() {
         dateTime: scheduledAt.toISOString(),
         status: "ready" as const,
         withChatAI: true,
+        shareAsReference: true,
         businessProductId: selectedHistory.input.productKnowledgeId,
         chatSessionId: schedulerDraftPost?.chatSessionId || undefined,
       };
@@ -374,14 +375,14 @@ export function PreviewPanel() {
           <>
             <div className="p-4 border-b">
               <div className="grid gap-3 grid-cols-2">
-                <div className="flex items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
+                <div className="flex h-12 items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
                   <CalendarDays className="h-4 w-4 text-primary" />
                   <input
                     type="date"
                     value={date}
                     min={minDate}
                     onChange={(event) => setDate(event.target.value)}
-                    className="h-11 w-full bg-transparent text-sm outline-none"
+                    className="h-full w-full bg-transparent text-sm outline-none"
                   />
                 </div>
                 <Input
@@ -390,7 +391,7 @@ export function PreviewPanel() {
                   min={minTime}
                   step={60}
                   onChange={(event) => setTime(event.target.value)}
-                  className="h-11 rounded-2xl bg-background-secondary"
+                  className="h-12 rounded-2xl bg-background-secondary"
                 />
               </div>
             </div>

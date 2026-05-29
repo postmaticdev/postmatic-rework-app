@@ -3,12 +3,14 @@
 import { ReferencePanel } from "@/app/[locale]/business/[businessId]/content-generate/(components)/reference-panel";
 import { GenerationPanel } from "@/app/[locale]/business/[businessId]/content-generate/(components)/generation-panel";
 import { PreviewPanel } from "@/app/[locale]/business/[businessId]/content-generate/(components)/preview-panel";
+import { LogoLoader } from "@/components/base/logo-loader";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
 
 export default function ContentGenerate() {
-  const { mode, isLoading, onSelectHistory } = useContentGenerate();
+  const { mode, isLoading, isRestoringSchedulerChat, onSelectHistory } =
+    useContentGenerate();
   const onSelectHistoryRef = useRef(onSelectHistory);
 
   useEffect(() => {
@@ -22,6 +24,19 @@ export default function ContentGenerate() {
       onSelectHistoryRef.current(null);
     };
   }, []);
+
+  if (isRestoringSchedulerChat) {
+    return (
+      <main className="relative flex min-h-0 flex-1 items-center justify-center bg-card md:ml-0 lg:h-[calc(100vh-5.5rem)]">
+        <LogoLoader
+          size={112}
+          hideContentBackground={false}
+          pulse
+          label="Loading scheduler chat"
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex min-h-0 flex-1 flex-col md:ml-0 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">

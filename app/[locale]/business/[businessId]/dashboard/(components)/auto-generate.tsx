@@ -50,6 +50,7 @@ export function AutoGenerate({
   scheduleListClassName = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4",
 }: AutoGenerateProps) {
   const {
+    schedules,
     getSchedulesByDay,
     deleteScheduleDirectly,
   } = useAutoGenerate();
@@ -100,13 +101,13 @@ export function AutoGenerate({
   );
 
   const visibleDayValues = useMemo(() => {
-    const daysWithSchedules = DAYS.filter(
-      (day) => getSchedulesByDay(day.value).length > 0
-    ).map((day) => day.value);
+    const daysWithSchedules = schedules.schedules
+      .filter((daySchedule) => daySchedule.schedules.length > 0)
+      .map((daySchedule) => daySchedule.day);
 
     return Array.from(new Set([...daysWithSchedules, ...selectedRepeatDays]))
       .sort((a, b) => a - b);
-  }, [DAYS, getSchedulesByDay, selectedRepeatDays]);
+  }, [schedules, selectedRepeatDays]);
 
   const visibleDays = DAYS.filter((day) => visibleDayValues.includes(day.value));
   const selectableDays = DAYS.filter(
@@ -363,13 +364,13 @@ export function AutoGenerate({
 
               <div className={scheduleListClassName}>
                 {visibleDays.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-muted-foreground/35 bg-background-secondary px-4">
-                    <NoContent
-                      icon={Clock}
-                      title={t("emptyRepetitionDayTitle")}
-                      titleDescription={t("emptyRepetitionDayDescription")}
-                    />
-                  </div>
+
+                  <NoContent
+                    icon={Clock}
+                    title={t("emptyRepetitionDayTitle")}
+                    titleDescription={t("emptyRepetitionDayDescription")}
+                  />
+
                 ) : null}
                 {visibleDays.map((day) => {
                   const daySchedules = getSchedulesByDay(day.value);

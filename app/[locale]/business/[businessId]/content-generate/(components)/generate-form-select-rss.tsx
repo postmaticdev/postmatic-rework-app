@@ -51,8 +51,8 @@ export const GenerateFormSelectRss = ({
           icon={ChartNoAxesCombined}
           title={t("noRssArticleFound")}
           titleDescription={t("addRssFirst")}
-          buttonText={t("addRss")}
-          onButtonClick={handleNavigateToRssModal}
+        // buttonText={t("addRss")}
+        //onButtonClick={handleNavigateToRssModal}
         />
       ) : (
         rssKnowledges.length >= 0 &&

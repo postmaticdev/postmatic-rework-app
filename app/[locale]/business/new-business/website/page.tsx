@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormNewBusiness } from "@/contexts/form-new-business-context";
 import { showToast } from "@/helper/show-toast";
@@ -161,6 +162,7 @@ export default function NewBusinessWebsitePage() {
   const [phase, setPhase] = useState<FlowPhase>("input");
   const [websiteInput, setWebsiteInput] = useState("");
   const [activeLoadingStep, setActiveLoadingStep] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(12);
   const [draft, setDraft] = useState<WebsiteDraft>({
     sourceId: null,
     primaryLogoUrl: "",
@@ -192,6 +194,20 @@ export default function NewBusinessWebsitePage() {
   }, [loadingSteps.length, phase]);
 
   useEffect(() => {
+    if (phase !== "loading") return;
+
+    setLoadingProgress(12);
+
+    const intervalId = window.setInterval(() => {
+      setLoadingProgress((current) => Math.min(current + (96 - current) * 0.12, 96));
+    }, 500);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [phase]);
+
+  useEffect(() => {
     return () => {
       pollingSessionRef.current += 1;
     };
@@ -204,12 +220,6 @@ export default function NewBusinessWebsitePage() {
     value: WebsiteDraft[K]
   ) => {
     setDraft((current) => ({ ...current, [key]: value }));
-  };
-
-  const resetToInput = () => {
-    pollingSessionRef.current += 1;
-    setPhase("input");
-    setActiveLoadingStep(0);
   };
 
   const prefillManualForm = () => {
@@ -260,6 +270,11 @@ export default function NewBusinessWebsitePage() {
     }));
   };
 
+  const handleContinueToManual = () => {
+    prefillManualForm();
+    router.push("/business/new-business/manual");
+  };
+
   const waitForFinalScrapperResult = async (
     id: number,
     session: number
@@ -299,6 +314,7 @@ export default function NewBusinessWebsitePage() {
     setWebsiteInput(normalized);
     setPhase("loading");
     setActiveLoadingStep(0);
+    setLoadingProgress(12);
 
     const session = pollingSessionRef.current + 1;
     pollingSessionRef.current = session;
@@ -458,13 +474,14 @@ export default function NewBusinessWebsitePage() {
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-3">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                          <div
-                            key={index}
-                            className="h-16 rounded-2xl border border-blue-200/50 bg-blue-500/[0.08] dark:border-blue-300/10"
-                          />
-                        ))}
+                      <div className="space-y-3">
+                        <Progress
+                          value={loadingProgress}
+                          className="h-3 bg-blue-500/15 [&_[data-slot=progress-indicator]]:bg-blue-500"
+                        />
+                        <div className="flex justify-end text-xs font-medium text-muted-foreground">
+                          <span>{Math.round(loadingProgress)}%</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -480,242 +497,243 @@ export default function NewBusinessWebsitePage() {
         )}
 
         {phase === "result" && (
-          <div className="mx-auto flex w-full max-w-7xl flex-1 items-start justify-center py-6">
-            <Card className="w-full rounded-[2rem] border-white/50 bg-white/82 p-4 shadow-[0_28px_120px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(15,23,42,0.82)] sm:p-6 lg:p-8">
-              <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-3xl">
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
-                    <CheckCircle2 className="size-3.5" />
-                    {t("resultEyebrow")}
+          <>
+            <div className="mx-auto flex w-full max-w-7xl flex-1 items-start justify-center py-6 pb-28 sm:pb-6">
+              <Card className="w-full rounded-[2rem] border-white/50 bg-white/82 p-4 shadow-[0_28px_120px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(15,23,42,0.82)] sm:p-6 lg:p-8">
+                <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] xl:items-end">
+                  <div className="max-w-3xl">
+                    <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
+                      <CheckCircle2 className="size-3.5" />
+                      {t("resultEyebrow")}
+                    </div>
+                    <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                      {t("resultTitle")}
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
+                      {t("resultSubtitle")}
+                    </p>
                   </div>
-                  <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                    {t("resultTitle")}
-                  </h2>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-                    {t("resultSubtitle")}
-                  </p>
+
+                  <div className="hidden sm:flex xl:w-full">
+                    <Button
+                      className="w-full rounded-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
+                      onClick={handleContinueToManual}
+                    >
+                      {t("manualCta")}
+                      <ArrowRight className="size-4" />
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    variant="outline"
-                    className="rounded-full border-white/40 bg-white/65 dark:bg-white/5"
-                    onClick={resetToInput}
-                  >
-                    {t("regenerate")}
-                  </Button>
-                  <Button
-                    className="rounded-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
-                    onClick={() => {
-                      prefillManualForm();
-                      router.push("/business/new-business/manual");
-                    }}
-                  >
-                    {t("manualCta")}
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-                <div className="grid gap-6">
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {b("logoBrand")}
-                      </label>
-                      <Input
-                        value={draft.primaryLogoUrl}
-                        onChange={(event) =>
-                          updateDraft("primaryLogoUrl", event.target.value)
-                        }
-                        className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {b("brandName")}
-                      </label>
-                      <Input
-                        value={draft.name}
-                        onChange={(event) => updateDraft("name", event.target.value)}
-                        className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {b("category")}
-                      </label>
-                      <Input
-                        value={draft.category}
-                        onChange={(event) => updateDraft("category", event.target.value)}
-                        className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                      {b("description")}
-                    </label>
-                    <Textarea
-                      value={draft.description}
-                      onChange={(event) =>
-                        updateDraft("description", event.target.value)
-                      }
-                      className="min-h-32 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                    />
-                  </div>
-
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {b("urlWebsite")}
-                      </label>
-                      <Input
-                        value={draft.website}
-                        onChange={(event) => updateDraft("website", event.target.value)}
-                        className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {b("phone")}
-                      </label>
-                      <Input
-                        value={draft.businessPhone}
-                        onChange={(event) =>
-                          updateDraft("businessPhone", event.target.value)
-                        }
-                        className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Users className="size-4" />
-                        {r("targetAudience")}
-                      </label>
-                      <Textarea
-                        value={draft.targetAudience}
-                        onChange={(event) =>
-                          updateDraft("targetAudience", event.target.value)
-                        }
-                        className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                        {r("contentTone")}
-                      </label>
-                      <Textarea
-                        value={draft.contentTone}
-                        onChange={(event) =>
-                          updateDraft("contentTone", event.target.value)
-                        }
-                        className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Tags className="size-4" />
-                        {r("hashtags")}
-                      </label>
-                      <Textarea
-                        value={draft.hashtags}
-                        onChange={(event) =>
-                          updateDraft("hashtags", event.target.value)
-                        }
-                        className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
-                      />
-                    </div>
-
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                      <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Palette className="size-4" />
-                        {b("colorTone")}
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="size-16 rounded-2xl border border-white/70 shadow-inner"
-                          style={{ backgroundColor: normalizeHexColor(draft.colorTone) }}
-                        />
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
+                  <div className="grid gap-6">
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                          {b("logoBrand")}
+                        </label>
                         <Input
-                          value={draft.colorTone}
+                          value={draft.primaryLogoUrl}
                           onChange={(event) =>
-                            updateDraft("colorTone", event.target.value)
+                            updateDraft("primaryLogoUrl", event.target.value)
+                          }
+                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        />
+                      </div>
+
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                          {b("brandName")}
+                        </label>
+                        <Input
+                          value={draft.name}
+                          onChange={(event) => updateDraft("name", event.target.value)}
+                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        />
+                      </div>
+
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                          {b("category")}
+                        </label>
+                        <Input
+                          value={draft.category}
+                          onChange={(event) => updateDraft("category", event.target.value)}
+                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                        {b("description")}
+                      </label>
+                      <Textarea
+                        value={draft.description}
+                        onChange={(event) =>
+                          updateDraft("description", event.target.value)
+                        }
+                        className="min-h-32 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                      />
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                          {b("urlWebsite")}
+                        </label>
+                        <Input
+                          value={draft.website}
+                          onChange={(event) => updateDraft("website", event.target.value)}
+                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        />
+                      </div>
+
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                          {b("phone")}
+                        </label>
+                        <Input
+                          value={draft.businessPhone}
+                          onChange={(event) =>
+                            updateDraft("businessPhone", event.target.value)
                           }
                           className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="grid gap-6">
-                  <div className="rounded-[1.8rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                    <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
-                      <Sparkles className="size-3.5" />
-                      {t("insightsTitle")}
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                          <Users className="size-4" />
+                          {r("targetAudience")}
+                        </label>
+                        <Textarea
+                          value={draft.targetAudience}
+                          onChange={(event) =>
+                            updateDraft("targetAudience", event.target.value)
+                          }
+                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        />
+                      </div>
+
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                          {r("contentTone")}
+                        </label>
+                        <Textarea
+                          value={draft.contentTone}
+                          onChange={(event) =>
+                            updateDraft("contentTone", event.target.value)
+                          }
+                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-3">
-                      {insightItems.map((item) => (
-                        <div
-                          key={item}
-                          className="rounded-2xl border border-blue-200/60 bg-blue-500/[0.08] p-4 text-sm leading-6 text-foreground dark:border-blue-300/10"
-                        >
-                          {item}
+
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                          <Tags className="size-4" />
+                          {r("hashtags")}
+                        </label>
+                        <Textarea
+                          value={draft.hashtags}
+                          onChange={(event) =>
+                            updateDraft("hashtags", event.target.value)
+                          }
+                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        />
+                      </div>
+
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                          <Palette className="size-4" />
+                          {b("colorTone")}
+                        </label>
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="size-16 rounded-2xl border border-white/70 shadow-inner"
+                            style={{ backgroundColor: normalizeHexColor(draft.colorTone) }}
+                          />
+                          <Input
+                            value={draft.colorTone}
+                            onChange={(event) =>
+                              updateDraft("colorTone", event.target.value)
+                            }
+                            className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          />
                         </div>
-                      ))}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="ai-grid-panel rounded-[1.8rem] border border-white/55 p-5 dark:border-white/10">
-                    <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
-                      <Globe className="size-3.5" />
-                      {t("sourceTitle")}
-                    </div>
-                    <div className="rounded-[1.4rem] border border-white/70 bg-white/75 p-4 dark:border-white/10 dark:bg-slate-950/40">
-                      <p className="mb-2 text-sm text-muted-foreground">
-                        {t("sourceDescription")}
-                      </p>
-                      <p className="break-all text-base font-semibold text-foreground">
-                        {draft.website || t("previewFallbackUrl")}
-                      </p>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {[draft.category, draft.colorTone, draft.name]
-                        .filter((item) => item.trim().length > 0)
-                        .map((item) => (
+                  <div className="grid gap-6">
+                    <div className="rounded-[1.8rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
+                        <Sparkles className="size-3.5" />
+                        {t("insightsTitle")}
+                      </div>
+                      <div className="space-y-3">
+                        {insightItems.map((item) => (
                           <div
                             key={item}
-                            className={cn(
-                              "rounded-full border border-blue-300/35 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-900 dark:text-blue-100"
-                            )}
+                            className="rounded-2xl border border-blue-200/60 bg-blue-500/[0.08] p-4 text-sm leading-6 text-foreground dark:border-blue-300/10"
                           >
                             {item}
                           </div>
                         ))}
+                      </div>
                     </div>
-                    {draft.sourceId && (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        ID: {draft.sourceId}
-                      </p>
-                    )}
+
+                    <div className="ai-grid-panel rounded-[1.8rem] border border-white/55 p-5 dark:border-white/10">
+                      <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
+                        <Globe className="size-3.5" />
+                        {t("sourceTitle")}
+                      </div>
+                      <div className="rounded-[1.4rem] border border-white/70 bg-white/75 p-4 dark:border-white/10 dark:bg-slate-950/40">
+                        <p className="mb-2 text-sm text-muted-foreground">
+                          {t("sourceDescription")}
+                        </p>
+                        <p className="break-all text-base font-semibold text-foreground">
+                          {draft.website || t("previewFallbackUrl")}
+                        </p>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {[draft.category, draft.colorTone, draft.name]
+                          .filter((item) => item.trim().length > 0)
+                          .map((item) => (
+                            <div
+                              key={item}
+                              className={cn(
+                                "rounded-full border border-blue-300/35 bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-900 dark:text-blue-100"
+                              )}
+                            >
+                              {item}
+                            </div>
+                          ))}
+                      </div>
+                      {draft.sourceId && (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          ID: {draft.sourceId}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          </div>
+              </Card>
+            </div>
+            <div className="fixed right-0 bottom-0 left-0 z-50 border-t border-white/20 bg-background/95 p-4 shadow-[0_-16px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-slate-950/95 sm:hidden">
+              <Button
+                className="h-12 w-full rounded-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
+                onClick={handleContinueToManual}
+              >
+                {t("manualCta")}
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </>
         )}
       </div>
     </div>
