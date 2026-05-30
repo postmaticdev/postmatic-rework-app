@@ -21,20 +21,25 @@ import {
   DialogDescription,
   DialogFooterWithButton,
 } from "@/components/ui/dialog";
-import { ChevronDown, Shield, Trash2 } from "lucide-react";
+import { ChevronDown, Mail, Shield, Trash2 } from "lucide-react";
 import {
   useMemberDelete,
   useMemberGetAllMembers,
   useMemberInvite,
+  useMemberResend,
   useMemberUpdateRole,
 } from "@/services/member.api";
 import { useParams } from "next/navigation";
-import { MemberRole } from "@/models/api/business/index.type";
 import { showToast } from "@/helper/show-toast";
-import { MembersInvitePld } from "@/models/api/member/index.type";
+import { MemberRole, MembersInvitePld } from "@/models/api/member/index.type";
 
-import { JOINED_STATUS, } from "./members-table";
+import { JOINED_STATUS } from "./members-table";
 import { useTranslations } from "next-intl";
+import {
+  getMemberRoleLabel,
+  getMemberStatusLabel,
+  ROLE_OPTIONS,
+} from "./member-display";
 
 interface MemberManagementModalProps {
   isOpen: boolean;
@@ -60,36 +65,56 @@ export function MemberManagementModal({
   const members = dataMembers?.data?.data || [];
   const mInvite = useMemberInvite();
   const mUpdateRole = useMemberUpdateRole();
+  const mResend = useMemberResend();
   const mDelete = useMemberDelete();
+  const t = useTranslations("settings");
+  const m = useTranslations("modal");
 
   const handleAddMember = async () => {
     try {
+      if (!formData.email.trim()) return;
       const res = await mInvite.mutateAsync({
         businessId: resolvedBusinessId,
-        formData,
+        formData: {
+          ...formData,
+          email: formData.email.trim(),
+        },
       });
       showToast("success", res.data.responseMessage);
       setFormData({
         email: "",
         role: "Member",
       });
-    } catch {}
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
   const handleDeleteMember = async (id: string) => {
     try {
+      const findMember = members.find((member) => member.id === id);
+      if (findMember?.role === "Owner") return;
       const res = await mDelete.mutateAsync({
         businessId: resolvedBusinessId,
         idData: id,
       });
       showToast("success", res.data.responseMessage);
-    } catch {}
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
-  const onChangeRole = async (id: string, role: MemberRole) => {
+  const onChangeRole = async (id: string, role: Exclude<MemberRole, "Owner">) => {
     try {
       const findMember = members.find((member) => member.id === id);
-      if (findMember?.role === role) return;
+      if (
+        !findMember ||
+        findMember.role === "Owner" ||
+        findMember.status !== "Accepted" ||
+        findMember.role === role
+      ) {
+        return;
+      }
       const res = await mUpdateRole.mutateAsync({
         businessId: resolvedBusinessId,
         formData: {
@@ -98,22 +123,24 @@ export function MemberManagementModal({
         },
       });
       showToast("success", res.data.responseMessage);
-    } catch {}
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
-  const t = useTranslations("settings");
-  const m = useTranslations("modal");
-
-  const ROLES: Role[] = [
-    {
-      label: t("admin"),
-      value: "Admin",
-    },
-    {
-      label: t("member"),
-      value: "Member",
-    },
-  ];
+  const onResendInvite = async (id: string) => {
+    try {
+      const res = await mResend.mutateAsync({
+        businessId: resolvedBusinessId,
+        formData: {
+          memberId: id,
+        },
+      });
+      showToast("success", res.data.responseMessage);
+    } catch (error) {
+      showToast("error", error);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -153,19 +180,19 @@ export function MemberManagementModal({
                         variant="outline"
                         className="w-full justify-between"
                       >
-                        {formData.role}
+                        {getMemberRoleLabel(formData.role, t)}
                         <ChevronDown className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      {ROLES.map((role) => (
+                      {ROLE_OPTIONS.map((role) => (
                         <DropdownMenuItem
                           key={role.value}
                           onClick={() =>
                             setFormData({ ...formData, role: role.value })
                           }
                         >
-                          {role.label}
+                          {t(role.translationKey)}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -174,6 +201,7 @@ export function MemberManagementModal({
                 <Button
                   onClick={handleAddMember}
                   className="bg-primary hover:bg-blue-700 text-white"
+                  disabled={mInvite.isPending || !formData.email.trim()}
                 >
                   + {t("add")}
                 </Button>
@@ -187,75 +215,104 @@ export function MemberManagementModal({
             <div className="space-y-3">
               {members
                 ?.filter((member) => JOINED_STATUS.includes(member.status))
-                .map((member, index) => (
-                  <Card key={index}>
+                .map((member) => (
+                  <Card key={member.id}>
                     <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="h-10 w-10">
+                      <div className="flex flex-col gap-4 sm:grid sm:grid-cols-[minmax(0,1fr)_7.25rem_9.5rem_2.25rem_2.25rem] sm:items-center sm:gap-3">
+                        <div className="flex min-w-0 items-center space-x-3">
+                          <Avatar className="h-10 w-10 shrink-0">
                             <AvatarFallback>
                               {member.profile.name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="font-medium">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
                               {member.profile.name}
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="truncate text-sm text-muted-foreground">
                               {member.profile.email}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center flex-row space-x-3">
+                        <div className="flex flex-wrap items-center gap-3 sm:contents">
                           <Badge
                             variant="secondary"
-                            className="bg-blue-100 text-blue-800 border-0"
+                            className="border-0 bg-blue-100 text-blue-800 sm:justify-self-start"
                           >
-                            {member.status}
+                            {getMemberStatusLabel(member.status, t)}
                           </Badge>
 
-                          <div className="flex items-center space-x-2">
-                            <Badge
-                              variant="outline"
-                              className="flex items-center space-x-1"
-                            >
-                              <Shield className="h-3 w-3" />
-                              <span>{member.role}</span>
-                            </Badge>
-
-                            {JOINED_STATUS.includes(member.status) && (
+                          <div className="flex items-center sm:w-full">
+                            {member.role !== "Owner" && member.status === "Accepted" ? (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <ChevronDown className="h-4 w-4" />
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-auto p-0 font-normal sm:h-9 sm:w-full sm:justify-start sm:px-3"
+                                    disabled={mUpdateRole.isPending}
+                                  >
+                                    <Shield className="h-4 w-4 mr-1" />
+                                    {getMemberRoleLabel(member.role, t)}
+                                    <ChevronDown className="h-4 w-4 ml-1" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                  {ROLES.map((role) => (
+                                  {ROLE_OPTIONS.map((role) => (
                                     <DropdownMenuItem
                                       key={role.value}
                                       onClick={() =>
                                         onChangeRole(member.id, role.value)
                                       }
                                     >
-                                      {role.label}
+                                      {t(role.translationKey)}
                                     </DropdownMenuItem>
                                   ))}
                                 </DropdownMenuContent>
                               </DropdownMenu>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-0 font-normal sm:h-9 sm:w-full sm:justify-start sm:px-3"
+                              >
+                                <Shield className="h-4 w-4 mr-1" />
+                                {getMemberRoleLabel(member.role, t)}
+                              </Button>
                             )}
+                          </div>
 
-                            {JOINED_STATUS.includes(member.status) && (
+                          <div className="flex h-9 w-9 items-center justify-center">
+                            {member.status === "Pending" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onResendInvite(member.id)}
+                                disabled={mResend.isPending}
+                                className="h-9 w-9 p-0"
+                              >
+                                <Mail className="h-4 w-4" />
+                                <span className="sr-only">
+                                  {t("resendInvite")}
+                                </span>
+                              </Button>
+                            )}
+                          </div>
+
+                          <div className="flex h-9 w-9 items-center justify-center">
+                            {member.role !== "Owner" && (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
                                   handleDeleteMember(member.id);
                                 }}
-                                className="text-red-600 hover:text-red-700"
+                                className="h-9 w-9 p-0 text-red-600 hover:text-red-700"
+                                disabled={mDelete.isPending}
                               >
                                 <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">{m("delete")}</span>
                               </Button>
                             )}
                           </div>
@@ -273,8 +330,4 @@ export function MemberManagementModal({
       </DialogContent>
     </Dialog>
   );
-}
-interface Role {
-  label: string;
-  value: "Admin" | "Member";
 }

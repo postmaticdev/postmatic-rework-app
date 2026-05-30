@@ -27,7 +27,7 @@ export default function ContentGenerate() {
 
   if (isRestoringSchedulerChat) {
     return (
-      <main className="relative flex min-h-0 flex-1 items-center justify-center bg-card md:ml-0 lg:h-[calc(100vh-5.5rem)]">
+      <main className="relative flex min-h-0 flex-1 items-center justify-center bg-card md:ml-0 lg:h-[calc(100vh-4rem)]">
         <LogoLoader
           size={112}
           hideContentBackground={false}
@@ -39,7 +39,7 @@ export default function ContentGenerate() {
   }
 
   return (
-    <main className="relative flex min-h-0 flex-1 flex-col md:ml-0 lg:h-[calc(100vh-5.5rem)] lg:overflow-hidden">
+    <main className="relative flex min-h-0 flex-1 flex-col md:ml-0 lg:h-[calc(100vh-4rem)] lg:overflow-hidden">
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div
           className={cn(

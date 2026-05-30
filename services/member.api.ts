@@ -12,6 +12,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const toApiRole = (role: string) => role.toLowerCase();
+const toApiMemberId = (memberId: string | number) => Number(memberId);
 const toUiRole = (role: string): MemberRole => {
   const normalized = role.toLowerCase();
   if (normalized === "owner") return "Owner";
@@ -55,14 +56,17 @@ const memberService = {
   resend: (businessId: string, formData: ResendEmailPld) => {
     return api.post<BaseResponse<MembersInviteRes>>(
       `/business/member/${businessId}/resend-invitation`,
-      formData
+      { ...formData, memberId: toApiMemberId(formData.memberId) }
     );
   },
 
   updateRole: (businessId: string, formData: EditRolePld) => {
     return api.put<BaseResponse<MembersInviteRes>>(
       `/business/member/${businessId}`,
-      { ...formData, role: toApiRole(formData.role) }
+      {
+        memberId: toApiMemberId(formData.memberId),
+        role: toApiRole(formData.role),
+      }
     );
   },
 

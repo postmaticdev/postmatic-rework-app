@@ -6,7 +6,7 @@ export interface MembersInvitePld {
   role: "Member" | "Admin";
 }
 export interface ResendEmailPld {
-  memberId: string;
+  memberId: string | number;
 }
 
 /* 
@@ -53,8 +53,8 @@ Payload for Edit member role
 */
 
 export interface EditRolePld {
-  memberId: string;
-  role: MemberRole;
+  memberId: string | number;
+  role: Exclude<MemberRole, "Owner">;
 }
 /*
 Response for delete member

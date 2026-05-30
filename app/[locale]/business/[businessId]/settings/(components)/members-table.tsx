@@ -19,11 +19,15 @@ import {
 import { useParams } from "next/navigation";
 import { MemberManagementModal } from "@/app/[locale]/business/[businessId]/settings/(components)/member-management-modal";
 import { useState } from "react";
-import { MemberRole } from "@/models/api/business/index.type";
+import { MemberRole, MemberStatus } from "@/models/api/member/index.type";
 import { showToast } from "@/helper/show-toast";
-import { MemberStatus } from "@/models/api/member/index.type";
 import { useRole } from "@/contexts/role-context";
 import { useTranslations } from "next-intl";
+import {
+  getMemberRoleLabel,
+  getMemberStatusLabel,
+  ROLE_OPTIONS,
+} from "./member-display";
 
 export function MembersTable() {
   const { businessId } = useParams() as { businessId: string };
@@ -35,26 +39,13 @@ export function MembersTable() {
   const mResend = useMemberResend();
 
   const { access } = useRole();
-  const { invite, edit, delete: deleteMember } = access.member;
-
-  const isActionAble = invite || edit || deleteMember;
-
-  const ROLES: Role[] = [
-    {
-      label: t("admin"),
-      value: "Admin",
-    },
-    {
-      label: t("member"),
-      value: "Member",
-    },
-  ];
+  const { invite, edit } = access.member;
 
   const onInviteMember = () => {
     setIsMemberModalOpen(true);
   };
 
-  const onChangeRole = async (id: string, role: MemberRole) => {
+  const onChangeRole = async (id: string, role: Exclude<MemberRole, "Owner">) => {
     try {
       const findMember = members.find((member) => member.id === id);
       if (findMember?.role === role) return;
@@ -66,7 +57,9 @@ export function MembersTable() {
         },
       });
       showToast("success", res.data.responseMessage);
-    } catch {}
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
   const onResendInvite = async (id: string) => {
@@ -78,7 +71,9 @@ export function MembersTable() {
         },
       });
       showToast("success", res.data.responseMessage);
-    } catch {}
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
   return (
@@ -136,35 +131,38 @@ export function MembersTable() {
                           variant="secondary"
                           className="bg-blue-100 text-blue-800 border-0 rounded-full flex-shrink-0"
                         >
-                          {member.status}
+                          {getMemberStatusLabel(member.status, t)}
                         </Badge>
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    {isActionAble && member.role !== "Owner" ? (
+                    {edit &&
+                    member.role !== "Owner" &&
+                    member.status === "Accepted" ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
                             size="sm"
                             className="flex items-center"
+                            disabled={mUpdateRole.isPending}
                           >
                             <Shield className="h-4 w-4 mr-1" />
-                            {member.role}
+                            {getMemberRoleLabel(member.role, t)}
                             <ChevronDown className="h-4 w-4 ml-1" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                          {ROLES.map((role) => (
+                          {ROLE_OPTIONS.map((role) => (
                             <DropdownMenuItem
                               key={role.value}
                               onClick={() =>
                                 onChangeRole(member.id, role.value)
                               }
                             >
-                              {role.label}
+                              {t(role.translationKey)}
                             </DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>
@@ -176,15 +174,16 @@ export function MembersTable() {
                         className="flex items-center"
                       >
                         <Shield className="h-4 w-4 mr-1" />
-                        {member.role}
+                        {getMemberRoleLabel(member.role, t)}
                       </Button>
                     ) : null}
-                    {member.status === "Pending" && isActionAble && (
+                    {member.status === "Pending" && invite && (
                       <Button
                         variant="ghost"
                         size="sm"
                         className="flex items-center"
                         onClick={() => onResendInvite(member.id)}
+                        disabled={mResend.isPending}
                       >
                         <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
                         {t("resendInvite")}
@@ -212,7 +211,7 @@ export function MembersTable() {
                   <th className="p-4 font-medium text-muted-foreground">
                     {t("status")}
                   </th>
-                  {isActionAble && (
+                  {(edit || invite) && (
                     <th className="p-4 font-medium text-muted-foreground">
                       {t("actions")}
                     </th>
@@ -254,28 +253,31 @@ export function MembersTable() {
                         {member.profile.email}
                       </td>
                       <td className="p-4">
-                        {isActionAble && member.role !== "Owner" ? (
+                        {edit &&
+                        member.role !== "Owner" &&
+                        member.status === "Accepted" ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-auto p-0 font-normal"
+                                disabled={mUpdateRole.isPending}
                               >
                                 <Shield className="h-4 w-4 mr-1" />
-                                {member.role}
+                                {getMemberRoleLabel(member.role, t)}
                                 <ChevronDown className="h-4 w-4 ml-1" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                              {ROLES.map((role) => (
+                              {ROLE_OPTIONS.map((role) => (
                                 <DropdownMenuItem
                                   key={role.value}
                                   onClick={() =>
                                     onChangeRole(member.id, role.value)
                                   }
                                 >
-                                  {role.label}
+                                  {t(role.translationKey)}
                                 </DropdownMenuItem>
                               ))}
                             </DropdownMenuContent>
@@ -287,7 +289,7 @@ export function MembersTable() {
                             className="h-auto p-0 font-normal"
                           >
                             <Shield className="h-4 w-4 mr-1" />
-                            {member.role}
+                            {getMemberRoleLabel(member.role, t)}
                           </Button>
                         )}
                       </td>
@@ -296,23 +298,26 @@ export function MembersTable() {
                           variant="secondary"
                           className="bg-blue-100 text-blue-800 border-0 rounded-full"
                         >
-                          {member.status}
+                          {getMemberStatusLabel(member.status, t)}
                         </Badge>
                       </td>
-                      <td className="p-4">
-                        {member.status === "Pending" && isActionAble && (
-                          <div className="flex items-center space-x-2">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onResendInvite(member.id)}
-                            >
-                              {t("resendInvite")}
-                            </Button>
-                          </div>
-                        )}
-                      </td>
+                      {(edit || invite) && (
+                        <td className="p-4">
+                          {member.status === "Pending" && invite && (
+                            <div className="flex items-center space-x-2">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onResendInvite(member.id)}
+                                disabled={mResend.isPending}
+                              >
+                                {t("resendInvite")}
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
               </tbody>
@@ -327,11 +332,6 @@ export function MembersTable() {
       />
     </div>
   );
-}
-
-interface Role {
-  label: string;
-  value: "Admin" | "Member";
 }
 
 export const JOINED_STATUS: MemberStatus[] = ["Accepted", "Pending"];

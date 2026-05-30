@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl"
 
 interface TabNavigationProps {
   activeTab: string
@@ -10,10 +11,11 @@ interface TabNavigationProps {
 
 
 export function SettingsTabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
+  const t = useTranslations("settings")
   const tabs = [
-    { id: "overview", label: "Overview" },
-    { id: "workspace", label: "Workspace Settings" },
-    { id: "billing", label: "Billing & Invoices" }
+    { id: "overview", label: t("overview") },
+    { id: "workspace", label: t("workspaceSettings") },
+    { id: "billing", label: t("billingInvoices") }
   ]
   return (
     <div className="flex flex-row bg-card p-1 rounded-lg justify-between overflow-x-auto">
