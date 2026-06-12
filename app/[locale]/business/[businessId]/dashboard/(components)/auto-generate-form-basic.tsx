@@ -8,6 +8,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ValidRatio } from "@/models/api/content/image.type";
 import { useTranslations } from "next-intl";
+import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 
 export const AutoGenerateFormBasic = () => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -171,7 +172,7 @@ export const AutoGenerateFormBasic = () => {
         >
           {aiModels.models.map((model) => (
             <option key={model.name} value={model.name}>
-              {model.description}
+              {getAiModelDisplayName(model)}
             </option>
           ))}
         </select>

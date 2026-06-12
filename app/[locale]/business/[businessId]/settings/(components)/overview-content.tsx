@@ -28,6 +28,7 @@ interface Period {
   labelStart: string;
   labelEnd: string;
   filterQuery: Partial<FilterQuery>;
+  futureFilterQuery: Partial<FilterQuery>;
 }
 
 export function OverviewContent() {
@@ -48,9 +49,16 @@ export function OverviewContent() {
         ),
         labelEnd: formatDate(new Date()),
         filterQuery: {
-          page: 1,
           dateStart: dateManipulation.ymd(
             new Date(new Date().setDate(new Date().getDate() - 7))
+          ),
+          dateEnd: dateManipulation.ymd(new Date()),
+          limit: 1,
+        },
+        futureFilterQuery: {
+          dateStart: dateManipulation.ymd(new Date()),
+          dateEnd: dateManipulation.ymd(
+            new Date(new Date().setDate(new Date().getDate() + 7))
           ),
         },
       },
@@ -62,9 +70,16 @@ export function OverviewContent() {
         ),
         labelEnd: formatDate(new Date()),
         filterQuery: {
-          page: 7,
           dateStart: dateManipulation.ymd(
             new Date(new Date().setDate(new Date().getDate() - 30))
+          ),
+          dateEnd: dateManipulation.ymd(new Date()),
+          limit: 1,
+        },
+        futureFilterQuery: {
+          dateStart: dateManipulation.ymd(new Date()),
+          dateEnd: dateManipulation.ymd(
+            new Date(new Date().setDate(new Date().getDate() + 30))
           ),
         },
       },
@@ -76,9 +91,16 @@ export function OverviewContent() {
         ),
         labelEnd: formatDate(new Date()),
         filterQuery: {
-          page: 30,
           dateStart: dateManipulation.ymd(
             new Date(new Date().setFullYear(new Date().getFullYear() - 1))
+          ),
+          dateEnd: dateManipulation.ymd(new Date()),
+          limit: 30,
+        },
+        futureFilterQuery: {
+          dateStart: dateManipulation.ymd(new Date()),
+          dateEnd: dateManipulation.ymd(
+            new Date(new Date().setFullYear(new Date().getFullYear() + 1))
           ),
         },
       },
@@ -88,6 +110,11 @@ export function OverviewContent() {
 
   const selectedPeriod = periods.find((item) => item.value === period) || periods[0];
   const dateRangeLabel = `${selectedPeriod.labelStart} - ${selectedPeriod.labelEnd}`;
+  const upcomingFilterQuery = {
+    ...selectedPeriod.futureFilterQuery,
+    includeDrafts: false,
+  };
+  const periodLabel = selectedPeriod.label.toLowerCase();
 
   const { data: countPostedData, isLoading: isLoadingCountPosted } =
     useContentOverviewGetCountPosted(businessId, selectedPeriod.filterQuery);
@@ -112,12 +139,7 @@ export function OverviewContent() {
     }));
 
   const { data: countUpcomingData, isLoading: isLoadingCountUpcoming } =
-    useContentOverviewGetCountUpcoming(businessId, {
-      dateStart: dateManipulation.ymd(new Date()),
-      dateEnd: dateManipulation.ymd(
-        new Date(new Date().setDate(new Date().getDate() + 30))
-      ),
-    });
+    useContentOverviewGetCountUpcoming(businessId, upcomingFilterQuery);
 
   const totalCountUpcoming = countUpcomingData?.data?.data?.total || 0;
   const mappedCountUpcoming = Object.entries(
@@ -177,7 +199,7 @@ export function OverviewContent() {
             <AnalyticsCard
               title={a("totalPosting")}
               subtitle={a("totalPostingSubtitlePeriod", {
-                period: selectedPeriod.label.toLowerCase(),
+                period: periodLabel,
               })}
               value={totalCountPosted.toString()}
               breakdown={mappedCountPosted}
@@ -186,7 +208,9 @@ export function OverviewContent() {
 
             <AnalyticsCard
               title={a("totalUpcoming")}
-              subtitle={a("totalUpcomingSubtitle")}
+              subtitle={a("totalUpcomingSubtitlePeriod", {
+                period: periodLabel,
+              })}
               value={totalCountUpcoming.toString()}
               breakdown={mappedCountUpcoming}
               titleIcon={<CalendarClock className="h-3.5 w-3.5" />}
@@ -206,7 +230,13 @@ export function OverviewContent() {
             />
           </div>
 
-          <SchedulePost onDashboard={true} />
+          <SchedulePost
+            onDashboard={true}
+            filterQuery={upcomingFilterQuery}
+            subtitle={a("totalUpcomingSubtitlePeriod", {
+              period: periodLabel,
+            })}
+          />
 
         </div>
       </section>

@@ -330,7 +330,7 @@ export const useProductKnowledgeGetStatus = (
   productKnowledgeId: string
 ) => {
   return useQuery({
-    queryKey: ["productKnowledgeStatus", productKnowledgeId],
+    queryKey: ["productKnowledgeStatus", businessId, productKnowledgeId],
     queryFn: () =>
       productKnowledgeService.getStatus(businessId, productKnowledgeId),
     enabled: !!businessId && !!productKnowledgeId,
@@ -343,7 +343,7 @@ export const useProductKnowledgeGetAll = (
   enabled = true
 ) => {
   return useQuery({
-    queryKey: ["productKnowledge", filterQuery],
+    queryKey: ["productKnowledge", businessId, filterQuery],
     queryFn: () => productKnowledgeService.getAll(businessId, filterQuery),
     enabled: enabled && !!businessId,
   });

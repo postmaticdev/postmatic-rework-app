@@ -2,25 +2,45 @@ import { api } from "@/config/api";
 import { BaseResponse, FilterQuery } from "@/models/api/base-response.type";
 import {
   AnalyticTokenUsageRes,
-  AnalyticTypeTokenRes,
   TokenUsage,
 } from "@/models/api/tier/token.type";
 import { useQuery } from "@tanstack/react-query";
+
+type TokenUsageChartRes = {
+  rangeStart: string;
+  rangeEnd: string;
+  limit: number;
+  data: {
+    dateStart: string;
+    dateEnd: string;
+    totalUsage: number;
+  }[];
+};
 
 const tokenService = {
   getAnalyticUsage: (
     businessId: string,
     filterQuery?: Partial<FilterQuery>
   ) => {
-    return api.get<BaseResponse<AnalyticTokenUsageRes[]>>(
-      `/tier/token/analytics/` + businessId,
-      { params: filterQuery }
-    );
-  },
-  getAnalyticType: (businessId: string) => {
-    return api.get<BaseResponse<AnalyticTypeTokenRes[]>>(
-      `/tier/token/type/` + businessId
-    );
+    return api
+      .get<BaseResponse<TokenUsageChartRes>>(
+        `/generative-token/image-token/${businessId}/usage-chart`,
+        { params: filterQuery }
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: (res.data.data?.data || []).map((item) => ({
+            date: item.dateStart,
+            Image: item.totalUsage,
+            Video: 0,
+            LiveStream: 0,
+          })),
+        },
+      })) as unknown as ReturnType<
+      typeof api.get<BaseResponse<AnalyticTokenUsageRes[]>>
+    >;
   },
   getTokenUsage: (businessId: string) => {
     return api
@@ -55,13 +75,6 @@ export const useTokenGetAnalyticUsage = (
   return useQuery({
     queryKey: ["tokenAnalyticUsage", businessId, filterQuery],
     queryFn: () => tokenService.getAnalyticUsage(businessId, filterQuery),
-  });
-};
-
-export const useTokenGetAnalyticType = (businessId: string) => {
-  return useQuery({
-    queryKey: ["tokenAnalyticType", businessId],
-    queryFn: () => tokenService.getAnalyticType(businessId),
     enabled: !!businessId,
   });
 };

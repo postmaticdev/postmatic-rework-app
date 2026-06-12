@@ -27,8 +27,17 @@ export interface ImageContentRes {
 /*
   Payload for Generate Content
 */
-export type ValidRatio = "1:1" | "2:3" | "3:2" | "3:4" | "4:3" |"4:5" | "5:4" | "9:16" | "16:9" |"21:9"
-;
+export const VALID_RATIOS = ["1:1", "2:3", "4:5", "5:4", "9:16", "16:9"] as const;
+
+export type ValidRatio = (typeof VALID_RATIOS)[number];
+
+export const normalizeValidRatios = (ratios?: string[] | null): ValidRatio[] => {
+  const validRatios = ratios?.filter((ratio): ratio is ValidRatio =>
+    (VALID_RATIOS as readonly string[]).includes(ratio)
+  );
+
+  return validRatios?.length ? validRatios : [...VALID_RATIOS];
+};
 export interface GenerateContentBase {
   ratio: ValidRatio;
   category: string;

@@ -499,6 +499,8 @@
     "savedReference": "保存済み参照",
     "searchPlaceholder": "ここで参照を検索...",
     "searchPlaceholderSaved": "保存済み参照を検索...",
+    "filterCategory": "Filter category",
+    "allCategories": "All",
     "imageUploadedSuccessfully": "画像が正常にアップロードされました",
     "failedToUploadImage": "画像のアップロードに失敗しました",
     "uploadingImage": "画像をアップロード中...",
@@ -808,7 +810,8 @@
     "totalPostingSubtitle": "過去30日間に公開された投稿の合計",
     "totalPostingSubtitlePeriod": "過去{period}に公開された投稿の合計",
     "totalUpcoming": "今後のコンテンツ",
-    "totalUpcomingSubtitle": "今後30日間に公開予定"
+    "totalUpcomingSubtitle": "今後30日間に公開予定",
+    "totalUpcomingSubtitlePeriod": "今後{period}に公開予定"
   },
   "tokenUsageCard": {
     "title": "トークン使用状況",
@@ -831,6 +834,7 @@
   "schedulePost": {
     "title": "投稿スケジュール",
     "subtitle": "今後30日間に公開予定",
+    "subtitlePeriod": "今後{period}に公開予定",
     "noContent": "予定されたコンテンツはありません",
     "noContentDescription": "新しいコンテンツを追加",
     "deleteTitle": "予定投稿を削除",

@@ -17,7 +17,9 @@ import {
   GenerateContentRes,
   GenerateContentRssBase,
   ImagePostChatRes,
+  VALID_RATIOS,
   ValidRatio,
+  normalizeValidRatios,
 } from "@/models/api/content/image.type";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { RssArticleRes } from "@/models/api/library/rss.type";
@@ -47,6 +49,7 @@ import {
 import {
   useLibraryRSSArticle,
   useLibraryTemplateDeleteSaved,
+  useLibraryTemplateGetCategory,
   useCreatorImageTemplates,
   useLibraryTemplateGetSaved,
   useLibraryTemplateSave,
@@ -301,18 +304,7 @@ const initialPagination: Pagination = {
   hasPrevPage: false,
 };
 
-const fallbackRatios = [
-  "1:1",
-  "2:3",
-  "3:2",
-  "3:4",
-  "4:3",
-  "4:5",
-  "5:4",
-  "9:16",
-  "16:9",
-  "21:9",
-];
+const fallbackRatios = [...VALID_RATIOS];
 
 type CreatorImageCategory = {
   id: string | number;
@@ -381,6 +373,18 @@ const useIsomorphicLayoutEffect =
 
 const schedulerFirstGeneratePrompt =
   "Buat gambar konten promosi produk yang menarik untuk media sosial berdasarkan produk yang dipilih.";
+
+function formatCurrentTimeInput() {
+  const now = new Date();
+  if (now.getSeconds() > 0 || now.getMilliseconds() > 0) {
+    now.setMinutes(now.getMinutes() + 1);
+  }
+  now.setSeconds(0, 0);
+
+  const hour = now.getHours().toString().padStart(2, "0");
+  const minute = now.getMinutes().toString().padStart(2, "0");
+  return `${hour}:${minute}`;
+}
 
 function upsertJobIntoHistory(groups: GetAllJob[], incoming: JobData) {
   let jobWasUpdated = false;
@@ -705,6 +709,9 @@ export const ContentGenerateProvider = ({
 
   const { data: historiesRes, refetch: refetchHistories } =
     useContentJobGetAllJob(businessId, shouldFetchHistories);
+  const { data: templateCategoriesData } = useLibraryTemplateGetCategory(
+    contentFeaturesEnabled
+  );
   const { data: productCategoriesData } = useLibraryTemplateGetProductCategory(
     contentFeaturesEnabled
   );
@@ -788,11 +795,12 @@ export const ContentGenerateProvider = ({
     if (aiModelsRes?.data?.data && aiModelsRes.data.data.length > 0 && !selectedAiModel) {
       const defaultModel = pickDefaultAiModel(aiModelsRes.data.data);
       if (!defaultModel) return;
+      const defaultModelRatios = normalizeValidRatios(defaultModel.validRatios);
       setSelectedAiModel(defaultModel);
       setFormBasic(prev => ({
         ...prev,
         model: defaultModel.name,
-        ratio: (defaultModel.validRatios?.[0] || prev.ratio || fallbackRatios[0]) as ValidRatio,
+        ratio: (defaultModelRatios[0] || prev.ratio || fallbackRatios[0]) as ValidRatio,
         imageSize: defaultModel.imageSizes?.[0] || null,
       }));
     }
@@ -804,7 +812,7 @@ export const ContentGenerateProvider = ({
       selectedAiModel ||
       pickDefaultAiModel(aiModelsRes?.data?.data || []);
 
-    return model?.validRatios?.length ? model.validRatios : fallbackRatios;
+    return normalizeValidRatios(model?.validRatios);
   }, [aiModelsRes?.data?.data, selectedAiModel]);
 
   const onSelectHistory = useCallback((
@@ -854,6 +862,7 @@ export const ContentGenerateProvider = ({
       const defaultModel =
         pickDefaultAiModel(aiModelsRes?.data?.data || []) ||
         selectedAiModel;
+      const defaultModelRatios = normalizeValidRatios(defaultModel?.validRatios);
       if (defaultModel) {
         setSelectedAiModel(defaultModel);
       }
@@ -864,7 +873,7 @@ export const ContentGenerateProvider = ({
       form.setBasic({
         ...initialFormBasic,
         model: defaultModel?.name || initialFormBasic.model,
-          ratio: (defaultModel?.validRatios?.[0] ||
+          ratio: (defaultModelRatios[0] ||
           initialFormBasic.ratio ||
           fallbackRatios[0]) as ValidRatio,
         imageSize: defaultModel?.imageSizes?.[0] || null,
@@ -1368,7 +1377,7 @@ export const ContentGenerateProvider = ({
   
   // Fetch all data when category filter is applied, otherwise use normal pagination
   const publishedApiQuery = useMemo(() => {
-    if (publishedQuery.productCategory) {
+    if (publishedQuery.productCategory || publishedQuery.category) {
       // Fetch all data for client-side filtering and pagination
       return {
         ...publishedQuery,
@@ -1455,29 +1464,47 @@ export const ContentGenerateProvider = ({
 
   // Client-side filtering by productCategory if server-side filtering is not working
   const allFilteredPublishedData = useMemo(() => {
-    if (!publishedQuery.productCategory) {
-      return publishedData;
+    let data = publishedData;
+    
+    if (publishedQuery.category) {
+      // Find the template category name by ID
+      const selectedCategory = templateCategoriesData?.data?.data?.find(
+        (cat) => cat.id === publishedQuery.category
+      );
+
+      if (selectedCategory) {
+        data = data.filter((template) =>
+          template.categories.includes(selectedCategory.name)
+        );
+      }
     }
     
-    // Find the product category name by ID
-    const selectedCategory = productCategoriesData?.data?.data?.find(
-      (cat) => cat.id === publishedQuery.productCategory
-    );
-    
-    if (!selectedCategory) {
-      return publishedData;
+    if (publishedQuery.productCategory) {
+      // Find the product category name by ID
+      const selectedCategory = productCategoriesData?.data?.data?.find(
+        (cat) => cat.id === publishedQuery.productCategory
+      );
+      
+      if (selectedCategory) {
+        data = data.filter(template => 
+          template.productCategories.includes(selectedCategory.indonesianName)
+        );
+      }
     }
     
-    // Filter templates that have the selected product category
-    return publishedData.filter(template => 
-      template.productCategories.includes(selectedCategory.indonesianName)
-    );
-  }, [publishedData, publishedQuery.productCategory, productCategoriesData]);
+    return data;
+  }, [
+    publishedData,
+    publishedQuery.category,
+    publishedQuery.productCategory,
+    productCategoriesData,
+    templateCategoriesData,
+  ]);
 
   // Apply client-side pagination when category filter is active
   const { paginatedData: filteredPublishedData, pagination: adjustedPublishedPagination } = useMemo(() => {
     // If category filter is applied, do client-side pagination
-    if (publishedQuery.productCategory) {
+    if (publishedQuery.productCategory || publishedQuery.category) {
       const limit = publishedQuery.limit || 10;
       const page = publishedQuery.page || 1;
       const total = allFilteredPublishedData.length;
@@ -1502,7 +1529,14 @@ export const ContentGenerateProvider = ({
     
     // Otherwise use server-side pagination
     return { paginatedData: allFilteredPublishedData, pagination: publishedPagination };
-  }, [allFilteredPublishedData, publishedQuery.productCategory, publishedQuery.limit, publishedQuery.page, publishedPagination]);
+  }, [
+    allFilteredPublishedData,
+    publishedQuery.category,
+    publishedQuery.productCategory,
+    publishedQuery.limit,
+    publishedQuery.page,
+    publishedPagination,
+  ]);
 
   const publishedTemplates: ContentGenerateContext["publishedTemplates"] = {
     contents: filteredPublishedData,
@@ -1528,7 +1562,7 @@ export const ContentGenerateProvider = ({
   
   // Fetch all data when category filter is applied, otherwise use normal pagination
   const savedApiQuery = useMemo(() => {
-    if (savedQuery.productCategory) {
+    if (savedQuery.productCategory || savedQuery.category) {
       // Fetch all data for client-side filtering and pagination
       return {
         ...savedQuery,
@@ -1568,29 +1602,47 @@ export const ContentGenerateProvider = ({
 
   // Client-side filtering by productCategory for saved templates
   const allFilteredSavedData = useMemo(() => {
-    if (!savedQuery.productCategory) {
-      return savedData;
+    let data = savedData;
+    
+    if (savedQuery.category) {
+      // Find the template category name by ID
+      const selectedCategory = templateCategoriesData?.data?.data?.find(
+        (cat) => cat.id === savedQuery.category
+      );
+
+      if (selectedCategory) {
+        data = data.filter((template) =>
+          template.categories.includes(selectedCategory.name)
+        );
+      }
     }
     
-    // Find the product category name by ID
-    const selectedCategory = productCategoriesData?.data?.data?.find(
-      (cat) => cat.id === savedQuery.productCategory
-    );
-    
-    if (!selectedCategory) {
-      return savedData;
+    if (savedQuery.productCategory) {
+      // Find the product category name by ID
+      const selectedCategory = productCategoriesData?.data?.data?.find(
+        (cat) => cat.id === savedQuery.productCategory
+      );
+      
+      if (selectedCategory) {
+        data = data.filter(template => 
+          template.productCategories.includes(selectedCategory.indonesianName)
+        );
+      }
     }
     
-    // Filter templates that have the selected product category
-    return savedData.filter(template => 
-      template.productCategories.includes(selectedCategory.indonesianName)
-    );
-  }, [savedData, savedQuery.productCategory, productCategoriesData]);
+    return data;
+  }, [
+    savedData,
+    savedQuery.category,
+    savedQuery.productCategory,
+    productCategoriesData,
+    templateCategoriesData,
+  ]);
 
   // Apply client-side pagination when category filter is active
   const { paginatedData: filteredSavedData, pagination: adjustedSavedPagination } = useMemo(() => {
     // If category filter is applied, do client-side pagination
-    if (savedQuery.productCategory) {
+    if (savedQuery.productCategory || savedQuery.category) {
       const limit = savedQuery.limit || 10;
       const page = savedQuery.page || 1;
       const total = allFilteredSavedData.length;
@@ -1615,7 +1667,14 @@ export const ContentGenerateProvider = ({
     
     // Otherwise use server-side pagination
     return { paginatedData: allFilteredSavedData, pagination: savedPagination };
-  }, [allFilteredSavedData, savedQuery.productCategory, savedQuery.limit, savedQuery.page, savedPagination]);
+  }, [
+    allFilteredSavedData,
+    savedQuery.category,
+    savedQuery.productCategory,
+    savedQuery.limit,
+    savedQuery.page,
+    savedPagination,
+  ]);
 
   const savedTemplates: ContentGenerateContext["savedTemplates"] = {
     contents: filteredSavedData,
@@ -1766,11 +1825,12 @@ export const ContentGenerateProvider = ({
   };
 
   const onSelectAiModel = (model: AiModelRes) => {
+    const modelRatios = normalizeValidRatios(model.validRatios);
     setSelectedAiModel(model);
     setFormBasic((prev) => ({
       ...prev,
       model: model.name,
-      ratio: (model.validRatios?.[0] || "1:1") as ValidRatio, // Set to first valid ratio
+      ratio: modelRatios[0], // Set to first valid ratio
       imageSize: model.imageSizes?.[0] || null,
     }));
   };
@@ -1833,9 +1893,15 @@ export const ContentGenerateProvider = ({
     additionalImages: string[] = []
   ) => {
     const scheduleDate = searchParams.get("scheduleDate");
-    const scheduleTime = searchParams.get("scheduleTime") || "08:00";
+    const scheduleTime = searchParams.get("scheduleTime") || formatCurrentTimeInput();
 
     if (!scheduleDate) return false;
+
+    const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+      showToast("error", t("contentGenerateScheduler.scheduleTimePassed"));
+      return true;
+    }
 
     if (!form.basic.productKnowledgeId) {
       showToast("error", t("toast.validation.selectProduct"));
@@ -2691,7 +2757,7 @@ export const ContentGenerateProvider = ({
             draftId: String(schedulerDraftPost.id),
             jobId: latestJob.id,
             date: scheduleDateParam,
-            time: searchParams.get("scheduleTime") || "08:00",
+            time: searchParams.get("scheduleTime") || formatCurrentTimeInput(),
             image: latestImage,
             caption: selectedHistory.input.caption || "",
             chatSessionId: schedulerDraftPost.chatSessionId,
@@ -2706,7 +2772,7 @@ export const ContentGenerateProvider = ({
               caption: selectedHistory.input.caption || "",
               platforms: [],
               dateTime: new Date(
-                `${scheduleDateParam}T${searchParams.get("scheduleTime") || "08:00"}`
+                `${scheduleDateParam}T${searchParams.get("scheduleTime") || formatCurrentTimeInput()}`
               ).toISOString(),
               status: "draft",
               withChatAI: true,

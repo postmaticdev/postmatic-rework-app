@@ -5,6 +5,7 @@ import {
   PostOverviewRes,
   UpcomingPostRes,
 } from "@/models/api/content/overview";
+import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useQuery } from "@tanstack/react-query";
 
 type NewScheduledPost = {
@@ -26,6 +27,20 @@ type NewScheduledPostCalendar = {
     date: string;
     items: NewScheduledPost[];
   }[];
+};
+
+type NewImagePostUploadHistoryPlatform = {
+  platformCode: PlatformEnum;
+  jobStatus: string;
+};
+
+type NewImagePostUploadHistory = {
+  publishAt: string;
+  platforms: NewImagePostUploadHistoryPlatform[];
+};
+
+type UpcomingPostFilterQuery = Partial<FilterQuery> & {
+  includeDrafts?: boolean;
 };
 
 const mapScheduledPost = (item: NewScheduledPost): UpcomingPostRes => ({
@@ -55,15 +70,28 @@ const mapScheduledPost = (item: NewScheduledPost): UpcomingPostRes => ({
   },
 });
 
-const isVisibleScheduledPost = (item: NewScheduledPost) => {
+const isVisibleScheduledPost = (
+  item: NewScheduledPost,
+  includeDrafts = true
+) => {
   const status = item.status?.toLowerCase();
   return (
     status === "ready" ||
-    (status === "draft" &&
+    (includeDrafts &&
+      status === "draft" &&
       (Boolean(item.imageUrl) ||
         Boolean(item.withChatAI) ||
         Boolean(item.chatSessionId)))
   );
+};
+
+const isWithinDateRange = (
+  item: NewScheduledPost,
+  dateStart?: string,
+  dateEnd?: string
+) => {
+  const date = item.publishAt.slice(0, 10);
+  return (!dateStart || date >= dateStart) && (!dateEnd || date <= dateEnd);
 };
 
 const overviewService = {
@@ -73,17 +101,49 @@ const overviewService = {
     );
   },
   getCountPosted: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
-    return Promise.resolve({
-      data: {
-        metaData: { code: 200, message: "OK" },
-        responseMessage: "POSTED_COUNT_NOT_AVAILABLE",
-        data: { total: 0, detail: {} },
-      },
-    }) as unknown as ReturnType<typeof api.get<BaseResponse<CountPostRes>>>;
+    return api
+      .get<BaseResponse<NewImagePostUploadHistory[]>>(
+        `/generative-content/image-post-common/${businessId}/upload-history`,
+        {
+          params: {
+            ...filterQuery,
+            page: 1,
+            limit: 1000,
+          },
+        }
+      )
+      .then((res) => {
+        const successfulPosts = (res.data.data || []).filter((item) =>
+          (item.platforms || []).some(
+            (platform) => platform.jobStatus?.toLowerCase() === "success"
+          )
+        );
+        const detail = successfulPosts.reduce<Partial<Record<PlatformEnum, number>>>(
+          (acc, item) => {
+            (item.platforms || []).forEach((platform) => {
+              if (platform.jobStatus?.toLowerCase() !== "success") return;
+              acc[platform.platformCode] = (acc[platform.platformCode] || 0) + 1;
+            });
+            return acc;
+          },
+          {}
+        );
+
+        return {
+          ...res,
+          data: {
+            ...res.data,
+            data: {
+              total: successfulPosts.length,
+              detail,
+            },
+          },
+        };
+      }) as unknown as ReturnType<typeof api.get<BaseResponse<CountPostRes>>>;
   },
   getCountUpcoming: (
     businessId: string,
-    filterQuery?: Partial<FilterQuery>
+    filterQuery?: UpcomingPostFilterQuery
   ) => {
     return overviewService.getUpcoming(businessId, filterQuery).then((res) => ({
       ...res,
@@ -96,9 +156,10 @@ const overviewService = {
       },
     })) as unknown as ReturnType<typeof api.get<BaseResponse<CountPostRes>>>;
   },
-  getUpcoming: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
+  getUpcoming: (businessId: string, filterQuery?: UpcomingPostFilterQuery) => {
     const dateStart = filterQuery?.dateStart;
     const dateEnd = filterQuery?.dateEnd;
+    const includeDrafts = filterQuery?.includeDrafts ?? true;
     const monthSearch =
       dateStart && dateEnd && dateStart.slice(0, 7) === dateEnd.slice(0, 7)
         ? dateStart.slice(0, 7)
@@ -116,7 +177,8 @@ const overviewService = {
             ...res.data,
             data: (res.data.data?.days || [])
               .flatMap((day) => day.items || [])
-              .filter(isVisibleScheduledPost)
+              .filter((item) => isWithinDateRange(item, dateStart, dateEnd))
+              .filter((item) => isVisibleScheduledPost(item, includeDrafts))
               .map(mapScheduledPost),
           },
         })) as unknown as ReturnType<
@@ -130,11 +192,8 @@ const overviewService = {
       )
       .then((res) => {
         const items = (res.data.data || [])
-          .filter(isVisibleScheduledPost)
-          .filter((item) => {
-            const date = item.publishAt.slice(0, 10);
-            return (!dateStart || date >= dateStart) && (!dateEnd || date <= dateEnd);
-          })
+          .filter((item) => isVisibleScheduledPost(item, includeDrafts))
+          .filter((item) => isWithinDateRange(item, dateStart, dateEnd))
           .map(mapScheduledPost);
 
         return {
@@ -171,7 +230,7 @@ export const useContentOverviewGetCountPosted = (
 
 export const useContentOverviewGetCountUpcoming = (
   businessId: string,
-  filterQuery?: Partial<FilterQuery>
+  filterQuery?: UpcomingPostFilterQuery
 ) => {
   return useQuery({
     queryKey: ["contentOverviewCountUpcoming", businessId, filterQuery],
@@ -181,7 +240,7 @@ export const useContentOverviewGetCountUpcoming = (
 
 export const useContentOverviewGetUpcoming = (
   businessId: string,
-  filterQuery?: Partial<FilterQuery>
+  filterQuery?: UpcomingPostFilterQuery
 ) => {
   return useQuery({
     queryKey: ["contentOverviewUpcoming", businessId, filterQuery],

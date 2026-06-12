@@ -32,7 +32,9 @@ import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import {
   AdvancedGenerate,
   GenerateContentAdvanceBase,
+  VALID_RATIOS,
   ValidRatio,
+  normalizeValidRatios,
 } from "@/models/api/content/image.type";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
@@ -245,11 +247,12 @@ export function AutoGenerateProvider({
   useEffect(() => {
     if (aiModelsRes?.data?.data && aiModelsRes.data.data.length > 0 && !selectedAiModel) {
       const defaultModel = aiModelsRes.data.data[0];
+      const defaultModelRatios = normalizeValidRatios(defaultModel.validRatios);
       setSelectedAiModel(defaultModel);
       setFormBasic(prev => ({
         ...prev,
         model: defaultModel.name,
-        ratio: (defaultModel.validRatios?.[0] || prev.ratio || "1:1") as ValidRatio,
+        ratio: (defaultModelRatios[0] || prev.ratio || VALID_RATIOS[0]) as ValidRatio,
         imageSize: defaultModel.imageSizes?.[0] || null,
       }));
     }
@@ -257,7 +260,7 @@ export function AutoGenerateProvider({
 
   // Get valid ratios from selected model
   const validRatios = useMemo(() => {
-    return selectedAiModel?.validRatios || [];
+    return normalizeValidRatios(selectedAiModel?.validRatios);
   }, [selectedAiModel]);
 
   // ===== PRODUCT KNOWLEDGE =====
@@ -313,17 +316,18 @@ export function AutoGenerateProvider({
   }, [formBasic]);
 
   const onSelectAiModel = useCallback((model: AiModelRes) => {
+    const modelRatios = normalizeValidRatios(model.validRatios);
     setSelectedAiModel(model);
     setFormBasic(prev => {
       // Check if current ratio is valid for the new model
       const currentRatio = prev.ratio;
-      const isValidRatio = model.validRatios.includes(currentRatio);
+      const isValidRatio = modelRatios.includes(currentRatio);
       
       return {
         ...prev,
         model: model.name,
         // Only change ratio if current ratio is not valid for new model
-        ratio: isValidRatio ? currentRatio : (model.validRatios?.[0] || "1:1") as ValidRatio,
+        ratio: isValidRatio ? currentRatio : modelRatios[0],
         imageSize: model.imageSizes?.[0] || null,
       };
     });

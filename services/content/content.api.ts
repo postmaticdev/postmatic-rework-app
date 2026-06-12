@@ -971,6 +971,7 @@ export const useContentPostedGetAllPostedImage = (
     queryKey: ["contentPostedGetAllPostedImage", businessId, filterQuery],
     queryFn: () => postedService.getAllPostedImage(businessId, filterQuery),
     enabled: !!businessId,
+    refetchInterval: 10000,
   });
 };
 

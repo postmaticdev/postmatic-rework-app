@@ -50,6 +50,7 @@ import { UpcomingPostsSkeleton } from "@/components/grid-skeleton/upcoming-posts
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import type { FilterQuery } from "@/models/api/base-response.type";
 import { useTranslations } from "next-intl";
 
 interface PostToCancel {
@@ -60,9 +61,15 @@ interface PostToCancel {
 
 interface SchedulePostProps {
   onDashboard?: boolean;
+  filterQuery?: Partial<FilterQuery> & { includeDrafts?: boolean };
+  subtitle?: string;
 }
 
-export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
+export function SchedulePost({
+  onDashboard = false,
+  filterQuery,
+  subtitle,
+}: SchedulePostProps) {
   const t = useTranslations("schedulePost");
   const tToast = useTranslations();
   const { formatDate } = useDateFormat();
@@ -74,8 +81,8 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
   const [schedulerManualPostingId, setSchedulerManualPostingId] = useState<
     number | null
   >(null);
-  const { data: dataUpcoming, isLoading: isLoadingUpcoming } =
-    useContentOverviewGetUpcoming(businessId, {
+  const upcomingFilterQuery: Partial<FilterQuery> & { includeDrafts?: boolean } =
+    filterQuery ?? {
       dateStart: dateManipulation.ymd(new Date()),
       dateEnd: onDashboard
         ? dateManipulation.ymd(
@@ -84,6 +91,11 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
         : dateManipulation.ymd(
           new Date(new Date().setDate(new Date().getDate() + 365))
         ),
+    };
+  const { data: dataUpcoming, isLoading: isLoadingUpcoming } =
+    useContentOverviewGetUpcoming(businessId, {
+      ...upcomingFilterQuery,
+      includeDrafts: upcomingFilterQuery.includeDrafts ?? !onDashboard,
     });
   const upcomings = dataUpcoming?.data.data || [];
 
@@ -222,7 +234,7 @@ export function SchedulePost({ onDashboard = false }: SchedulePostProps) {
               {t("title")}
             </h2>
             <span className="text-sm text-muted-foreground">
-              {onDashboard ? t("subtitle") : ""}
+              {onDashboard ? subtitle || t("subtitle") : ""}
             </span>
           </div>
 

@@ -41,6 +41,7 @@ import {
 import { GenerateFormBasic } from "./generate-form-basic";
 import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
+import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 
 type KnowledgeImageOption = {
   id: string;
@@ -305,7 +306,7 @@ export function GenerationPanel() {
                           >
                             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                               <Bot className="h-3.5 w-3.5" />
-                              {job.input.model || t("generatedResult")}
+                              {getAiModelDisplayName(job.input.model) || t("generatedResult")}
                             </div>
                             <GeneratedImageViewer
                               imageUrl={imageUrl}

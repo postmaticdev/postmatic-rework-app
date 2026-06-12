@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ImagePlus, Plus, Send } from "lucide-react";
+import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 
 type ModelOption = {
   name: string;
@@ -137,7 +138,7 @@ export function ChatComposerField({
               ) : null}
               {models.map((model) => (
                 <option key={model.name} value={model.name}>
-                  {model.label || model.description || model.name}
+                  {getAiModelDisplayName(model)}
                 </option>
               ))}
             </select>
@@ -211,7 +212,7 @@ export function ChatComposerField({
               ) : null}
               {models.map((model) => (
                 <option key={model.name} value={model.name}>
-                  {model.label || model.description || model.name}
+                  {getAiModelDisplayName(model)}
                 </option>
               ))}
             </select>

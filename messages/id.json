@@ -607,6 +607,11 @@
     "scheduleAt": "Jadwalkan Pada",
     "selectDateTime": "Silakan pilih tanggal dan waktu",
     "scheduleTimePassed": "Waktu jadwal tidak boleh sudah lewat",
+    "publishTimePassedTitle": "Waktu publikasi telah lewat",
+    "publishTimePassedDescription": "Waktu yang anda ingin publikasikan telah lewat. Apakah anda ingin menjadwalkannya sekarang?",
+    "scheduleNowConfirm": "Ya, jadwalkan sekarang",
+    "scheduleNowCancel": "Batal",
+    "selectedPublishTime": "Waktu publikasi yang dipilih",
     "selectPlatform": "Silakan pilih minimal satu platform",
     "generateFirst": "Generate konten terlebih dahulu sebelum dijadwalkan",
     "shareReference": "Bagikan referensi konten ini kepada komunitas Postmatic untuk membantu pengembangan model AI yang lebih baik."
@@ -625,6 +630,8 @@
     "savedReference": "Referensi Disimpan",
     "searchPlaceholder": "Cari referensi di sini...",
     "searchPlaceholderSaved": "Cari referensi yang disimpan...",
+    "filterCategory": "Filter kategori",
+    "allCategories": "Semua",
     "imageUploadedSuccessfully": "Gambar berhasil diupload",
     "failedToUploadImage": "Gagal mengupload gambar",
     "uploadingImage": "Mengupload gambar...",
@@ -1016,7 +1023,8 @@
     "totalPostingSubtitle": "Jumlah postingan yang dipublikasikan dalam 30 hari terakhir",
     "totalPostingSubtitlePeriod": "Jumlah postingan yang dipublikasikan dalam {period} terakhir",
     "totalUpcoming": "Konten mendatang",
-    "totalUpcomingSubtitle": "Terjadwal untuk terbit dalam 30 hari"
+    "totalUpcomingSubtitle": "Terjadwal untuk terbit dalam 30 hari",
+    "totalUpcomingSubtitlePeriod": "Terjadwal untuk terbit dalam {period}"
   },
   "tokenUsageCard": {
     "title": "Penggunaan Token",
@@ -1039,6 +1047,7 @@
   "schedulePost": {
     "title": "Penjadwalan Postingan",
     "subtitle": "Terjadwal untuk terbit dalam 30 hari",
+    "subtitlePeriod": "Terjadwal untuk terbit dalam {period}",
     "noContent": "Tidak ada postingan yang dijadwalkan",
     "noContentDescription": "Tambahkan konten baru",
     "deleteTitle": "Hapus Jadwal Postingan",

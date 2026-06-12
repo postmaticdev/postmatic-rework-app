@@ -328,10 +328,18 @@ const templateService = {
     );
   },
   getSaved: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
+    const { productCategory, category, ...rest } = filterQuery || {};
+
     return api
       .get<BaseResponseFiltered<CreatorImage[]>>(
         `/creator/business-saved-creator-image/${businessId}`,
-        { params: filterQuery }
+        {
+          params: {
+            ...rest,
+            category: productCategory || undefined,
+            typeCategoryId: category || undefined,
+          },
+        }
       )
       .then((res) => ({
         ...res,

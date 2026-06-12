@@ -607,6 +607,11 @@
     "scheduleAt": "Schedule Time",
     "selectDateTime": "Please select date and time",
     "scheduleTimePassed": "Schedule time cannot be in the past",
+    "publishTimePassedTitle": "Publish time has passed",
+    "publishTimePassedDescription": "The time you wanted to publish has already passed. Do you want to schedule it now?",
+    "scheduleNowConfirm": "Yes, schedule now",
+    "scheduleNowCancel": "Cancel",
+    "selectedPublishTime": "Selected publish time",
     "selectPlatform": "Please select at least one platform",
     "generateFirst": "Generate content first before scheduling",
     "shareReference": "Share this content reference with the Postmatic community to help improve the AI model."
@@ -625,6 +630,8 @@
     "savedReference": "Saved Reference",
     "searchPlaceholder": "Search reference here...",
     "searchPlaceholderSaved": "Search saved reference here...",
+    "filterCategory": "Filter category",
+    "allCategories": "All",
     "imageUploadedSuccessfully": "Image uploaded successfully",
     "failedToUploadImage": "Failed to upload image",
     "uploadingImage": "Uploading image...",
@@ -1016,7 +1023,8 @@
     "totalPostingSubtitle": "Total posting published in the last 30 days",
     "totalPostingSubtitlePeriod": "Total posting published in the last {period}",
     "totalUpcoming": "Upcoming Content",
-    "totalUpcomingSubtitle": "Scheduled to be published in the next 30 days"
+    "totalUpcomingSubtitle": "Scheduled to be published in the next 30 days",
+    "totalUpcomingSubtitlePeriod": "Scheduled to be published in the next {period}"
   },
   "tokenUsageCard": {
     "title": "Token Usage",
@@ -1039,6 +1047,7 @@
   "schedulePost": {
     "title": "Schedule Posting",
     "subtitle": "Scheduled to be published in the next 30 days",
+    "subtitlePeriod": "Scheduled to be published in the next {period}",
     "noContent": "No scheduled content",
     "noContentDescription": "Add new content",
     "deleteTitle": "Delete Scheduled Post",

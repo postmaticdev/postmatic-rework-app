@@ -27,6 +27,7 @@ import { useContentJobDeleteHistoryJob } from "@/services/content/content.api";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { NoContent } from "@/components/base/no-content";
+import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 
 interface HistoryModalProps {
   isOpen: boolean;
@@ -205,7 +206,7 @@ export function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
                                   {mapEnumJobStatus.getLabel(item.status)}
                                 </Badge>
                                 <Badge variant="outline">
-                                  {item?.input?.model}
+                                  {getAiModelDisplayName(item?.input?.model)}
                                 </Badge>
                                 <Badge variant="outline">
                                   {item?.input?.ratio}

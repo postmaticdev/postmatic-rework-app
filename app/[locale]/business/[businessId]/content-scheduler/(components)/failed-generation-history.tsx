@@ -10,6 +10,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { JobData } from "@/models/socket-content";
 import { useParams } from "next/navigation";
+import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 
 export function isProblemGenerationJob(job: JobData) {
   return (
@@ -119,7 +120,9 @@ export function FailedGenerationHistory() {
                   </p>
 
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {job.input.model ? <span>{job.input.model}</span> : null}
+                    {job.input.model ? (
+                      <span>{getAiModelDisplayName(job.input.model)}</span>
+                    ) : null}
                     {job.input.ratio ? <span>{job.input.ratio}</span> : null}
                     {job.type ? <span>{job.type}</span> : null}
                   </div>

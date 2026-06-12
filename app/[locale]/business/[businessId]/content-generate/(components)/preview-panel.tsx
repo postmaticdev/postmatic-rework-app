@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "@/i18n/navigation";
 import { CardNoGap } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { LogoLoader } from "@/components/base/logo-loader";
@@ -37,9 +38,28 @@ import {
 import { showToast } from "@/helper/show-toast";
 
 function formatTimeInput(date: Date) {
-  const hour = date.getHours().toString().padStart(2, "0");
-  const minute = date.getMinutes().toString().padStart(2, "0");
+  const nextDate = getNextSchedulableDate(date);
+
+  const hour = nextDate.getHours().toString().padStart(2, "0");
+  const minute = nextDate.getMinutes().toString().padStart(2, "0");
   return `${hour}:${minute}`;
+}
+
+function getNextSchedulableDate(date = new Date()) {
+  const nextDate = new Date(date);
+  if (nextDate.getSeconds() > 0 || nextDate.getMilliseconds() > 0) {
+    nextDate.setMinutes(nextDate.getMinutes() + 1);
+  }
+  nextDate.setSeconds(0, 0);
+  return nextDate;
+}
+
+function getCurrentScheduleInput() {
+  const nextDate = getNextSchedulableDate();
+  return {
+    date: dateManipulation.ymd(nextDate),
+    time: formatTimeInput(nextDate),
+  };
 }
 
 export function PreviewPanel() {
@@ -77,10 +97,12 @@ export function PreviewPanel() {
   const selectedImageUrl =
     selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
 
-  const [date, setDate] = useState(dateManipulation.ymd(new Date()));
-  const [time, setTime] = useState("08:00");
+  const [date, setDate] = useState(() => getCurrentScheduleInput().date);
+  const [time, setTime] = useState(() => getCurrentScheduleInput().time);
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isScheduleNowConfirmOpen, setIsScheduleNowConfirmOpen] =
+    useState(false);
   useEffect(() => {
     if (scheduleDate) {
       setDate(scheduleDate);
@@ -121,8 +143,9 @@ export function PreviewPanel() {
         .map((platform) => platform.platform),
     [platformOptions]
   );
-  const minDate = dateManipulation.ymd(new Date());
-  const minTime = date === minDate ? formatTimeInput(new Date()) : undefined;
+  const currentScheduleInput = getCurrentScheduleInput();
+  const minDate = currentScheduleInput.date;
+  const minTime = date === minDate ? currentScheduleInput.time : undefined;
 
   const handleGenerateClick = () => {
     if (schedulerMode && selectedHistory) {
@@ -171,23 +194,19 @@ export function PreviewPanel() {
     );
   };
 
-  const handleConfirmSchedule = async () => {
+  const submitSchedule = async (scheduleDate: string, scheduleTime: string) => {
     if (!selectedHistory?.result) {
       showToast("error", schedulerT("generateFirst"));
       return;
     }
-    if (!date || !time) {
+    if (!scheduleDate || !scheduleTime) {
       showToast("error", schedulerT("selectDateTime"));
       return;
     }
 
-    const scheduledAt = new Date(`${date}T${time}`);
+    const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
     if (Number.isNaN(scheduledAt.getTime())) {
       showToast("error", schedulerT("selectDateTime"));
-      return;
-    }
-    if (scheduledAt <= new Date()) {
-      showToast("error", schedulerT("scheduleTimePassed"));
       return;
     }
 
@@ -233,13 +252,37 @@ export function PreviewPanel() {
       }
 
       setIsSummaryOpen(false);
+      setIsScheduleNowConfirmOpen(false);
       if (schedulerDraftPost) {
         removeSchedulerDraftMarker(businessId, String(schedulerDraftPost.id));
       }
-      router.push(`/business/${businessId}/content-scheduler?selectedDate=${date}`);
+      router.push(
+        `/business/${businessId}/content-scheduler?selectedDate=${scheduleDate}`
+      );
     } catch (error) {
       showToast("error", error);
     }
+  };
+
+  const handleConfirmSchedule = async () => {
+    const scheduledAt = new Date(`${date}T${time}`);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      showToast("error", schedulerT("selectDateTime"));
+      return;
+    }
+    if (scheduledAt <= new Date()) {
+      setIsScheduleNowConfirmOpen(true);
+      return;
+    }
+
+    await submitSchedule(date, time);
+  };
+
+  const handleScheduleNow = async () => {
+    const nextSchedule = getCurrentScheduleInput();
+    setDate(nextSchedule.date);
+    setTime(nextSchedule.time);
+    await submitSchedule(nextSchedule.date, nextSchedule.time);
   };
 
   const isScheduling =
@@ -517,6 +560,18 @@ export function PreviewPanel() {
         onTogglePlatform={togglePlatform}
         onEnhanceCaption={handleEnhanceCaption}
         onConfirm={handleConfirmSchedule}
+      />
+      <ConfirmationModal
+        isOpen={isScheduleNowConfirmOpen}
+        onClose={() => setIsScheduleNowConfirmOpen(false)}
+        onConfirm={handleScheduleNow}
+        title={schedulerT("publishTimePassedTitle")}
+        description={schedulerT("publishTimePassedDescription")}
+        confirmText={schedulerT("scheduleNowConfirm")}
+        cancelText={schedulerT("scheduleNowCancel")}
+        detailLabel={schedulerT("selectedPublishTime")}
+        detailValue={`${date} ${time}`}
+        isLoading={isScheduling || mEnhanceCaption.isPending}
       />
     </div>
   );

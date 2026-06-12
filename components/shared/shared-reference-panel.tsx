@@ -6,7 +6,15 @@ import { Search, Upload, Loader2 } from "lucide-react";
 import {
   PaginationControls,
 } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { helperService } from "@/services/helper.api";
+import { useLibraryTemplateGetCategory } from "@/services/library.api";
 import { showToast } from "@/helper/show-toast";
 import { TemplateGridSkeleton } from "@/components/grid-skeleton/template-grid-skeleton";
 import { useTranslations } from "next-intl";
@@ -88,6 +96,8 @@ export function SharedReferencePanel({
   const t = useTranslations("referencePanel");
   const tToast = useTranslations();
   const tCard = useTranslations("templateCard");
+  const { data: categoriesRes } = useLibraryTemplateGetCategory();
+  const categories = categoriesRes?.data?.data || [];
   const [activeTab, setActiveTab] = useState<"reference" | "saved">(
     "reference"
   );
@@ -230,6 +240,57 @@ export function SharedReferencePanel({
     setIsDetailDialogOpen(true);
   }, []);
 
+  const renderSearchControls = (
+    placeholder: string,
+    templates: {
+      filterQuery: Partial<FilterQuery>;
+      setFilterQuery: (q: Partial<FilterQuery>) => void;
+    }
+  ) => (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <Input
+        placeholder={placeholder}
+        value={templates.filterQuery?.search || ""}
+        onChange={(e) =>
+          templates.setFilterQuery({
+            ...templates.filterQuery,
+            search: e.target.value,
+            page: 1,
+          })
+        }
+        className="pl-10 pr-40 sm:pr-48"
+      />
+      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+        <Select
+          value={templates.filterQuery?.category || "all"}
+          onValueChange={(value: string) =>
+            templates.setFilterQuery({
+              ...templates.filterQuery,
+              category: value === "all" ? undefined : value,
+              page: 1,
+            })
+          }
+        >
+          <SelectTrigger
+            aria-label={t("filterCategory")}
+            className="h-8 w-32 rounded-l-none border-0 border-l border-border bg-transparent px-3 text-xs text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 sm:w-40"
+          >
+            <SelectValue placeholder={t("filterCategory")} />
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="all">{t("allCategories")}</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Tab Bar */}
@@ -262,20 +323,7 @@ export function SharedReferencePanel({
         {activeTab === "reference" && (
           <div className="space-y-4">
             {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder={t("searchPlaceholder")}
-                value={publishedTemplates.filterQuery?.search || ""}
-                onChange={(e) =>
-                  publishedTemplates.setFilterQuery({
-                    ...publishedTemplates?.filterQuery,
-                    search: e.target.value,
-                  })
-                }
-                className="pl-10"
-              />
-            </div>
+            {renderSearchControls(t("searchPlaceholder"), publishedTemplates)}
 
             {/* Template Grid */}
             {publishedTemplates.isLoading ? (
@@ -304,20 +352,7 @@ export function SharedReferencePanel({
         {activeTab === "saved" && (
           <div className="space-y-4">
             {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder={t("searchPlaceholderSaved")}
-                value={savedTemplates.filterQuery?.search || ""}
-                onChange={(e) =>
-                  savedTemplates.setFilterQuery({
-                    ...savedTemplates?.filterQuery,
-                    search: e.target.value,
-                  })
-                }
-                className="pl-10"
-              />
-            </div>
+            {renderSearchControls(t("searchPlaceholderSaved"), savedTemplates)}
 
             {/* Saved References Grid */}
             {savedTemplates.isLoading ? (

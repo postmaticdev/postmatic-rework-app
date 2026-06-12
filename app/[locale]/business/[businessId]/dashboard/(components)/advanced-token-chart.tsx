@@ -153,10 +153,11 @@ export function AdvancedTokenChart({
       ),
       labelEnd: formatDate(new Date()),
       filterQuery: {
-        page: 1,
         dateStart: dateManipulation.ymd(
           new Date(new Date().setDate(new Date().getDate() - 7))
         ),
+        dateEnd: dateManipulation.ymd(new Date()),
+        limit: 1,
       },
     },
     {
@@ -167,10 +168,11 @@ export function AdvancedTokenChart({
       ),
       labelEnd: formatDate(new Date()),
       filterQuery: {
-        page: 7,
         dateStart: dateManipulation.ymd(
           new Date(new Date().setDate(new Date().getDate() - 30))
         ),
+        dateEnd: dateManipulation.ymd(new Date()),
+        limit: 1,
       },
     },
     {
@@ -181,10 +183,11 @@ export function AdvancedTokenChart({
       ),
       labelEnd: formatDate(new Date()),
       filterQuery: {
-        page: 30,
         dateStart: dateManipulation.ymd(
           new Date(new Date().setFullYear(new Date().getFullYear() - 1))
         ),
+        dateEnd: dateManipulation.ymd(new Date()),
+        limit: 30,
       },
     },
   ];
