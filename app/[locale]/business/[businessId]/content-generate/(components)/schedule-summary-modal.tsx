@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ScheduleTimeInput } from "@/components/ui/schedule-time-input";
 import { Textarea } from "@/components/ui/textarea";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
@@ -23,7 +23,6 @@ interface ScheduleSummaryModalProps {
   date: string;
   time: string;
   minDate?: string;
-  minTime?: string;
   selectedPlatforms: PlatformEnum[];
   platforms: { platform: PlatformEnum; isConnected: boolean }[];
   isLoading: boolean;
@@ -43,7 +42,6 @@ export function ScheduleSummaryModal({
   date,
   time,
   minDate,
-  minTime,
   selectedPlatforms,
   platforms,
   isLoading,
@@ -110,12 +108,10 @@ export function ScheduleSummaryModal({
                   />
                 </div>
 
-                <Input
-                  type="time"
+                <ScheduleTimeInput
+                  date={date}
                   value={time}
-                  min={minTime}
-                  step={60}
-                  onChange={(event) => onTimeChange(event.target.value)}
+                  onValueChange={onTimeChange}
                   className="h-12 rounded-2xl bg-background-secondary"
                 />
               </div>

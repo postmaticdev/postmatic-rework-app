@@ -6,14 +6,13 @@ import { useRouter } from "@/i18n/navigation";
 import { CardNoGap } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
-import { Input } from "@/components/ui/input";
+import { ScheduleTimeInput } from "@/components/ui/schedule-time-input";
 import { Textarea } from "@/components/ui/textarea";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { Progress } from "@/components/ui/progress";
 import { ScheduleSummaryModal } from "@/app/[locale]/business/[businessId]/content-generate/(components)/schedule-summary-modal";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
-import { dateManipulation } from "@/helper/date-manipulation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { cn } from "@/lib/utils";
@@ -36,31 +35,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { showToast } from "@/helper/show-toast";
-
-function formatTimeInput(date: Date) {
-  const nextDate = getNextSchedulableDate(date);
-
-  const hour = nextDate.getHours().toString().padStart(2, "0");
-  const minute = nextDate.getMinutes().toString().padStart(2, "0");
-  return `${hour}:${minute}`;
-}
-
-function getNextSchedulableDate(date = new Date()) {
-  const nextDate = new Date(date);
-  if (nextDate.getSeconds() > 0 || nextDate.getMilliseconds() > 0) {
-    nextDate.setMinutes(nextDate.getMinutes() + 1);
-  }
-  nextDate.setSeconds(0, 0);
-  return nextDate;
-}
-
-function getCurrentScheduleInput() {
-  const nextDate = getNextSchedulableDate();
-  return {
-    date: dateManipulation.ymd(nextDate),
-    time: formatTimeInput(nextDate),
-  };
-}
+import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
 
 export function PreviewPanel() {
   const previewPanelRef = useRef<HTMLDivElement>(null);
@@ -145,7 +120,6 @@ export function PreviewPanel() {
   );
   const currentScheduleInput = getCurrentScheduleInput();
   const minDate = currentScheduleInput.date;
-  const minTime = date === minDate ? currentScheduleInput.time : undefined;
 
   const handleGenerateClick = () => {
     if (schedulerMode && selectedHistory) {
@@ -428,12 +402,10 @@ export function PreviewPanel() {
                     className="h-full w-full bg-transparent text-sm outline-none"
                   />
                 </div>
-                <Input
-                  type="time"
+                <ScheduleTimeInput
+                  date={date}
                   value={time}
-                  min={minTime}
-                  step={60}
-                  onChange={(event) => setTime(event.target.value)}
+                  onValueChange={setTime}
                   className="h-12 rounded-2xl bg-background-secondary"
                 />
               </div>
@@ -547,7 +519,6 @@ export function PreviewPanel() {
         date={date}
         time={time}
         minDate={minDate}
-        minTime={minTime}
         selectedPlatforms={selectedPlatforms}
         platforms={platformOptions}
         isLoading={isScheduling || mEnhanceCaption.isPending}

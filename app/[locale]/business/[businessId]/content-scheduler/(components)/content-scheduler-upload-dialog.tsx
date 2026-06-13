@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { UploadPhoto } from "@/components/forms/upload-photo";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { ScheduleTimeInput } from "@/components/ui/schedule-time-input";
 import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { dateManipulation } from "@/helper/date-manipulation";
@@ -27,6 +27,7 @@ import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { CalendarDays, Loader2, Send, Sparkles } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
 
 interface ContentSchedulerUploadDialogProps {
   isOpen: boolean;
@@ -204,6 +205,11 @@ export function ContentSchedulerUploadDialog({
       showToast("error", t("selectDateAndTime"));
       return;
     }
+    const scheduledAt = new Date(`${date}T${time}`);
+    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+      showToast("error", t("selectDateAndTime"));
+      return;
+    }
     if (selectedPlatforms.length === 0) {
       if (!hasConnectedPlatforms) {
         onNeedPlatformConnect();
@@ -218,7 +224,7 @@ export function ContentSchedulerUploadDialog({
         imageUrl: image,
         caption,
         platforms: selectedPlatforms,
-        dateTime: new Date(`${date}T${time}`).toISOString(),
+        dateTime: scheduledAt.toISOString(),
         status: "ready" as const,
         withChatAI: false,
       };
@@ -245,7 +251,7 @@ export function ContentSchedulerUploadDialog({
 
   const isSubmitting =
     scheduleMutation.isPending || editScheduleMutation.isPending;
-  const minDate = dateManipulation.ymd(new Date());
+  const minDate = getCurrentScheduleInput().date;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -310,11 +316,10 @@ export function ContentSchedulerUploadDialog({
 
               <label className="space-y-2">
                 <span className="text-sm font-medium">{t("selectTime")}</span>
-                <Input
-                  type="time"
+                <ScheduleTimeInput
+                  date={date}
                   value={time}
-                  step={60}
-                  onChange={(event) => setTime(event.target.value)}
+                  onValueChange={setTime}
                   className="h-11 rounded-2xl bg-background-secondary"
                 />
               </label>

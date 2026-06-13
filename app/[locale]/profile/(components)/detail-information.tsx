@@ -5,21 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
-import { useAuthProfileGetProfile } from "@/services/auth.api";
+import { useReferralBasicGetCode } from "@/services/referral.api";
 import { useState } from "react";
 
 export function DetailInformation() {
-  const { data: profileData } = useAuthProfileGetProfile();
-  const profile = profileData?.data?.data;
+  const { data: referralData, isLoading } = useReferralBasicGetCode();
+  const referralCode = referralData?.data?.data?.code;
   const [isCopied, setIsCopied] = useState(false);
   const tToast = useTranslations();
 
   const handleCopyReferralCode = async () => {
+    if (!referralCode) return;
+
     try {
-      await navigator.clipboard.writeText(refferalCodeInfo.code);
+      await navigator.clipboard.writeText(referralCode);
       setIsCopied(true);
       showToast("success", tToast("toast.profile.referralCodeCopied"), tToast);
-      
+
       // Reset icon back to copy after 2 seconds
       setTimeout(() => {
         setIsCopied(false);
@@ -31,10 +33,9 @@ export function DetailInformation() {
   };
 
   // TODO: Get invited users, (belum ada di API, belum fix logic)
-  const refferalCodeInfo = {
-    code: profile?.discountCodes?.[0]?.code || "Belum ada kode referral",
-    invitedUsers: profile?.discountCodes?.[0]?._count.discountUsages || 0,
-    proUsers: profile?.discountCodes?.[0]?._count.discountUsages || 0,
+  const referralCodeInfo = {
+    invitedUsers: 0,
+    proUsers: 0,
   };
 
   // TODO: Get creator info, (belum ada di API, belum fix logic)
@@ -65,8 +66,7 @@ export function DetailInformation() {
                   {t("referralCode")}
                 </p>
                 <p className="font-semibold text-foreground">
-                  {profile?.discountCodes?.[0]?.code ||
-                    t("noReferralCode")}
+                  {isLoading ? "..." : referralCode || t("noReferralCode")}
                 </p>
               </div>
               <Button
@@ -74,7 +74,7 @@ export function DetailInformation() {
                 size="sm"
                 onClick={handleCopyReferralCode}
                 className="p-2 h-8 w-8 hover:bg-background"
-                disabled={!refferalCodeInfo.code || refferalCodeInfo.code === t("noReferralCode")}
+                disabled={!referralCode}
               >
                 {isCopied ? (
                   <Check className="h-4 w-4 text-green-600" />
@@ -88,7 +88,7 @@ export function DetailInformation() {
                 {t("invitedUsers")}
               </p>
               <p className="font-semibold text-foreground">
-                {refferalCodeInfo.invitedUsers}
+                {referralCodeInfo.invitedUsers}
                 {/* TODO: Get invited users, (belum ada di API) */}
               </p>
             </div>
@@ -97,7 +97,7 @@ export function DetailInformation() {
                 {t("proUsers")}
               </p>
               <p className="font-semibold text-foreground">
-                {refferalCodeInfo.proUsers}
+                {referralCodeInfo.proUsers}
               </p>
             </div>
 
