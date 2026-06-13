@@ -47,6 +47,21 @@ type ApiError = {
   };
 };
 
+type PaymentStatusKey =
+  | "success"
+  | "failed"
+  | "canceled"
+  | "expired"
+  | "refunded"
+  | "denied"
+  | "pending";
+
+type DetailRow = {
+  label: string;
+  value: string;
+  isStatus?: boolean;
+};
+
 const DEFAULT_TOKEN_AMOUNT = "200000";
 const MAX_TOKEN_AMOUNT = 1_000_000_000;
 
@@ -68,23 +83,23 @@ const formatTokenAmountInput = (value: string, locale: string) => {
   return Number(clamped).toLocaleString(locale);
 };
 
-const getPaymentStatusLabel = (status?: string) => {
+const getPaymentStatusKey = (status?: string): PaymentStatusKey => {
   switch (status) {
     case "Success":
-      return "Berhasil";
+      return "success";
     case "Failed":
-      return "Gagal";
+      return "failed";
     case "Canceled":
-      return "Dibatalkan";
+      return "canceled";
     case "Expired":
-      return "Kedaluwarsa";
+      return "expired";
     case "Refunded":
-      return "Refund";
+      return "refunded";
     case "Denied":
-      return "Ditolak";
+      return "denied";
     case "Pending":
     default:
-      return "Menunggu Pembayaran";
+      return "pending";
   }
 };
 
@@ -113,6 +128,8 @@ export function TopUpTokenDialog({
   const { businessId } = useParams() as { businessId: string };
   const locale = useLocale();
   const t = useTranslations();
+  const tDialog = useTranslations("settings.topUpTokenDialog");
+  const tStatus = useTranslations("checkout.paymentStatusLabel");
   const queryClient = useQueryClient();
   const defaultTokenAmountDisplay = Number(DEFAULT_TOKEN_AMOUNT).toLocaleString(
     locale
@@ -222,11 +239,11 @@ export function TopUpTokenDialog({
   const handleCheckPromoCode = async () => {
     const nextPromoCode = promoCode.trim();
     if (!nextPromoCode) {
-      showToast("error", "Please enter promo code.");
+      showToast("error", tDialog("enterPromoCodeValidation"));
       return;
     }
     if (!tokenAmount || tokenAmount <= 0) {
-      showToast("error", "Please enter a valid token amount.");
+      showToast("error", tDialog("invalidTokenAmount"));
       return;
     }
     if (!selectedMethod) {
@@ -246,7 +263,7 @@ export function TopUpTokenDialog({
 
   const handleCreatePayment = async () => {
     if (!tokenAmount || tokenAmount <= 0) {
-      showToast("error", "Please enter a valid token amount.");
+      showToast("error", tDialog("invalidTokenAmount"));
       return;
     }
     if (!selectedMethod) {
@@ -321,7 +338,7 @@ export function TopUpTokenDialog({
       setCheckoutResult((current) =>
         current ? mergeCheckoutWithPurchaseDetail(current, res.data.data) : current
       );
-      showToast("info", getPaymentStatusLabel(res.data.data.status));
+      showToast("info", tStatus(getPaymentStatusKey(res.data.data.status)));
       queryClient.invalidateQueries({
         queryKey: ["businessPurchaseHistory", businessId],
       });
@@ -345,7 +362,7 @@ export function TopUpTokenDialog({
     const diffMs = new Date(expiredAt).getTime() - now;
     if (diffMs <= 0) {
       return {
-        text: "Batas pembayaran telah berakhir.",
+        text: tDialog("paymentExpired"),
         expired: true,
       };
     }
@@ -361,7 +378,10 @@ export function TopUpTokenDialog({
     )}:${String(seconds).padStart(2, "0")}`;
 
     return {
-      text: days > 0 ? `Sisa waktu pembayaran: ${days} hari ${hhmmss}` : `Sisa waktu pembayaran: ${hhmmss}`,
+      text:
+        days > 0
+          ? tDialog("paymentTimeRemainingWithDays", { days, time: hhmmss })
+          : tDialog("paymentTimeRemaining", { time: hhmmss }),
       expired: false,
     };
   };
@@ -370,42 +390,55 @@ export function TopUpTokenDialog({
   const paymentStatus = checkoutResult?.status;
   const isPendingPayment = !paymentStatus || paymentStatus === "Pending";
   const isSuccessPayment = paymentStatus === "Success";
-  const statusLabel = getPaymentStatusLabel(paymentStatus);
+  const statusLabel = tStatus(getPaymentStatusKey(paymentStatus));
   const statusTitle = isPendingPayment
-    ? "Menunggu Pembayaran..."
+    ? tDialog("pendingTitle")
     : isSuccessPayment
-      ? "Pembayaran Berhasil"
+      ? tDialog("successTitle")
       : statusLabel;
   const statusDescription = isPendingPayment
-    ? "Silakan lakukan pembayaran untuk melanjutkan pesanan."
-    : "Transaksi ini sudah diproses.";
+    ? tDialog("pendingDescription")
+    : tDialog("processedDescription");
 
-  const detailRows = checkoutResult
+  const detailRows: DetailRow[] = checkoutResult
     ? [
       {
-        label: "Ref",
+        label: tDialog("reference"),
         value:
           checkoutResult.paymentCode ||
           checkoutResult.orderId ||
           checkoutResult.id,
       },
-      { label: "Tgl Dibuat", value: formatDateTime(checkoutResult.createdAt) },
-      { label: "Tgl Diubah", value: formatDateTime(checkoutResult.updatedAt) },
-      { label: "Produk", value: checkoutResult.productName },
       {
-        label: "Metode",
+        label: tDialog("createdAt"),
+        value: formatDateTime(checkoutResult.createdAt),
+      },
+      {
+        label: tDialog("updatedAt"),
+        value: formatDateTime(checkoutResult.updatedAt),
+      },
+      { label: tDialog("product"), value: checkoutResult.productName },
+      {
+        label: tDialog("method"),
         value: checkoutResult.method?.toUpperCase() || "-",
       },
       ...checkoutResult.paymentDetails.map((detail) => ({
         label: detail.name,
         value: formatIdr(detail.price),
       })),
-      { label: "Total", value: formatIdr(checkoutResult.totalAmount) },
       {
-        label: "Status Bayar",
-        value: statusLabel,
+        label: tDialog("total"),
+        value: formatIdr(checkoutResult.totalAmount),
       },
-      { label: "Kode Affiliate", value: checkoutResult.discountCode || "-" },
+      {
+        label: tDialog("paymentStatus"),
+        value: statusLabel,
+        isStatus: true,
+      },
+      {
+        label: tDialog("affiliateCode"),
+        value: checkoutResult.discountCode || "-",
+      },
     ]
     : [];
 
@@ -414,7 +447,9 @@ export function TopUpTokenDialog({
       <DialogContent className="overflow-hidden">
         <DialogHeader className="px-6 py-5">
           <DialogTitle >
-            {checkoutResult ? "Payment Instruction" : "Pay as you go"}
+            {checkoutResult
+              ? tDialog("paymentInstruction")
+              : tDialog("title")}
           </DialogTitle>
         </DialogHeader>
 
@@ -424,7 +459,7 @@ export function TopUpTokenDialog({
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
-                    Amount to add
+                    {tDialog("amountToAdd")}
                   </label>
                   <Input
                     value={amount}
@@ -439,7 +474,7 @@ export function TopUpTokenDialog({
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
-                    Payment method
+                    {tDialog("paymentMethod")}
                   </label>
                   <Select
                     value={paymentMethod}
@@ -447,7 +482,9 @@ export function TopUpTokenDialog({
                     disabled={productDetail.isLoading}
                   >
                     <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Select payment method" />
+                      <SelectValue
+                        placeholder={tDialog("selectPaymentMethod")}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {methodOptions.map((method) => (
@@ -462,13 +499,13 @@ export function TopUpTokenDialog({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  Promo code
+                  {tDialog("promoCode")}
                 </label>
                 <div className="relative">
                   <Input
                     value={promoCode}
                     onChange={(event) => handlePromoCodeChange(event.target.value)}
-                    placeholder="Enter promo code"
+                    placeholder={tDialog("enterPromoCode")}
                     className="h-11 pr-20 uppercase"
                   />
                   <Button
@@ -483,7 +520,9 @@ export function TopUpTokenDialog({
                     }
                     className="absolute right-1 top-1/2 h-9 -translate-y-1/2 px-3 text-sm"
                   >
-                    {isCheckingPromoCode ? "Checking..." : "check"}
+                    {isCheckingPromoCode
+                      ? tDialog("checking")
+                      : tDialog("check")}
                   </Button>
                 </div>
                 {promoCodeMessage ? (
@@ -502,33 +541,35 @@ export function TopUpTokenDialog({
 
               <div className="rounded-lg border bg-muted/20 p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h3 className="font-semibold">Payment details</h3>
+                  <h3 className="font-semibold">
+                    {tDialog("paymentDetails")}
+                  </h3>
                   {priceQuery.isFetching ? (
                     <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
                   ) : null}
                 </div>
                 <SummaryRow
-                  label="Token"
+                  label={tDialog("token")}
                   value={tokenAmount ? tokenAmount.toLocaleString(locale) : "-"}
                 />
                 <SummaryRow
-                  label="Subtotal"
+                  label={tDialog("subtotal")}
                   value={formatIdr(price?.calculation.itemPrice ?? 0)}
                 />
                 <SummaryRow
-                  label="Discount"
+                  label={tDialog("discount")}
                   value={formatIdr(price?.calculation.discountAmount ?? 0)}
                 />
                 <SummaryRow
-                  label="Admin"
+                  label={tDialog("admin")}
                   value={formatIdr(price?.calculation.adminFeeAmount ?? 0)}
                 />
                 <SummaryRow
-                  label="Tax"
+                  label={tDialog("tax")}
                   value={formatIdr(price?.calculation.taxAmount ?? 0)}
                 />
                 <SummaryRow
-                  label="Total"
+                  label={tDialog("total")}
                   value={formatIdr(price?.calculation.totalAmount ?? 0)}
                   strong
                 />
@@ -556,7 +597,9 @@ export function TopUpTokenDialog({
                   <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
                     <ReceiptText className="h-5 w-5" />
                   </div>
-                  <h3 className="text-lg font-semibold">Detail Order</h3>
+                  <h3 className="text-lg font-semibold">
+                    {tDialog("orderDetails")}
+                  </h3>
                 </div>
                 <div className="space-y-3">
                   {detailRows.map((row) => (
@@ -564,7 +607,7 @@ export function TopUpTokenDialog({
                       key={row.label}
                       label={row.label}
                       value={row.value}
-                      status={row.label === "Status Bayar" ? checkoutResult.status : undefined}
+                      status={row.isStatus ? checkoutResult.status : undefined}
                     />
                   ))}
                 </div>
@@ -585,7 +628,9 @@ export function TopUpTokenDialog({
               }
 
             >
-              {isCreatingPayment ? "Processing..." : "Continue"}
+              {isCreatingPayment
+                ? tDialog("processing")
+                : tDialog("continue")}
             </Button>
           </DialogFooter>
         ) : null}

@@ -13,23 +13,19 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useAutoSchedulerAutosave } from "@/contexts/auto-scheduler-autosave-context";
 import { useTranslations } from "next-intl";
-
-
+import { ReportIssueModal } from "@/components/report-issue-modal";
 
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { businessId } = useParams() as { businessId: string };
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const { guardedNavigate } = useAutoSchedulerAutosave();
 
   const handleClick = (href: string) => {
     const fullPath = `/business/${businessId}/${href}`;
     guardedNavigate(fullPath, router.push);
-  };
-
-  const handleExternalClick = (url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const t = useTranslations("sideBar");
@@ -55,9 +51,8 @@ export function Sidebar() {
   const helpItems = [
     {
       name: t("reportIssue"),
-      href: "https://forms.gle/fZAF7zGQZcdvyVzy9",
+      id: "report-issue",
       icon: AlertTriangle,
-      isExternal: true,
     },
   ];
   return (
@@ -152,7 +147,7 @@ export function Sidebar() {
         <div className="flex flex-col space-y-6 mt-auto">
           {helpItems.map((item, index) => {
             const Icon = item.icon;
-            const isHovered = hoveredItem === item.href;
+            const isHovered = hoveredItem === item.id;
 
             return (
               <div
@@ -164,8 +159,8 @@ export function Sidebar() {
                 }}
               >
                 <button
-                  onClick={() => handleExternalClick(item.href)}
-                  onMouseEnter={() => setHoveredItem(item.href)}
+                  onClick={() => setIsReportModalOpen(true)}
+                  onMouseEnter={() => setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={cn(
                     "w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 ease-out transform hover:scale-110 active:scale-95 hover:rotate-3",
@@ -202,6 +197,11 @@ export function Sidebar() {
           })}
         </div>
       </div>
+
+      <ReportIssueModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+      />
     </>
   );
 }

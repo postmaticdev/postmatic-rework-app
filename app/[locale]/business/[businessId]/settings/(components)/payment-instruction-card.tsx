@@ -5,6 +5,7 @@ import { formatIdr } from "@/helper/formatter";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Copy, RefreshCw } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 type PaymentAction = {
   action: string;
@@ -73,6 +74,7 @@ export function PaymentInstructionCard({
   onRefresh,
   onCopy,
 }: PaymentInstructionCardProps) {
+  const t = useTranslations("settings.topUpTokenDialog");
   const qrCodeAction =
     paymentActions.find(
       (action) => action.type === "image" && action.action === "generate-qr-code"
@@ -103,11 +105,13 @@ export function PaymentInstructionCard({
           <div className="space-y-1 text-sm text-foreground">
             <p>{statusDescription}</p>
             <p>
-              Total yang harus dibayar:{" "}
+              {t("totalToPay")}: {" "}
               <span className="font-semibold">{formatIdr(totalAmount)}</span>
             </p>
             {isPending && expiresAtLabel ? (
-              <p className="text-muted-foreground">Berlaku sampai {expiresAtLabel}</p>
+              <p className="text-muted-foreground">
+                {t("validUntil", { date: expiresAtLabel })}
+              </p>
             ) : null}
             {isPending && paymentCountdown ? (
               <p
@@ -138,7 +142,7 @@ export function PaymentInstructionCard({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrCodeAction.value}
-                alt="QRIS payment QR code"
+                alt={t("qrisAlt")}
                 className="h-24 w-24 object-contain sm:h-52 sm:w-52"
               />
             </a>
@@ -152,10 +156,11 @@ export function PaymentInstructionCard({
                   value={textPaymentAction.value}
                   method={method}
                   onCopy={onCopy}
+                  copyLabel={t("copy")}
                 />
               ) : (
                 <div className="grid h-24 w-24 place-items-center text-center text-[10px] text-muted-foreground sm:h-52 sm:w-52 sm:text-sm">
-                  Instruksi pembayaran tidak tersedia.
+                  {t("instructionUnavailable")}
                 </div>
               )}
             </div>
@@ -179,7 +184,7 @@ export function PaymentInstructionCard({
             className="w-full sm:w-auto"
           >
             <Copy className="h-4 w-4" />
-            Salin
+            {t("copy")}
           </Button>
         </div>
       ) : null}
@@ -193,7 +198,7 @@ export function PaymentInstructionCard({
           className="w-full border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:hover:text-blue-200"
         >
           <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-          Cek Status Pembayaran
+          {t("checkPaymentStatus")}
         </Button>
       ) : null}
     </div>
@@ -228,11 +233,13 @@ function PaymentTextInstruction({
   value,
   method,
   onCopy,
+  copyLabel,
 }: {
   action: string;
   value: string;
   method?: string;
   onCopy: (value: string) => void;
+  copyLabel: string;
 }) {
   const label =
     action === "virtual-account"
@@ -254,7 +261,7 @@ function PaymentTextInstruction({
         className="h-8 w-full text-xs sm:h-10 sm:text-sm"
       >
         <Copy className="h-4 w-4" />
-        Copy
+        {copyLabel}
       </Button>
     </div>
   );

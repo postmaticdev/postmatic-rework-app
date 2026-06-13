@@ -37,7 +37,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTokenGetTokenUsage } from "@/services/tier/token.api";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
 import { useDateFormat } from "@/hooks/use-date-format";
-
+import { ReportIssueModal } from "@/components/report-issue-modal";
 
 export function MobileMenu() {
   const router = useRouter();
@@ -45,6 +45,7 @@ export function MobileMenu() {
   const { formatDate } = useDateFormat();
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(theme === "dark");
   const { data: profileData } = useAuthProfileGetProfile();
   const profile = profileData?.data?.data;
@@ -160,11 +161,6 @@ export function MobileMenu() {
       router.push(fullPath);
     }
 
-    setIsOpen(false);
-  };
-
-  const handleExternalClick = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
     setIsOpen(false);
   };
 
@@ -328,7 +324,10 @@ export function MobileMenu() {
                 {/* Report Problem Button */}
                 <Button
                   variant="ghost"
-                  onClick={() => handleExternalClick("https://forms.gle/fZAF7zGQZcdvyVzy9")}
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsReportModalOpen(true);
+                  }}
                   className="w-full justify-start text-orange-600 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors duration-200"
                 >
                   <AlertTriangle className="mr-2 h-4 w-4" />
@@ -349,6 +348,11 @@ export function MobileMenu() {
           </div>
         </div>
       )}
+
+      <ReportIssueModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+      />
     </>
   );
 }

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import {
   Dialog,
@@ -155,7 +155,6 @@ export function ContentSchedulerBoard({
   } | null>(null);
   const calendarContainerRef = useRef<HTMLDivElement | null>(null);
   const dateActionMenuRef = useRef<HTMLDivElement | null>(null);
-  const monthDatePickerRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const selectedDateQuery = searchParams.get("selectedDate");
@@ -727,19 +726,6 @@ export function ContentSchedulerBoard({
     setDateActionMenuPosition(null);
   };
 
-  const openMonthDatePicker = () => {
-    const input = monthDatePickerRef.current;
-    if (!input) return;
-
-    if (typeof input.showPicker === "function") {
-      input.showPicker();
-      return;
-    }
-
-    input.focus();
-    input.click();
-  };
-
   const handleConfirmCancelEvent = async () => {
     try {
       if (eventToCancel?.sourceType === "draft" && eventToCancel.draftMarker) {
@@ -843,23 +829,23 @@ export function ContentSchedulerBoard({
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <div className="relative mx-auto flex justify-center">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 w-auto min-w-[160px] px-4 text-center text-lg font-bold capitalize sm:min-w-[220px] sm:text-xl"
-                    onClick={openMonthDatePicker}
-                  >
-                    {monthLabel}
-                  </Button>
                   <input
-                    ref={monthDatePickerRef}
                     type="date"
                     value={dateManipulation.ymd(selectedDate)}
                     aria-label={t("today")}
                     onChange={(event) => handleDatePickerChange(event.target.value)}
-                    className="pointer-events-none absolute left-1/2 top-1/2 h-px w-px -translate-x-1/2 -translate-y-1/2 opacity-0"
-                    tabIndex={-1}
+                    className="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                   />
+                  <span
+                    aria-hidden="true"
+                    className={buttonVariants({
+                      variant: "outline",
+                      className:
+                        "pointer-events-none h-10 w-auto min-w-[160px] px-4 text-center text-lg font-bold capitalize peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 sm:min-w-[220px] sm:text-xl",
+                    })}
+                  >
+                    {monthLabel}
+                  </span>
                 </div>
                 <Button
                   variant="outline"

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
 import { Info, Send, Zap } from "lucide-react";
@@ -14,8 +13,8 @@ import { TopUpTokenDialog } from "./top-up-token-dialog";
 export function BillingInvoices() {
   const locale = useLocale();
   const t = useTranslations("settings");
-  const { businessId } = useParams() as { businessId: string };
   const searchParams = useSearchParams();
+  const { businessId } = useParams() as { businessId: string };
   const { data: tokenUsageData } = useTokenGetTokenUsage(businessId);
   const availableToken = tokenUsageData?.data?.data?.availableToken ?? 0;
   const [isDialogOpen, setIsDialogOpen] = useState(
@@ -28,7 +27,9 @@ export function BillingInvoices() {
       <Card>
         <CardContent className="flex flex-col gap-6 py-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <CardTitle className="text-3xl font-bold">Pay as you go</CardTitle>
+            <CardTitle className="text-3xl font-bold">
+              {t("payAsYouGo")}
+            </CardTitle>
 
             <div className="space-y-2 pt-2">
               <div className="flex items-center gap-1.5 text-base font-medium text-muted-foreground">
@@ -59,18 +60,23 @@ export function BillingInvoices() {
               className="bg-blue-600 text-base font-medium text-white hover:bg-blue-700"
             >
               <Send className="mr-2 h-4 w-4" />
-              Top up Credit
+              {t("topUpCredit")}
             </Button>
 
-            <Link href={`/business/${businessId}/pricing`} prefetch={false}>
-              <Button
-                variant="outline"
-                className="w-full border-border bg-muted/40 text-base font-medium"
+            <Button
+              asChild
+              variant="outline"
+              className="w-full border-border bg-muted/40 text-base font-medium"
+            >
+              <a
+                href="https://docs.postmatic.id/docs/penetapan-harga/paket-dan-harga"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <Send className="mr-2 h-4 w-4 rotate-45" />
-                View pricing
-              </Button>
-            </Link>
+                {t("viewPricing")}
+              </a>
+            </Button>
           </div>
         </CardContent>
       </Card>
