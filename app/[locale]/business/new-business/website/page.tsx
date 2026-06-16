@@ -19,6 +19,7 @@ import {
   websiteScrapperService,
 } from "@/services/website-scrapper.api";
 import { cn } from "@/lib/utils";
+import { GlowEffect } from "@/components/motion-primitives/glow-effect";
 import {
   ArrowRight,
   CheckCircle2,
@@ -30,6 +31,7 @@ import {
   Users,
   WandSparkles,
 } from "lucide-react";
+import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 
 type FlowPhase = "input" | "loading" | "result";
@@ -51,6 +53,44 @@ type WebsiteDraft = {
   metadataDescription: string;
   firstProduct: WebsiteScrapperBusinessProduct | null;
 };
+
+function GlowingCardShell({
+  children,
+  cardClassName,
+  radiusClassName = "rounded-[2rem]",
+  wrapperClassName,
+}: {
+  children: React.ReactNode;
+  cardClassName?: string;
+  radiusClassName?: string;
+  wrapperClassName?: string;
+}) {
+  return (
+    <div className={cn("relative w-full", wrapperClassName)}>
+      <motion.div
+        className={cn("pointer-events-none absolute inset-0", radiusClassName)}
+        animate={{
+          opacity: 1,
+        }}
+        transition={{
+          duration: 0.2,
+          ease: "easeOut",
+        }}
+      >
+        <GlowEffect
+          colors={["#0894FF", "#C959DD", "#FF2E54", "#FF9004"]}
+          mode="colorShift"
+          blur="medium"
+          duration={4}
+          className={radiusClassName}
+        />
+      </motion.div>
+      <Card className={cn("relative z-10 w-full", radiusClassName, cardClassName)}>
+        {children}
+      </Card>
+    </div>
+  );
+}
 
 function normalizeUrl(value: string) {
   if (!value.trim()) return "";
@@ -387,14 +427,13 @@ export default function NewBusinessWebsitePage() {
 
   return (
     <div className="ai-glow-page relative min-h-screen overflow-hidden bg-background">
-      <div className="ai-glow-orb ai-glow-orb-1" />
-      <div className="ai-glow-orb ai-glow-orb-2" />
-      <div className="ai-glow-orb ai-glow-orb-3" />
-
       <div className="relative z-10 flex min-h-screen flex-col px-4 py-4 sm:px-6 sm:py-6">
         {phase === "input" && (
           <div className="flex flex-1 items-center justify-center py-8">
-            <Card className="w-full max-w-2xl rounded-[2rem] border-white/50 bg-white/78 p-6 shadow-[0_24px_100px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.84)] sm:p-8">
+            <GlowingCardShell
+              wrapperClassName="max-w-2xl"
+              cardClassName="border-white/50 bg-white/95 p-6 shadow-[0_24px_100px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
+            >
               <div className="mx-auto max-w-xl text-center">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
                   <WandSparkles className="size-3.5" />
@@ -436,13 +475,17 @@ export default function NewBusinessWebsitePage() {
                   </Button>
                 </div>
               </div>
-            </Card>
+            </GlowingCardShell>
           </div>
         )}
 
         {phase === "loading" && (
           <div className="flex flex-1 items-center justify-center py-8">
-            <Card className="w-full max-w-2xl rounded-[2.2rem] border-white/40 bg-white/80 p-6 text-center shadow-[0_24px_110px_rgba(37,99,235,0.2)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.84)] sm:p-8">
+            <GlowingCardShell
+              wrapperClassName="max-w-2xl"
+              cardClassName="border-white/40 bg-white/95 p-6 text-center shadow-[0_24px_110px_rgba(37,99,235,0.2)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
+              radiusClassName="rounded-[2.2rem]"
+            >
               <div className="mx-auto max-w-xl">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
                   <Sparkles className="size-3.5" />
@@ -492,14 +535,14 @@ export default function NewBusinessWebsitePage() {
                   </div>
                 </div>
               </div>
-            </Card>
+            </GlowingCardShell>
           </div>
         )}
 
         {phase === "result" && (
           <>
             <div className="mx-auto flex w-full max-w-7xl flex-1 items-start justify-center py-6 pb-28 sm:pb-6">
-              <Card className="w-full rounded-[2rem] border-white/50 bg-white/82 p-4 shadow-[0_28px_120px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(15,23,42,0.82)] sm:p-6 lg:p-8">
+              <GlowingCardShell cardClassName="border-white/50 bg-white/95 p-4 shadow-[0_28px_120px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(15,23,42,0.94)] sm:p-6 lg:p-8">
                 <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] xl:items-end">
                   <div className="max-w-3xl">
                     <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
@@ -722,7 +765,7 @@ export default function NewBusinessWebsitePage() {
                     </div>
                   </div>
                 </div>
-              </Card>
+              </GlowingCardShell>
             </div>
             <div className="fixed right-0 bottom-0 left-0 z-50 border-t border-white/20 bg-background/95 p-4 shadow-[0_-16px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-slate-950/95 sm:hidden">
               <Button
