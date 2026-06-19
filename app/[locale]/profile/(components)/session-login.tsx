@@ -1,9 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  useAuthProfileGetProfile,
+  useAuthProfileGetCurrentSession,
+  useAuthProfileGetSessions,
   useAuthProfileLogout,
   useAuthProfileLogoutAll,
 } from "@/services/auth.api";
@@ -15,40 +17,62 @@ import { useTranslations } from "next-intl";
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function SessionLogin() {
-  const { data: userData } = useAuthProfileGetProfile();
-  const sessions = userData?.data?.data?.sessions || [];
+  const { data: sessionsData } = useAuthProfileGetSessions();
+  const { data: currentSessionData } = useAuthProfileGetCurrentSession();
   const mLogout = useAuthProfileLogout();
   const { formatDate } = useDateFormat();
   const mLogoutAll = useAuthProfileLogoutAll();
   const t = useTranslations("sessionLogin");
+  const tToast = useTranslations();
+  const currentSessionId = currentSessionData?.data?.data?.session?.id ?? null;
+
+  const sessions = useMemo(() => {
+    const sessionList = sessionsData?.data?.data ?? [];
+
+    return [...sessionList].sort((a, b) => {
+      if (a.id === currentSessionId) return -1;
+      if (b.id === currentSessionId) return 1;
+
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [currentSessionId, sessionsData?.data?.data]);
 
   const handleLogout = async (sessionId: string) => {
+    const isCurrentSession = sessionId === currentSessionId;
+
     try {
       await mLogout.mutateAsync(sessionId);
+      showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
     } catch {
-    } finally {
-      showToast("success", t("toast.auth.logoutSuccess"), t);
-      await sleep(1000);
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
-      window.location.href = LOGIN_URL;
+      return;
     }
+
+    if (!isCurrentSession) {
+      return;
+    }
+
+    await sleep(1000);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
+    window.location.href = LOGIN_URL;
   };
 
   const handleLogoutAll = async () => {
     try {
       await mLogoutAll.mutateAsync();
+      showToast("success", tToast("toast.auth.logoutAllSuccess"), tToast);
     } catch {
-    } finally {
-      showToast("success", t("toast.auth.logoutAllSuccess"), t);
-      await sleep(1000);
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
-      window.location.href = LOGIN_URL;
+      return;
     }
+
+    await sleep(1000);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
+    window.location.href = LOGIN_URL;
   };
+
   return (
     <Card className="h-fit">
       <CardContent className="p-6">
@@ -62,30 +86,37 @@ export function SessionLogin() {
         </div>
 
         <div className="space-y-4">
-          {sessions.map((session, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between bg-background-secondary p-4 rounded-lg"
-            >
-              <div>
-                <p className="font-medium text-foreground">
-                  {session.browser} • {session.platform}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {formatDate(new Date(session.updatedAt))}
-                </p>
-              </div>
+          {sessions.map((session) => {
+            const label = [session.browser, session.platform || session.device]
+              .filter(Boolean)
+              .join(" • ");
+            const sessionDate = session.createdAt || session.expiredAt;
 
-              <Button
-                variant="destructive"
-                size="sm"
-                className="text-white px-6"
-                onClick={() => handleLogout(session.id)}
+            return (
+              <div
+                key={session.id}
+                className="flex items-center justify-between bg-background-secondary p-4 rounded-lg"
               >
-                {t("logout")}
-              </Button>
-            </div>
-          ))}
+                <div>
+                  <p className="font-medium text-foreground">{label || "-"}</p>
+                  {sessionDate && (
+                    <p className="text-sm text-muted-foreground">
+                      {formatDate(new Date(sessionDate))}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="text-white px-6"
+                  onClick={() => handleLogout(session.id)}
+                >
+                  {t("logout")}
+                </Button>
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

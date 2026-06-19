@@ -40,13 +40,16 @@ export interface User {
 
 export interface Session {
   id: string;
-  refreshToken: string;
+  refreshToken?: string;
   browser: string;
   platform: string;
+  device?: string;
+  clientIp?: string;
   profileId: string;
-  deletedAt: string | null;
+  deletedAt?: string | null;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
+  expiredAt?: string | null;
 }
 
 export interface DiscountCode {
@@ -72,7 +75,11 @@ export interface SessionRes {
   id: string;
   email: string;
   name: string;
-  photo: string;
-  iat: number;
+  image: string | null;
   exp: number;
+  session: Session;
+}
+
+export interface LogoutAllSessionRes {
+  revokedSessions: number;
 }

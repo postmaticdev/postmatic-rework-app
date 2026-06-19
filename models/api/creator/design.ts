@@ -63,11 +63,6 @@ export interface UpdateDesignRequest {
   templateProductCategoryIds?: string[];
 }
 
-// Publish/Unpublish Design Request interface
-export interface PublishDesignRequest {
-  isPublished: boolean;
-}
-
 // Get Designs Query Parameters
 export interface GetDesignsQuery {
   limit?: number;
@@ -82,5 +77,4 @@ export interface GetDesignsQuery {
 export type GetDesignsResponse = BaseResponseFiltered<CreatorDesign[]>;
 export type CreateDesignResponse = BaseResponse<CreatorDesign>;
 export type UpdateDesignResponse = BaseResponse<CreatorDesign>;
-export type PublishDesignResponse = BaseResponse<CreatorDesign>;
 export type DeleteDesignResponse = BaseResponse<null>;

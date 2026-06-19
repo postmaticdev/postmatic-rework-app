@@ -423,6 +423,9 @@ export const useLibraryTemplateSave = () => {
       queryClient.invalidateQueries({
         queryKey: ["libraryTemplatePublished"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["creatorDesigns"],
+      });
     },
   });
 };
@@ -497,6 +500,9 @@ export const useLibraryTemplateDeleteSaved = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ["libraryTemplatePublished"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["creatorDesigns"],
       });
     },
   });

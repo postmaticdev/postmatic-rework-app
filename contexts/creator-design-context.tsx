@@ -1,18 +1,21 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   useCreatorDesigns,
   useCreatorDesignCreate,
   useCreatorDesignUpdate,
-  useCreatorDesignPublish,
   useCreatorDesignDelete,
 } from "@/services/creator.api";
 import {
   CreatorDesign,
   CreateDesignRequest,
-  UpdateDesignRequest,
-  PublishDesignRequest,
   GetDesignsQuery,
 } from "@/models/api/creator/design";
 import { Pagination, FilterQuery, initialPagination } from "@/models/api/base-response.type";
@@ -78,23 +81,30 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
   const { data: designsResponse, isLoading } = useCreatorDesigns(query);
   const createMutation = useCreatorDesignCreate();
   const updateMutation = useCreatorDesignUpdate();
-  const publishMutation = useCreatorDesignPublish();
   const deleteMutation = useCreatorDesignDelete();
 
-  const designs = designsResponse?.data?.data || [];
+  const designs = useMemo(
+    () => designsResponse?.data?.data || [],
+    [designsResponse?.data?.data]
+  );
   const pagination = designsResponse?.data?.pagination || initialPagination;
   const filterQuery = designsResponse?.data?.filterQuery || {};
+
+  const resetForm = useCallback(() => {
+    setFormData(initialFormData);
+    setErrors({});
+  }, []);
 
   // Modal actions
   const openCreateModal = useCallback(() => {
     resetForm();
     setIsCreateModalOpen(true);
-  }, []);
+  }, [resetForm]);
 
   const closeCreateModal = useCallback(() => {
     setIsCreateModalOpen(false);
     resetForm();
-  }, []);
+  }, [resetForm]);
 
   const openEditModal = useCallback((design: CreatorDesign) => {
     setEditingDesign(design);
@@ -114,7 +124,7 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
     setIsEditModalOpen(false);
     setEditingDesign(null);
     resetForm();
-  }, []);
+  }, [resetForm]);
 
   // Form validation
   const validateForm = useCallback(() => {
@@ -144,11 +154,6 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
     return Object.keys(newErrors).length === 0;
   }, [formData]);
 
-  const resetForm = useCallback(() => {
-    setFormData(initialFormData);
-    setErrors({});
-  }, []);
-
   // API actions
   const handleCreateDesign = useCallback(async () => {
     if (!validateForm()) return;
@@ -157,7 +162,7 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
       await createMutation.mutateAsync(formData);
       showToast("success", "Design berhasil dibuat");
       closeCreateModal();
-    } catch (error) {
+    } catch {
       showToast("error", "Gagal membuat design");
     }
   }, [formData, validateForm, createMutation, closeCreateModal]);
@@ -172,28 +177,42 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
       });
       showToast("success", "Design berhasil diperbarui");
       closeEditModal();
-    } catch (error) {
+    } catch {
       showToast("error", "Gagal memperbarui design");
     }
   }, [editingDesign, formData, validateForm, updateMutation, closeEditModal]);
 
   const handlePublishToggle = useCallback(async (designId: string, isPublished: boolean) => {
+    const design = designs.find((item) => item.id === designId);
+    if (!design) return;
+
     try {
-      await publishMutation.mutateAsync({
+      await updateMutation.mutateAsync({
         templateImageContentId: designId,
-        formData: { isPublished },
+        formData: {
+          imageUrl: design.imageUrl,
+          isPublished,
+          name: design.name,
+          price: design.price,
+          templateImageCategoryIds: design.templateImageCategories.map(
+            (category) => category.id
+          ),
+          templateProductCategoryIds: design.templateProductCategories.map(
+            (category) => category.id
+          ),
+        },
       });
       showToast("success", `Design berhasil ${isPublished ? "dipublikasikan" : "disembunyikan"}`);
-    } catch (error) {
+    } catch {
       showToast("error", "Gagal mengubah status publikasi");
     }
-  }, [publishMutation]);
+  }, [designs, updateMutation]);
 
   const handleDeleteDesign = useCallback(async (designId: string) => {
     try {
       await deleteMutation.mutateAsync(designId);
       showToast("success", "Design berhasil dihapus");
-    } catch (error) {
+    } catch {
       showToast("error", "Gagal menghapus design");
     }
   }, [deleteMutation]);

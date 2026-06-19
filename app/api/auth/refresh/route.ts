@@ -17,6 +17,18 @@ const COOKIE_OPTIONS = {
   maxAge: 60 * 60 * 24 * 7,
 };
 
+const FORWARDED_REFRESH_HEADERS = [
+  "user-agent",
+  "x-forwarded-for",
+  "x-real-ip",
+  "cf-connecting-ip",
+  "true-client-ip",
+  "sec-ch-ua",
+  "sec-ch-ua-mobile",
+  "sec-ch-ua-platform",
+  "accept-language",
+] as const;
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const refreshToken =
@@ -33,11 +45,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const headers = new Headers({
+    "Content-Type": "application/json",
+  });
+
+  FORWARDED_REFRESH_HEADERS.forEach((header) => {
+    const value = request.headers.get(header);
+    if (value) headers.set(header, value);
+  });
+
   const upstream = await fetch(
     `${NEXT_PUBLIC_API_ORIGIN}/api/account/auth/refresh-token`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ refreshToken }),
       cache: "no-store",
     }

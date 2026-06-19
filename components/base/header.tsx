@@ -11,6 +11,7 @@ import { ProfileDropdown } from "./profile-dropdown";
 import { MobileMenu } from "../mobile-menu";
 import Image from "next/image";
 import { useBusinessGetAll } from "@/services/business.api";
+import { useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { useRouter, usePathname, Link } from "@/i18n/navigation";
 import {
   useParams,
@@ -22,6 +23,40 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LanguageToggle } from "../language-toggle";
 import { useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
+import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
+import { BusinessRes } from "@/models/api/business/index.type";
+
+function BusinessDropdownLogo({
+  business,
+  size,
+  className,
+}: {
+  business: BusinessRes;
+  size: string;
+  className?: string;
+}) {
+  const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(
+    business.id
+  );
+
+  const knowledgeLogo =
+    businessKnowledgeData?.data?.data?.primaryLogo ||
+    businessKnowledgeData?.data?.data?.primaryLogoUrl ||
+    "";
+  const businessImage =
+    knowledgeLogo || business.logo || DEFAULT_BUSINESS_IMAGE;
+
+  return (
+    <Image
+      src={businessImage}
+      alt={`${business.name} logo`}
+      fill
+      sizes={size}
+      className={className || "object-contain"}
+    />
+  );
+}
+
 export function Header() {
   const router = useRouter();
   const pathname = usePathname();
@@ -165,12 +200,9 @@ export function Header() {
                 <div className="w-64 p-2">
                   <div className="flex items-start gap-3 px-2 pb-2">
                     <div className="relative mt-0.5 h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-muted">
-                      <Image
-                        src={currentBusiness.logo || "/logoblue.png"}
-                        alt={`${currentBusiness.name} logo`}
-                        fill
-                        sizes="36px"
-                        className="object-contain"
+                      <BusinessDropdownLogo
+                        business={currentBusiness}
+                        size="36px"
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -232,14 +264,11 @@ export function Header() {
                             "flex w-full border-b items-center  gap-3 p-2 text-left font-normal text-foreground outline-none transition-colors hover:bg-accent focus:bg-accent",
                             currentBusiness.id === business.id && "bg-accent"
                           )}
-                        >
+                          >
                           <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-sm bg-muted">
-                            <Image
-                              src={business.logo || "/logoblue.png"}
-                              alt={`${business.name} logo`}
-                              fill
-                              sizes="28px"
-                              className="object-contain"
+                            <BusinessDropdownLogo
+                              business={business}
+                              size="28px"
                             />
                           </span>
                           <span className="min-w-0 truncate">

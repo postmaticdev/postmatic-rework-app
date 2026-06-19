@@ -1,11 +1,30 @@
 import { api } from "@/config/api";
 import {
+  LogoutAllSessionRes,
   ProfilePld,
   ProfileRes,
+  Session,
+  SessionRes,
   UpdatePasswordPld,
 } from "@/models/api/auth/profile.type";
 import { BaseResponse } from "@/models/api/base-response.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { REFRESH_TOKEN_KEY } from "@/constants";
+
+const AUTH_PROFILE_QUERY_KEY = ["authProfile"] as const;
+const AUTH_CURRENT_SESSION_QUERY_KEY = ["authCurrentSession"] as const;
+const AUTH_SESSIONS_QUERY_KEY = ["authSessions"] as const;
+
+const getRefreshTokenHeader = () => {
+  if (typeof window === "undefined") return undefined;
+
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) return undefined;
+
+  return {
+    "X-Postmatic-RefreshToken": refreshToken,
+  };
+};
 
 const authProfileService = {
   getProfile: () => {
@@ -17,6 +36,25 @@ const authProfileService = {
       };
       return res;
     });
+  },
+  getCurrentSession: () => {
+    return api
+      .get<BaseResponse<SessionRes>>("/account/session", {
+        headers: getRefreshTokenHeader(),
+      })
+      .then((res) => {
+        const session = res.data.data as SessionRes & {
+          imageUrl?: string | null;
+        };
+        res.data.data = {
+          ...session,
+          image: session.image ?? session.imageUrl ?? null,
+        };
+        return res;
+      });
+  },
+  getSessions: () => {
+    return api.get<BaseResponse<Session[]>>("/account/session/all");
   },
   updateProfile: (formData: ProfilePld) => {
     return api.put<BaseResponse<ProfileRes>>("/account/profile", {
@@ -35,7 +73,9 @@ const authProfileService = {
     });
   },
   logoutAll: () => {
-    return api.post<BaseResponse<null>>("/account/session/logout-all");
+    return api.post<BaseResponse<LogoutAllSessionRes>>(
+      "/account/session/logout-all"
+    );
   },
   changePassword: (formData: UpdatePasswordPld) => {
     return api.put<BaseResponse<null>>("/account/profile/password", formData);
@@ -44,8 +84,22 @@ const authProfileService = {
 
 export const useAuthProfileGetProfile = () => {
   return useQuery({
-    queryKey: ["authProfile"],
+    queryKey: AUTH_PROFILE_QUERY_KEY,
     queryFn: () => authProfileService.getProfile(),
+  });
+};
+
+export const useAuthProfileGetCurrentSession = () => {
+  return useQuery({
+    queryKey: AUTH_CURRENT_SESSION_QUERY_KEY,
+    queryFn: () => authProfileService.getCurrentSession(),
+  });
+};
+
+export const useAuthProfileGetSessions = () => {
+  return useQuery({
+    queryKey: AUTH_SESSIONS_QUERY_KEY,
+    queryFn: () => authProfileService.getSessions(),
   });
 };
 
@@ -55,7 +109,7 @@ export const useAuthProfileUpdateProfile = () => {
     mutationFn: (formData: ProfilePld) =>
       authProfileService.updateProfile(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["authProfile"] });
+      queryClient.invalidateQueries({ queryKey: AUTH_PROFILE_QUERY_KEY });
     },
   });
 };
@@ -65,7 +119,11 @@ export const useAuthProfileLogout = () => {
   return useMutation({
     mutationFn: (sessionId?: string) => authProfileService.logout(sessionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["authProfile"] });
+      queryClient.invalidateQueries({ queryKey: AUTH_PROFILE_QUERY_KEY });
+      queryClient.invalidateQueries({
+        queryKey: AUTH_CURRENT_SESSION_QUERY_KEY,
+      });
+      queryClient.invalidateQueries({ queryKey: AUTH_SESSIONS_QUERY_KEY });
     },
   });
 };
@@ -75,7 +133,11 @@ export const useAuthProfileLogoutAll = () => {
   return useMutation({
     mutationFn: () => authProfileService.logoutAll(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["authProfile"] });
+      queryClient.invalidateQueries({ queryKey: AUTH_PROFILE_QUERY_KEY });
+      queryClient.invalidateQueries({
+        queryKey: AUTH_CURRENT_SESSION_QUERY_KEY,
+      });
+      queryClient.invalidateQueries({ queryKey: AUTH_SESSIONS_QUERY_KEY });
     },
   });
 };
@@ -86,7 +148,7 @@ export const useAuthProfileChangePassword = () => {
     mutationFn: (formData: UpdatePasswordPld) =>
       authProfileService.changePassword(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["authProfile"] });
+      queryClient.invalidateQueries({ queryKey: AUTH_PROFILE_QUERY_KEY });
     },
   });
 };
