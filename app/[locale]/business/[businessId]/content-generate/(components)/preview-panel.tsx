@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "@/i18n/navigation";
 import { CardNoGap } from "@/components/ui/card";
@@ -39,6 +39,8 @@ import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
 
 export function PreviewPanel() {
   const previewPanelRef = useRef<HTMLDivElement>(null);
+  const shouldAutoEnhanceOnFirstGenerateRef = useRef(false);
+  const lastAutoEnhancedResultKeyRef = useRef<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { businessId } = useParams() as { businessId: string };
@@ -118,6 +120,8 @@ export function PreviewPanel() {
         .map((platform) => platform.platform),
     [platformOptions]
   );
+  const isFirstGenerateFlow =
+    !selectedHistory || selectedHistory.id.startsWith("chat-scheduled-");
   const currentScheduleInput = getCurrentScheduleInput();
   const minDate = currentScheduleInput.date;
 
@@ -126,6 +130,8 @@ export function PreviewPanel() {
       setIsSummaryOpen(true);
       return;
     }
+
+    shouldAutoEnhanceOnFirstGenerateRef.current = isFirstGenerateFlow;
 
     onSubmitGenerate({
       mode: selectedHistory ? "regenerate" : undefined,
@@ -137,10 +143,12 @@ export function PreviewPanel() {
     }, 100);
   };
 
-  const handleEnhanceCaption = async () => {
+  const handleEnhanceCaption = useCallback(async (options?: { silent?: boolean }) => {
     const imageUrl = selectedImageUrl;
     if (!imageUrl) {
-      showToast("error", schedulerT("generateFirst"));
+      if (!options?.silent) {
+        showToast("error", schedulerT("generateFirst"));
+      }
       return;
     }
 
@@ -152,11 +160,43 @@ export function PreviewPanel() {
         },
       });
       form.setBasic({ ...form.basic, caption: res.data.data.caption });
-      showToast("success", res.data.responseMessage);
+      if (!options?.silent) {
+        showToast("success", res.data.responseMessage);
+      }
     } catch (error) {
-      showToast("error", error, t);
+      if (!options?.silent) {
+        showToast("error", error, t);
+      }
     }
-  };
+  }, [businessId, form, mEnhanceCaption, schedulerT, selectedImageUrl, t]);
+
+  useEffect(() => {
+    if (!selectedHistory) {
+      shouldAutoEnhanceOnFirstGenerateRef.current = false;
+      return;
+    }
+
+    const isFailed =
+      selectedHistory.status === "error" || selectedHistory.stage === "error";
+    if (isFailed) {
+      shouldAutoEnhanceOnFirstGenerateRef.current = false;
+      return;
+    }
+
+    const resultKey = `${selectedHistory.id}:${selectedImageUrl || ""}`;
+    const isReady =
+      !isLoading &&
+      selectedHistory.status === "done" &&
+      selectedHistory.stage === "done" &&
+      Boolean(selectedImageUrl);
+
+    if (!shouldAutoEnhanceOnFirstGenerateRef.current || !isReady) return;
+    if (lastAutoEnhancedResultKeyRef.current === resultKey) return;
+
+    lastAutoEnhancedResultKeyRef.current = resultKey;
+    shouldAutoEnhanceOnFirstGenerateRef.current = false;
+    void handleEnhanceCaption({ silent: true });
+  }, [handleEnhanceCaption, isLoading, selectedHistory, selectedImageUrl]);
 
   const togglePlatform = (platform: PlatformEnum) => {
     if (!connectedPlatforms.includes(platform)) return;
@@ -361,31 +401,37 @@ export function PreviewPanel() {
         <div className="p-4 border-b flex-col space-y-4">
           <div className="text-sm">
             <div className="font-medium mb-2">{businessName}</div>
-            <Textarea
-              value={form.basic.caption || t("captionWillShowHere")}
-              rows={3}
-              onChange={(e) => {
-                form.setBasic({ ...form.basic, caption: e.target.value });
-              }}
-              className="min-h-[60px] max-h-[120px] resize-none border-none p-0 text-sm focus:ring-0"
-              placeholder={t("writeCaption")}
-            />
-          </div>
-          {selectedHistory && (
-            <Button
-              size="sm"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white"
-              disabled={isLoading || mEnhanceCaption.isPending}
-              onClick={handleEnhanceCaption}
-            >
-              {mEnhanceCaption.isPending ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <WandSparkles className="h-5 w-5" />
+            <div className="relative">
+              <Textarea
+                value={form.basic.caption}
+                rows={4}
+                onChange={(e) => {
+                  form.setBasic({ ...form.basic, caption: e.target.value });
+                }}
+                className="min-h-[120px] resize-none rounded-2xl bg-background-secondary pr-14 text-sm"
+                placeholder={
+                  selectedHistory ? t("captionWillShowHere") : t("writeCaption")
+                }
+              />
+              {selectedHistory && (
+                <Button
+                  type="button"
+                  size="icon"
+                  className="absolute bottom-3 right-3 rounded-xl"
+                  onClick={() => void handleEnhanceCaption()}
+                  disabled={isLoading || mEnhanceCaption.isPending}
+                  title={t("enhanceCaption")}
+                  aria-label={t("enhanceCaption")}
+                >
+                  {mEnhanceCaption.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <WandSparkles className="h-4 w-4" />
+                  )}
+                </Button>
               )}
-              {t("enhanceCaption")}
-            </Button>
-          )}
+            </div>
+          </div>
         </div>
 
         {schedulerMode && (

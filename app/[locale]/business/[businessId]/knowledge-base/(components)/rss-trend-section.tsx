@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -27,6 +27,7 @@ import {
   useRssKnowledgeGetById,
   useRssKnowledgeUpdate,
 } from "@/services/knowledge.api";
+import { useLibraryRSSData } from "@/services/library.api";
 import { useRouter } from "@/i18n/navigation";
 import { useParams, useSearchParams } from "next/navigation";
 import { AddRssPld, RssRes } from "@/models/api/knowledge/rss.type";
@@ -84,8 +85,23 @@ export function RSSTrendSection({
     sortBy: "title",
     sort: "asc",
   });
+  const { data: rssFeedLibraryData } = useLibraryRSSData({
+    limit: 1000,
+    sortBy: "title",
+    sort: "asc",
+  });
 
   const rss = rssData?.data.data || [];
+  const rssFeedMap = useMemo(
+    () =>
+      new Map(
+        (rssFeedLibraryData?.data?.data || []).map((feed) => [
+          String(feed.id),
+          feed,
+        ])
+      ),
+    [rssFeedLibraryData?.data?.data]
+  );
 
   const mRssKnowledgeUpdate = useRssKnowledgeUpdate();
   const mRssKnowledgeCreate = useRssKnowledgeCreate();
@@ -229,6 +245,26 @@ export function RSSTrendSection({
     }
   };
 
+  const getSourceFeed = (trend: RssRes) =>
+    rssFeedMap.get(String(trend.masterRssId));
+
+  const getSourceName = (trend: RssRes) => {
+    const sourceFeed = getSourceFeed(trend);
+
+    return (
+      sourceFeed?.title ||
+      trend?.masterRss?.title ||
+      trend?.masterRss?.publisher?.toUpperCase() ||
+      "-"
+    );
+  };
+
+  const getSourcePublisher = (trend: RssRes) => {
+    const sourceFeed = getSourceFeed(trend);
+
+    return sourceFeed?.publisher || trend?.masterRss?.publisher || "";
+  };
+
   return (
     <>
       <Card className="h-full w-full">
@@ -284,7 +320,7 @@ export function RSSTrendSection({
                       <div className="flex items-center gap-4">
                         <div className="hidden sm:block w-10 h-10  lg:w-16 lg:h-16 rounded-lg overflow-hidden flex-shrink-0">
                           <Image
-                            src={getRssSourceImage(trend?.masterRss?.publisher)}
+                            src={getRssSourceImage(getSourcePublisher(trend))}
                             alt={trend.title}
                             width={40}
                             height={40}
@@ -296,9 +332,7 @@ export function RSSTrendSection({
                           <div className="flex gap-2">
                             <div className="block sm:hidden w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
                               <Image
-                                src={getRssSourceImage(
-                                  trend?.masterRss?.publisher
-                                )}
+                                src={getRssSourceImage(getSourcePublisher(trend))}
                                 alt={trend.title}
                                 width={40}
                                 height={40}
@@ -323,7 +357,7 @@ export function RSSTrendSection({
                           </div>
                           <p className="text-xs sm:text-sm text-muted-foreground mb-3">
                             {r("source")}:{" "}
-                            {trend?.masterRss?.publisher?.toUpperCase()}
+                            {getSourceName(trend)}
                           </p>
                           {/* Status Toggle */}
                           <div className="flex items-center gap-3">

@@ -1,11 +1,12 @@
 "use client";
 
+import { Dispatch, SetStateAction, useEffect, useId, useRef, useState } from "react";
+import Image from "next/image";
+import { Image as ImageIcon, Info, Loader2 } from "lucide-react";
+
 import { Label } from "@/components/ui/label";
 import { showToast } from "@/helper/show-toast";
 import { helperService } from "@/services/helper.api";
-import { Image as ImageIcon, Info, Loader2 } from "lucide-react";
-import Image from "next/image";
-import { Dispatch, SetStateAction, useEffect, useRef, useState, useId } from "react";
 
 interface UploadPhotoProps {
   label: string;
@@ -15,6 +16,8 @@ interface UploadPhotoProps {
   currentImage?: string | null;
   error?: string;
   onFocus?: () => void;
+  emptyText?: string;
+  uploadingText?: string;
 }
 
 export function UploadPhoto({
@@ -23,22 +26,24 @@ export function UploadPhoto({
   currentImage,
   error,
   onFocus,
+  emptyText = "Upload Photo",
+  uploadingText = "Uploading...",
 }: UploadPhotoProps) {
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // ⬇️ sinkronkan jika currentImage berubah (mis. saat load data edit)
   useEffect(() => {
     setPreview(currentImage || null);
   }, [currentImage]);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const autoId = useId(); // fallback id yang stabil
+  const autoId = useId();
   const inputId = `upload-${autoId}`;
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
-      const file = e.target.files?.[0] || null;
+      const file = event.target.files?.[0] || null;
+
       if (file) {
         setIsUploading(true);
         const response = await helperService.uploadSingleImage({ image: file });
@@ -52,7 +57,6 @@ export function UploadPhoto({
       showToast("error", error);
     } finally {
       setIsUploading(false);
-      // reset value supaya memilih file yang sama dua kali tetap memicu onChange
       if (inputRef.current) inputRef.current.value = "";
     }
   };
@@ -66,24 +70,24 @@ export function UploadPhoto({
       <div
         role="button"
         tabIndex={0}
-        className={`w-32 h-32 sm:w-40 sm:h-40 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors ${
+        className={`flex h-32 w-32 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed bg-muted/20 transition-colors hover:bg-muted/30 sm:h-40 sm:w-40 ${
           error ? "border-red-500" : "border-muted-foreground/25"
         }`}
         onClick={() => {
           onFocus?.();
           inputRef.current?.click();
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
             inputRef.current?.click();
           }
         }}
       >
         {isUploading ? (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="text-sm">Uploading...</span>
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="text-sm">{uploadingText}</span>
           </div>
         ) : preview ? (
           <Image
@@ -91,13 +95,13 @@ export function UploadPhoto({
             alt="Preview"
             width={400}
             height={400}
-            className="w-full h-full object-cover rounded-lg"
-            unoptimized   // ⬅️ hilangkan kalau domain sudah di next.config.js
+            className="h-full w-full rounded-lg object-cover"
+            unoptimized
           />
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <ImageIcon className="w-8 h-8" />
-            <span className="text-sm">Upload Photo</span>
+            <ImageIcon className="h-8 w-8" />
+            <span className="text-sm">{emptyText}</span>
           </div>
         )}
       </div>
@@ -113,7 +117,7 @@ export function UploadPhoto({
 
       {error && (
         <div className="flex items-center gap-1">
-          <Info className="w-4 h-4 text-red-500" />
+          <Info className="h-4 w-4 text-red-500" />
           <p className="text-sm text-red-500">{error}</p>
         </div>
       )}

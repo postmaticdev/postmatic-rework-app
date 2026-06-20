@@ -508,6 +508,9 @@
     "postTitle": "Judul",
     "scheduledDateHistoryDescription": "Konten terjadwal pada tanggal ini",
     "scheduledHistoryActions": "Aksi konten terjadwal",
+    "deleteDraft": "Hapus Draft",
+    "deleteDraftTitle": "Hapus Draft",
+    "deleteDraftDescription": "Aksi ini tidak dapat dibatalkan. Draft akan dihapus permanen dari sistem.",
     "deleteScheduledPostTitle": "Hapus Postingan Terjadwal",
     "deleteScheduledPostDescription": "Aksi ini tidak dapat dibatalkan. Postingan terjadwal akan dihapus permanen dari antrian.",
     "scheduleEditError": "Terjadi kesalahan saat mengedit jadwal",
@@ -808,18 +811,22 @@
     "emailPlaceholder": "Masukkan alamat email",
     "reportType": "Jenis Laporan",
     "reportTypePlaceholder": "Pilih jenis laporan",
-    "types": {
-      "bug": "Laporan error/bug pada sistem",
-      "suggestion": "Saran & masukan",
-      "question": "Pertanyaan",
-      "other": "Lainnya"
-    },
+    "reportTypeLoading": "Memuat jenis laporan...",
+    "reportTypeEmpty": "Jenis laporan belum tersedia",
+    "countryCode": "Kode",
+    "countryCodeSearch": "Cari negara...",
+    "photo": "Lampiran Foto",
+    "photoPlaceholder": "Upload Foto",
+    "photoUploading": "Mengunggah...",
     "details": "Detail Penjelasan",
     "detailsPlaceholder": "Jelaskan laporan Anda secara detail",
     "phoneNumber": "No. HP",
     "phoneNumberPlaceholder": "Masukkan nomor HP",
+    "validation": "Harap lengkapi semua field yang wajib diisi",
+    "defaultSubject": "Laporan dari website",
     "cancel": "Batal",
-    "submit": "Kirim Laporan"
+    "submit": "Kirim Laporan",
+    "submitting": "Mengirim..."
   },
   "newBusiness": {
     "title1": "Pengetahuan Bisnis",
@@ -1074,6 +1081,20 @@
     "source": "Sumber",
     "status": "Status"
   },
+  "avatarKnowledge": {
+    "title": "Avatar Aplikasi",
+    "searchPlaceholder": "Cari avatar...",
+    "loading": "Memuat avatar...",
+    "errorTitle": "Gagal memuat avatar",
+    "errorDescription": "Terjadi kendala saat mengambil daftar avatar aplikasi.",
+    "notAvailable": "Belum ada avatar",
+    "notAvailableDescription": "Belum ada avatar aplikasi yang tersedia.",
+    "searchEmptyDescription": "coba kata kunci lain",
+    "sourceValue": "Sumber: App Avatar",
+    "active": "Aktif",
+    "inactive": "Tidak Aktif",
+    "idLabel": "ID"
+  },
   "errors": {
     "formValidation": "Harap perbaiki data yang tidak valid",
     "FailedToSaveRSS": "Gagal menyimpan RSS"
@@ -1117,8 +1138,10 @@
     "noContentDescription": "Tambahkan konten baru",
     "deleteTitle": "Hapus Jadwal Postingan",
     "deleteDescription": "Tindakan ini tidak dapat dibatalkan. Jadwal postingan ini akan dihapus secara permanen dari sistem.",
+    "deleteDescriptionDraft": "Tindakan ini tidak dapat dibatalkan. Draft akan dihapus secara permanen dari sistem.",
     "auto": "Penjadwalan Otomatis",
     "manual": "Penjadwalan Manual",
-    "cancelQueue": "Batal Jadwal"
+    "cancelQueue": "Batal Jadwal",
+    "deleteDraft": "Hapus Draft"
   }
 }

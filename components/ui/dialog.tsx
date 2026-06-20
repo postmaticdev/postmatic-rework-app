@@ -116,12 +116,12 @@ interface DialogFooterWithTwoButtonsProps {
     icon?: React.ReactNode;
     className?: string;
     variant?:
-      | "default"
-      | "outline"
-      | "secondary"
-      | "ghost"
-      | "link"
-      | "destructive";
+    | "default"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link"
+    | "destructive";
   };
   secondaryButton: {
     message: string;
@@ -129,12 +129,12 @@ interface DialogFooterWithTwoButtonsProps {
     icon?: React.ReactNode;
     className?: string;
     variant?:
-      | "default"
-      | "outline"
-      | "secondary"
-      | "ghost"
-      | "link"
-      | "destructive";
+    | "default"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link"
+    | "destructive";
   };
   className?: string;
 }

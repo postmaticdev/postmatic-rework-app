@@ -508,6 +508,9 @@
     "postTitle": "Title",
     "scheduledDateHistoryDescription": "Scheduled content on this date",
     "scheduledHistoryActions": "Scheduled content actions",
+    "deleteDraft": "Delete Draft",
+    "deleteDraftTitle": "Delete Draft",
+    "deleteDraftDescription": "This action cannot be undone. The draft will be permanently deleted from the system.",
     "deleteScheduledPostTitle": "Delete Scheduled Post",
     "deleteScheduledPostDescription": "This action cannot be undone. The scheduled post will be permanently deleted from the queue.",
     "scheduleEditError": "Error occurred while editing schedule",
@@ -808,18 +811,22 @@
     "emailPlaceholder": "Enter your email address",
     "reportType": "Report Type",
     "reportTypePlaceholder": "Select a report type",
-    "types": {
-      "bug": "System error/bug report",
-      "suggestion": "Suggestion & feedback",
-      "question": "Question",
-      "other": "Other"
-    },
+    "reportTypeLoading": "Loading report types...",
+    "reportTypeEmpty": "No report types available yet",
+    "countryCode": "Code",
+    "countryCodeSearch": "Search country...",
+    "photo": "Photo Attachment",
+    "photoPlaceholder": "Upload Photo",
+    "photoUploading": "Uploading...",
     "details": "Detailed Explanation",
     "detailsPlaceholder": "Describe your report in detail",
     "phoneNumber": "Phone Number",
     "phoneNumberPlaceholder": "Enter your phone number",
+    "validation": "Please complete all required fields",
+    "defaultSubject": "Website ticket report",
     "cancel": "Cancel",
-    "submit": "Submit Report"
+    "submit": "Submit Report",
+    "submitting": "Submitting..."
   },
   "newBusiness": {
     "title1": "Business Knowledge",
@@ -1074,6 +1081,20 @@
     "source": "Source",
     "status": "Status"
   },
+  "avatarKnowledge": {
+    "title": "App Avatars",
+    "searchPlaceholder": "Search avatars...",
+    "loading": "Loading avatars...",
+    "errorTitle": "Failed to load avatars",
+    "errorDescription": "There was a problem fetching the app avatar list.",
+    "notAvailable": "No avatars yet",
+    "notAvailableDescription": "There are no app avatars available right now.",
+    "searchEmptyDescription": "try another keyword",
+    "sourceValue": "Source: App Avatar",
+    "active": "Active",
+    "inactive": "Inactive",
+    "idLabel": "ID"
+  },
   "errors": {
     "formValidation": "Please fix the invalid RSS data",
     "FailedToSaveRSS": "Failed to save RSS"
@@ -1117,8 +1138,10 @@
     "noContentDescription": "Add new content",
     "deleteTitle": "Delete Scheduled Post",
     "deleteDescription": "This action cannot be undone. The scheduled post will be permanently deleted from the system.",
+    "deleteDescriptionDraft": "This action cannot be undone. The draft will be permanently deleted from the system.",
     "auto": "Auto Schedule",
     "manual": "Manual Schedule",
-    "cancelQueue": "Cancel Queue"
+    "cancelQueue": "Cancel Queue",
+    "deleteDraft": "Delete Draft"
   }
 }

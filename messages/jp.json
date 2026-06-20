@@ -652,18 +652,22 @@
     "emailPlaceholder": "メールアドレスを入力してください",
     "reportType": "報告の種類",
     "reportTypePlaceholder": "報告の種類を選択してください",
-    "types": {
-      "bug": "システムのエラー・バグ報告",
-      "suggestion": "提案・フィードバック",
-      "question": "質問",
-      "other": "その他"
-    },
+    "reportTypeLoading": "報告タイプを読み込み中...",
+    "reportTypeEmpty": "利用可能な報告タイプがありません",
+    "countryCode": "国番号",
+    "countryCodeSearch": "国を検索...",
+    "photo": "写真の添付",
+    "photoPlaceholder": "写真をアップロード",
+    "photoUploading": "アップロード中...",
     "details": "詳細説明",
     "detailsPlaceholder": "報告内容を詳しく入力してください",
     "phoneNumber": "電話番号",
     "phoneNumberPlaceholder": "電話番号を入力してください",
+    "validation": "必須項目をすべて入力してください",
+    "defaultSubject": "ウェブサイトからの報告",
     "cancel": "キャンセル",
-    "submit": "報告を送信"
+    "submit": "報告を送信",
+    "submitting": "送信中..."
   },
   "newBusiness": {
     "title1": "ビジネス知識",
@@ -863,6 +867,20 @@
     "feedCategoryPlaceholder": "例 : 健康",
     "source": "ソース",
     "status": "ステータス"
+  },
+  "avatarKnowledge": {
+    "title": "App Avatar",
+    "searchPlaceholder": "ã‚¢ãƒã‚¿ãƒ¼ã‚’æ¤œç´¢...",
+    "loading": "ã‚¢ãƒã‚¿ãƒ¼ã‚’èª­ã¿è¾¼ã¿ä¸­...",
+    "errorTitle": "ã‚¢ãƒã‚¿ãƒ¼ã®èª­ã¿è¾¼ã¿ã«å¤±æ•—ã—ã¾ã—ãŸ",
+    "errorDescription": "App Avatar ä¸€è¦§ã®å–å¾—ä¸­ã«å•é¡ŒãŒç™ºç”Ÿã—ã¾ã—ãŸã€‚",
+    "notAvailable": "ã‚¢ãƒã‚¿ãƒ¼ãŒã‚ã‚Šã¾ã›ã‚“",
+    "notAvailableDescription": "åˆ©ç”¨å¯èƒ½ãª App Avatar ã¯ã¾ã ã‚ã‚Šã¾ã›ã‚“ã€‚",
+    "searchEmptyDescription": "åˆ¥ã®ã‚­ãƒ¼ãƒ¯ãƒ¼ãƒ‰ã‚’ãŠè©¦ã—ãã ã•ã„",
+    "sourceValue": "ã‚½ãƒ¼ã‚¹: App Avatar",
+    "active": "æœ‰åŠ¹",
+    "inactive": "ç„¡åŠ¹",
+    "idLabel": "ID"
   },
   "errors": {
     "formValidation": "無効なRSSデータを修正してください",

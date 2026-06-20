@@ -4,27 +4,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { showToast } from "@/helper/show-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogFooterWithTwoButtons,
-  DialogHeader,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { PaginationControls } from "@/components/ui/pagination-controls";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { helperService } from "@/services/helper.api";
+import { useAppAvatarGetAll } from "@/services/app-avatar.api";
 import { useBusinessGetById } from "@/services/business.api";
 import { useProductKnowledgeGetAll } from "@/services/knowledge.api";
-import { GenerateFormSelectRss } from "./generate-form-select-rss";
+import {
+  ImportKnowledgeModal,
+  KnowledgeImageOption,
+} from "./import-knowledge-modal";
+import { RssTrendModal } from "./rss-trend-modal";
 import { SelectedArticleRss } from "./selected-article-rss";
 import { SelectedReferenceImage } from "./selected-reference-image";
 import { useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
-import { cn } from "@/lib/utils";
 import {
   AlertCircle,
   Bot,
@@ -42,15 +36,6 @@ import { GenerateFormBasic } from "./generate-form-basic";
 import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
-
-type KnowledgeImageOption = {
-  id: string;
-  imageUrl: string;
-  sourceLabel: string;
-  title: string;
-};
-
-type KnowledgeTab = "logo" | "product" | "avatar";
 
 export function GenerationPanel() {
   const { businessId } = useParams() as { businessId: string };
@@ -73,10 +58,6 @@ export function GenerationPanel() {
   const [isTrendDialogOpen, setIsTrendDialogOpen] = useState(false);
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
-  const [selectedKnowledgeImages, setSelectedKnowledgeImages] = useState<
-    string[]
-  >([]);
-  const [activeKnowledgeTab, setActiveKnowledgeTab] = useState<KnowledgeTab>("logo");
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
   const { data: businessData } = useBusinessGetById(businessId);
@@ -90,6 +71,13 @@ export function GenerationPanel() {
     },
     Boolean(businessId)
   );
+  const { data: appAvatarData, isLoading: isLoadingAppAvatars } =
+    useAppAvatarGetAll({
+      limit: 100,
+      page: 1,
+      sortBy: "name",
+      sort: "asc",
+    });
 
   useEffect(() => {
     if (isTrendDialogOpen && form.rss) {
@@ -149,11 +137,16 @@ export function GenerationPanel() {
     return options;
   }, [productKnowledgeData?.data?.data]);
 
-  const currentKnowledgeOptions = useMemo<KnowledgeImageOption[]>(() => {
-    if (activeKnowledgeTab === "logo") return logoImageOptions;
-    if (activeKnowledgeTab === "product") return productImageOptions;
-    return [];
-  }, [activeKnowledgeTab, logoImageOptions, productImageOptions]);
+  const avatarImageOptions = useMemo<KnowledgeImageOption[]>(() => {
+    const avatars = appAvatarData?.data?.data || [];
+
+    return avatars.map((avatar) => ({
+      id: `avatar-${avatar.id}`,
+      imageUrl: avatar.imageUrl,
+      sourceLabel: "Avatar",
+      title: avatar.name,
+    }));
+  }, [appAvatarData?.data?.data]);
 
   const handleRegenerate = () => {
     onSubmitGenerate({ mode: "regenerate", additionalImages: attachedImages });
@@ -177,18 +170,15 @@ export function GenerationPanel() {
   };
 
   const handleOpenKnowledgeDialog = () => {
-    setSelectedKnowledgeImages([]);
-    setActiveKnowledgeTab("logo");
     setIsKnowledgeDialogOpen(true);
   };
 
-  const handleAttachFromKnowledge = () => {
-    if (selectedKnowledgeImages.length === 0) return;
+  const handleAttachFromKnowledge = (images: string[]) => {
+    if (images.length === 0) return;
     setAttachedImages((current) =>
-      Array.from(new Set([...current, ...selectedKnowledgeImages]))
+      Array.from(new Set([...current, ...images]))
     );
     setIsKnowledgeDialogOpen(false);
-    setSelectedKnowledgeImages([]);
   };
 
   const selectedImage =
@@ -471,126 +461,15 @@ export function GenerationPanel() {
           </div>
         </div>
 
-        <Dialog
-          open={isKnowledgeDialogOpen}
-          onOpenChange={(open) => {
-            setIsKnowledgeDialogOpen(open);
-            if (!open) {
-              setSelectedKnowledgeImages([]);
-              setActiveKnowledgeTab("logo");
-            }
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Import from Knowledge</DialogTitle>
-              <DialogDescription>Import Photos from your knowledge base</DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="flex flex-row rounded-lg bg-card p-1 justify-between overflow-x-auto">
-                {([
-                  { id: "logo", label: "Logo" },
-                  { id: "product", label: "Product" },
-                  { id: "avatar", label: "Avatar" },
-                ] as const).map((tab) => (
-                  <Button
-                    key={tab.id}
-                    type="button"
-                    variant={activeKnowledgeTab === tab.id ? "default" : "ghost"}
-                    onClick={() => setActiveKnowledgeTab(tab.id)}
-                    className={cn(
-                      "flex-1 p-5",
-                      activeKnowledgeTab === tab.id
-                        ? "bg-primary text-white"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {tab.label}
-                  </Button>
-                ))}
-              </div>
-
-              {activeKnowledgeTab === "avatar" ? (
-                <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                  Avatar source will be available soon.
-                </div>
-              ) : currentKnowledgeOptions.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                  {activeKnowledgeTab === "logo"
-                    ? "No logo found. Add business logo first."
-                    : "No product images found. Add product images first."}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {currentKnowledgeOptions.map((item) => {
-                    const isSelected = selectedKnowledgeImages.includes(
-                      item.imageUrl
-                    );
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={cn(
-                          "group overflow-hidden rounded-xl border bg-card text-left transition-all duration-300",
-                          isSelected
-                            ? "border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
-                            : "border-border hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
-                        )}
-                        onClick={() =>
-                          setSelectedKnowledgeImages((current) =>
-                            current.includes(item.imageUrl)
-                              ? current.filter((imageUrl) => imageUrl !== item.imageUrl)
-                              : [...current, item.imageUrl]
-                          )
-                        }
-                      >
-                        <div className="overflow-hidden">
-                          <Image
-                            src={item.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                            alt={item.title}
-                            width={240}
-                            height={180}
-                            className="h-28 w-full object-cover transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
-                          />
-                        </div>
-                        <div className="space-y-0.5 p-2.5">
-                          <p className="line-clamp-1 text-xs font-semibold text-foreground">
-                            {item.title}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {item.sourceLabel}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <DialogFooterWithTwoButtons
-              primaryButton={{
-                message: "Add Selected",
-                onClick: () => {
-                  if (selectedKnowledgeImages.length === 0) return;
-                  handleAttachFromKnowledge();
-                },
-                className:
-                  selectedKnowledgeImages.length === 0
-                    ? "pointer-events-none opacity-50"
-                    : "",
-              }}
-              secondaryButton={{
-                message: "Cancel",
-                onClick: () => {
-                  setIsKnowledgeDialogOpen(false);
-                  setSelectedKnowledgeImages([]);
-                },
-                variant: "outline",
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+        <ImportKnowledgeModal
+          isOpen={isKnowledgeDialogOpen}
+          onClose={() => setIsKnowledgeDialogOpen(false)}
+          onAddSelected={handleAttachFromKnowledge}
+          logoImageOptions={logoImageOptions}
+          productImageOptions={productImageOptions}
+          avatarImageOptions={avatarImageOptions}
+          isLoadingAvatars={isLoadingAppAvatars}
+        />
       </>
     );
   }
@@ -637,28 +516,15 @@ export function GenerationPanel() {
         </div>
       </div>
 
-      <Dialog open={isTrendDialogOpen} onOpenChange={setIsTrendDialogOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{t("generateByTrend")}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-6">
-            <GenerateFormSelectRss
-              onArticleSelected={() => setIsTrendDialogOpen(false)}
-            />
-          </div>
-          {!form.rss && rss.articles.length !== 0 && (
-            <DialogFooter>
-              <PaginationControls
-                pagination={rss.pagination}
-                setFilterQuery={rss.setFilterQuery}
-                filterQuery={rss.filterQuery}
-                className="border-t-0 pt-0"
-              />
-            </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
+      <RssTrendModal
+        isOpen={isTrendDialogOpen}
+        onClose={() => setIsTrendDialogOpen(false)}
+        title={t("generateByTrend")}
+        hasSelectedRss={Boolean(form.rss)}
+        pagination={rss.pagination}
+        filterQuery={rss.filterQuery}
+        setFilterQuery={rss.setFilterQuery}
+      />
 
     </>
   );

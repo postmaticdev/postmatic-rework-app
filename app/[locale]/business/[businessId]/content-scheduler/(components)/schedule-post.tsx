@@ -9,21 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  MoreVertical,
-  Edit,
-  X,
-  AlertTriangle,
-  ClipboardClock,
-} from "lucide-react";
+import { MoreVertical, Edit, X, ClipboardClock } from "lucide-react";
 import { CreatePostModal } from "./create-post-modal";
 import { useContentOverviewGetUpcoming } from "@/services/content/overview";
 import { useParams } from "next/navigation";
@@ -149,6 +135,14 @@ export function SchedulePost({
   const mSchedulerEdit = useContentSchedulerManualEditQueue();
   const mRemove = useContentSchedulerManualRemove();
   const mReadyToPost = useContentDraftSetReadyToPost();
+  const isDraftPostToCancel = Boolean(
+    postToCancel?.type === "manual" &&
+    upcomings.find(
+      (post) =>
+        post.generatedImageContent.id === postToCancel.postId &&
+        post.status?.toLowerCase() === "draft"
+    )
+  );
 
   const handleCancelQueue = (
     type: "auto" | "manual",
@@ -309,7 +303,9 @@ export function SchedulePost({
                             className="text-red-600 focus:text-red-600"
                           >
                             <X className="h-4 w-4 mr-2" />
-                            {t("cancelQueue")}
+                            {post.status?.toLowerCase() === "draft"
+                              ? t("deleteDraft")
+                              : t("cancelQueue")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -338,8 +334,12 @@ export function SchedulePost({
 
       <DeleteConfirmationModal
         isOpen={isConfirmDialogOpen}
-        title={t("deleteTitle")}
-        description={t("deleteDescription")}
+        title={isDraftPostToCancel ? t("deleteDraft") : t("deleteTitle")}
+        description={
+          isDraftPostToCancel
+            ? t("deleteDescriptionDraft")
+            : t("deleteDescription")
+        }
         onClose={() => setIsConfirmDialogOpen(false)}
         onConfirm={handleConfirmCancel}
         withDetailItem={false}

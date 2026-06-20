@@ -9,6 +9,7 @@ import { ProductSection } from "@/app/[locale]/business/[businessId]/knowledge-b
 import { RSSTrendSection } from "@/app/[locale]/business/[businessId]/knowledge-base/(components)/rss-trend-section";
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { useTranslations } from "next-intl";
+import { AvatarSection } from "./(components)/avatar-section";
 
 export default function KnowledgeBase() {
   const searchParams = useSearchParams();
@@ -47,8 +48,11 @@ export default function KnowledgeBase() {
       </div>
 
       <div className="flex flex-col gap-6 lg:flex-row">
-        <div className="lg:w-2/3">
+        <div className="lg:w-1/3">
           <ProductSection />
+        </div>
+        <div className="lg:w-1/3">
+          <AvatarSection />
         </div>
         <div className="lg:w-1/3" id="rss-trend-section">
           <RSSTrendSection openRssModal={openRssModal} />

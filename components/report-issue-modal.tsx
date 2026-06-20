@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { SearchableCountrySelect } from "@/app/[locale]/profile/(components)/searchable-select-content";
+import { UploadPhoto } from "@/components/forms/upload-photo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,36 +24,120 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { showToast } from "@/helper/show-toast";
+import countryCodes from "@/lib/country-code.json";
+import { useAuthProfileGetProfile } from "@/services/auth.api";
+import {
+  useTicketCategories,
+  useTicketWebsiteCreate,
+} from "@/services/ticket.api";
 
 interface ReportIssueModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type ReportType = "bug" | "suggestion" | "question" | "other";
-
 interface ReportForm {
   name: string;
   email: string;
-  reportType: ReportType | "";
+  reportType: string;
   details: string;
+  countryCode: string;
   phoneNumber: string;
+  attachment: string | null;
 }
 
-const initialForm: ReportForm = {
+const DEFAULT_COUNTRY_CODE = "+62";
+
+const createInitialForm = (): ReportForm => ({
   name: "",
   email: "",
   reportType: "",
   details: "",
+  countryCode: "",
   phoneNumber: "",
-};
+  attachment: null,
+});
+
+function resolveCountryCode(
+  rawCountryCode?: string | null,
+  rawPhone?: string | null
+) {
+  const normalizedCountryCode = rawCountryCode?.trim() ?? "";
+
+  if (/^\+\d+$/.test(normalizedCountryCode)) return normalizedCountryCode;
+  if (/^\d+$/.test(normalizedCountryCode)) return `+${normalizedCountryCode}`;
+
+  if (/^[A-Za-z]{2}$/.test(normalizedCountryCode)) {
+    const match = (
+      countryCodes as Array<{ code: string; dial_code: string }>
+    ).find(
+      (item) => item.code.toUpperCase() === normalizedCountryCode.toUpperCase()
+    );
+    if (match?.dial_code) return match.dial_code;
+  }
+
+  const fromPhone = rawPhone?.trim().match(/^\+(\d{1,4})/);
+  if (fromPhone?.[1]) return `+${fromPhone[1]}`;
+
+  return DEFAULT_COUNTRY_CODE;
+}
+
+function stripCountryCodeFromPhone(
+  rawPhone?: string | null,
+  countryCode = DEFAULT_COUNTRY_CODE
+) {
+  const phoneDigits = rawPhone?.replace(/[^\d]/g, "") ?? "";
+  const countryDigits = countryCode.replace(/[^\d]/g, "");
+
+  if (!phoneDigits) return "";
+  if (!countryDigits) return phoneDigits;
+  if (!phoneDigits.startsWith(countryDigits)) return phoneDigits;
+
+  return phoneDigits.slice(countryDigits.length);
+}
+
+function sanitizePhoneNumber(rawPhone: string, countryCode: string) {
+  let normalizedPhone = stripCountryCodeFromPhone(rawPhone, countryCode).replace(
+    /[^\d]/g,
+    ""
+  );
+
+  while (normalizedPhone.startsWith("0")) {
+    normalizedPhone = normalizedPhone.slice(1);
+  }
+
+  return normalizedPhone;
+}
 
 export function ReportIssueModal({
   isOpen,
   onClose,
 }: ReportIssueModalProps) {
   const t = useTranslations("reportIssueModal");
-  const [form, setForm] = useState<ReportForm>(initialForm);
+  const { data: profileData } = useAuthProfileGetProfile();
+  const { data: categoryData, isLoading: isCategoryLoading } =
+    useTicketCategories(isOpen);
+  const mCreateTicket = useTicketWebsiteCreate();
+  const [form, setForm] = useState<ReportForm>(createInitialForm);
+
+  const profile = profileData?.data?.data;
+  const categories = useMemo(
+    () => categoryData?.data?.data ?? [],
+    [categoryData?.data?.data]
+  );
+  const defaultCategoryId = useMemo(() => {
+    if (categories.length === 0) return "";
+
+    const preferredCategory = categories.find((category) => category.id === 3);
+    return String(preferredCategory?.id ?? categories[0]?.id ?? "");
+  }, [categories]);
+
+  const selectedCategory = useMemo(
+    () =>
+      categories.find((category) => String(category.id) === form.reportType),
+    [categories, form.reportType]
+  );
 
   const updateField = <K extends keyof ReportForm>(
     field: K,
@@ -60,15 +146,92 @@ export function ReportIssueModal({
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (!isOpen || !profile) return;
+
+    const resolvedCountryCode = resolveCountryCode(
+      profile.countryCode,
+      profile.phone
+    );
+    const resolvedPhone = stripCountryCodeFromPhone(
+      profile.phone,
+      resolvedCountryCode
+    );
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      name: currentForm.name || profile.name || "",
+      email: currentForm.email || profile.email || "",
+      countryCode: currentForm.countryCode || resolvedCountryCode,
+      phoneNumber: currentForm.phoneNumber || resolvedPhone,
+    }));
+  }, [isOpen, profile]);
+
+  useEffect(() => {
+    if (!isOpen || !defaultCategoryId) return;
+
+    setForm((currentForm) =>
+      currentForm.reportType
+        ? currentForm
+        : { ...currentForm, reportType: defaultCategoryId }
+    );
+  }, [defaultCategoryId, isOpen]);
+
+  const handleClose = () => {
+    setForm(createInitialForm());
+    onClose();
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    const normalizedName = form.name.trim();
+    const normalizedEmail = form.email.trim();
+    const normalizedDetails = form.details.trim();
+    const normalizedPhone = sanitizePhoneNumber(
+      form.phoneNumber,
+      form.countryCode
+    );
+
+    if (
+      !normalizedName ||
+      !normalizedEmail ||
+      !form.reportType ||
+      !normalizedDetails ||
+      !normalizedPhone
+    ) {
+      showToast("error", t("validation"));
+      return;
+    }
+
+    try {
+      const firstLine = normalizedDetails.split(/\r?\n/)[0]?.trim() ?? "";
+      const subject =
+        firstLine.slice(0, 120) || selectedCategory?.name || t("defaultSubject");
+
+      const response = await mCreateTicket.mutateAsync({
+        subject,
+        body: normalizedDetails,
+        countryCode: form.countryCode.replace(/[^\d]/g, "") || "62",
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        priority: "high",
+        appTicketCategoryId: Number(form.reportType),
+        attachments: form.attachment ? [form.attachment] : [],
+      });
+
+      showToast("success", response.data.responseMessage);
+      handleClose();
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
   return (
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) handleClose();
       }}
     >
       <DialogContent>
@@ -109,23 +272,40 @@ export function ReportIssueModal({
             <Label htmlFor="report-type">{t("reportType")}</Label>
             <Select
               value={form.reportType}
-              onValueChange={(value: ReportType) =>
-                updateField("reportType", value)
-              }
+              onValueChange={(value) => updateField("reportType", value)}
             >
               <SelectTrigger id="report-type">
                 <SelectValue placeholder={t("reportTypePlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bug">{t("types.bug")}</SelectItem>
-                <SelectItem value="suggestion">
-                  {t("types.suggestion")}
-                </SelectItem>
-                <SelectItem value="question">{t("types.question")}</SelectItem>
-                <SelectItem value="other">{t("types.other")}</SelectItem>
+                {isCategoryLoading ? (
+                  <SelectItem value="__loading__" disabled>
+                    {t("reportTypeLoading")}
+                  </SelectItem>
+                ) : categories.length > 0 ? (
+                  categories.map((category) => (
+                    <SelectItem key={category.id} value={String(category.id)}>
+                      {category.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="__empty__" disabled>
+                    {t("reportTypeEmpty")}
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
+
+          <UploadPhoto
+            label={t("photo")}
+            currentImage={form.attachment}
+            onImageChange={(imageUrl: string | null) =>
+              updateField("attachment", imageUrl)
+            }
+            emptyText={t("photoPlaceholder")}
+            uploadingText={t("photoUploading")}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="report-details">{t("details")}</Label>
@@ -140,25 +320,42 @@ export function ReportIssueModal({
 
           <div className="space-y-2">
             <Label htmlFor="report-phone-number">{t("phoneNumber")}</Label>
-            <Input
-              id="report-phone-number"
-              type="tel"
-              value={form.phoneNumber}
-              onChange={(event) =>
-                updateField("phoneNumber", event.target.value)
-              }
-              placeholder={t("phoneNumberPlaceholder")}
-            />
+            <div className="flex space-x-2">
+              <SearchableCountrySelect
+                countries={countryCodes}
+                value={form.countryCode || DEFAULT_COUNTRY_CODE}
+                onValueChange={(value) => updateField("countryCode", value)}
+                placeholder={t("countryCode")}
+                searchPlaceholder={t("countryCodeSearch")}
+                className="w-40 bg-card"
+              />
+              <Input
+                id="report-phone-number"
+                type="tel"
+                value={form.phoneNumber}
+                onChange={(event) =>
+                  updateField(
+                    "phoneNumber",
+                    event.target.value.replace(/[^\d]/g, "")
+                  )
+                }
+                placeholder={t("phoneNumberPlaceholder")}
+              />
+            </div>
           </div>
         </form>
 
         <DialogFooter>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               {t("cancel")}
             </Button>
-            <Button type="submit" form="report-issue-form">
-              {t("submit")}
+            <Button
+              type="submit"
+              form="report-issue-form"
+              disabled={mCreateTicket.isPending || isCategoryLoading}
+            >
+              {mCreateTicket.isPending ? t("submitting") : t("submit")}
             </Button>
           </div>
         </DialogFooter>

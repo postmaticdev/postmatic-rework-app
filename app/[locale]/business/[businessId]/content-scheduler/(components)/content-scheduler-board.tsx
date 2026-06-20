@@ -559,6 +559,7 @@ export function ContentSchedulerBoard({
 
   const today = startOfDay(new Date());
   const isPastDate = (date: Date) => isBefore(startOfDay(date), today);
+  const canCreateNewOnSelectedDate = !isPastDate(selectedDate);
 
   const isEventEditable = (event: SchedulerEvent) => {
     if (event.sourceType === "posted") {
@@ -609,10 +610,8 @@ export function ContentSchedulerBoard({
     }
 
     if (
-      event.type === "draft" &&
       event.sourceType === "manual" &&
       !event.withChatAI &&
-      !event.chatSessionId &&
       event.schedulerManualPostingId &&
       event.generatedImageContent
     ) {
@@ -921,8 +920,8 @@ export function ContentSchedulerBoard({
                       >
                         <div
                           className={`mb-2 text-sm font-semibold sm:mb-3 sm:text-base xl:text-lg ${isToday ? "inline-flex h-7 min-w-7 items-center justify-center self-end rounded-full bg-blue-600 px-2 text-white sm:h-8 sm:min-w-8 dark:bg-blue-500" : isCurrentMonth
-                              ? "text-foreground"
-                              : "text-muted-foreground"
+                            ? "text-foreground"
+                            : "text-muted-foreground"
                             }`}
                         >
                           {format(day, "d")}
@@ -1097,8 +1096,8 @@ export function ContentSchedulerBoard({
       </div>
 
       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader className="border-b-0 pb-2">
+        <DialogContent className="w-full">
+          <DialogHeader className="">
             <div className="flex items-start justify-between gap-4 pr-8">
               <div>
                 <DialogTitle>{formatDateTitle(selectedDate)}</DialogTitle>
@@ -1106,38 +1105,40 @@ export function ContentSchedulerBoard({
                   {t("scheduledDateHistoryDescription")}
                 </DialogDescription>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type="button">{t("createNew")}</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setIsHistoryDialogOpen(false);
-                      setEditingUploadDraft(null);
-                      setIsUploadDialogOpen(true);
-                    }}
-                  >
-                    <PencilLine className="h-4 w-4" />
-                    {t("uploadFile")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setIsHistoryDialogOpen(false);
-                      router.push(
-                        `/business/${businessId}/content-generate?scheduleDate=${chosenDate}`
-                      );
-                    }}
-                  >
-                    <WandSparkles className="h-4 w-4" />
-                    {t("buildWithAi")}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {canCreateNewOnSelectedDate && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button">{t("createNew")}</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsHistoryDialogOpen(false);
+                        setEditingUploadDraft(null);
+                        setIsUploadDialogOpen(true);
+                      }}
+                    >
+                      <PencilLine className="h-4 w-4" />
+                      {t("uploadFile")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsHistoryDialogOpen(false);
+                        router.push(
+                          `/business/${businessId}/content-generate?scheduleDate=${chosenDate}`
+                        );
+                      }}
+                    >
+                      <WandSparkles className="h-4 w-4" />
+                      {t("buildWithAi")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-4 pt-0 sm:p-6 sm:pt-0">
+          <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-3">
               {selectedDateEvents.map((event) => (
                 <div
@@ -1212,7 +1213,9 @@ export function ContentSchedulerBoard({
                             className="text-red-600 focus:text-red-600"
                           >
                             <X className="h-4 w-4" />
-                            {t("cancelQueue")}
+                            {event.type === "draft"
+                              ? t("deleteDraft")
+                              : t("cancelQueue")}
                           </DropdownMenuItem>
                         </>
                       )}
@@ -1279,8 +1282,16 @@ export function ContentSchedulerBoard({
 
       <DeleteConfirmationModal
         isOpen={isCancelDialogOpen}
-        title={t("deleteScheduledPostTitle")}
-        description={t("deleteScheduledPostDescription")}
+        title={
+          eventToCancel?.type === "draft"
+            ? t("deleteDraftTitle")
+            : t("deleteScheduledPostTitle")
+        }
+        description={
+          eventToCancel?.type === "draft"
+            ? t("deleteDraftDescription")
+            : t("deleteScheduledPostDescription")
+        }
         onClose={() => setIsCancelDialogOpen(false)}
         onConfirm={handleConfirmCancelEvent}
         withDetailItem={false}

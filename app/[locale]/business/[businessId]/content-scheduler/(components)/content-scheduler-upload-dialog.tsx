@@ -105,13 +105,14 @@ export function ContentSchedulerUploadDialog({
     [connectedPlatforms]
   );
 
-  const formattedDate = selectedDate
+  const activeDate = editDraft?.date || selectedDate;
+  const formattedDate = activeDate
     ? new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(selectedDate)
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(activeDate)
     : "";
 
   const togglePlatform = (platform: PlatformEnum) => {
@@ -257,7 +258,9 @@ export function ContentSchedulerUploadDialog({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{t("schedulerDialogTitle")}</DialogTitle>
+          <DialogTitle>
+            {editDraft ? t("editPost") : t("schedulerDialogTitle")}
+          </DialogTitle>
           <DialogDescription>{formattedDate}</DialogDescription>
         </DialogHeader>
 

@@ -21,6 +21,13 @@ import { Loader2 } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+const ALLOWED_PLATFORMS: PlatformEnum[] = [
+  "linked_in",
+  "facebook_page",
+  "instagram_business",
+  "twitter",
+];
+
 export function ConnectedPlatformForm() {
   const { businessId } = useParams() as { businessId: string };
   const queryClient = useQueryClient();
@@ -45,6 +52,9 @@ export function ConnectedPlatformForm() {
     useState<PlatformRes | null>(null);
   const [connectingPlatform, setConnectingPlatform] =
     useState<PlatformEnum | null>(null);
+  const isPendingOauthPlatformAllowed = ALLOWED_PLATFORMS.includes(
+    pendingOauth.data?.data?.data?.platformCode as PlatformEnum
+  );
 
   const handleDisconnect = async () => {
     try {
@@ -122,16 +132,8 @@ export function ConnectedPlatformForm() {
     }
   };
 
-  // Filter platforms to only show the allowed ones
-  const allowedPlatforms: PlatformEnum[] = [
-    "linked_in",
-    "facebook_page",
-    "instagram_business",
-    "twitter",
-    "tiktok",
-  ];
   const filteredPlatforms = platforms.filter((platform) =>
-    allowedPlatforms.includes(platform.platform)
+    ALLOWED_PLATFORMS.includes(platform.platform)
   );
 
   return (
@@ -143,7 +145,7 @@ export function ConnectedPlatformForm() {
         </div>
       )}
 
-      {tempCode && (
+      {tempCode && isPendingOauthPlatformAllowed && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
           <h3 className="font-medium text-foreground">Complete connection</h3>
           {pendingOauth.isLoading ? (
