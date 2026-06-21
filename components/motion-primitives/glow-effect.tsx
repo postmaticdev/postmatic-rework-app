@@ -27,6 +27,9 @@ export type GlowEffectProps = {
   duration?: number;
 };
 
+type GlowMode = NonNullable<GlowEffectProps['mode']>;
+type GlowAnimation = NonNullable<React.ComponentProps<typeof motion.div>['animate']>;
+
 export function GlowEffect({
   className,
   style,
@@ -37,20 +40,27 @@ export function GlowEffect({
   scale = 1,
   duration = 5,
 }: GlowEffectProps) {
-  const BASE_TRANSITION = {
+  const baseTransition: Transition = {
     repeat: Infinity,
-    duration: duration,
+    duration,
     ease: 'linear',
   };
 
-  const animations = {
+  const mirroredTransition: Transition =
+    transition ??
+    ({
+      ...baseTransition,
+      repeatType: 'mirror',
+    } satisfies Transition);
+
+  const animations: Record<GlowMode, GlowAnimation> = {
     rotate: {
       background: [
         `conic-gradient(from 0deg at 50% 50%, ${colors.join(', ')})`,
         `conic-gradient(from 360deg at 50% 50%, ${colors.join(', ')})`,
       ],
       transition: {
-        ...(transition ?? BASE_TRANSITION),
+        ...(transition ?? baseTransition),
       },
     },
     pulse: {
@@ -60,12 +70,7 @@ export function GlowEffect({
       ),
       scale: [1 * scale, 1.1 * scale, 1 * scale],
       opacity: [0.5, 0.8, 0.5],
-      transition: {
-        ...(transition ?? {
-          ...BASE_TRANSITION,
-          repeatType: 'mirror',
-        }),
-      },
+      transition: mirroredTransition,
     },
     breathe: {
       background: [
@@ -75,36 +80,21 @@ export function GlowEffect({
         ),
       ],
       scale: [1 * scale, 1.05 * scale, 1 * scale],
-      transition: {
-        ...(transition ?? {
-          ...BASE_TRANSITION,
-          repeatType: 'mirror',
-        }),
-      },
+      transition: mirroredTransition,
     },
     colorShift: {
       background: colors.map((color, index) => {
         const nextColor = colors[(index + 1) % colors.length];
         return `conic-gradient(from 0deg at 50% 50%, ${color} 0%, ${nextColor} 50%, ${color} 100%)`;
       }),
-      transition: {
-        ...(transition ?? {
-          ...BASE_TRANSITION,
-          repeatType: 'mirror',
-        }),
-      },
+      transition: mirroredTransition,
     },
     flowHorizontal: {
       background: colors.map((color) => {
         const nextColor = colors[(colors.indexOf(color) + 1) % colors.length];
         return `linear-gradient(to right, ${color}, ${nextColor})`;
       }),
-      transition: {
-        ...(transition ?? {
-          ...BASE_TRANSITION,
-          repeatType: 'mirror',
-        }),
-      },
+      transition: mirroredTransition,
     },
     static: {
       background: `linear-gradient(to right, ${colors.join(', ')})`,

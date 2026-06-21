@@ -2,6 +2,7 @@ import { api } from "@/config/api";
 import {
   CreateDesignRequest,
   CreatorDesign,
+  Publisher,
   UpdateDesignRequest,
   GetDesignsQuery,
   GetDesignsResponse,
@@ -40,6 +41,12 @@ type CreatorImageApi = {
 const toNumberIds = (ids?: string[]) =>
   (ids ?? []).map((id) => Number(id)).filter((id) => Number.isFinite(id));
 
+const mapPublisher = (design: CreatorImageApi): Publisher => ({
+  id: design.publisher?.id ?? design.profileId ?? "",
+  name: design.publisher?.name ?? "",
+  image: design.publisher?.image ?? "",
+});
+
 const mapCreatorDesign = (design: CreatorImageApi): CreatorDesign => ({
   id: String(design.id),
   name: design.name ?? "",
@@ -51,11 +58,7 @@ const mapCreatorDesign = (design: CreatorImageApi): CreatorDesign => ({
   deletedAt: null,
   createdAt: design.createdAt,
   updatedAt: design.updatedAt,
-  publisher: design.publisher ?? {
-    id: design.profileId ?? "",
-    name: "",
-    image: "",
-  },
+  publisher: mapPublisher(design),
   templateImageCategories: (design.typeCategories ?? []).map((category) => ({
     id: String(category.id),
     name: category.name,
