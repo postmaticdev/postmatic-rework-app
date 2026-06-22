@@ -26,6 +26,11 @@ const getRefreshTokenHeader = () => {
   };
 };
 
+const hasRefreshToken = () => {
+  if (typeof window === "undefined") return false;
+  return Boolean(localStorage.getItem(REFRESH_TOKEN_KEY));
+};
+
 const authProfileService = {
   getProfile: () => {
     return api.get<BaseResponse<ProfileRes>>(`/account/profile`).then((res) => {
@@ -54,7 +59,9 @@ const authProfileService = {
       });
   },
   getSessions: () => {
-    return api.get<BaseResponse<Session[]>>("/account/session/all");
+    return api.get<BaseResponse<Session[]>>("/account/session/all", {
+      headers: getRefreshTokenHeader(),
+    });
   },
   updateProfile: (formData: ProfilePld) => {
     return api.put<BaseResponse<ProfileRes>>("/account/profile", {
@@ -93,6 +100,7 @@ export const useAuthProfileGetCurrentSession = () => {
   return useQuery({
     queryKey: AUTH_CURRENT_SESSION_QUERY_KEY,
     queryFn: () => authProfileService.getCurrentSession(),
+    enabled: hasRefreshToken(),
   });
 };
 
@@ -100,6 +108,7 @@ export const useAuthProfileGetSessions = () => {
   return useQuery({
     queryKey: AUTH_SESSIONS_QUERY_KEY,
     queryFn: () => authProfileService.getSessions(),
+    enabled: hasRefreshToken(),
   });
 };
 

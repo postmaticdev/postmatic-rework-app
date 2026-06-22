@@ -13,8 +13,50 @@ import { useDateFormat } from "@/hooks/use-date-format";
 import { ACCESS_TOKEN_KEY, LOGIN_URL, REFRESH_TOKEN_KEY } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
+import { Session } from "@/models/api/auth/profile.type";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const GENERIC_BROWSER_NAMES = ["node", "postmanruntime"];
+
+const isGenericBrowser = (browser?: string) => {
+  if (!browser) return false;
+  return GENERIC_BROWSER_NAMES.some((name) =>
+    browser.toLowerCase().startsWith(name)
+  );
+};
+
+const formatSessionLabel = (session: Session) => {
+  const browser = session.browser?.trim();
+  const platform = session.platform?.trim();
+  const device = session.device?.trim();
+  const informativeBrowser =
+    browser && !isGenericBrowser(browser) ? browser : null;
+
+  const primaryLabel = platform || informativeBrowser || device || browser || "-";
+  const secondaryLabel =
+    informativeBrowser && informativeBrowser !== primaryLabel
+      ? informativeBrowser
+      : device && device !== primaryLabel
+        ? device
+        : browser && browser !== primaryLabel && !informativeBrowser
+          ? browser
+          : null;
+
+  return [primaryLabel, secondaryLabel].filter(Boolean).join(" • ");
+};
+
+const mergeSessionDetails = (session: Session, currentSession: Session | null) => {
+  if (!currentSession || session.id !== currentSession.id) {
+    return session;
+  }
+
+  return {
+    ...session,
+    browser: currentSession.browser || session.browser,
+    platform: currentSession.platform || session.platform,
+    device: currentSession.device || session.device,
+  };
+};
 
 export function SessionLogin() {
   const { data: sessionsData } = useAuthProfileGetSessions();
@@ -24,18 +66,21 @@ export function SessionLogin() {
   const mLogoutAll = useAuthProfileLogoutAll();
   const t = useTranslations("sessionLogin");
   const tToast = useTranslations();
-  const currentSessionId = currentSessionData?.data?.data?.session?.id ?? null;
+  const currentSession = currentSessionData?.data?.data?.session ?? null;
+  const currentSessionId = currentSession?.id ?? null;
 
   const sessions = useMemo(() => {
     const sessionList = sessionsData?.data?.data ?? [];
 
-    return [...sessionList].sort((a, b) => {
-      if (a.id === currentSessionId) return -1;
-      if (b.id === currentSessionId) return 1;
+    return sessionList
+      .map((session) => mergeSessionDetails(session, currentSession))
+      .sort((a, b) => {
+        if (a.id === currentSessionId) return -1;
+        if (b.id === currentSessionId) return 1;
 
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [currentSessionId, sessionsData?.data?.data]);
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [currentSession, currentSessionId, sessionsData?.data?.data]);
 
   const handleLogout = async (sessionId: string) => {
     const isCurrentSession = sessionId === currentSessionId;
@@ -87,9 +132,7 @@ export function SessionLogin() {
 
         <div className="space-y-4">
           {sessions.map((session) => {
-            const label = [session.browser, session.platform || session.device]
-              .filter(Boolean)
-              .join(" • ");
+            const label = formatSessionLabel(session);
             const sessionDate = session.createdAt || session.expiredAt;
 
             return (
@@ -98,7 +141,7 @@ export function SessionLogin() {
                 className="flex items-center justify-between bg-background-secondary p-4 rounded-lg"
               >
                 <div>
-                  <p className="font-medium text-foreground">{label || "-"}</p>
+                  <p className="font-medium text-foreground">{label}</p>
                   {sessionDate && (
                     <p className="text-sm text-muted-foreground">
                       {formatDate(new Date(sessionDate))}

@@ -44,7 +44,7 @@ interface ReportForm {
   details: string;
   countryCode: string;
   phoneNumber: string;
-  attachment: string | null;
+  attachments: string[];
 }
 
 const DEFAULT_COUNTRY_CODE = "+62";
@@ -56,7 +56,7 @@ const createInitialForm = (): ReportForm => ({
   details: "",
   countryCode: "",
   phoneNumber: "",
-  attachment: null,
+  attachments: [],
 });
 
 function resolveCountryCode(
@@ -217,7 +217,7 @@ export function ReportIssueModal({
         email: normalizedEmail,
         priority: "high",
         appTicketCategoryId: Number(form.reportType),
-        attachments: form.attachment ? [form.attachment] : [],
+        attachments: form.attachments,
       });
 
       showToast("success", response.data.responseMessage);
@@ -299,9 +299,10 @@ export function ReportIssueModal({
 
           <UploadPhoto
             label={t("photo")}
-            currentImage={form.attachment}
-            onImageChange={(imageUrl: string | null) =>
-              updateField("attachment", imageUrl)
+            multiple
+            currentImages={form.attachments}
+            onImagesChange={(imageUrls: string[]) =>
+              updateField("attachments", imageUrls)
             }
             emptyText={t("photoPlaceholder")}
             uploadingText={t("photoUploading")}
