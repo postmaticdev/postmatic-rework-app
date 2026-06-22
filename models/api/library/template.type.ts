@@ -12,6 +12,13 @@ export interface SavedTemplateRes {
   updatedAt: string;
 }
 
+export interface SavedCreatorImageMutationRes {
+  id: number;
+  businessRootId: number;
+  creatorImageId: number;
+  createdAt: string;
+}
+
 export interface TemplateImageContent {
   id: string;
   publisher: {

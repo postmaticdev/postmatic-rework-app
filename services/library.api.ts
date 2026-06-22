@@ -11,6 +11,7 @@ import {
 } from "@/models/api/library/rss.type";
 import {
   PublishedTemplateRes,
+  SavedCreatorImageMutationRes,
   SavedTemplatePld,
   SavedTemplateRes,
   TemplateCategoryRes,
@@ -322,8 +323,8 @@ export const useLibraryTime = () => {
 
 const templateService = {
   saveTemplate: (businessId: string, formData: SavedTemplatePld) => {
-    return api.post<BaseResponse<SavedTemplateRes[]>>(
-      `/creator/business-creator-image/${businessId}`,
+    return api.post<BaseResponse<SavedCreatorImageMutationRes>>(
+      `/creator/business-saved-creator-image/${businessId}`,
       { creatorImageId: Number(formData.templateImageContentId) }
     );
   },
@@ -400,8 +401,8 @@ const templateService = {
     >;
   },
   deleteSaved: (idBusiness: string, templateId: string) => {
-    return api.delete<BaseResponse>(
-      `/creator/business-creator-image/${idBusiness}/${templateId}`
+    return api.delete<BaseResponse<SavedCreatorImageMutationRes>>(
+      `/creator/business-saved-creator-image/${idBusiness}/${templateId}`
     );
   },
 };

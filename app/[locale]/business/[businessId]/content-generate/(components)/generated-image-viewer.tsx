@@ -29,6 +29,11 @@ type WatermarkStatus =
   | "missing-id"
   | "error";
 
+type ResolvedWatermarkResult = {
+  url: string;
+  isWatermarkedDownload: boolean;
+};
+
 type GeneratedImageViewerProps = {
   imageUrl: string;
   imageItemId?: number;
@@ -59,10 +64,8 @@ export function GeneratedImageViewer({
   const [isWatermarkedDownload, setIsWatermarkedDownload] = useState(false);
   const mGetImageWatermark = useContentImageWatermarkGet();
   const watermarkRequestKeyRef = useRef<string | null>(null);
-  const watermarkRequestPromiseRef = useRef<Promise<{
-    url: string;
-    isWatermarkedDownload: boolean;
-  }> | null>(null);
+  const watermarkRequestPromiseRef =
+    useRef<Promise<ResolvedWatermarkResult> | null>(null);
   const watermarkRequestModeRef = useRef<"preview" | "download" | null>(null);
 
   const sleep = (ms: number) =>
@@ -116,7 +119,7 @@ export function GeneratedImageViewer({
     }: {
       silent?: boolean;
       waitForWatermark?: boolean;
-    } = {}) => {
+    } = {}): Promise<ResolvedWatermarkResult> => {
       if (!imageUrl) {
         return Promise.resolve({
           url: "",
@@ -138,13 +141,14 @@ export function GeneratedImageViewer({
 
       const requestKey = `${imageItemId ?? "no-id"}-${imageUrl}`;
 
-      const canReuseExistingRequest =
+      const canReuseExistingRequest = Boolean(
         watermarkRequestPromiseRef.current &&
         watermarkRequestKeyRef.current === requestKey &&
-        (!waitForWatermark || watermarkRequestModeRef.current === "download");
+          (!waitForWatermark || watermarkRequestModeRef.current === "download")
+      );
 
       if (canReuseExistingRequest) {
-        return watermarkRequestPromiseRef.current;
+        return watermarkRequestPromiseRef.current as Promise<ResolvedWatermarkResult>;
       }
 
       const requestPromise = (async () => {

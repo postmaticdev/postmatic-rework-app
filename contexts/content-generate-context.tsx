@@ -1547,8 +1547,7 @@ export const ContentGenerateProvider = ({
    * PUBLISHED
    *
    */
-  const [publishedPagination, setPublishedPagination] =
-    useState<Pagination>(initialPagination);
+  const [, setPublishedPagination] = useState<Pagination>(initialPagination);
   const [publishedQuery, setPublishedQuery] = useState<Partial<FilterQuery>>({
     limit: 10,
     page: 1,
@@ -1557,17 +1556,14 @@ export const ContentGenerateProvider = ({
     sort: "desc",
   });
   
-  // Fetch all data when category filter is applied, otherwise use normal pagination
+  // Fetch all published references so client-side hiding of saved items
+  // still keeps each page filled correctly.
   const publishedApiQuery = useMemo(() => {
-    if (publishedQuery.productCategory || publishedQuery.category) {
-      // Fetch all data for client-side filtering and pagination
-      return {
-        ...publishedQuery,
-        limit: 999, // Fetch all data
-        page: 1,
-      };
-    }
-    return publishedQuery;
+    return {
+      ...publishedQuery,
+      limit: 999,
+      page: 1,
+    };
   }, [publishedQuery]);
   
   const { data: publishedRes, isLoading: isLoadingPublished } =
@@ -1644,9 +1640,66 @@ export const ContentGenerateProvider = ({
       ? publishedRes.data.data
       : publishedFallback.contents;
 
+  const [savedPagination, setSavedPagination] =
+    useState<Pagination>(initialPagination);
+  const [savedQuery, setSavedQuery] = useState<Partial<FilterQuery>>({
+    limit: 10,
+    page: 1,
+    sortBy: "createdAt",
+    sort: "desc",
+  });
+
+  // Fetch all data when category filter is applied, otherwise use normal pagination
+  const savedApiQuery = useMemo(() => {
+    if (savedQuery.productCategory || savedQuery.category) {
+      // Fetch all data for client-side filtering and pagination
+      return {
+        ...savedQuery,
+        limit: 999, // Fetch all data
+        page: 1,
+      };
+    }
+    return savedQuery;
+  }, [savedQuery]);
+
+  const { data: savedRes, isLoading: isLoadingSaved } =
+    useLibraryTemplateGetSaved(businessId, savedApiQuery, contentFeaturesEnabled);
+  useEffect(() => {
+    if (savedRes) {
+      setSavedPagination(savedRes?.data?.pagination);
+    }
+  }, [savedRes]);
+  const savedData: Template[] = (savedRes?.data.data || []).map((item) => {
+    return {
+      id: item?.templateImageContent?.id,
+      name: item?.name,
+      imageUrl: item?.imageUrl,
+      categories:
+        item?.templateImageContent?.templateImageCategories.map((cat) => cat.name) ||
+        [],
+      productCategories:
+        item?.templateImageContent?.templateProductCategories.map(
+          (cat) => cat.indonesianName
+        ) || [],
+      price: 0,
+      publisher: item?.templateImageContent?.publisher || {
+        id: "",
+        name: "Postmatic",
+        image: null,
+      },
+      type: "saved",
+      createdAt: item?.createdAt,
+      updatedAt: item?.updatedAt,
+    };
+  });
+  const savedTemplateIds = useMemo(
+    () => new Set(savedData.map((template) => template.id)),
+    [savedData]
+  );
+
   // Client-side filtering by productCategory if server-side filtering is not working
   const allFilteredPublishedData = useMemo(() => {
-    let data = publishedData;
+    let data = publishedData.filter((template) => !savedTemplateIds.has(template.id));
     
     if (publishedQuery.category) {
       // Find the template category name by ID
@@ -1680,44 +1733,36 @@ export const ContentGenerateProvider = ({
     publishedQuery.category,
     publishedQuery.productCategory,
     productCategoriesData,
+    savedTemplateIds,
     templateCategoriesData,
   ]);
 
-  // Apply client-side pagination when category filter is active
+  // Apply client-side pagination so hidden saved items do not leave empty slots.
   const { paginatedData: filteredPublishedData, pagination: adjustedPublishedPagination } = useMemo(() => {
-    // If category filter is applied, do client-side pagination
-    if (publishedQuery.productCategory || publishedQuery.category) {
-      const limit = publishedQuery.limit || 10;
-      const page = publishedQuery.page || 1;
-      const total = allFilteredPublishedData.length;
-      const totalPages = Math.max(1, Math.ceil(total / limit));
-      
-      // Slice data for current page
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginatedData = allFilteredPublishedData.slice(start, end);
-      
-      const pagination: Pagination = {
-        limit,
-        page,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      };
-      
-      return { paginatedData, pagination };
-    }
-    
-    // Otherwise use server-side pagination
-    return { paginatedData: allFilteredPublishedData, pagination: publishedPagination };
+    const limit = publishedQuery.limit || 10;
+    const requestedPage = publishedQuery.page || 1;
+    const total = allFilteredPublishedData.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const page = Math.min(requestedPage, totalPages);
+
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginatedData = allFilteredPublishedData.slice(start, end);
+
+    const pagination: Pagination = {
+      limit,
+      page,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+
+    return { paginatedData, pagination };
   }, [
     allFilteredPublishedData,
-    publishedQuery.category,
-    publishedQuery.productCategory,
     publishedQuery.limit,
     publishedQuery.page,
-    publishedPagination,
   ]);
 
   const publishedTemplates: ContentGenerateContext["publishedTemplates"] = {
@@ -1733,55 +1778,6 @@ export const ContentGenerateProvider = ({
    * SAVED
    *
    */
-  const [savedPagination, setSavedPagination] =
-    useState<Pagination>(initialPagination);
-  const [savedQuery, setSavedQuery] = useState<Partial<FilterQuery>>({
-    limit: 10,
-    page: 1,
-    sortBy: "createdAt",
-    sort: "desc",
-  });
-  
-  // Fetch all data when category filter is applied, otherwise use normal pagination
-  const savedApiQuery = useMemo(() => {
-    if (savedQuery.productCategory || savedQuery.category) {
-      // Fetch all data for client-side filtering and pagination
-      return {
-        ...savedQuery,
-        limit: 999, // Fetch all data
-        page: 1,
-      };
-    }
-    return savedQuery;
-  }, [savedQuery]);
-  
-  const { data: savedRes, isLoading: isLoadingSaved } =
-    useLibraryTemplateGetSaved(businessId, savedApiQuery, contentFeaturesEnabled);
-  useEffect(() => {
-    if (savedRes) {
-      setSavedPagination(savedRes?.data?.pagination);
-    }
-  }, [savedRes]);
-  const savedData: Template[] = (savedRes?.data.data || []).map((item) => {
-
-    return {
-      id: item?.templateImageContent?.id,
-      name: item?.name,
-      imageUrl: item?.imageUrl,
-      categories: item?.templateImageContent?.templateImageCategories.map((cat) => cat.name) || [],
-      productCategories: item?.templateImageContent?.templateProductCategories.map((cat) => cat.indonesianName) || [],
-      price: 0,
-      publisher: item?.templateImageContent?.publisher || {
-        id: "",
-        name: "Postmatic",
-        image: null,
-      },
-      type: "saved",
-      createdAt: item?.createdAt,
-      updatedAt: item?.updatedAt,
-    };
-  });
-
   // Client-side filtering by productCategory for saved templates
   const allFilteredSavedData = useMemo(() => {
     let data = savedData;
