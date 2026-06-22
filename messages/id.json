@@ -627,7 +627,11 @@
     "regeneratePromptPlaceholder": "Contoh: tambahkan vespa di belakang subjek dan buat nuansanya lebih nostalgia.",
     "copyPrompt": "Salin prompt",
     "copyPromptSuccess": "Prompt berhasil disalin",
-    "copyPromptFailed": "Gagal menyalin prompt"
+    "copyPromptFailed": "Gagal menyalin prompt",
+    "freeModelRestrictionTitle": "Model terbatas untuk pengguna gratis",
+    "freeModelRestrictionDescription": "Pengguna gratis hanya bisa menggunakan model {modelName}, Top up sekarang untuk mencoba model lainnya",
+    "freeModelRestrictionTopUp": "Top up sekarang",
+    "freeModelRestrictionUseDefault": "Gunakan model biasanya"
   },
   "previewPanel": {
     "enhanceCaption": "Tingkatkan Caption",
@@ -641,7 +645,11 @@
     "regenerate": "Regenerate",
     "generate": "Generate",
     "captionWillShowHere": "Caption akan tampil disini",
-    "writeCaption": "Tulis caption..."
+    "writeCaption": "Tulis caption...",
+    "freeModelRestrictionTitle": "Model terbatas untuk pengguna gratis",
+    "freeModelRestrictionDescription": "Pengguna gratis hanya bisa menggunakan model {modelName}, Top up sekarang untuk mencoba model lainnya",
+    "freeModelRestrictionTopUp": "Top up sekarang",
+    "freeModelRestrictionUseDefault": "Gunakan model biasanya"
   },
   "contentGenerateScheduler": {
     "choosePlatform": "Pilih Platform",

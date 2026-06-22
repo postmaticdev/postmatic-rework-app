@@ -10,6 +10,8 @@ export interface AiModelRes {
   imageSizes?: string[] | null;
 }
 
+export const POSTMATIC_VISION_MODEL_NAME = "gpt-image-1";
+
 const AI_MODEL_DISPLAY_NAMES: Record<string, string> = {
   "gpt-image-1": "Postmatic Vision",
   "GPT Image 1": "Postmatic Vision",
@@ -45,3 +47,9 @@ export const getAiModelDisplayName = (model: AiModelDisplaySource) => {
     model.name
   );
 };
+
+export const isPostmaticVisionModel = (modelName?: string | null) =>
+  modelName === POSTMATIC_VISION_MODEL_NAME || modelName === "GPT Image 1";
+
+export const pickPostmaticVisionModel = (models: AiModelRes[]) =>
+  models.find((model) => isPostmaticVisionModel(model.name)) || null;

@@ -16,6 +16,7 @@ interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onCancel?: () => void;
   title: string;
   description: string;
   confirmText: string;
@@ -29,6 +30,7 @@ export function ConfirmationModal({
   isOpen,
   onClose,
   onConfirm,
+  onCancel,
   title,
   description,
   confirmText,
@@ -38,7 +40,12 @@ export function ConfirmationModal({
   detailValue,
 }: ConfirmationModalProps) {
   return (
-    <AlertDialog open={isOpen} onOpenChange={onClose}>
+    <AlertDialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader className="flex flex-row items-center gap-6">
           <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
@@ -70,7 +77,13 @@ export function ConfirmationModal({
 
         <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <AlertDialogCancel
-            onClick={onClose}
+            onClick={() => {
+              if (onCancel) {
+                onCancel();
+                return;
+              }
+              onClose();
+            }}
             disabled={isLoading}
             className="w-full sm:w-auto"
           >

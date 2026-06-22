@@ -627,7 +627,11 @@
     "regeneratePromptPlaceholder": "Example: add a Vespa behind the subject and make the vibe more nostalgic.",
     "copyPrompt": "Copy prompt",
     "copyPromptSuccess": "Prompt copied",
-    "copyPromptFailed": "Failed to copy prompt"
+    "copyPromptFailed": "Failed to copy prompt",
+    "freeModelRestrictionTitle": "Model restricted for free users",
+    "freeModelRestrictionDescription": "Free users can only use the {modelName} model. Top up now to try other models.",
+    "freeModelRestrictionTopUp": "Top up now",
+    "freeModelRestrictionUseDefault": "Use the default model"
   },
   "previewPanel": {
     "enhanceCaption": "Enhance Caption",
@@ -641,7 +645,11 @@
     "regenerate": "Regenerate",
     "generate": "Generate",
     "captionWillShowHere": "Caption will show here",
-    "writeCaption": "Write a caption..."
+    "writeCaption": "Write a caption...",
+    "freeModelRestrictionTitle": "Model restricted for free users",
+    "freeModelRestrictionDescription": "Free users can only use the {modelName} model. Top up now to try other models.",
+    "freeModelRestrictionTopUp": "Top up now",
+    "freeModelRestrictionUseDefault": "Use the default model"
   },
   "contentGenerateScheduler": {
     "choosePlatform": "Choose Platform",

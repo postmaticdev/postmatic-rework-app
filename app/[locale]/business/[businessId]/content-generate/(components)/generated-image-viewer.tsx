@@ -17,6 +17,18 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { ImageWatermarkRes } from "@/models/api/content/image.type";
 
+const WATERMARK_POLL_INTERVAL_MS = 1500;
+const WATERMARK_POLL_TIMEOUT_MS = 15000;
+
+type WatermarkStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "pending"
+  | "paid"
+  | "missing-id"
+  | "error";
+
 type GeneratedImageViewerProps = {
   imageUrl: string;
   imageItemId?: number;
@@ -36,6 +48,8 @@ export function GeneratedImageViewer({
 }: GeneratedImageViewerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [watermarkStatus, setWatermarkStatus] =
+    useState<WatermarkStatus>("idle");
   const [watermarkedImageUrl, setWatermarkedImageUrl] = useState<string | null>(
     null
   );
@@ -49,6 +63,10 @@ export function GeneratedImageViewer({
     url: string;
     isWatermarkedDownload: boolean;
   }> | null>(null);
+  const watermarkRequestModeRef = useRef<"preview" | "download" | null>(null);
+
+  const sleep = (ms: number) =>
+    new Promise((resolve) => window.setTimeout(resolve, ms));
 
   const buildDownloadFileName = (sourceUrl: string, prefix: string) => {
     try {
@@ -94,8 +112,10 @@ export function GeneratedImageViewer({
   const resolveWatermarkImage = useCallback(
     ({
       silent = false,
+      waitForWatermark = false,
     }: {
       silent?: boolean;
+      waitForWatermark?: boolean;
     } = {}) => {
       if (!imageUrl) {
         return Promise.resolve({
@@ -104,7 +124,12 @@ export function GeneratedImageViewer({
         });
       }
 
-      if (resolvedDownloadUrl) {
+      const hasStableResolvedUrl =
+        watermarkStatus === "ready" ||
+        watermarkStatus === "paid" ||
+        watermarkStatus === "missing-id";
+
+      if (resolvedDownloadUrl && hasStableResolvedUrl) {
         return Promise.resolve({
           url: resolvedDownloadUrl,
           isWatermarkedDownload,
@@ -113,10 +138,12 @@ export function GeneratedImageViewer({
 
       const requestKey = `${imageItemId ?? "no-id"}-${imageUrl}`;
 
-      if (
+      const canReuseExistingRequest =
         watermarkRequestPromiseRef.current &&
-        watermarkRequestKeyRef.current === requestKey
-      ) {
+        watermarkRequestKeyRef.current === requestKey &&
+        (!waitForWatermark || watermarkRequestModeRef.current === "download");
+
+      if (canReuseExistingRequest) {
         return watermarkRequestPromiseRef.current;
       }
 
@@ -135,72 +162,127 @@ export function GeneratedImageViewer({
           };
           setResolvedDownloadUrl(fallbackResult.url);
           setIsWatermarkedDownload(fallbackResult.isWatermarkedDownload);
+          setWatermarkStatus("missing-id");
           return fallbackResult;
         }
 
-        try {
-          const watermarkRes = await mGetImageWatermark.mutateAsync({
-            generatedImagePostItemId: imageItemId,
-          });
-          const watermarkData: ImageWatermarkRes | undefined =
-            watermarkRes.data?.data;
-          const watermarkUrl = watermarkData?.imageUrls?.[0];
-          const isPaidUser = watermarkData?.isFreeUser === false;
-          const canUseWatermark = Boolean(
-            watermarkData?.generatedImagePostItemId === imageItemId &&
-            watermarkData?.isFreeUser &&
-              watermarkData?.isWatermarked &&
-              watermarkData?.isCached &&
-              watermarkUrl
-          );
+        setWatermarkStatus("loading");
 
-          const nextResult =
-            canUseWatermark && watermarkUrl
-              ? {
-                  url: watermarkUrl,
-                  isWatermarkedDownload: true,
-                }
-              : {
-                  url: imageUrl,
-                  isWatermarkedDownload: false,
-                };
+        const maxAttempts = waitForWatermark
+          ? Math.max(
+              1,
+              Math.ceil(
+                WATERMARK_POLL_TIMEOUT_MS / WATERMARK_POLL_INTERVAL_MS
+              ) + 1
+            )
+          : 1;
 
-          if (nextResult.isWatermarkedDownload) {
-            setWatermarkedImageUrl(nextResult.url);
-          } else if (!silent && !isPaidUser) {
-            showToast(
-              "info",
-              "Watermark tidak tersedia untuk gambar ini, download file original."
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          try {
+            const watermarkRes = await mGetImageWatermark.mutateAsync({
+              generatedImagePostItemId: imageItemId,
+            });
+            const watermarkData: ImageWatermarkRes | undefined =
+              watermarkRes.data?.data;
+            const watermarkUrl = watermarkData?.imageUrls?.[0];
+            const isPaidUser = watermarkData?.isFreeUser === false;
+            const isFreeUser = watermarkData?.isFreeUser === true;
+            const canUseWatermark = Boolean(
+              watermarkData?.generatedImagePostItemId === imageItemId &&
+                isFreeUser &&
+                watermarkData?.isWatermarked &&
+                watermarkData?.isCached &&
+                watermarkUrl
             );
-          }
 
-          setResolvedDownloadUrl(nextResult.url);
-          setIsWatermarkedDownload(nextResult.isWatermarkedDownload);
-          return nextResult;
-        } catch {
-          if (!silent) {
-            showToast(
-              "warning",
-              "Gagal ambil watermark, download file original."
-            );
-          }
+            if (canUseWatermark && watermarkUrl) {
+              setWatermarkedImageUrl(watermarkUrl);
+              setResolvedDownloadUrl(watermarkUrl);
+              setIsWatermarkedDownload(true);
+              setWatermarkStatus("ready");
 
-          const fallbackResult = {
-            url: imageUrl,
-            isWatermarkedDownload: false,
-          };
-          setResolvedDownloadUrl(fallbackResult.url);
-          setIsWatermarkedDownload(fallbackResult.isWatermarkedDownload);
-          return fallbackResult;
-        } finally {
-          watermarkRequestPromiseRef.current = null;
+              return {
+                url: watermarkUrl,
+                isWatermarkedDownload: true,
+              };
+            }
+
+            if (isPaidUser) {
+              const paidResult = {
+                url: imageUrl,
+                isWatermarkedDownload: false,
+              };
+
+              setResolvedDownloadUrl(paidResult.url);
+              setIsWatermarkedDownload(false);
+              setWatermarkStatus("paid");
+              return paidResult;
+            }
+
+            if (isFreeUser && waitForWatermark && attempt < maxAttempts) {
+              setWatermarkStatus("pending");
+              await sleep(WATERMARK_POLL_INTERVAL_MS);
+              continue;
+            }
+
+            const fallbackResult = {
+              url: imageUrl,
+              isWatermarkedDownload: false,
+            };
+
+            setIsWatermarkedDownload(false);
+            setWatermarkStatus(isFreeUser ? "pending" : "error");
+
+            if (!silent) {
+              showToast(
+                "info",
+                isFreeUser
+                  ? "Watermark belum siap, download file original untuk sementara."
+                  : "Watermark tidak tersedia untuk gambar ini, download file original."
+              );
+            }
+
+            return fallbackResult;
+          } catch {
+            const isLastAttempt = attempt >= maxAttempts;
+
+            if (!isLastAttempt && waitForWatermark) {
+              setWatermarkStatus("pending");
+              await sleep(WATERMARK_POLL_INTERVAL_MS);
+              continue;
+            }
+
+            if (!silent) {
+              showToast(
+                "warning",
+                "Gagal ambil watermark, download file original."
+              );
+            }
+
+            setIsWatermarkedDownload(false);
+            setWatermarkStatus("error");
+
+            return {
+              url: imageUrl,
+              isWatermarkedDownload: false,
+            };
+          }
         }
+
+        return {
+          url: imageUrl,
+          isWatermarkedDownload: false,
+        };
       })();
 
       watermarkRequestKeyRef.current = requestKey;
       watermarkRequestPromiseRef.current = requestPromise;
+      watermarkRequestModeRef.current = waitForWatermark ? "download" : "preview";
 
-      return requestPromise;
+      return requestPromise.finally(() => {
+        watermarkRequestPromiseRef.current = null;
+        watermarkRequestModeRef.current = null;
+      });
     },
     [
       imageItemId,
@@ -208,22 +290,25 @@ export function GeneratedImageViewer({
       isWatermarkedDownload,
       mGetImageWatermark,
       resolvedDownloadUrl,
+      watermarkStatus,
     ]
   );
 
   useEffect(() => {
+    setWatermarkStatus("idle");
     setWatermarkedImageUrl(null);
     setResolvedDownloadUrl(null);
     setIsWatermarkedDownload(false);
     watermarkRequestKeyRef.current = null;
     watermarkRequestPromiseRef.current = null;
+    watermarkRequestModeRef.current = null;
   }, [imageItemId, imageUrl]);
 
   useEffect(() => {
-    if (!isOpen || !imageUrl || resolvedDownloadUrl) return;
+    if (!isOpen || !imageUrl || watermarkStatus !== "idle") return;
 
     void resolveWatermarkImage({ silent: true });
-  }, [imageUrl, isOpen, resolveWatermarkImage, resolvedDownloadUrl]);
+  }, [imageUrl, isOpen, resolveWatermarkImage, watermarkStatus]);
 
   const handleDownload = async () => {
     if (!imageUrl || isDownloading) return;
@@ -231,7 +316,7 @@ export function GeneratedImageViewer({
     setIsDownloading(true);
     try {
       const { url: downloadUrl, isWatermarkedDownload } =
-        await resolveWatermarkImage();
+        await resolveWatermarkImage({ waitForWatermark: true });
       const fileName = buildDownloadFileName(
         downloadUrl,
         isWatermarkedDownload ? "generated-watermarked" : "generated"

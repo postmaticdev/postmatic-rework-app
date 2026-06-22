@@ -14,7 +14,9 @@ import { ScheduleSummaryModal } from "@/app/[locale]/business/[businessId]/conte
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import { getModelRestrictionCopy } from "./model-restriction-copy";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
+import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 import { cn } from "@/lib/utils";
 import {
   getSchedulerDraftMarkers,
@@ -29,7 +31,7 @@ import {
 import { useBusinessGetById } from "@/services/business.api";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { useParams, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   CalendarDays,
   Loader2,
@@ -44,16 +46,19 @@ export function PreviewPanel() {
   const shouldAutoEnhanceOnFirstGenerateRef = useRef(false);
   const lastAutoEnhancedResultKeyRef = useRef<string | null>(null);
   const router = useRouter();
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const { businessId } = useParams() as { businessId: string };
   const {
     mode,
     form,
+    aiModels,
     selectedHistory,
     selectedGeneratedImageUrl,
     schedulerDraftPost,
     onSelectHistory,
     isLoading,
+    onSelectAiModel,
     onSubmitGenerate,
   } = useContentGenerate();
   const { data: businessData } = useBusinessGetById(businessId);
@@ -75,12 +80,20 @@ export function PreviewPanel() {
   const schedulerMode = Boolean(scheduleDate);
   const selectedImageUrl =
     selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
+  const modelRestrictionCopy = getModelRestrictionCopy(
+    locale,
+    aiModels.freeUserAllowedModel
+      ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
+      : getAiModelDisplayName("gpt-image-1")
+  );
 
   const [date, setDate] = useState(() => getCurrentScheduleInput().date);
   const [time, setTime] = useState(() => getCurrentScheduleInput().time);
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isScheduleNowConfirmOpen, setIsScheduleNowConfirmOpen] =
+    useState(false);
+  const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
     useState(false);
   const [isAutoEnhancingCaption, setIsAutoEnhancingCaption] = useState(false);
   useEffect(() => {
@@ -143,6 +156,16 @@ export function PreviewPanel() {
       return;
     }
 
+    if (
+      aiModels.isFreeUser &&
+      aiModels.freeUserAllowedModel &&
+      form.basic.model &&
+      form.basic.model !== aiModels.freeUserAllowedModel.name
+    ) {
+      setIsRestrictedModelModalOpen(true);
+      return;
+    }
+
     shouldAutoEnhanceOnFirstGenerateRef.current = isFirstGenerateFlow;
 
     onSubmitGenerate({
@@ -153,6 +176,36 @@ export function PreviewPanel() {
         previewPanelRef.current?.scrollIntoView({ behavior: "smooth" });
       }
     }, 100);
+  };
+
+  const handleUseFreeUserAllowedModel = () => {
+    const allowedModel = aiModels.freeUserAllowedModel;
+    if (!allowedModel) {
+      setIsRestrictedModelModalOpen(false);
+      return;
+    }
+
+    const allowedRatios = allowedModel.validRatios.length
+      ? allowedModel.validRatios
+      : aiModels.validRatios;
+    const nextRatio = allowedRatios.includes(form.basic.ratio)
+      ? form.basic.ratio
+      : (allowedRatios[0] || aiModels.validRatios[0] || "1:1");
+
+    onSelectAiModel(allowedModel);
+    setIsRestrictedModelModalOpen(false);
+    shouldAutoEnhanceOnFirstGenerateRef.current = isFirstGenerateFlow;
+    void onSubmitGenerate({
+      mode: selectedHistory ? "regenerate" : undefined,
+      model: allowedModel.name,
+      ratio: nextRatio,
+      imageSize: allowedModel.imageSizes?.[0] || null,
+    });
+  };
+
+  const handleTopUpNow = () => {
+    setIsRestrictedModelModalOpen(false);
+    router.push(`/business/${businessId}/settings?tab=billing&topUp=token`);
   };
 
   const persistCaptionToSchedulerDraft = useCallback(
@@ -729,6 +782,16 @@ export function PreviewPanel() {
         detailLabel={schedulerT("selectedPublishTime")}
         detailValue={`${date} ${time}`}
         isLoading={isScheduling || mEnhanceCaption.isPending}
+      />
+      <ConfirmationModal
+        isOpen={isRestrictedModelModalOpen}
+        onClose={() => setIsRestrictedModelModalOpen(false)}
+        onCancel={handleUseFreeUserAllowedModel}
+        onConfirm={handleTopUpNow}
+        title={modelRestrictionCopy.title}
+        description={modelRestrictionCopy.description}
+        confirmText={modelRestrictionCopy.topUp}
+        cancelText={modelRestrictionCopy.useDefault}
       />
     </div>
   );

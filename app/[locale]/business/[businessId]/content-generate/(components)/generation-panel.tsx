@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { showToast } from "@/helper/show-toast";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
@@ -17,8 +18,10 @@ import {
 import { RssTrendModal } from "./rss-trend-modal";
 import { SelectedArticleRss } from "./selected-article-rss";
 import { SelectedReferenceImage } from "./selected-reference-image";
-import { useTranslations } from "next-intl";
+import { getModelRestrictionCopy } from "./model-restriction-copy";
+import { useLocale, useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import {
   AlertCircle,
   Bot,
@@ -40,6 +43,8 @@ import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 export function GenerationPanel() {
   const { businessId } = useParams() as { businessId: string };
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const locale = useLocale();
   const {
     mode,
     form,
@@ -59,6 +64,8 @@ export function GenerationPanel() {
   const schedulerT = useTranslations("contentGenerateScheduler");
   const [isTrendDialogOpen, setIsTrendDialogOpen] = useState(false);
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
+  const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
+    useState(false);
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
@@ -166,8 +173,49 @@ export function GenerationPanel() {
   }, [appAvatarData?.data?.data]);
 
   const handleRegenerate = () => {
+    if (
+      aiModels.isFreeUser &&
+      aiModels.freeUserAllowedModel &&
+      form.basic.model &&
+      form.basic.model !== aiModels.freeUserAllowedModel.name
+    ) {
+      setIsRestrictedModelModalOpen(true);
+      return;
+    }
+
     onSubmitGenerate({ mode: "regenerate", additionalImages: attachedImages });
     setAttachedImages([]);
+  };
+
+  const handleUseFreeUserAllowedModel = () => {
+    const allowedModel = aiModels.freeUserAllowedModel;
+    if (!allowedModel) {
+      setIsRestrictedModelModalOpen(false);
+      return;
+    }
+
+    const allowedRatios = allowedModel.validRatios.length
+      ? allowedModel.validRatios
+      : aiModels.validRatios;
+    const nextRatio = allowedRatios.includes(form.basic.ratio)
+      ? form.basic.ratio
+      : (allowedRatios[0] || aiModels.validRatios[0] || "1:1");
+
+    onSelectAiModel(allowedModel);
+    setIsRestrictedModelModalOpen(false);
+    void onSubmitGenerate({
+      mode: "regenerate",
+      additionalImages: attachedImages,
+      model: allowedModel.name,
+      ratio: nextRatio,
+      imageSize: allowedModel.imageSizes?.[0] || null,
+    });
+    setAttachedImages([]);
+  };
+
+  const handleTopUpNow = () => {
+    setIsRestrictedModelModalOpen(false);
+    router.push(`/business/${businessId}/settings?tab=billing&topUp=token`);
   };
 
   const handleAttachImage = async (
@@ -200,6 +248,12 @@ export function GenerationPanel() {
 
   const selectedImage =
     selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
+  const modelRestrictionCopy = getModelRestrictionCopy(
+    locale,
+    aiModels.freeUserAllowedModel
+      ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
+      : getAiModelDisplayName("gpt-image-1")
+  );
   const schedulerMode = Boolean(searchParams.get("scheduleDate"));
   const selectedEditReferenceImage =
     selectedGeneratedImageUrl &&
@@ -560,6 +614,16 @@ export function GenerationPanel() {
         pagination={rss.pagination}
         filterQuery={rss.filterQuery}
         setFilterQuery={rss.setFilterQuery}
+      />
+      <ConfirmationModal
+        isOpen={isRestrictedModelModalOpen}
+        onClose={() => setIsRestrictedModelModalOpen(false)}
+        onCancel={handleUseFreeUserAllowedModel}
+        onConfirm={handleTopUpNow}
+        title={modelRestrictionCopy.title}
+        description={modelRestrictionCopy.description}
+        confirmText={modelRestrictionCopy.topUp}
+        cancelText={modelRestrictionCopy.useDefault}
       />
 
     </>

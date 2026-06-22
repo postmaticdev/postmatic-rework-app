@@ -27,6 +27,10 @@ import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { RssArticleRes } from "@/models/api/library/rss.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
 import {
+  isPostmaticVisionModel,
+  pickPostmaticVisionModel,
+} from "@/models/api/content/ai-model";
+import {
   GetAllJob,
   JobData,
   JobStage,
@@ -48,6 +52,7 @@ import {
   useProductKnowledgeGetAll,
   useProductKnowledgeGetStatus,
 } from "@/services/knowledge.api";
+import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
 import {
   useLibraryRSSArticle,
   useLibraryTemplateDeleteSaved,
@@ -206,6 +211,8 @@ interface ContentGenerateContext {
     selectedModel: AiModelRes | null;
     validRatios: string[];
     isLoading: boolean;
+    isFreeUser: boolean;
+    freeUserAllowedModel: AiModelRes | null;
   };
 
   // Draft saved state
@@ -226,6 +233,9 @@ interface ContentGenerateContext {
     mode?: ContentMode;
     maskUrl?: string;
     additionalImages?: string[];
+    model?: string;
+    ratio?: ValidRatio;
+    imageSize?: string | null;
   }) => Promise<void>;
   onSaveDraft: () => void;
   onResetAdvance: () => void;
@@ -368,6 +378,10 @@ const pickDefaultAiModel = (models: AiModelRes[]) =>
   models.find((model) => model.name === "gemini-3-pro-image-preview") ||
   models[0] ||
   null;
+
+const pickPreferredAiModel = (models: AiModelRes[], isFreeUser: boolean) =>
+  (isFreeUser ? pickPostmaticVisionModel(models) : null) ||
+  pickDefaultAiModel(models);
 
 const notLoadingJobStatus: JobStatus[] = ["done", "error"];
 const notLoadingJobStages: JobStage[] = ["done", "error"];
@@ -726,6 +740,9 @@ export const ContentGenerateProvider = ({
   );
   const { data: aiModelsRes, isLoading: isLoadingAiModels } =
     useContentAiModelGetAiModels(contentGenerateFormDataEnabled);
+  const { data: subscriptionTierRes } = useSubscribtionGetSubscription(
+    businessId
+  );
   const { refetch: refetchRouteChat } = useContentImagePostChatGetById(
     businessId,
     routeChatSessionId,
@@ -837,11 +854,37 @@ export const ContentGenerateProvider = ({
   
   // AI Models state
   const [selectedAiModel, setSelectedAiModel] = useState<AiModelRes | null>(null);
+  const hasManualAiModelSelectionRef = useRef(false);
+  const isFreeUser = useMemo(() => {
+    const subscriptionResponse = subscriptionTierRes?.data;
+    const subscription = subscriptionResponse?.data?.subscription;
+
+    return Boolean(
+      subscriptionResponse?.responseMessage === "SUBSCRIPTION_NOT_AVAILABLE" ||
+        !subscription ||
+        (subscription.productType === "image_token" &&
+          subscription.productName === "Token Based")
+    );
+  }, [subscriptionTierRes?.data]);
+  const freeUserAllowedModel = useMemo(
+    () => pickPostmaticVisionModel(aiModelsRes?.data?.data || []),
+    [aiModelsRes?.data?.data]
+  );
 
   // Set default AI model when models are loaded
   useEffect(() => {
-    if (aiModelsRes?.data?.data && aiModelsRes.data.data.length > 0 && !selectedAiModel) {
-      const defaultModel = pickDefaultAiModel(aiModelsRes.data.data);
+    if (
+      aiModelsRes?.data?.data &&
+      aiModelsRes.data.data.length > 0 &&
+      (!selectedAiModel ||
+        (!hasManualAiModelSelectionRef.current &&
+          isFreeUser &&
+          !isPostmaticVisionModel(selectedAiModel.name)))
+    ) {
+      const defaultModel = pickPreferredAiModel(
+        aiModelsRes.data.data,
+        isFreeUser
+      );
       if (!defaultModel) return;
       const defaultModelRatios = normalizeValidRatios(defaultModel.validRatios);
       setSelectedAiModel(defaultModel);
@@ -852,16 +895,16 @@ export const ContentGenerateProvider = ({
         imageSize: defaultModel.imageSizes?.[0] || null,
       }));
     }
-  }, [aiModelsRes, selectedAiModel]);
+  }, [aiModelsRes, isFreeUser, selectedAiModel]);
 
   // Get valid ratios from selected model
   const validRatios = useMemo(() => {
     const model =
       selectedAiModel ||
-      pickDefaultAiModel(aiModelsRes?.data?.data || []);
+      pickPreferredAiModel(aiModelsRes?.data?.data || [], isFreeUser);
 
     return normalizeValidRatios(model?.validRatios);
-  }, [aiModelsRes?.data?.data, selectedAiModel]);
+  }, [aiModelsRes?.data?.data, isFreeUser, selectedAiModel]);
 
   const onSelectHistory = useCallback((
     item: JobData | null,
@@ -876,8 +919,22 @@ export const ContentGenerateProvider = ({
       const modelFromHistory = aiModelsRes?.data?.data?.find(
         model => model.name === item?.input?.model
       );
-      if (modelFromHistory) {
-        setSelectedAiModel(modelFromHistory);
+      const effectiveModel =
+        isFreeUser
+          ? pickPostmaticVisionModel(aiModelsRes?.data?.data || []) ||
+            modelFromHistory
+          : modelFromHistory;
+      hasManualAiModelSelectionRef.current = false;
+      const effectiveModelRatios = normalizeValidRatios(
+        effectiveModel?.validRatios
+      );
+      const nextRatio = effectiveModelRatios.includes(
+        item?.result?.ratio as ValidRatio
+      )
+        ? (item?.result?.ratio as ValidRatio)
+        : effectiveModelRatios[0] || fallbackRatios[0];
+      if (effectiveModel) {
+        setSelectedAiModel(effectiveModel);
       }
       
       setFormBasic((prev) => ({
@@ -893,11 +950,11 @@ export const ContentGenerateProvider = ({
         designStyle: item?.input?.designStyle || "",
         customDesignStyle: item?.input?.designStyle || "",
         referenceImage: activeImageUrl || "",
-        ratio: (item?.result?.ratio || "1:1") as ValidRatio,
-        model: item?.input?.model || "",
+        ratio: nextRatio,
+        model: effectiveModel?.name || item?.input?.model || "",
         imageSize:
+          effectiveModel?.imageSizes?.[0] ||
           item?.input?.imageSize ||
-          modelFromHistory?.imageSizes?.[0] ||
           null,
       }));
       setSelectedJobId(item.id);
@@ -907,8 +964,9 @@ export const ContentGenerateProvider = ({
       setMode("regenerate");
       setTab("knowledge");
     } else {
+      hasManualAiModelSelectionRef.current = false;
       const defaultModel =
-        pickDefaultAiModel(aiModelsRes?.data?.data || []) ||
+        pickPreferredAiModel(aiModelsRes?.data?.data || [], isFreeUser) ||
         selectedAiModel;
       const defaultModelRatios = normalizeValidRatios(defaultModel?.validRatios);
       if (defaultModel) {
@@ -918,7 +976,7 @@ export const ContentGenerateProvider = ({
       setTab("knowledge");
       setSelectedJobId(null);
       setSelectedGeneratedImageUrl(null);
-      form.setBasic({
+      setFormBasic({
         ...initialFormBasic,
         model: defaultModel?.name || initialFormBasic.model,
           ratio: (defaultModelRatios[0] ||
@@ -926,13 +984,13 @@ export const ContentGenerateProvider = ({
           fallbackRatios[0]) as ValidRatio,
         imageSize: defaultModel?.imageSizes?.[0] || null,
       });
-      form.setAdvance(initialFormAdvance);
+      setFormAdvance(initialFormAdvance);
     }
     setFormRss(null);
       setIsDraftSaved(false); // Reset draft saved state when selecting new history
       setSchedulerDraftPost(null);
       setSchedulerChatSeed(null);
-  }, [aiModelsRes, selectedAiModel]);
+  }, [aiModelsRes, isFreeUser, selectedAiModel]);
 
   const onSelectGeneratedImage = useCallback(
     (
@@ -943,8 +1001,22 @@ export const ContentGenerateProvider = ({
       const modelFromHistory = aiModelsRes?.data?.data?.find(
         (model) => model.name === item?.input?.model
       );
-      if (modelFromHistory) {
-        setSelectedAiModel(modelFromHistory);
+      const effectiveModel =
+        isFreeUser
+          ? pickPostmaticVisionModel(aiModelsRes?.data?.data || []) ||
+            modelFromHistory
+          : modelFromHistory;
+      hasManualAiModelSelectionRef.current = false;
+      const effectiveModelRatios = normalizeValidRatios(
+        effectiveModel?.validRatios
+      );
+      const nextRatio = effectiveModelRatios.includes(
+        item?.result?.ratio as ValidRatio
+      )
+        ? (item?.result?.ratio as ValidRatio)
+        : effectiveModelRatios[0] || fallbackRatios[0];
+      if (effectiveModel) {
+        setSelectedAiModel(effectiveModel);
       }
 
       setFormBasic((prev) => ({
@@ -960,11 +1032,11 @@ export const ContentGenerateProvider = ({
         designStyle: item?.input?.designStyle || "",
         customDesignStyle: item?.input?.designStyle || "",
         referenceImage: imageUrl,
-        ratio: (item?.result?.ratio || "1:1") as ValidRatio,
-        model: item?.input?.model || prev.model,
+        ratio: nextRatio,
+        model: effectiveModel?.name || item?.input?.model || prev.model,
         imageSize:
+          effectiveModel?.imageSizes?.[0] ||
           item?.input?.imageSize ||
-          modelFromHistory?.imageSizes?.[0] ||
           prev.imageSize ||
           null,
       }));
@@ -976,7 +1048,7 @@ export const ContentGenerateProvider = ({
       setTab("knowledge");
       setIsDraftSaved(false);
     },
-    [aiModelsRes]
+    [aiModelsRes, isFreeUser]
   );
 
   /**
@@ -1923,6 +1995,7 @@ export const ContentGenerateProvider = ({
 
   const onSelectAiModel = (model: AiModelRes) => {
     const modelRatios = normalizeValidRatios(model.validRatios);
+    hasManualAiModelSelectionRef.current = true;
     setSelectedAiModel(model);
     setFormBasic((prev) => ({
       ...prev,
@@ -1987,7 +2060,12 @@ export const ContentGenerateProvider = ({
 
   const submitSchedulerChatGenerate = async (
     effMode: ContentMode,
-    additionalImages: string[] = []
+    additionalImages: string[] = [],
+    overrides?: {
+      model?: string;
+      ratio?: ValidRatio;
+      imageSize?: string | null;
+    }
   ) => {
     const scheduleDate = searchParams.get("scheduleDate");
     const scheduleTime = searchParams.get("scheduleTime") || formatCurrentTimeInput();
@@ -2039,6 +2117,12 @@ export const ContentGenerateProvider = ({
 
     const pendingJobId = `chat-pending-${draft.id}-${Date.now()}`;
     const now = new Date().toISOString();
+    const effectiveModel = overrides?.model ?? form.basic.model;
+    const effectiveRatio = overrides?.ratio ?? form.basic.ratio;
+    const effectiveImageSize =
+      overrides?.imageSize !== undefined
+        ? overrides.imageSize
+        : form.basic.imageSize;
     const firstPrompt =
       form.basic.prompt?.trim() ||
       (isFirstSchedulerBubble ? schedulerFirstGeneratePrompt : "");
@@ -2095,7 +2179,7 @@ export const ContentGenerateProvider = ({
       updatedAt: now,
       input: {
         rss: firstRss,
-        ratio: form.basic.ratio,
+        ratio: effectiveRatio,
         prompt: firstPrompt,
         caption: form.basic.caption,
         chatSessionId,
@@ -2107,8 +2191,8 @@ export const ContentGenerateProvider = ({
           : selectedReplyReferenceImage || chatAdditionalImages[0] || null,
         advancedGenerate: initialFormAdvance,
         productKnowledgeId: form.basic.productKnowledgeId,
-        model: form.basic.model,
-        imageSize: form.basic.imageSize,
+        model: effectiveModel,
+        imageSize: effectiveImageSize,
       },
       error: null,
       product: {
@@ -2169,10 +2253,10 @@ export const ContentGenerateProvider = ({
     await sleep(500);
 
     const chatPayload = {
-      model: form.basic.model,
+      model: effectiveModel,
       additionalImages: chatAdditionalImages,
       prompt: firstPrompt,
-      ratio: form.basic.ratio,
+      ratio: effectiveRatio,
       bubbleChatId: replyBubbleChatId,
       rss:
         isFirstSchedulerBubble && effMode === "rss"
@@ -2234,7 +2318,7 @@ export const ContentGenerateProvider = ({
             imageItemIds: (systemBubble?.images || [])
               .map((item) => item.id)
               .filter((itemId): itemId is number => Number.isFinite(itemId)),
-            ratio: form.basic.ratio,
+            ratio: effectiveRatio,
             category: "",
             designStyle: "",
             caption: form.basic.caption,
@@ -2297,15 +2381,29 @@ export const ContentGenerateProvider = ({
     mode?: ContentMode;
     maskUrl?: string;
     additionalImages?: string[];
+    model?: string;
+    ratio?: ValidRatio;
+    imageSize?: string | null;
   }) => {
     try {
       if (isLoading) return; // tetap cegah spam
       setIsLoading(true);
 
       const effMode = overrides?.mode ?? mode;
+      const effectiveModel = overrides?.model ?? form.basic.model;
+      const effectiveRatio = overrides?.ratio ?? form.basic.ratio;
+      const effectiveImageSize =
+        overrides?.imageSize !== undefined
+          ? overrides.imageSize
+          : form.basic.imageSize;
       const handledBySchedulerChat = await submitSchedulerChatGenerate(
         effMode,
-        overrides?.additionalImages || []
+        overrides?.additionalImages || [],
+        {
+          model: effectiveModel,
+          ratio: effectiveRatio,
+          imageSize: effectiveImageSize,
+        }
       );
       if (handledBySchedulerChat) return;
 
@@ -2323,12 +2421,12 @@ export const ContentGenerateProvider = ({
                   ? form.basic.customCategory
                   : form.basic.category,
               advancedGenerate: form.advance,
-              ratio: form.basic.ratio,
+              ratio: effectiveRatio,
               prompt: form.basic.prompt,
               productKnowledgeId: form.basic.productKnowledgeId,
               referenceImage: form.basic.referenceImage,
-              model: form.basic.model,
-              imageSize: form.basic.imageSize,
+              model: effectiveModel,
+              imageSize: effectiveImageSize,
             },
           });
 
@@ -2345,7 +2443,7 @@ export const ContentGenerateProvider = ({
             updatedAt: new Date().toISOString(),
             input: {
               rss: null,
-              ratio: form.basic.ratio,
+              ratio: effectiveRatio,
               prompt: form.basic.prompt,
               caption: form.basic.caption,
               category:
@@ -2359,8 +2457,8 @@ export const ContentGenerateProvider = ({
               referenceImage: form.basic.referenceImage,
               advancedGenerate: form.advance,
               productKnowledgeId: form.basic.productKnowledgeId,
-              model: form.basic.model,
-              imageSize: form.basic.imageSize,
+              model: effectiveModel,
+              imageSize: effectiveImageSize,
             },
             error: null,
             product: {
@@ -2389,7 +2487,7 @@ export const ContentGenerateProvider = ({
             formData: {
               productKnowledgeId: form.basic.productKnowledgeId,
               referenceImage: form.basic.referenceImage,
-              ratio: form.basic.ratio,
+              ratio: effectiveRatio,
               prompt: form.basic.prompt,
               designStyle:
                 form.basic.designStyle === "other"
@@ -2401,8 +2499,8 @@ export const ContentGenerateProvider = ({
                   : form.basic.category,
               advancedGenerate: form.advance,
               rss: form.rss,
-              model: form.basic.model,
-              imageSize: form.basic.imageSize,
+              model: effectiveModel,
+              imageSize: effectiveImageSize,
             },
           });
 
@@ -2419,7 +2517,7 @@ export const ContentGenerateProvider = ({
             updatedAt: new Date().toISOString(),
             input: {
               rss: form.rss,
-              ratio: form.basic.ratio,
+              ratio: effectiveRatio,
               prompt: form.basic.prompt,
               caption: form.basic.caption,
               category:
@@ -2433,8 +2531,8 @@ export const ContentGenerateProvider = ({
               referenceImage: form.basic.referenceImage,
               advancedGenerate: form.advance,
               productKnowledgeId: form.basic.productKnowledgeId,
-              model: form.basic.model,
-              imageSize: form.basic.imageSize,
+              model: effectiveModel,
+              imageSize: effectiveImageSize,
             },
             error: null,
             product: {
@@ -2480,9 +2578,9 @@ export const ContentGenerateProvider = ({
               advancedGenerate: form.advance,
               referenceImage: regenerateReferenceImage,
               prompt: regeneratePrompt,
-              ratio: form.basic.ratio,
-              model: form.basic.model,
-              imageSize: form.basic.imageSize,
+              ratio: effectiveRatio,
+              model: effectiveModel,
+              imageSize: effectiveImageSize,
             },
           });
 
@@ -2502,9 +2600,9 @@ export const ContentGenerateProvider = ({
               prompt: regeneratePrompt,
               caption: regenerateCaption,
               referenceImage: regenerateReferenceImage,
-              ratio: form.basic.ratio,
-              model: form.basic.model,
-              imageSize: form.basic.imageSize,
+              ratio: effectiveRatio,
+              model: effectiveModel,
+              imageSize: effectiveImageSize,
             },
             result: null,
             error: null,
@@ -2536,7 +2634,7 @@ export const ContentGenerateProvider = ({
                 "",
               caption:
                 form.basic.caption || selectedHistory?.result?.caption || "",
-              ratio: form.basic.ratio,
+              ratio: effectiveRatio,
               designStyle:
                 (form.basic.designStyle === "other"
                   ? form.basic.customDesignStyle
@@ -2547,8 +2645,8 @@ export const ContentGenerateProvider = ({
                   : form.basic.category) || "",
               productKnowledgeId:
                 selectedHistory?.result?.productKnowledgeId || "",
-              model: form.basic.model,
-              imageSize: form.basic.imageSize,
+              model: effectiveModel,
+              imageSize: effectiveImageSize,
             },
           });
           await afterSubmitGenerate(resMask?.data?.data?.jobId);
@@ -2686,7 +2784,7 @@ export const ContentGenerateProvider = ({
         },
       });
     },
-    [onSelectHistory, businessId, router, pathname]
+    [onSelectHistory, businessId, router, pathname, t]
   );
 
   const updateJobData = useCallback((incoming: JobData) => {
@@ -2753,7 +2851,7 @@ export const ContentGenerateProvider = ({
       socket.off("imagegen:update");
       destroySocket();
     };
-  }, [businessId, joinRoom, toastFinal, updateJobData]);
+  }, [businessId, joinRoom, onSelectHistory, pathname, queryClient, toastFinal, updateJobData]);
 
   const socketEvent: ContentGenerateContext["socketEvent"] = {
     isConnected,
@@ -2988,6 +3086,8 @@ export const ContentGenerateProvider = ({
     selectedModel: selectedAiModel,
     validRatios,
     isLoading: isLoadingAiModels,
+    isFreeUser,
+    freeUserAllowedModel,
   };
 
   return (
