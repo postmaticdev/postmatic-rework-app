@@ -98,6 +98,7 @@ export interface JobData {
     ratio: ValidRatio;
     prompt: string | null;
     caption: string | null;
+    chatSessionId?: number | null;
     additionalImages?: string[];
     systemBubbleId?: number | null;
     category: string;

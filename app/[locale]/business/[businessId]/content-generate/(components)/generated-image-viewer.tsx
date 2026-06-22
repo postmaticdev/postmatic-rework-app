@@ -7,6 +7,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -103,22 +104,26 @@ export function GeneratedImageViewer({
       </button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-h-[92vh] max-w-5xl p-4">
+        <DialogContent className="">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm font-medium">
+            <DialogTitle className="flex items-center gap-2">
               <Maximize2 className="h-4 w-4" />
               Fullscreen Preview
             </DialogTitle>
+            <DialogDescription>
+              Download Image Preview
+            </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center overflow-auto">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 self-center">
             <Image
               src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
               alt={`${alt} fullscreen`}
               width={1440}
               height={1440}
-              className="h-auto max-h-[72vh] w-auto rounded-lg border object-contain"
+              className="h-auto w-auto rounded-lg border object-contain"
             />
           </div>
+
           <DialogFooter>
             <Button
               type="button"

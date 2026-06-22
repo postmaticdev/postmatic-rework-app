@@ -3,9 +3,9 @@
 import { Button } from "@/components/ui/button";
 import { formatIdr } from "@/helper/formatter";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Copy, RefreshCw } from "lucide-react";
+import { Copy, QrCode, RefreshCw } from "lucide-react";
 import Image from "next/image";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 type PaymentAction = {
   action: string;
@@ -23,11 +23,14 @@ interface PaymentInstructionCardProps {
   statusTitle: string;
   statusDescription: string;
   totalAmount: number;
+  paymentStatusLabel?: string;
   expiresAtLabel?: string;
   paymentCountdown: PaymentCountdown;
   paymentActions: PaymentAction[];
   method?: string;
   isPending: boolean;
+  persistPaymentMedia?: boolean;
+  showStatusBadge?: boolean;
   isRefreshing?: boolean;
   onRefresh?: () => void;
   onCopy: (value: string) => void;
@@ -42,13 +45,17 @@ const BANK_LOGO_BY_METHOD: Record<string, string> = {
   cimbniaga: "/cimbniaga.png",
 };
 
+const normalizePaymentMethod = (method?: string) =>
+  (method || "").toLowerCase().replace(/[\s_-]/g, "");
+
 const getBankLogoByMethod = (method?: string) => {
-  const normalized = (method || "").toLowerCase().replace(/[\s_-]/g, "");
-  return BANK_LOGO_BY_METHOD[normalized];
+  return BANK_LOGO_BY_METHOD[normalizePaymentMethod(method)];
 };
 
 const getBankLabelByMethod = (method?: string) =>
   (method || "Bank").replace(/[_-]/g, " ").toUpperCase();
+
+const isQrisMethod = (method?: string) => normalizePaymentMethod(method) === "qris";
 
 const getPaymentCardClassName = (status?: string) => {
   if (status === "Pending" || !status) {
@@ -60,21 +67,59 @@ const getPaymentCardClassName = (status?: string) => {
   return "border-border bg-muted/20 dark:bg-zinc-900/60";
 };
 
+const getPaymentStatusBadgeClassName = (status?: string) => {
+  switch (status) {
+    case "Success":
+      return "border-green-200 bg-green-50 text-green-700";
+    case "Expired":
+      return "border-orange-200 bg-orange-50 text-orange-700";
+    case "Failed":
+    case "Denied":
+    case "Canceled":
+      return "border-red-200 bg-red-50 text-red-700";
+    case "Refunded":
+      return "border-slate-200 bg-slate-50 text-slate-700";
+    case "Pending":
+    default:
+      return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+};
+
+const getPaymentStatusBadgeLabel = (label: string, locale: string) => {
+  const normalizedLabel = label.trim();
+  const prefix = locale === "id" ? "Pembayaran" : "Transaction";
+
+  if (!normalizedLabel) return prefix;
+
+  const lowerLabel = normalizedLabel.toLowerCase();
+  const lowerPrefix = prefix.toLowerCase();
+
+  if (lowerLabel.startsWith(lowerPrefix)) {
+    return normalizedLabel;
+  }
+
+  return `${prefix} ${normalizedLabel}`;
+};
+
 export function PaymentInstructionCard({
   status,
   statusTitle,
   statusDescription,
   totalAmount,
+  paymentStatusLabel,
   expiresAtLabel,
   paymentCountdown,
   paymentActions,
   method,
   isPending,
+  persistPaymentMedia = false,
+  showStatusBadge = false,
   isRefreshing = false,
   onRefresh,
   onCopy,
 }: PaymentInstructionCardProps) {
   const t = useTranslations("settings.topUpTokenDialog");
+  const locale = useLocale();
   const qrCodeAction =
     paymentActions.find(
       (action) => action.type === "image" && action.action === "generate-qr-code"
@@ -90,8 +135,11 @@ export function PaymentInstructionCard({
     (action) => action.type === "text" && action.action !== "virtual-account"
   );
 
-  const hasPaymentInstruction =
-    isPending && Boolean(qrCodeAction || virtualAccountAction || textPaymentAction);
+  const hasPaymentInstruction = Boolean(
+    qrCodeAction || virtualAccountAction || textPaymentAction
+  );
+  const shouldShowPaymentInstruction =
+    hasPaymentInstruction && (isPending || persistPaymentMedia);
   const instructionBoxClassName =
     "grid h-28 w-28 shrink-0 place-items-center self-start rounded-md border bg-white p-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:h-56 sm:w-56 sm:p-3";
 
@@ -108,6 +156,16 @@ export function PaymentInstructionCard({
               {t("totalToPay")}: {" "}
               <span className="font-semibold">{formatIdr(totalAmount)}</span>
             </p>
+            {showStatusBadge && paymentStatusLabel ? (
+              <div
+                className={cn(
+                  "inline-flex w-fit rounded-md border px-2 py-1 text-sm font-medium",
+                  getPaymentStatusBadgeClassName(status)
+                )}
+              >
+                {getPaymentStatusBadgeLabel(paymentStatusLabel, locale)}
+              </div>
+            ) : null}
             {isPending && expiresAtLabel ? (
               <p className="text-muted-foreground">
                 {t("validUntil", { date: expiresAtLabel })}
@@ -128,7 +186,7 @@ export function PaymentInstructionCard({
           </div>
         </div>
 
-        {hasPaymentInstruction ? (
+        {shouldShowPaymentInstruction ? (
           qrCodeAction ? (
             <a
               href={qrCodeAction.value}
@@ -166,8 +224,8 @@ export function PaymentInstructionCard({
             </div>
           )
         ) : (
-          <div className="grid h-28 w-28 shrink-0 place-items-center self-start rounded-md border bg-white p-2 text-center dark:border-zinc-700 dark:bg-zinc-900 sm:h-40 sm:w-56 sm:p-4">
-            <CheckCircle2 className="h-16 w-16 text-green-500 sm:h-24 sm:w-24" />
+          <div className={instructionBoxClassName}>
+            <PaymentMethodVisual method={method} />
           </div>
         )}
       </div>
@@ -224,6 +282,38 @@ function VirtualAccountLogo({ method }: { method?: string }) {
           Virtual Account {bankLabel}
         </div>
       )}
+    </div>
+  );
+}
+
+function PaymentMethodVisual({ method }: { method?: string }) {
+  if (isQrisMethod(method)) {
+    return <QrisLogoPlaceholder />;
+  }
+
+  return <VirtualAccountLogo method={method} />;
+}
+
+function QrisLogoPlaceholder() {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center rounded-md border border-muted bg-muted/10 p-3">
+      <div className="grid grid-cols-3 gap-1 rounded-md bg-foreground/5 p-2">
+        {Array.from({ length: 9 }).map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              "h-4 w-4 rounded-[2px] sm:h-6 sm:w-6",
+              index % 2 === 0 ? "bg-foreground" : "bg-foreground/15"
+            )}
+          />
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-2 rounded-full bg-muted px-3 py-1">
+        <QrCode className="h-4 w-4 text-foreground" />
+        <span className="text-xs font-semibold tracking-wide text-foreground sm:text-sm">
+          QRIS
+        </span>
+      </div>
     </div>
   );
 }

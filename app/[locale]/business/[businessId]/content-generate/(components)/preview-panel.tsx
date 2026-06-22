@@ -17,7 +17,9 @@ import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { cn } from "@/lib/utils";
 import {
+  getSchedulerDraftMarkers,
   removeSchedulerDraftMarker,
+  upsertSchedulerDraftMarker,
 } from "@/lib/scheduler-draft-markers";
 import {
   useContentCaptionEnhance,
@@ -80,6 +82,7 @@ export function PreviewPanel() {
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isScheduleNowConfirmOpen, setIsScheduleNowConfirmOpen] =
     useState(false);
+  const [isAutoEnhancingCaption, setIsAutoEnhancingCaption] = useState(false);
   useEffect(() => {
     if (scheduleDate) {
       setDate(scheduleDate);
@@ -124,6 +127,15 @@ export function PreviewPanel() {
     !selectedHistory || selectedHistory.id.startsWith("chat-scheduled-");
   const currentScheduleInput = getCurrentScheduleInput();
   const minDate = currentScheduleInput.date;
+  const isEnhanceCaptionLoading =
+    mEnhanceCaption.isPending &&
+    (!isAutoEnhancingCaption || !form.basic.caption.trim());
+  const canEnhanceCaption =
+    Boolean(selectedHistory && selectedImageUrl) && !isEnhanceCaptionLoading;
+  const schedulerDraftId = schedulerDraftPost?.id ||
+    (editSchedulerManualPostingId
+      ? Number(editSchedulerManualPostingId)
+      : null);
 
   const handleGenerateClick = () => {
     if (schedulerMode && selectedHistory) {
@@ -143,32 +155,127 @@ export function PreviewPanel() {
     }, 100);
   };
 
-  const handleEnhanceCaption = useCallback(async (options?: { silent?: boolean }) => {
-    const imageUrl = selectedImageUrl;
-    if (!imageUrl) {
-      if (!options?.silent) {
-        showToast("error", schedulerT("generateFirst"));
+  const persistCaptionToSchedulerDraft = useCallback(
+    async (nextCaption: string) => {
+      if (!schedulerMode || !schedulerDraftId || !selectedHistory || !selectedImageUrl) {
+        return;
       }
-      return;
-    }
 
-    try {
-      const res = await mEnhanceCaption.mutateAsync({
+      const currentDraftMarker = getSchedulerDraftMarkers(businessId).find(
+        (marker) => marker.draftId === String(schedulerDraftId)
+      );
+      const draftDate = currentDraftMarker?.date || scheduleDate || date;
+      const draftTime =
+        currentDraftMarker?.time || scheduleTime || time || getCurrentScheduleInput().time;
+
+      if (draftDate) {
+        upsertSchedulerDraftMarker(businessId, {
+          draftId: String(schedulerDraftId),
+          jobId: selectedHistory.id,
+          date: draftDate,
+          time: draftTime,
+          image: selectedImageUrl,
+          caption: nextCaption,
+          productImage:
+            currentDraftMarker?.productImage || form.basic.productImage || null,
+          referenceImage:
+            currentDraftMarker?.referenceImage ||
+            selectedHistory.input.referenceImage ||
+            form.basic.referenceImage ||
+            null,
+          chatSessionId:
+            schedulerDraftPost?.chatSessionId ?? currentDraftMarker?.chatSessionId ?? null,
+          businessProductId:
+            selectedHistory.input.productKnowledgeId ||
+            currentDraftMarker?.businessProductId ||
+            null,
+          createdAt: currentDraftMarker?.createdAt || selectedHistory.createdAt,
+        });
+      }
+
+      await mEditSchedulePost.mutateAsync({
         businessId,
+        idScheduler: schedulerDraftId,
         formData: {
-          imageUrl,
+          imageUrl: selectedImageUrl,
+          caption: nextCaption,
+          platforms: [],
+          dateTime: new Date(`${draftDate}T${draftTime}`).toISOString(),
+          status: "draft",
+          withChatAI: true,
+          shareAsReference: true,
+          businessProductId: selectedHistory.input.productKnowledgeId,
+          chatSessionId:
+            schedulerDraftPost?.chatSessionId ??
+            currentDraftMarker?.chatSessionId ??
+            undefined,
         },
       });
-      form.setBasic({ ...form.basic, caption: res.data.data.caption });
-      if (!options?.silent) {
-        showToast("success", res.data.responseMessage);
+    },
+    [
+      businessId,
+      date,
+      form.basic.productImage,
+      form.basic.referenceImage,
+      mEditSchedulePost,
+      scheduleDate,
+      scheduleTime,
+      schedulerDraftId,
+      schedulerDraftPost?.chatSessionId,
+      schedulerMode,
+      selectedHistory,
+      selectedImageUrl,
+      time,
+    ]
+  );
+
+  const handleEnhanceCaption = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const imageUrl = selectedImageUrl;
+      if (!imageUrl) {
+        if (!options?.silent) {
+          showToast("error", schedulerT("generateFirst"));
+        }
+        return;
       }
-    } catch (error) {
-      if (!options?.silent) {
-        showToast("error", error, t);
+
+      if (options?.silent) {
+        setIsAutoEnhancingCaption(true);
       }
-    }
-  }, [businessId, form, mEnhanceCaption, schedulerT, selectedImageUrl, t]);
+
+      try {
+        const res = await mEnhanceCaption.mutateAsync({
+          businessId,
+          formData: {
+            imageUrl,
+          },
+        });
+        const nextCaption = res.data.data.caption;
+        form.setBasic({ ...form.basic, caption: nextCaption });
+        await persistCaptionToSchedulerDraft(nextCaption);
+        if (!options?.silent) {
+          showToast("success", res.data.responseMessage);
+        }
+      } catch (error) {
+        if (!options?.silent) {
+          showToast("error", error, t);
+        }
+      } finally {
+        if (options?.silent) {
+          setIsAutoEnhancingCaption(false);
+        }
+      }
+    },
+    [
+      businessId,
+      form,
+      mEnhanceCaption,
+      persistCaptionToSchedulerDraft,
+      schedulerT,
+      selectedImageUrl,
+      t,
+    ]
+  );
 
   useEffect(() => {
     if (!selectedHistory) {
@@ -183,20 +290,53 @@ export function PreviewPanel() {
       return;
     }
 
-    const resultKey = `${selectedHistory.id}:${selectedImageUrl || ""}`;
+    const currentDraftMarker =
+      schedulerMode && schedulerDraftId
+        ? getSchedulerDraftMarkers(businessId).find(
+            (marker) => marker.draftId === String(schedulerDraftId)
+          )
+        : null;
+    const persistedCaption =
+      currentDraftMarker?.caption?.trim() ||
+      form.basic.caption.trim() ||
+      selectedHistory.result?.caption?.trim() ||
+      selectedHistory.input.caption?.trim() ||
+      "";
+    const isGeneratedChatResult =
+      selectedHistory.id.startsWith("chat-") &&
+      !selectedHistory.id.startsWith("chat-pending-") &&
+      !selectedHistory.id.startsWith("chat-scheduled-");
     const isReady =
       !isLoading &&
       selectedHistory.status === "done" &&
       selectedHistory.stage === "done" &&
       Boolean(selectedImageUrl);
+    const shouldAutoEnhance =
+      (shouldAutoEnhanceOnFirstGenerateRef.current && !persistedCaption) ||
+      (schedulerMode &&
+        schedulerDraftId &&
+        isGeneratedChatResult &&
+        !persistedCaption);
+    const resultKey = schedulerDraftId
+      ? `${schedulerDraftId}:${selectedHistory.id}:${selectedImageUrl || ""}`
+      : `${selectedHistory.id}:${selectedImageUrl || ""}`;
 
-    if (!shouldAutoEnhanceOnFirstGenerateRef.current || !isReady) return;
+    if (!shouldAutoEnhance || !isReady) return;
     if (lastAutoEnhancedResultKeyRef.current === resultKey) return;
 
     lastAutoEnhancedResultKeyRef.current = resultKey;
     shouldAutoEnhanceOnFirstGenerateRef.current = false;
     void handleEnhanceCaption({ silent: true });
-  }, [handleEnhanceCaption, isLoading, selectedHistory, selectedImageUrl]);
+  }, [
+    form.basic.caption,
+    businessId,
+    handleEnhanceCaption,
+    isLoading,
+    schedulerMode,
+    schedulerDraftId,
+    selectedHistory,
+    selectedImageUrl,
+  ]);
 
   const togglePlatform = (platform: PlatformEnum) => {
     if (!connectedPlatforms.includes(platform)) return;
@@ -419,11 +559,11 @@ export function PreviewPanel() {
                   size="icon"
                   className="absolute bottom-3 right-3 rounded-xl"
                   onClick={() => void handleEnhanceCaption()}
-                  disabled={isLoading || mEnhanceCaption.isPending}
+                  disabled={!canEnhanceCaption}
                   title={t("enhanceCaption")}
                   aria-label={t("enhanceCaption")}
                 >
-                  {mEnhanceCaption.isPending ? (
+                  {isEnhanceCaptionLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <WandSparkles className="h-4 w-4" />

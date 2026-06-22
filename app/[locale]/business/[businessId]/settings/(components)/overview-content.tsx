@@ -203,7 +203,8 @@ export function OverviewContent() {
               })}
               value={totalCountPosted.toString()}
               breakdown={mappedCountPosted}
-              titleIcon={<FileText className="h-3.5 w-3.5" />}
+              titleIcon={<FileText className="h-5 w-5" />}
+              titleIconClassName="bg-rose-100 text-rose-500 dark:bg-rose-500/15 dark:text-rose-300"
             />
 
             <AnalyticsCard
@@ -213,7 +214,8 @@ export function OverviewContent() {
               })}
               value={totalCountUpcoming.toString()}
               breakdown={mappedCountUpcoming}
-              titleIcon={<CalendarClock className="h-3.5 w-3.5" />}
+              titleIcon={<CalendarClock className="h-5 w-5" />}
+              titleIconClassName="bg-amber-100 text-amber-500 dark:bg-amber-500/15 dark:text-amber-300"
             />
 
             <TokenUsageCard />

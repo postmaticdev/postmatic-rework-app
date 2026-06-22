@@ -5,6 +5,8 @@ export interface SchedulerDraftMarker {
   time?: string;
   image: string;
   caption: string;
+  productImage?: string | null;
+  referenceImage?: string | null;
   chatSessionId?: string | number | null;
   businessProductId?: string | number | null;
   createdAt: string;
@@ -42,6 +44,12 @@ export function getSchedulerDraftMarkers(businessId: string) {
         (item?.time === undefined || typeof item?.time === "string") &&
         typeof item?.image === "string" &&
         typeof item?.caption === "string" &&
+        (item?.productImage === undefined ||
+          item?.productImage === null ||
+          typeof item?.productImage === "string") &&
+        (item?.referenceImage === undefined ||
+          item?.referenceImage === null ||
+          typeof item?.referenceImage === "string") &&
         (item?.chatSessionId === undefined ||
           item?.chatSessionId === null ||
           typeof item?.chatSessionId === "string" ||

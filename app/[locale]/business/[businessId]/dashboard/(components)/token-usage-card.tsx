@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
@@ -28,13 +29,17 @@ export function TokenUsageCard() {
   );
 
   const locale = useLocale();
+  const iconClassName = cn(
+    "inline-flex h-9 w-9 items-center justify-center rounded-md",
+    "bg-blue-100 text-blue-500 dark:bg-blue-500/15 dark:text-blue-300"
+  );
 
   return (
     <div className="bg-card rounded-lg p-6 shadow-sm border border-border flex flex-col gap-2">
       <div className="flex flex-col mb-4">
-        <div className="mb-1 flex items-center gap-2">
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            <Coins className="h-3.5 w-3.5" />
+        <div className="mb-1 flex items-center gap-3">
+          <span className={iconClassName}>
+            <Coins className="h-5 w-5" />
           </span>
           <h3 className="font-semibold text-foreground">{t("title")}</h3>
         </div>

@@ -47,6 +47,8 @@ export function GenerationPanel() {
     aiModels,
     selectedHistory,
     selectedGeneratedImageUrl,
+    schedulerDraftPost,
+    schedulerChatSeed,
     histories,
     rss,
     onSelectAiModel,
@@ -87,6 +89,23 @@ export function GenerationPanel() {
 
   const currentThread = useMemo(() => {
     if (!selectedHistory) return [];
+    const activeChatSessionId =
+      selectedHistory.input.chatSessionId ?? schedulerDraftPost?.chatSessionId ?? null;
+
+    if (selectedHistory.id.startsWith("chat-") && activeChatSessionId) {
+      return histories
+        .flatMap((item) => item.jobs)
+        .filter(
+          (job) =>
+            job.id.startsWith("chat-") &&
+            job.input.chatSessionId === activeChatSessionId
+        )
+        .sort(
+          (left, right) =>
+            new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+        );
+    }
+
     const selectedDate = new Date(selectedHistory.createdAt).toDateString();
 
     return histories
@@ -101,8 +120,7 @@ export function GenerationPanel() {
         (left, right) =>
           new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
       );
-  }, [histories, selectedHistory]);
-
+  }, [histories, schedulerDraftPost?.chatSessionId, selectedHistory]);
   const logoImageOptions = useMemo<KnowledgeImageOption[]>(() => {
     const businessLogo = businessData?.data?.data?.logo || "";
     if (!businessLogo) return [];
@@ -136,7 +154,6 @@ export function GenerationPanel() {
 
     return options;
   }, [productKnowledgeData?.data?.data]);
-
   const avatarImageOptions = useMemo<KnowledgeImageOption[]>(() => {
     const avatars = appAvatarData?.data?.data || [];
 
@@ -207,17 +224,36 @@ export function GenerationPanel() {
       <>
         <div className="flex h-full min-h-0 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6">
-            {currentThread.map((job) => {
+            {currentThread.map((job, jobIndex) => {
               const additionalPromptImages = job.input.additionalImages || [];
-              const promptImages = Array.from(
-                new Set(
-                  [
-                    ...additionalPromptImages,
-                    ...(job.product?.images || []),
-                    job.input.referenceImage,
-                  ].filter(Boolean) as string[]
-                )
-              );
+              const isInitialSchedulerBubble =
+                jobIndex === 0 && job.id.startsWith("chat-");
+              const initialReferenceImage = isInitialSchedulerBubble
+                ? schedulerChatSeed?.referenceImage ||
+                  null
+                : null;
+              const initialProductImage = isInitialSchedulerBubble
+                ? schedulerChatSeed?.productImage ||
+                  null
+                : null;
+              const promptImages = isInitialSchedulerBubble
+                ? Array.from(
+                    new Set(
+                      [
+                        initialReferenceImage,
+                        initialProductImage,
+                      ].filter(Boolean) as string[]
+                    )
+                  )
+                : Array.from(
+                    new Set(
+                      [
+                        ...additionalPromptImages,
+                        ...(job.product?.images || []),
+                        job.input.referenceImage,
+                      ].filter(Boolean) as string[]
+                    )
+                  );
 
               return (
                 <div key={job.id} className="space-y-3">

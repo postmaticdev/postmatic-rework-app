@@ -1,16 +1,13 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooterWithButton,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import { ReceiptText } from "lucide-react";
 import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { showToast } from "@/helper/show-toast";
@@ -154,7 +151,13 @@ export function PurchaseDetailModal({
       : statusLabel;
   const statusDescription = isPending
     ? "Silakan lakukan pembayaran untuk melanjutkan pesanan."
-    : "Transaksi ini sudah diproses.";
+    : transaction.status === "Expired"
+      ? "Batas waktu pembayaran sudah berakhir."
+      : transaction.status === "Failed" ||
+          transaction.status === "Denied" ||
+          transaction.status === "Canceled"
+        ? "Pembayaran tidak berhasil diproses."
+        : "Transaksi ini sudah diproses.";
 
   const detailRows = [
     {
@@ -171,11 +174,6 @@ export function PurchaseDetailModal({
       value: formatIdr(detail.price),
     })),
     { label: "Total", value: formatIdr(transaction.totalAmount) },
-    {
-      label: "Status Bayar",
-      value: statusLabel,
-      status: transaction.status,
-    },
   ];
 
   return (
@@ -194,11 +192,14 @@ export function PurchaseDetailModal({
             statusTitle={statusTitle}
             statusDescription={statusDescription}
             totalAmount={transaction.totalAmount}
+            paymentStatusLabel={statusLabel}
             expiresAtLabel={formatDateTime(transaction.expiredAt)}
             paymentCountdown={paymentCountdown}
             paymentActions={transaction.paymentActions}
             method={transaction.method}
             isPending={isPending}
+            persistPaymentMedia
+            showStatusBadge
             isRefreshing={isChecking}
             onRefresh={handleCheckPaymentStatus}
             onCopy={handleCopy}
@@ -213,12 +214,7 @@ export function PurchaseDetailModal({
             </div>
             <div className="space-y-3">
               {detailRows.map((row) => (
-                <DetailOrderRow
-                  key={row.label}
-                  label={row.label}
-                  value={row.value}
-                  status={row.status}
-                />
+                <DetailOrderRow key={row.label} label={row.label} value={row.value} />
               ))}
             </div>
           </Card>
@@ -236,47 +232,17 @@ export function PurchaseDetailModal({
   );
 }
 
-const getPaymentStatusClassName = (status?: string) => {
-  switch (status) {
-    case "Success":
-      return "border-green-200 bg-green-50 text-green-700";
-    case "Failed":
-    case "Denied":
-      return "border-red-200 bg-red-50 text-red-700";
-    case "Canceled":
-    case "Expired":
-    case "Refunded":
-      return "border-gray-200 bg-gray-50 text-gray-700";
-    case "Pending":
-    default:
-      return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-};
-
 function DetailOrderRow({
   label,
   value,
-  status,
 }: {
   label: string;
   value: string;
-  status?: string;
 }) {
   return (
     <div className="grid grid-cols-[120px_1fr] items-start gap-4 text-sm">
       <span className="text-muted-foreground">{label}</span>
-      {status ? (
-        <span
-          className={cn(
-            "w-fit rounded-md border px-2 py-1 text-sm font-medium",
-            getPaymentStatusClassName(status)
-          )}
-        >
-          {value}
-        </span>
-      ) : (
-        <span className="break-words font-medium text-foreground">{value}</span>
-      )}
+      <span className="break-words font-medium text-foreground">{value}</span>
     </div>
   );
 }

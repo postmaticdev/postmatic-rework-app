@@ -8,13 +8,15 @@ import {
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { createSocket, destroySocket, getSocket } from "@/lib/socket";
-import { upsertSchedulerDraftMarker } from "@/lib/scheduler-draft-markers";
+import {
+  getSchedulerDraftMarkers,
+  upsertSchedulerDraftMarker,
+} from "@/lib/scheduler-draft-markers";
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import {
   AdvancedGenerate,
   GenerateContentAdvanceBase,
   GenerateContentBase,
-  GenerateContentRes,
   GenerateContentRssBase,
   ImagePostChatRes,
   VALID_RATIOS,
@@ -182,6 +184,11 @@ interface ContentGenerateContext {
   schedulerDraftPost: {
     id: number;
     chatSessionId: number | null;
+  } | null;
+  schedulerChatSeed: {
+    productImage: string | null;
+    referenceImage: string | null;
+    productKnowledgeId: string | null;
   } | null;
   onSelectHistory: (
     item: JobData | null,
@@ -463,6 +470,7 @@ function getBubbleImageUrls(
 function buildSchedulerChatJobs({
   chat,
   businessId,
+  chatSessionId,
   productKnowledgeId,
   model,
   ratio,
@@ -474,6 +482,7 @@ function buildSchedulerChatJobs({
 }: {
   chat: ImagePostChatRes;
   businessId: string;
+  chatSessionId: number;
   productKnowledgeId: string;
   model: string;
   ratio: ValidRatio;
@@ -489,7 +498,6 @@ function buildSchedulerChatJobs({
   );
   const bubblesById = new Map(bubbles.map((bubble) => [bubble.id, bubble]));
   const userBubbles = bubbles.filter((bubble) => bubble.role === "user");
-  const seedImages = [productImage, referenceImage].filter(Boolean) as string[];
 
   return userBubbles.map((userBubble, index) => {
     const nextUser = userBubbles[index + 1];
@@ -522,15 +530,8 @@ function buildSchedulerChatJobs({
       index === 0
         ? referenceImage || referenceImages[0] || null
         : replyReferenceImages[0] || userImages[0] || userAdditionalImages[0] || null;
-    const firstPromptImages = Array.from(
-      new Set(
-        (
-          seedImages.length > 0
-            ? [...seedImages, ...userPromptImages]
-            : userPromptImages
-        ).filter(Boolean)
-      )
-    );
+    const firstPromptImages = productImage ? [productImage] : [];
+    const firstPromptAdditionalImages: string[] = [];
     const resultImages =
       systemBubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
     const resultImageItemIds = (systemBubble?.images || [])
@@ -554,7 +555,8 @@ function buildSchedulerChatJobs({
         ratio: effectiveRatio,
         prompt: userBubble.prompt || "",
         caption: caption || "",
-        additionalImages: userPromptImages,
+        chatSessionId,
+        additionalImages: index === 0 ? firstPromptAdditionalImages : userPromptImages,
         systemBubbleId: systemBubble?.id || null,
         category: "",
         designStyle: "",
@@ -597,8 +599,11 @@ function buildSchedulerChatJobs({
 function buildSchedulerFallbackChatJob({
   scheduledPostId,
   businessId,
+  chatSessionId,
   productKnowledgeId,
   imageUrl,
+  productImage,
+  referenceImage,
   model,
   ratio,
   imageSize,
@@ -607,8 +612,11 @@ function buildSchedulerFallbackChatJob({
 }: {
   scheduledPostId: string;
   businessId: string;
+  chatSessionId?: number | null;
   productKnowledgeId: string;
   imageUrl: string;
+  productImage?: string | null;
+  referenceImage?: string | null;
   model: string;
   ratio: ValidRatio;
   imageSize?: string | null;
@@ -631,11 +639,12 @@ function buildSchedulerFallbackChatJob({
       ratio,
       prompt: schedulerFirstGeneratePrompt,
       caption: caption || "",
+      chatSessionId: chatSessionId ?? null,
       additionalImages: [],
       systemBubbleId: null,
       category: "",
       designStyle: "",
-      referenceImage: imageUrl || null,
+      referenceImage: referenceImage || null,
       advancedGenerate: initialFormAdvance,
       productKnowledgeId,
       model,
@@ -648,7 +657,7 @@ function buildSchedulerFallbackChatJob({
       category: "",
       currency: "IDR",
       price: 0,
-      images: imageUrl ? [imageUrl] : [],
+      images: productImage ? [productImage] : [],
     },
     result: imageUrl
       ? {
@@ -722,6 +731,39 @@ export const ContentGenerateProvider = ({
     routeChatSessionId,
     false
   );
+  const [productPagination, setProductPagination] =
+    useState<Pagination>(initialPagination);
+  const [productQuery, setProductQuery] = useState<Partial<FilterQuery>>({
+    limit: 10,
+    page: 1,
+    sortBy: "name",
+    sort: "asc",
+  });
+  const { data: productRes } = useProductKnowledgeGetAll(
+    businessId,
+    productQuery,
+    contentGenerateFormDataEnabled
+  );
+  const { data: allProductsRes } = useProductKnowledgeGetAll(
+    businessId,
+    {
+      limit: 100,
+      page: 1,
+      sortBy: "name",
+      sort: "asc",
+    },
+    contentGenerateFormDataEnabled
+  );
+  const productImageById = useMemo(
+    () =>
+      new Map(
+        (allProductsRes?.data?.data || []).map((product) => [
+          product.id,
+          product.images?.[0] || "",
+        ])
+      ),
+    [allProductsRes?.data?.data]
+  );
 
   const [histories, setHistories] = useState<GetAllJob[]>([]);
   const lastHistoryRouteRefetchKeyRef = useRef<string | null>(null);
@@ -779,11 +821,17 @@ export const ContentGenerateProvider = ({
     id: number;
     chatSessionId: number | null;
   } | null>(null);
+  const [schedulerChatSeed, setSchedulerChatSeed] = useState<{
+    productImage: string | null;
+    referenceImage: string | null;
+    productKnowledgeId: string | null;
+  } | null>(null);
   const syncedSchedulerImageRef = useRef<string | null>(null);
   const [isDraftSaved, setIsDraftSaved] = useState<boolean>(false);
 
   useEffect(() => {
     setSchedulerDraftPost(null);
+    setSchedulerChatSeed(null);
     syncedSchedulerImageRef.current = null;
   }, [scheduleDateParam]);
   
@@ -883,6 +931,7 @@ export const ContentGenerateProvider = ({
     setFormRss(null);
       setIsDraftSaved(false); // Reset draft saved state when selecting new history
       setSchedulerDraftPost(null);
+      setSchedulerChatSeed(null);
   }, [aiModelsRes, selectedAiModel]);
 
   const onSelectGeneratedImage = useCallback(
@@ -1061,6 +1110,9 @@ export const ContentGenerateProvider = ({
         setLoadingState(false);
       }
       setIsRestoringSchedulerChat(false);
+      setSchedulerDraftPost(null);
+      setSchedulerChatSeed(null);
+      syncedSchedulerImageRef.current = null;
       return;
     }
 
@@ -1105,6 +1157,13 @@ export const ContentGenerateProvider = ({
       if (!isActive) return;
 
       const productKnowledgeId = routeBusinessProductId || "";
+      const routeDraftMarker = getSchedulerDraftMarkers(businessId).find(
+        (marker) => marker.draftId === String(routeScheduledPostId)
+      );
+      const originalProductImage =
+        (productKnowledgeId
+          ? productImageById.get(String(productKnowledgeId))
+          : "") || "";
       const chat = result.data?.data?.data;
       if (!chat && !selectedHistoryImage) return;
       const existingThreadJobs = histories
@@ -1113,7 +1172,7 @@ export const ContentGenerateProvider = ({
           (job) =>
             job.id.startsWith("chat-") &&
             !job.id.startsWith("chat-pending-") &&
-            job.input.productKnowledgeId === productKnowledgeId
+            job.input.chatSessionId === Number(routeChatSessionId)
         )
         .sort(
           (left, right) =>
@@ -1124,17 +1183,28 @@ export const ContentGenerateProvider = ({
         existingThreadJobs.map((job) => [job.id, job])
       );
       const seedJob = existingThreadJobs[0];
+      const seedReferenceImage =
+        seedJob?.input?.referenceImage ||
+        routeDraftMarker?.referenceImage ||
+        form.basic.referenceImage;
       const seedProductImage =
+        originalProductImage ||
+        routeDraftMarker?.productImage ||
         seedJob?.product?.images?.[0] ||
         selectedHistoryImage ||
         form.basic.productImage;
-      const seedReferenceImage =
-        seedJob?.input?.referenceImage || form.basic.referenceImage;
+      const restoredCaption = routeDraftMarker?.caption || form.basic.caption;
+      const restoredSeed = {
+        productImage: seedProductImage || null,
+        referenceImage: seedReferenceImage || null,
+        productKnowledgeId: productKnowledgeId || null,
+      };
 
       const restoredJobs = chat
         ? buildSchedulerChatJobs({
             chat,
             businessId,
+            chatSessionId: Number(routeChatSessionId),
             productKnowledgeId,
             model: form.basic.model,
             ratio: form.basic.ratio,
@@ -1142,31 +1212,39 @@ export const ContentGenerateProvider = ({
             productName: form.basic.productName,
             productImage: seedProductImage,
             referenceImage: seedReferenceImage,
-            caption: form.basic.caption,
+            caption: restoredCaption,
           })
         : [
             buildSchedulerFallbackChatJob({
               scheduledPostId: routeScheduledPostId,
               businessId,
+              chatSessionId: Number(routeChatSessionId),
               productKnowledgeId,
               imageUrl: selectedHistoryImage || "",
+              productImage: seedProductImage,
+              referenceImage: seedReferenceImage,
               model: form.basic.model,
               ratio: form.basic.ratio,
               imageSize: form.basic.imageSize,
               productName: form.basic.productName,
-              caption: form.basic.caption,
+              caption: restoredCaption,
             }),
           ];
-      const mergedRestoredJobs = restoredJobs.map((job) => {
+      const mergedRestoredJobs = restoredJobs.map((job, index) => {
         const existingJob = existingThreadJobsById.get(job.id);
+        const isInitialSchedulerBubble = index === 0;
         return {
           ...job,
           input: {
             ...job.input,
             referenceImage:
-              job.input.referenceImage || existingJob?.input.referenceImage || null,
+              isInitialSchedulerBubble
+                ? job.input.referenceImage || seedReferenceImage || null
+                : job.input.referenceImage || existingJob?.input.referenceImage || null,
             additionalImages:
-              job.input.additionalImages?.length
+              isInitialSchedulerBubble
+                ? job.input.additionalImages || []
+                : job.input.additionalImages?.length
                 ? job.input.additionalImages
                 : existingJob?.input.additionalImages || [],
             systemBubbleId:
@@ -1187,7 +1265,11 @@ export const ContentGenerateProvider = ({
           product: {
             ...job.product,
             images:
-              job.product.images.length > 0
+              isInitialSchedulerBubble
+                ? seedProductImage
+                  ? [seedProductImage]
+                  : []
+                : job.product.images.length > 0
                 ? job.product.images
                 : existingJob?.product.images || [],
           },
@@ -1213,11 +1295,13 @@ export const ContentGenerateProvider = ({
       });
       setSelectedJobId(latestJob.id);
       setSelectedGeneratedImageUrl(imageUrl || null);
+      setSchedulerChatSeed(restoredSeed);
       setFormBasic((prev) => ({
         ...prev,
         productKnowledgeId,
-        productImage: imageUrl || prev.productImage,
-        referenceImage: imageUrl || prev.referenceImage,
+        productImage: seedProductImage || prev.productImage,
+        referenceImage: seedReferenceImage || prev.referenceImage,
+        caption: restoredCaption,
         prompt: "",
       }));
       if (scheduleDate) {
@@ -1228,26 +1312,50 @@ export const ContentGenerateProvider = ({
       if (!isActive || !selectedHistoryImage) return;
 
       const productKnowledgeId = routeBusinessProductId || "";
+      const routeDraftMarker = getSchedulerDraftMarkers(businessId).find(
+        (marker) => marker.draftId === String(routeScheduledPostId)
+      );
+      const originalProductImage =
+        (productKnowledgeId
+          ? productImageById.get(String(productKnowledgeId))
+          : "") || "";
+      const fallbackProductImage =
+        routeDraftMarker?.productImage ||
+        originalProductImage ||
+        form.basic.productImage;
+      const fallbackReferenceImage =
+        routeDraftMarker?.referenceImage || form.basic.referenceImage;
+      const restoredCaption = routeDraftMarker?.caption || form.basic.caption;
+      const restoredSeed = {
+        productImage: fallbackProductImage || null,
+        referenceImage: fallbackReferenceImage || null,
+        productKnowledgeId: productKnowledgeId || null,
+      };
       const fallbackJob = buildSchedulerFallbackChatJob({
         scheduledPostId: routeScheduledPostId,
         businessId,
+        chatSessionId: Number(routeChatSessionId),
         productKnowledgeId,
         imageUrl: selectedHistoryImage,
+        productImage: fallbackProductImage,
+        referenceImage: fallbackReferenceImage,
         model: form.basic.model,
         ratio: form.basic.ratio,
         imageSize: form.basic.imageSize,
         productName: form.basic.productName,
-        caption: form.basic.caption,
+        caption: restoredCaption,
       });
 
       setHistories((prev) => upsertJobIntoHistory(prev, fallbackJob));
       setSelectedJobId(fallbackJob.id);
       setSelectedGeneratedImageUrl(selectedHistoryImage);
+      setSchedulerChatSeed(restoredSeed);
       setFormBasic((prev) => ({
         ...prev,
         productKnowledgeId,
-        productImage: selectedHistoryImage,
-        referenceImage: selectedHistoryImage,
+        productImage: fallbackProductImage || prev.productImage,
+        referenceImage: fallbackReferenceImage || prev.referenceImage,
+        caption: restoredCaption,
         prompt: "",
       }));
       lastAppliedHistoryRouteKeyRef.current = routeKey;
@@ -1272,6 +1380,7 @@ export const ContentGenerateProvider = ({
     refetchRouteChat,
     routeBusinessProductId,
     histories,
+    productImageById,
     routeChatSessionId,
     routeScheduledPostId,
     searchParams,
@@ -1339,6 +1448,7 @@ export const ContentGenerateProvider = ({
     histories,
     onSelectHistory,
     refetchHistories,
+    routeChatSessionId,
     searchParams,
   ]);
 
@@ -1689,19 +1799,6 @@ export const ContentGenerateProvider = ({
    * PRODUCT KNOWLEDGES
    *
    */
-  const [productPagination, setProductPagination] =
-    useState<Pagination>(initialPagination);
-  const [productQuery, setProductQuery] = useState<Partial<FilterQuery>>({
-    limit: 10,
-    page: 1,
-    sortBy: "name",
-    sort: "asc",
-  });
-  const { data: productRes } = useProductKnowledgeGetAll(
-    businessId,
-    productQuery,
-    contentGenerateFormDataEnabled
-  );
   useEffect(() => {
     if (productRes) {
       setProductPagination(productRes?.data?.pagination || initialPagination);
@@ -2001,6 +2098,7 @@ export const ContentGenerateProvider = ({
         ratio: form.basic.ratio,
         prompt: firstPrompt,
         caption: form.basic.caption,
+        chatSessionId,
         additionalImages: chatAdditionalImages,
         category: "",
         designStyle: "",
@@ -2023,6 +2121,22 @@ export const ContentGenerateProvider = ({
       },
       result: null,
     };
+    const currentDraftMarker = getSchedulerDraftMarkers(businessId).find(
+      (marker) => marker.draftId === String(draft.id)
+    );
+    const preservedProductImage =
+      currentDraftMarker?.productImage ||
+      (form.basic.productKnowledgeId
+        ? productImageById.get(String(form.basic.productKnowledgeId))
+        : "") ||
+      form.basic.productImage ||
+      null;
+    const preservedReferenceImage =
+      currentDraftMarker?.referenceImage ||
+      (isFirstSchedulerBubble
+        ? form.basic.referenceImage
+        : selectedHistory?.input?.referenceImage || form.basic.referenceImage) ||
+      null;
 
     upsertSchedulerDraftMarker(businessId, {
       draftId: String(draft.id),
@@ -2031,6 +2145,8 @@ export const ContentGenerateProvider = ({
       time: scheduleTime,
       image: form.basic.productImage || "",
       caption: form.basic.caption || "",
+      productImage: preservedProductImage,
+      referenceImage: preservedReferenceImage,
       chatSessionId: chatSessionId,
       businessProductId: form.basic.productKnowledgeId || null,
       createdAt: now,
@@ -2039,6 +2155,11 @@ export const ContentGenerateProvider = ({
     setSchedulerDraftPost({
       id: draft.id,
       chatSessionId,
+    });
+    setSchedulerChatSeed({
+      productImage: preservedProductImage,
+      referenceImage: preservedReferenceImage,
+      productKnowledgeId: form.basic.productKnowledgeId || null,
     });
     setHistories((prev) => upsertJobIntoHistory(prev, baseChatJob));
     setSelectedJobId(pendingJobId);
@@ -2131,6 +2252,8 @@ export const ContentGenerateProvider = ({
       time: scheduleTime,
       image: images[0] || form.basic.productImage || "",
       caption: form.basic.caption || "",
+      productImage: preservedProductImage,
+      referenceImage: preservedReferenceImage,
       chatSessionId: chatSessionId,
       businessProductId: form.basic.productKnowledgeId || null,
       createdAt: chatJob.createdAt || now,
@@ -2165,7 +2288,6 @@ export const ContentGenerateProvider = ({
     setFormBasic((prev) => ({
       ...prev,
       prompt: "",
-      productImage: images[0] || prev.productImage,
     }));
     showToast("success", t("toast.contentGeneration.waiting"));
     return true;
@@ -2647,7 +2769,9 @@ export const ContentGenerateProvider = ({
 
     const isSchedulerChatJob = selectedHistory.id.startsWith("chat-");
     if (isSchedulerChatJob) {
-      if (!schedulerDraftPost?.chatSessionId) return;
+      const activeSchedulerDraftPost = schedulerDraftPost;
+      const activeChatSessionId = activeSchedulerDraftPost?.chatSessionId;
+      if (!activeSchedulerDraftPost || activeChatSessionId == null) return;
 
       const intervalId = window.setInterval(async () => {
         const result = await refetchSchedulerChat().catch(() => null);
@@ -2661,8 +2785,7 @@ export const ContentGenerateProvider = ({
             (job) =>
               job.id.startsWith("chat-") &&
               !job.id.startsWith("chat-pending-") &&
-              job.input.productKnowledgeId ===
-                selectedHistory.input.productKnowledgeId
+              job.input.chatSessionId === activeChatSessionId
           )
           .sort(
             (left, right) =>
@@ -2673,34 +2796,61 @@ export const ContentGenerateProvider = ({
           existingThreadJobs.map((job) => [job.id, job])
         );
         const seedJob = existingThreadJobs[0];
+        const currentDraftMarker = getSchedulerDraftMarkers(businessId).find(
+          (marker) => marker.draftId === String(activeSchedulerDraftPost.id)
+        );
+        const persistedCaption =
+          currentDraftMarker?.caption || selectedHistory.input.caption || "";
 
         const chatJobs = buildSchedulerChatJobs({
           chat,
           businessId,
+          chatSessionId: activeChatSessionId,
           productKnowledgeId: selectedHistory.input.productKnowledgeId,
           model: selectedHistory.input.model,
           ratio: selectedHistory.input.ratio,
           imageSize: selectedHistory.input.imageSize,
           productName: selectedHistory.product.name,
           productImage:
+            (selectedHistory.input.productKnowledgeId
+              ? productImageById.get(
+                  String(selectedHistory.input.productKnowledgeId)
+                )
+              : "") ||
             seedJob?.product?.images?.[0] ||
             selectedHistory.product.images[0],
           referenceImage:
             seedJob?.input?.referenceImage || selectedHistory.input.referenceImage,
-          caption: selectedHistory.input.caption || "",
+          caption: persistedCaption,
         });
-        const mergedChatJobs = chatJobs.map((job) => {
+        const mergedChatJobs = chatJobs.map((job, index) => {
           const existingJob = existingThreadJobsById.get(job.id);
+          const isInitialSchedulerBubble = index === 0;
+          const initialProductImage =
+            (selectedHistory.input.productKnowledgeId
+              ? productImageById.get(
+                  String(selectedHistory.input.productKnowledgeId)
+                )
+              : "") ||
+            seedJob?.product?.images?.[0] ||
+            selectedHistory.product.images[0] ||
+            "";
+          const initialReferenceImage =
+            seedJob?.input?.referenceImage || selectedHistory.input.referenceImage;
           return {
             ...job,
             input: {
               ...job.input,
               referenceImage:
-                job.input.referenceImage ||
-                existingJob?.input.referenceImage ||
-                null,
+                isInitialSchedulerBubble
+                  ? job.input.referenceImage || initialReferenceImage || null
+                  : job.input.referenceImage ||
+                    existingJob?.input.referenceImage ||
+                    null,
               additionalImages:
-                job.input.additionalImages?.length
+                isInitialSchedulerBubble
+                  ? job.input.additionalImages || []
+                  : job.input.additionalImages?.length
                   ? job.input.additionalImages
                   : existingJob?.input.additionalImages || [],
               systemBubbleId:
@@ -2721,7 +2871,11 @@ export const ContentGenerateProvider = ({
             product: {
               ...job.product,
               images:
-                job.product.images.length > 0
+                isInitialSchedulerBubble
+                  ? initialProductImage
+                    ? [initialProductImage]
+                    : []
+                  : job.product.images.length > 0
                   ? job.product.images
                   : existingJob?.product.images || [],
             },
@@ -2754,22 +2908,34 @@ export const ContentGenerateProvider = ({
         ) {
           syncedSchedulerImageRef.current = latestImage;
           upsertSchedulerDraftMarker(businessId, {
-            draftId: String(schedulerDraftPost.id),
+            draftId: String(activeSchedulerDraftPost.id),
             jobId: latestJob.id,
             date: scheduleDateParam,
             time: searchParams.get("scheduleTime") || formatCurrentTimeInput(),
             image: latestImage,
-            caption: selectedHistory.input.caption || "",
-            chatSessionId: schedulerDraftPost.chatSessionId,
+            caption: persistedCaption,
+            productImage:
+              currentDraftMarker?.productImage ||
+              (selectedHistory.input.productKnowledgeId
+                ? productImageById.get(
+                    String(selectedHistory.input.productKnowledgeId)
+                  )
+                : "") ||
+              null,
+            referenceImage:
+              currentDraftMarker?.referenceImage ||
+              selectedHistory.input.referenceImage ||
+              null,
+            chatSessionId: activeChatSessionId,
             businessProductId: selectedHistory.input.productKnowledgeId || null,
             createdAt: latestJob.createdAt || new Date().toISOString(),
           });
           await mEditScheduledPost.mutateAsync({
             businessId,
-            idScheduler: schedulerDraftPost.id,
+            idScheduler: activeSchedulerDraftPost.id,
             formData: {
               imageUrl: latestImage,
-              caption: selectedHistory.input.caption || "",
+              caption: persistedCaption,
               platforms: [],
               dateTime: new Date(
                 `${scheduleDateParam}T${searchParams.get("scheduleTime") || formatCurrentTimeInput()}`
@@ -2778,7 +2944,7 @@ export const ContentGenerateProvider = ({
               withChatAI: true,
               shareAsReference: true,
               businessProductId: selectedHistory.input.productKnowledgeId,
-              chatSessionId: schedulerDraftPost.chatSessionId,
+              chatSessionId: activeChatSessionId,
             },
           });
         }
@@ -2807,6 +2973,7 @@ export const ContentGenerateProvider = ({
     isConnected,
     businessId,
     mEditScheduledPost,
+    productImageById,
     refetchHistories,
     refetchSchedulerChat,
     scheduleDateParam,
@@ -2848,6 +3015,7 @@ export const ContentGenerateProvider = ({
         selectedHistory,
         selectedGeneratedImageUrl,
         schedulerDraftPost,
+        schedulerChatSeed,
         onSelectHistory,
         onSelectGeneratedImage,
         selectedTemplate,

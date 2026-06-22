@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 interface AnalyticsCardProps {
@@ -7,6 +8,7 @@ interface AnalyticsCardProps {
   breakdown?: Array<{ label: string; value: number; color: string }>;
   details?: Array<{ label: string; value: string }>;
   titleIcon?: ReactNode;
+  titleIconClassName?: string;
 }
 
 export function AnalyticsCard({
@@ -16,12 +18,18 @@ export function AnalyticsCard({
   breakdown,
   details,
   titleIcon,
+  titleIconClassName,
 }: AnalyticsCardProps) {
   return (
     <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
-      <div className="mb-1 flex items-center gap-2">
+      <div className="mb-1 flex items-center gap-3">
         {titleIcon && (
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <span
+            className={cn(
+              "inline-flex h-9 w-9 items-center justify-center rounded-md",
+              titleIconClassName
+            )}
+          >
             {titleIcon}
           </span>
         )}
