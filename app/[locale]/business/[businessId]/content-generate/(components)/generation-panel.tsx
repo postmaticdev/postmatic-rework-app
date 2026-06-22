@@ -207,7 +207,7 @@ export function GenerationPanel() {
       mode: "regenerate",
       additionalImages: attachedImages,
       model: allowedModel.name,
-      ratio: nextRatio,
+      ratio: nextRatio as "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9",
       imageSize: allowedModel.imageSizes?.[0] || null,
     });
     setAttachedImages([]);
@@ -284,30 +284,30 @@ export function GenerationPanel() {
                 jobIndex === 0 && job.id.startsWith("chat-");
               const initialReferenceImage = isInitialSchedulerBubble
                 ? schedulerChatSeed?.referenceImage ||
-                  null
+                null
                 : null;
               const initialProductImage = isInitialSchedulerBubble
                 ? schedulerChatSeed?.productImage ||
-                  null
+                null
                 : null;
               const promptImages = isInitialSchedulerBubble
                 ? Array.from(
-                    new Set(
-                      [
-                        initialReferenceImage,
-                        initialProductImage,
-                      ].filter(Boolean) as string[]
-                    )
+                  new Set(
+                    [
+                      initialReferenceImage,
+                      initialProductImage,
+                    ].filter(Boolean) as string[]
                   )
+                )
                 : Array.from(
-                    new Set(
-                      [
-                        ...additionalPromptImages,
-                        ...(job.product?.images || []),
-                        job.input.referenceImage,
-                      ].filter(Boolean) as string[]
-                    )
-                  );
+                  new Set(
+                    [
+                      ...additionalPromptImages,
+                      ...(job.product?.images || []),
+                      job.input.referenceImage,
+                    ].filter(Boolean) as string[]
+                  )
+                );
 
               return (
                 <div key={job.id} className="space-y-3">

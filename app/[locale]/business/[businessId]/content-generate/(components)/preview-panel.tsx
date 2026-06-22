@@ -198,7 +198,7 @@ export function PreviewPanel() {
     void onSubmitGenerate({
       mode: selectedHistory ? "regenerate" : undefined,
       model: allowedModel.name,
-      ratio: nextRatio,
+      ratio: nextRatio as "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9",
       imageSize: allowedModel.imageSizes?.[0] || null,
     });
   };
@@ -346,8 +346,8 @@ export function PreviewPanel() {
     const currentDraftMarker =
       schedulerMode && schedulerDraftId
         ? getSchedulerDraftMarkers(businessId).find(
-            (marker) => marker.draftId === String(schedulerDraftId)
-          )
+          (marker) => marker.draftId === String(schedulerDraftId)
+        )
         : null;
     const persistedCaption =
       currentDraftMarker?.caption?.trim() ||
