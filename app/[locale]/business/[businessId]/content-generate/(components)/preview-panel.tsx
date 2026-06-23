@@ -86,6 +86,21 @@ export function PreviewPanel() {
       ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
       : getAiModelDisplayName("gpt-image-1")
   );
+  const handleProtectedImageInteraction = (
+    event:
+      | React.MouseEvent<HTMLElement>
+      | React.DragEvent<HTMLElement>
+  ) => {
+    if (!aiModels.isFreeUser) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  const protectedImageStyle = aiModels.isFreeUser
+    ? ({
+        WebkitTouchCallout: "none",
+        userSelect: "none",
+      } as const)
+    : undefined;
 
   const [date, setDate] = useState(() => getCurrentScheduleInput().date);
   const [time, setTime] = useState(() => getCurrentScheduleInput().time);
@@ -547,7 +562,11 @@ export function PreviewPanel() {
 
         <div className="relative w-full h-fit transition-opacity">
           {isLoading ? (
-            <div className="flex items-center justify-center w-full h-full bg-background-secondary relative !aspect-square">
+            <div
+              className="flex items-center justify-center w-full h-full bg-background-secondary relative !aspect-square"
+              onContextMenu={handleProtectedImageInteraction}
+              onDragStart={handleProtectedImageInteraction}
+            >
               <LogoLoader
                 hideContentBackground={false}
                 className="absolute z-10"
@@ -561,6 +580,8 @@ export function PreviewPanel() {
                   }
                   alt=""
                   fill
+                  draggable={false}
+                  style={protectedImageStyle}
                   className="object-cover w-full h-full"
                   priority
                 />
@@ -576,6 +597,10 @@ export function PreviewPanel() {
               alt=""
               width={800}
               height={800}
+              draggable={false}
+              onContextMenu={handleProtectedImageInteraction}
+              onDragStart={handleProtectedImageInteraction}
+              style={protectedImageStyle}
               className="w-full h-auto"
               priority
             />

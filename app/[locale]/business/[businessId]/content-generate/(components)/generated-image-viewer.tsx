@@ -38,6 +38,7 @@ type GeneratedImageViewerProps = {
   imageUrl: string;
   imageItemId?: number;
   alt: string;
+  protectFromContextMenu?: boolean;
   className?: string;
   width?: number;
   height?: number;
@@ -47,6 +48,7 @@ export function GeneratedImageViewer({
   imageUrl,
   imageItemId,
   alt,
+  protectFromContextMenu = false,
   className,
   width = 800,
   height = 800,
@@ -340,6 +342,21 @@ export function GeneratedImageViewer({
 
   const fullscreenImageUrl =
     watermarkedImageUrl || imageUrl || DEFAULT_PLACEHOLDER_IMAGE;
+  const handleProtectedInteraction = (
+    event:
+      | React.MouseEvent<HTMLElement>
+      | React.DragEvent<HTMLElement>
+  ) => {
+    if (!protectFromContextMenu) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  const protectedImageStyle = protectFromContextMenu
+    ? ({
+        WebkitTouchCallout: "none",
+        userSelect: "none",
+      } as const)
+    : undefined;
 
   return (
     <>
@@ -347,12 +364,16 @@ export function GeneratedImageViewer({
         type="button"
         className="block w-full max-w-[360px] rounded-lg"
         onClick={() => setIsOpen(true)}
+        onContextMenu={handleProtectedInteraction}
+        onDragStart={handleProtectedInteraction}
       >
         <Image
           src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
           alt={alt}
           width={width}
           height={height}
+          draggable={false}
+          style={protectedImageStyle}
           className={
             className ||
             "aspect-square w-full max-w-[360px] cursor-zoom-in rounded-lg border object-cover"
@@ -361,7 +382,11 @@ export function GeneratedImageViewer({
       </button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="">
+        <DialogContent
+          className=""
+          onContextMenu={handleProtectedInteraction}
+          onDragStart={handleProtectedInteraction}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Maximize2 className="h-4 w-4" />
@@ -377,6 +402,8 @@ export function GeneratedImageViewer({
               alt={`${alt} fullscreen`}
               width={1440}
               height={1440}
+              draggable={false}
+              style={protectedImageStyle}
               className="h-auto w-auto rounded-lg border object-contain"
             />
           </div>

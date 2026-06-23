@@ -48,6 +48,7 @@ interface ReportForm {
 }
 
 const DEFAULT_COUNTRY_CODE = "+62";
+const OTHER_REPORT_TYPE = "other";
 
 const createInitialForm = (): ReportForm => ({
   name: "",
@@ -138,6 +139,13 @@ export function ReportIssueModal({
       categories.find((category) => String(category.id) === form.reportType),
     [categories, form.reportType]
   );
+  const submittedCategoryId = useMemo(() => {
+    if (form.reportType === OTHER_REPORT_TYPE) {
+      return Number(defaultCategoryId);
+    }
+
+    return Number(form.reportType);
+  }, [defaultCategoryId, form.reportType]);
 
   const updateField = <K extends keyof ReportForm>(
     field: K,
@@ -197,6 +205,7 @@ export function ReportIssueModal({
       !normalizedName ||
       !normalizedEmail ||
       !form.reportType ||
+      Number.isNaN(submittedCategoryId) ||
       !normalizedDetails ||
       !normalizedPhone
     ) {
@@ -216,7 +225,7 @@ export function ReportIssueModal({
         phone: normalizedPhone,
         email: normalizedEmail,
         priority: "high",
-        appTicketCategoryId: Number(form.reportType),
+        appTicketCategoryId: submittedCategoryId,
         attachments: form.attachments,
       });
 
@@ -267,6 +276,31 @@ export function ReportIssueModal({
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="report-phone-number">{t("phoneNumber")}</Label>
+            <div className="flex space-x-2">
+              <SearchableCountrySelect
+                countries={countryCodes}
+                value={form.countryCode || DEFAULT_COUNTRY_CODE}
+                onValueChange={(value) => updateField("countryCode", value)}
+                placeholder={t("countryCode")}
+                searchPlaceholder={t("countryCodeSearch")}
+                className="w-40 bg-card"
+              />
+              <Input
+                id="report-phone-number"
+                type="tel"
+                value={form.phoneNumber}
+                onChange={(event) =>
+                  updateField(
+                    "phoneNumber",
+                    event.target.value.replace(/[^\d]/g, "")
+                  )
+                }
+                placeholder={t("phoneNumberPlaceholder")}
+              />
+            </div>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="report-type">{t("reportType")}</Label>
@@ -283,11 +317,16 @@ export function ReportIssueModal({
                     {t("reportTypeLoading")}
                   </SelectItem>
                 ) : categories.length > 0 ? (
-                  categories.map((category) => (
-                    <SelectItem key={category.id} value={String(category.id)}>
-                      {category.name}
+                  <>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={String(category.id)}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_REPORT_TYPE}>
+                      {t("reportTypeOther")}
                     </SelectItem>
-                  ))
+                  </>
                 ) : (
                   <SelectItem value="__empty__" disabled>
                     {t("reportTypeEmpty")}
@@ -317,32 +356,6 @@ export function ReportIssueModal({
               onChange={(event) => updateField("details", event.target.value)}
               placeholder={t("detailsPlaceholder")}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="report-phone-number">{t("phoneNumber")}</Label>
-            <div className="flex space-x-2">
-              <SearchableCountrySelect
-                countries={countryCodes}
-                value={form.countryCode || DEFAULT_COUNTRY_CODE}
-                onValueChange={(value) => updateField("countryCode", value)}
-                placeholder={t("countryCode")}
-                searchPlaceholder={t("countryCodeSearch")}
-                className="w-40 bg-card"
-              />
-              <Input
-                id="report-phone-number"
-                type="tel"
-                value={form.phoneNumber}
-                onChange={(event) =>
-                  updateField(
-                    "phoneNumber",
-                    event.target.value.replace(/[^\d]/g, "")
-                  )
-                }
-                placeholder={t("phoneNumberPlaceholder")}
-              />
-            </div>
           </div>
         </form>
 

@@ -13,8 +13,8 @@ import {
 import { BaseResponse } from "@/models/api/base-response.type";
 
 const MINUTE = 60_000;
+const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
 
-// === Axios instances ===
 export const api: AxiosInstance = axios.create({
   baseURL:
     typeof window === "undefined"
@@ -24,40 +24,33 @@ export const api: AxiosInstance = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
-
-// Penting: client khusus refresh (tanpa interceptor auth/401)
 const refreshApi: AxiosInstance = axios.create({
   baseURL: "",
   timeout: MINUTE,
   headers: { "Content-Type": "application/json" },
 });
 
-// === State untuk koordinasi refresh ===
 let isRefreshing = false;
 type ResolveFn = (token: string) => void;
 let refreshSubscribers: ResolveFn[] = [];
 
-// Notifikasi semua subscriber jika token baru tersedia
 function onRefreshed(token: string) {
   refreshSubscribers.forEach((cb) => cb(token));
   refreshSubscribers = [];
 }
 
-// Tambahkan subscriber baru (request yang menunggu token)
 function addRefreshSubscriber(callback: ResolveFn) {
   refreshSubscribers.push(callback);
 }
 
-// Util: ambil token dari localStorage (di browser)
 function getAccessToken() {
   if (typeof window === "undefined") return null;
   return getCookie(ACCESS_TOKEN_KEY) ?? localStorage.getItem(ACCESS_TOKEN_KEY);
 }
+
 function getRefreshToken() {
-  return typeof window !== "undefined"
-    ? localStorage.getItem(REFRESH_TOKEN_KEY)
-    : null;
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
 function getCookie(name: string) {
@@ -86,6 +79,7 @@ export function setAuthToken(
   refreshToken: string | null
 ) {
   if (typeof window === "undefined") return;
+
   if (accessToken) {
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     setClientCookie(ACCESS_TOKEN_KEY, accessToken);
@@ -95,6 +89,7 @@ export function setAuthToken(
     setClientCookie(ACCESS_TOKEN_KEY, null);
     delete api.defaults.headers.common[ACCESS_TOKEN_HEADER];
   }
+
   if (refreshToken) {
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   } else {
@@ -109,7 +104,6 @@ function hardLogout() {
   }
 }
 
-// === Request interceptor: sisipkan token header backend baru ===
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getAccessToken();
@@ -122,7 +116,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// === Response interceptor: tangani 401 + refresh flow ===
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -130,7 +123,6 @@ api.interceptors.response.use(
       | (AxiosRequestConfig & { _retry?: boolean })
       | undefined;
 
-    // Bukan 401? lempar saja
     const status = error.response?.status ?? error?.status;
     const codeFromBody = (error.response?.data as BaseResponse)?.metaData?.code;
     const isUnauthorized = status === 401 || codeFromBody === 401;
@@ -139,9 +131,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Sudah pernah di-retry? jangan ulangi (hindari loop)
     if (originalConfig._retry) {
-      // refresh sebelumnya gagal/invalid
       hardLogout();
       return Promise.reject(error);
     }
@@ -150,49 +140,34 @@ api.interceptors.response.use(
     try {
       const rToken = getRefreshToken();
 
-      // Tanpa refresh token → tidak bisa lanjut
-      if (!rToken) {
-        hardLogout();
-        return Promise.reject(error);
-      }
-
-      // Kalau sedang refresh → antre sampai selesai, lalu ulang request
       if (isRefreshing) {
         const newToken = await new Promise<string>((resolve) => {
           addRefreshSubscriber(resolve);
         });
-        // set header baru di request yg diulang
         originalConfig.headers = originalConfig.headers ?? {};
         originalConfig.headers[ACCESS_TOKEN_HEADER] = newToken;
         return api.request(originalConfig);
       }
 
-      // Mulai refresh
       isRefreshing = true;
 
       const refreshResponse = await refreshApi.post<
         BaseResponse<{ accessToken: string; refreshToken: string }>
-      >("/api/auth/refresh", { refreshToken: rToken });
+      >("/api/auth/refresh", rToken ? { refreshToken: rToken } : {});
 
       const payload = refreshResponse.data?.data;
-      if (!payload?.accessToken || !payload?.refreshToken) {
-        // server tidak mengirim data yang diharapkan
+      if (!payload?.accessToken) {
         throw new Error("Invalid refresh response");
       }
 
-      // Simpan dan set header default
-      setAuthToken(payload.accessToken, payload.refreshToken);
-
-      // Beri tahu semua request yang menunggu
+      setAuthToken(payload.accessToken, payload.refreshToken ?? rToken);
       onRefreshed(payload.accessToken);
 
-      // Ulang request awal dengan token baru
       originalConfig.headers = originalConfig.headers ?? {};
       originalConfig.headers[ACCESS_TOKEN_HEADER] = payload.accessToken;
 
       return api.request(originalConfig);
     } catch (e) {
-      // Refresh gagal → logout
       hardLogout();
       return Promise.reject(e);
     } finally {

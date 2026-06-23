@@ -654,6 +654,7 @@
     "reportTypePlaceholder": "報告の種類を選択してください",
     "reportTypeLoading": "報告タイプを読み込み中...",
     "reportTypeEmpty": "利用可能な報告タイプがありません",
+    "reportTypeOther": "その他",
     "countryCode": "国番号",
     "countryCodeSearch": "国を検索...",
     "photo": "写真の添付",

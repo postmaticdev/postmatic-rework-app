@@ -338,21 +338,21 @@ export function GenerationPanel() {
                         </div>
                       ) : null}
                       {job.input.prompt ? (
-                        <div className="relative max-w-full">
-                          <div className="rounded-3xl bg-background-secondary px-4 py-3 pr-12 text-sm break-words">
-                            {job.input.prompt}
-                          </div>
+                        <div className="flex max-w-full items-end gap-2 self-end">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute bottom-1.5 right-1.5 h-7 w-7 rounded-full border border-input bg-card/90 hover:bg-muted"
+                            className="h-7 w-7 shrink-0 rounded-full border border-input bg-card/90 hover:bg-muted"
                             onClick={() => handleCopyPrompt(job.input.prompt || "")}
                             title={t("copyPrompt")}
                             aria-label={t("copyPrompt")}
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </Button>
+                          <div className="rounded-3xl bg-background-secondary px-4 py-3 text-sm break-words">
+                            {job.input.prompt}
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -392,6 +392,7 @@ export function GenerationPanel() {
                               imageUrl={imageUrl}
                               imageItemId={job.result?.imageItemIds?.[index]}
                               alt={`generated-${index + 1}`}
+                              protectFromContextMenu={aiModels.isFreeUser}
                               className="aspect-square w-full max-w-[360px] cursor-zoom-in rounded-lg border object-cover"
                             />
                             <div className="flex items-center gap-2">

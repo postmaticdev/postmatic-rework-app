@@ -10,10 +10,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Mail, Shield } from "lucide-react";
+import { ChevronDown, Shield } from "lucide-react";
 import {
   useMemberGetAllMembers,
-  useMemberResend,
   useMemberUpdateRole,
 } from "@/services/member.api";
 import { useParams } from "next/navigation";
@@ -36,7 +35,6 @@ export function MembersTable() {
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const t = useTranslations("settings");
   const mUpdateRole = useMemberUpdateRole();
-  const mResend = useMemberResend();
 
   const { access } = useRole();
   const { invite, edit } = access.member;
@@ -62,20 +60,6 @@ export function MembersTable() {
     }
   };
 
-  const onResendInvite = async (id: string) => {
-    try {
-      const res = await mResend.mutateAsync({
-        businessId,
-        formData: {
-          memberId: id,
-        },
-      });
-      showToast("success", res.data.responseMessage);
-    } catch (error) {
-      showToast("error", error);
-    }
-  };
-
   return (
     <div className="space-y-4 sm:space-y-6">
       <Card>
@@ -84,10 +68,10 @@ export function MembersTable() {
             <CardTitle className="text-xl sm:text-2xl font-bold">
               {t("members")}
             </CardTitle>
-            {invite && (
+            {(invite || edit) && (
               <Button
-              onClick={onInviteMember}
-              className="w-full sm:w-auto text-white"
+                onClick={onInviteMember}
+                className="w-full sm:w-auto text-white"
               >
                 + {t("inviteMember")}
               </Button>
@@ -177,18 +161,6 @@ export function MembersTable() {
                         {getMemberRoleLabel(member.role, t)}
                       </Button>
                     ) : null}
-                    {member.status === "Pending" && invite && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center"
-                        onClick={() => onResendInvite(member.id)}
-                        disabled={mResend.isPending}
-                      >
-                        <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
-                        {t("resendInvite")}
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}
@@ -211,11 +183,6 @@ export function MembersTable() {
                   <th className="p-4 font-medium text-muted-foreground">
                     {t("status")}
                   </th>
-                  {(edit || invite) && (
-                    <th className="p-4 font-medium text-muted-foreground">
-                      {t("actions")}
-                    </th>
-                  )}
                 </tr>
               </thead>
               <tbody>
@@ -301,23 +268,6 @@ export function MembersTable() {
                           {getMemberStatusLabel(member.status, t)}
                         </Badge>
                       </td>
-                      {(edit || invite) && (
-                        <td className="p-4">
-                          {member.status === "Pending" && invite && (
-                            <div className="flex items-center space-x-2">
-                              <Mail className="h-4 w-4 text-muted-foreground" />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onResendInvite(member.id)}
-                                disabled={mResend.isPending}
-                              >
-                                {t("resendInvite")}
-                              </Button>
-                            </div>
-                          )}
-                        </td>
-                      )}
                     </tr>
                   ))}
               </tbody>
