@@ -1,11 +1,19 @@
 import { AxiosError } from "axios";
+import { getToastLocale, translateApiResponseMessage } from "@/helper/api-response-message";
 
 export const errorString = (e: unknown): string => {
-  let errorMessage = "Terjadi kesalahan saat memproses data";
+  const locale = getToastLocale();
+  let errorMessage =
+    locale === "en"
+      ? "An error occurred while processing your request."
+      : "Terjadi kesalahan saat memproses permintaan Anda.";
   if (e instanceof AxiosError) {
-    errorMessage = e.response?.data.responseMessage || errorMessage;
+    errorMessage = translateApiResponseMessage(
+      e.response?.data.responseMessage || e.response?.data?.metaData?.message || errorMessage,
+      locale
+    );
   } else if (e instanceof Error) {
-    errorMessage = e.message || errorMessage;
+    errorMessage = translateApiResponseMessage(e.message || errorMessage, locale);
   }
   return errorMessage;
 };

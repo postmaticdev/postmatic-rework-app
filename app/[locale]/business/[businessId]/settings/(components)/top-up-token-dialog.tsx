@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { showToast } from "@/helper/show-toast";
+import { translateApiResponseMessage } from "@/helper/api-response-message";
 import { formatIdr } from "@/helper/formatter";
 import { cn } from "@/lib/utils";
 import { useAppProductGetProductDetail } from "@/services/app-product.api";
@@ -188,9 +189,12 @@ export function TopUpTokenDialog({
   const isCheckingPromoCode =
     isPromoCodeChecked && priceQuery.isFetching;
   const promoCodeMessage = isPromoCodeChecked
-    ? price?.referral?.message ||
-    priceQueryError?.response?.data?.responseMessage ||
-    priceQueryError?.response?.data?.metaData?.message
+    ? translateApiResponseMessage(
+      price?.referral?.message ||
+      priceQueryError?.response?.data?.responseMessage ||
+      priceQueryError?.response?.data?.metaData?.message ||
+      ""
+    )
     : "";
 
   useEffect(() => {

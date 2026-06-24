@@ -79,6 +79,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { translateApiResponseMessage } from "@/helper/api-response-message";
 
 export interface Template {
   id: string;
@@ -2432,10 +2433,12 @@ export const ContentGenerateProvider = ({
           updatedAt: new Date().toISOString(),
           error: {
             message:
-              (error as { response?: { data?: { responseMessage?: string } } })
-                ?.response?.data?.responseMessage ||
-              (error as Error)?.message ||
-              "Image chat belum siap. Coba generate ulang.",
+              translateApiResponseMessage(
+                (error as { response?: { data?: { responseMessage?: string } } })
+                  ?.response?.data?.responseMessage ||
+                  (error as Error)?.message ||
+                  "Image chat belum siap. Coba generate ulang."
+              ),
             stack: null,
             attempt: 4,
           },

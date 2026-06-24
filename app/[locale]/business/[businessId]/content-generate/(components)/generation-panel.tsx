@@ -8,6 +8,7 @@ import { showToast } from "@/helper/show-toast";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { helperService } from "@/services/helper.api";
+import { useAppAvatarGetAll } from "@/services/app-avatar.api";
 import { useBusinessGetById } from "@/services/business.api";
 import {
   useBusinessAvatarGetAll,
@@ -90,6 +91,16 @@ export function GenerationPanel() {
       sortBy: "name",
       sort: "asc",
     });
+  const { data: appAvatarData, isLoading: isLoadingAppAvatars } =
+    useAppAvatarGetAll(
+      {
+        limit: 100,
+        page: 1,
+        sortBy: "name",
+        sort: "asc",
+      },
+      isKnowledgeDialogOpen
+    );
 
   useEffect(() => {
     if (isTrendDialogOpen && form.rss) {
@@ -174,6 +185,16 @@ export function GenerationPanel() {
       title: avatar.name,
     }));
   }, [businessAvatarData?.data?.data, t]);
+  const moreAvatarImageOptions = useMemo<KnowledgeImageOption[]>(() => {
+    const avatars = appAvatarData?.data?.data || [];
+
+    return avatars.map((avatar) => ({
+      id: `app-avatar-${avatar.id}`,
+      imageUrl: avatar.imageUrl,
+      sourceLabel: t("avatarSourceBrowse"),
+      title: avatar.name,
+    }));
+  }, [appAvatarData?.data?.data, t]);
 
   const handleRegenerate = () => {
     if (
@@ -567,7 +588,9 @@ export function GenerationPanel() {
           logoImageOptions={logoImageOptions}
           productImageOptions={productImageOptions}
           avatarImageOptions={avatarImageOptions}
+          moreAvatarImageOptions={moreAvatarImageOptions}
           isLoadingAvatars={isLoadingBusinessAvatars}
+          isLoadingMoreAvatars={isLoadingAppAvatars}
         />
       </>
     );
