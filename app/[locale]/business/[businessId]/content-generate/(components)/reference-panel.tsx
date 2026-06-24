@@ -7,9 +7,9 @@ export function ReferencePanel() {
   const {
     publishedTemplates,
     savedTemplates,
-    form,
     onSelectReferenceImage,
     onSaveUnsave,
+    onSaveUploadedReference,
     onConfirmUnsave,
     onCloseUnsaveModal,
     unsaveModal,
@@ -21,8 +21,8 @@ export function ReferencePanel() {
     <SharedReferencePanel
       publishedTemplates={publishedTemplates}
       savedTemplates={savedTemplates}
-      form={form}
       onSelectReferenceImage={onSelectReferenceImage}
+      onSaveUploadedReference={onSaveUploadedReference}
       onSaveUnsave={onSaveUnsave}
       onConfirmUnsave={onConfirmUnsave}
       onCloseUnsaveModal={onCloseUnsaveModal}

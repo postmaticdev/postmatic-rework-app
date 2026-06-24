@@ -6,6 +6,15 @@ import { Search, Upload, Loader2 } from "lucide-react";
 import {
   PaginationControls,
 } from "@/components/ui/pagination";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -58,13 +67,11 @@ interface SharedReferencePanelProps {
     setFilterQuery: (q: Partial<FilterQuery>) => void;
     isLoading: boolean;
   };
-  form: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    basic: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setBasic: (item: any) => void;
-  };
   onSelectReferenceImage: (imageUrl: string, imageName: string | null, template?: Template) => void;
+  onSaveUploadedReference: (payload: {
+    imageUrl: string;
+    name: string;
+  }) => Promise<void>;
   onSaveUnsave?: (template: Template) => void;
   onConfirmUnsave?: () => void;
   onCloseUnsaveModal?: () => void;
@@ -82,8 +89,8 @@ interface SharedReferencePanelProps {
 export function SharedReferencePanel({
   publishedTemplates,
   savedTemplates,
-  form,
   onSelectReferenceImage,
+  onSaveUploadedReference,
   onSaveUnsave,
   onConfirmUnsave,
   onCloseUnsaveModal,
@@ -94,7 +101,6 @@ export function SharedReferencePanel({
   onAutoGenerate = false,
 }: SharedReferencePanelProps) {
   const t = useTranslations("referencePanel");
-  const tToast = useTranslations();
   const tCard = useTranslations("templateCard");
   const { data: categoriesRes } = useLibraryTemplateGetCategory();
   const categories = categoriesRes?.data?.data || [];
@@ -102,138 +108,122 @@ export function SharedReferencePanel({
     "reference"
   );
 
-  const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isPreparingUpload, setIsPreparingUpload] = useState(false);
+  const [prepareUploadError, setPrepareUploadError] = useState<string | null>(null);
+  const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
+  const [uploadedReferenceName, setUploadedReferenceName] = useState("");
 
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedTemplateForModal, setSelectedTemplateForModal] = useState<Template | null>(
     null
   );
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+  const closeNameDialog = useCallback(() => {
+    setIsNameDialogOpen(false);
+    setPrepareUploadError(null);
+    setIsPreparingUpload(false);
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+  const resetNameDialog = useCallback(() => {
+    closeNameDialog();
+    setUploadedReferenceName("");
+  }, [closeNameDialog]);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
+  const uploadReferenceFile = useCallback(
+    async (file: File) => {
+      const trimmedName = uploadedReferenceName.trim();
+      if (!trimmedName) {
+        setPrepareUploadError(t("referenceNameRequired"));
+        return;
+      }
+
       setIsUploading(true);
       setUploadProgress(0);
+      let progressInterval: ReturnType<typeof setInterval> | null = null;
 
       try {
-        // Simulate progress
-        const progressInterval = setInterval(() => {
-          setUploadProgress(prev => Math.min(prev + 20, 90));
+        progressInterval = setInterval(() => {
+          setUploadProgress((prev) => Math.min(prev + 20, 90));
         }, 300);
 
-        // Handle file upload here
-        console.log("Uploading file:", file.name);
         const response = await helperService.uploadSingleImage({
           image: file,
         });
 
-        clearInterval(progressInterval);
+        if (progressInterval) {
+          clearInterval(progressInterval);
+        }
+
         setUploadProgress(100);
 
-        form.setBasic({
-          ...form.basic,
-          referenceImage: response,
-          referenceImageName: file.name
+        try {
+        await onSaveUploadedReference({
+          imageUrl: response,
+          name: trimmedName,
         });
 
-        // Show success message
-        showToast("success", tToast("toast.content.imageUploadSuccess"));
-
-        // Scroll to the selected reference image after a short delay
-        setTimeout(() => {
-          const selectedRef = document.getElementById('selected-reference-image');
-          if (selectedRef) {
-            selectedRef.scrollIntoView({ behavior: 'smooth' });
-          }
-        }, 500);
-      } catch (err) {
-        console.error("Upload error:", err);
-        showToast("error", tToast("toast.content.imageUploadFailed"));
+        showToast("success", t("imageUploadedSuccessfully"));
+        resetNameDialog();
+        } catch (saveError) {
+          console.error("Save uploaded reference error:", saveError);
+          showToast("error", t("failedToSaveReference"));
+        }
+      } catch (uploadError) {
+        console.error("Upload error:", uploadError);
+        showToast("error", t("failedToUploadImage"));
       } finally {
+        if (progressInterval) {
+          clearInterval(progressInterval);
+        }
+
         setTimeout(() => {
           setIsUploading(false);
           setUploadProgress(0);
-        }, 1000); // Keep the 100% progress visible briefly
+        }, 1000);
       }
-    }
-  }, [form, tToast]);
+    },
+    [onSaveUploadedReference, resetNameDialog, t, uploadedReferenceName]
+  );
 
   const handleFileInput = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-        const file = e.target.files[0];
-        setIsUploading(true);
-        setUploadProgress(0);
-
-        try {
-          // Simulate progress
-          const progressInterval = setInterval(() => {
-            setUploadProgress(prev => Math.min(prev + 20, 90));
-          }, 300);
-
-          // Handle file upload here
-          console.log("Uploading file:", file.name);
-          const response = await helperService.uploadSingleImage({
-            image: file,
-          });
-
-          clearInterval(progressInterval);
-          setUploadProgress(100);
-
-          form.setBasic({
-            ...form.basic,
-            referenceImage: response,
-            referenceImageName: file.name
-          });
-
-          // Show success message
-          showToast("success", t("imageUploadedSuccessfully"));
-
-          // Scroll to the selected reference image after a short delay
-          setTimeout(() => {
-            const selectedRef = document.getElementById('selected-reference-image');
-            if (selectedRef) {
-              selectedRef.scrollIntoView({ behavior: 'smooth' });
-            }
-          }, 500);
-        } catch (err) {
-          console.error("Upload error:", err);
-          showToast("error", t("failedToUploadImage"));
-        } finally {
-          setTimeout(() => {
-            setIsUploading(false);
-            setUploadProgress(0);
-          }, 1000); // Keep the 100% progress visible briefly
-        }
+        closeNameDialog();
+        await uploadReferenceFile(e.target.files[0]);
+        e.target.value = "";
       }
     },
-    [form, t]
+    [closeNameDialog, uploadReferenceFile]
   );
 
   const handleCardClick = useCallback(() => {
     if (!isUploading) {
-      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.click();
-      }
+      setPrepareUploadError(null);
+      setIsNameDialogOpen(true);
     }
   }, [isUploading]);
+
+  const handleContinueToFilePicker = useCallback(() => {
+    const trimmedName = uploadedReferenceName.trim();
+    if (!trimmedName) {
+      setPrepareUploadError(t("referenceNameRequired"));
+      return;
+    }
+
+    setIsPreparingUpload(true);
+    setPrepareUploadError(null);
+
+    const fileInput = document.getElementById("file-upload") as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+
+    setTimeout(() => {
+      setIsPreparingUpload(false);
+    }, 300);
+  }, [t, uploadedReferenceName]);
 
   const onDetail = useCallback((item: Template | null) => {
     setSelectedTemplateForModal(item);
@@ -362,16 +352,11 @@ export function SharedReferencePanel({
                 {/* Upload Card */}
 
                 <div
-                  className={` w-full rounded-lg overflow-hidden border-2 border-dashed transition-colors flex items-center justify-center ${dragActive
-                    ? "border-blue-500 bg-background"
-                    : isUploading
+                  className={` w-full rounded-lg overflow-hidden border-2 border-dashed transition-colors flex items-center justify-center ${
+                    isUploading
                       ? "border-blue-300 bg-background"
                       : "border-border bg-background-secondary cursor-pointer hover:border-blue-300"
-                    }`}
-                  onDragEnter={!isUploading ? handleDrag : undefined}
-                  onDragLeave={!isUploading ? handleDrag : undefined}
-                  onDragOver={!isUploading ? handleDrag : undefined}
-                  onDrop={!isUploading ? handleDrop : undefined}
+                  }`}
                   onClick={!isUploading ? handleCardClick : undefined}
                 >
                   <div className="flex flex-col items-center justify-center text-center p-4 w-full">
@@ -393,9 +378,9 @@ export function SharedReferencePanel({
                       <>
                         <Upload className="h-8 w-8 text-gray-400 mb-2" />
                         <p className="text-sm text-muted-foreground mb-2">
-                          {t("dragAndDropImage")}
+                          {t("uploadImage")}
                         </p>
-                        <p className="text-xs text-muted-foreground mb-3">{t("orClickToBrowse")}</p>
+                        <p className="text-xs text-muted-foreground mb-3">{t("enterNameFirst")}</p>
                         <input
                           id="file-upload"
                           type="file"
@@ -469,6 +454,73 @@ export function SharedReferencePanel({
           isLoading={unsaveModal.isLoading}
         />
       )}
+
+      <Dialog
+        open={isNameDialogOpen}
+        onOpenChange={(open) => {
+          if (isPreparingUpload) return;
+          if (!open) {
+            resetNameDialog();
+            return;
+          }
+          setIsNameDialogOpen(true);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("saveUploadedReferenceTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("saveUploadedReferenceDescription")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 p-4 sm:p-6">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t("referenceNameLabel")}</p>
+              <Input
+                value={uploadedReferenceName}
+                onChange={(e) => {
+                  setUploadedReferenceName(e.target.value);
+                  if (prepareUploadError) {
+                    setPrepareUploadError(null);
+                  }
+                }}
+                placeholder={t("referenceNamePlaceholder")}
+                disabled={isPreparingUpload}
+              />
+              {prepareUploadError && (
+                <p className="text-sm text-destructive">{prepareUploadError}</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <div className="flex w-full justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={resetNameDialog}
+                disabled={isPreparingUpload}
+              >
+                {t("cancelSaveReference")}
+              </Button>
+              <Button
+                onClick={handleContinueToFilePicker}
+                disabled={isPreparingUpload}
+                className="bg-blue-500 text-white hover:bg-blue-600"
+              >
+                {isPreparingUpload ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t("selectingImage")}
+                  </>
+                ) : (
+                  t("continueToUpload")
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

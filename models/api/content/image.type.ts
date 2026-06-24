@@ -45,6 +45,7 @@ export interface GenerateContentBase {
   designStyle: string | null;
   prompt: string | null;
   referenceImage: string | null;
+  additionalImages?: string[];
   model: string;
   imageSize?: string | null;
 }
@@ -326,9 +327,8 @@ export interface DeleteContentRes {
   Payload for Repost Content
 */
 export interface RepostContentPld {
-  generatedImageContentId: string;
-  platforms: string[];
-  caption: string;
+  imagePostScheduleId: number;
+  platforms: PlatformEnum[];
 }
 
 /* response for get posted images */

@@ -99,8 +99,8 @@ export function CreatorDesignFormModal() {
             onChange={(value) =>
               updateField("templateProductCategoryIds", [value])
             }
-            placeholder={t("selectProductCategory")}
-            label={t("productCategory")}
+            placeholder={t("selectReferenceTag")}
+            label={t("referenceTag")}
             error={errors.templateProductCategoryIds}
           />
 
@@ -110,8 +110,8 @@ export function CreatorDesignFormModal() {
             onChange={(value) =>
               updateField("templateImageCategoryIds", [value])
             }
-            placeholder={t("selectImageCategory")}
-            label={t("imageCategory")}
+            placeholder={t("selectReferenceCategory")}
+            label={t("referenceCategory")}
             error={errors.templateImageCategoryIds}
           />
 

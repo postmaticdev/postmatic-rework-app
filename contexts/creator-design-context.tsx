@@ -143,11 +143,11 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
     // }
 
     if (!formData.templateImageCategoryIds || formData.templateImageCategoryIds.length === 0) {
-      newErrors.templateImageCategoryIds = "Kategori gambar harus dipilih";
+      newErrors.templateImageCategoryIds = "Kategori referensi harus dipilih";
     }
 
     if (!formData.templateProductCategoryIds || formData.templateProductCategoryIds.length === 0) {
-      newErrors.templateProductCategoryIds = "Kategori produk harus dipilih";
+      newErrors.templateProductCategoryIds = "Tag referensi harus dipilih";
     }
 
     setErrors(newErrors);

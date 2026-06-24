@@ -77,16 +77,16 @@ export function ReferenceFullviewModal({
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
           {/* Preview Image */}
-          
-            <Image
-              src={template?.imageUrl}
-              alt={template.name}
-              width={500}
-              height={500}
-              className="w-full h-auto rounded-xl"
-              priority
-            />
-        
+
+          <Image
+            src={template?.imageUrl}
+            alt={template.name}
+            width={500}
+            height={500}
+            className="w-full h-auto rounded-xl"
+            priority
+          />
+
 
           {/* Description */}
           {/* <Card>
@@ -97,8 +97,8 @@ export function ReferenceFullviewModal({
               </h3>
               <p className=" text-sm leading-relaxed">{template.description}</p>
               {/* TODO: gaada deskripsi */}
-            {/* </CardContent>
-          </Card> */} 
+          {/* </CardContent>
+          </Card> */}
 
           {/* Category and Price Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -112,7 +112,7 @@ export function ReferenceFullviewModal({
                 </span>
               </CardContent>
             </Card>
-                    {/* TODO: gaada harga */}
+            {/* TODO: gaada harga */}
             {/* <Card>
               <CardContent className="py-4">
                 <h3 className="font-semibold mb-3 text-sm uppercase tracking-wide">
@@ -132,26 +132,26 @@ export function ReferenceFullviewModal({
                 </div>
               </CardContent>
             </Card> */}
-          {/* Tags */}
-          {template.categories && template.categories.length > 0 && (
-            <Card>
-              <CardContent className="py-4">
-                <h3 className="font-semibold  mb-3 text-sm uppercase tracking-wide">
-                  {m("category")}
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {template.categories.map((cat, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 px-3 py-1 rounded-md text-xs font-medium border border-blue-200 hover:bg-blue-100 transition-colors"
-                    >
-                      #{cat}
-                    </span>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            {/* Tags */}
+            {template.categories && template.categories.length > 0 && (
+              <Card>
+                <CardContent className="py-4">
+                  <h3 className="font-semibold  mb-3 text-sm uppercase tracking-wide">
+                    {m("category")}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {template.categories.map((cat, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 px-3 py-1 rounded-md text-xs font-medium border border-blue-200 hover:bg-blue-100 transition-colors"
+                      >
+                        #{cat}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
         </div>
@@ -178,11 +178,10 @@ export function ReferenceFullviewModal({
               <Save className="mr-2 h-4 w-4" />
             ),
             variant: "outline",
-            className: `px-6 border-2 font-medium transition-all ${
-              isSaved
+            className: `px-6 border-2 font-medium transition-all ${isSaved
                 ? "border-red-200 text-red-600 hover:bg-red-50"
                 : "border-gray-200 hover:bg-gray-50"
-            }`,
+              }`,
           }}
         />
       </DialogContent>

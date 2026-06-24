@@ -11,6 +11,7 @@ import { WelcomeSection } from "@/components/base/welcome-section";
 import { useTranslations } from "next-intl";
 import { AvatarSection } from "./(components)/avatar-section";
 
+
 export default function KnowledgeBase() {
   const searchParams = useSearchParams();
   const openRssModal = searchParams.get("openRssModal") === "true";

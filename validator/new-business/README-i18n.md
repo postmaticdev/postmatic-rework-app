@@ -54,10 +54,9 @@ export function MyComponent() {
 
 ### Pesan I18n yang Tersedia
 
-Pesan validasi tersedia dalam 3 bahasa:
+Pesan validasi tersedia dalam 2 bahasa:
 - **Indonesia** (`id.json`) - Default
 - **Inggris** (`en.json`)
-- **Jepang** (`jp.json`)
 
 Semua pesan validasi Zod tersimpan dalam namespace:
 - `businessKnowledge.*` - Untuk business knowledge validation

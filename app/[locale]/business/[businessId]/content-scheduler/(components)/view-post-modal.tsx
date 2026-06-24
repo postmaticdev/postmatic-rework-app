@@ -182,8 +182,8 @@ export function ViewPostModal({
                     key={platform.id}
                     variant="outline"
                     className={`h-10 justify-start space-x-2 ${isSelectedPlatform(platform.id)
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "hover:bg-muted"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "hover:bg-muted"
                       }`}
                     disabled={isDisabledPlatform(platform.id)}
                     onClick={() => handleSelectUnpostedPlatform(platform.id)}

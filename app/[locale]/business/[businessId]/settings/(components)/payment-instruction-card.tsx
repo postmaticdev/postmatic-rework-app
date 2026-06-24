@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { formatIdr } from "@/helper/formatter";
 import { cn } from "@/lib/utils";
-import { Copy, QrCode, RefreshCw } from "lucide-react";
+import { Copy, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -140,6 +140,8 @@ export function PaymentInstructionCard({
   );
   const shouldShowPaymentInstruction =
     hasPaymentInstruction && (isPending || persistPaymentMedia);
+  const shouldShowQrCodeImage = Boolean(qrCodeAction) && isPending;
+  const shouldShowQrisLogo = !isPending && (Boolean(qrCodeAction) || isQrisMethod(method));
   const instructionBoxClassName =
     "grid h-28 w-28 shrink-0 place-items-center self-start rounded-md border bg-white p-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:h-56 sm:w-56 sm:p-3";
 
@@ -187,7 +189,7 @@ export function PaymentInstructionCard({
         </div>
 
         {shouldShowPaymentInstruction ? (
-          qrCodeAction ? (
+          shouldShowQrCodeImage ? (
             <a
               href={qrCodeAction.value}
               target="_blank"
@@ -206,7 +208,9 @@ export function PaymentInstructionCard({
             </a>
           ) : (
             <div className={instructionBoxClassName}>
-              {virtualAccountAction ? (
+              {shouldShowQrisLogo ? (
+                <QrisLogoPlaceholder />
+              ) : virtualAccountAction ? (
                 <VirtualAccountLogo method={method} />
               ) : textPaymentAction ? (
                 <PaymentTextInstruction
@@ -225,7 +229,11 @@ export function PaymentInstructionCard({
           )
         ) : (
           <div className={instructionBoxClassName}>
-            <PaymentMethodVisual method={method} />
+            {shouldShowQrisLogo ? (
+              <QrisLogoPlaceholder />
+            ) : (
+              <PaymentMethodVisual method={method} />
+            )}
           </div>
         )}
       </div>
@@ -287,33 +295,19 @@ function VirtualAccountLogo({ method }: { method?: string }) {
 }
 
 function PaymentMethodVisual({ method }: { method?: string }) {
-  if (isQrisMethod(method)) {
-    return <QrisLogoPlaceholder />;
-  }
-
   return <VirtualAccountLogo method={method} />;
 }
 
 function QrisLogoPlaceholder() {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center rounded-md border border-muted bg-muted/10 p-3">
-      <div className="grid grid-cols-3 gap-1 rounded-md bg-foreground/5 p-2">
-        {Array.from({ length: 9 }).map((_, index) => (
-          <div
-            key={index}
-            className={cn(
-              "h-4 w-4 rounded-[2px] sm:h-6 sm:w-6",
-              index % 2 === 0 ? "bg-foreground" : "bg-foreground/15"
-            )}
-          />
-        ))}
-      </div>
-      <div className="mt-3 flex items-center gap-2 rounded-full bg-muted px-3 py-1">
-        <QrCode className="h-4 w-4 text-foreground" />
-        <span className="text-xs font-semibold tracking-wide text-foreground sm:text-sm">
-          QRIS
-        </span>
-      </div>
+    <div className="grid h-24 w-24 place-items-center rounded-md border border-muted bg-muted/10 p-2 sm:h-52 sm:w-52 sm:p-4">
+      <Image
+        src="/qrislogo.png"
+        alt="Logo QRIS"
+        width={180}
+        height={180}
+        className="h-auto w-full object-contain"
+      />
     </div>
   );
 }

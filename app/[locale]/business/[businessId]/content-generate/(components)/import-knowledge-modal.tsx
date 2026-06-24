@@ -45,6 +45,7 @@ export function ImportKnowledgeModal({
   avatarImageOptions,
 }: ImportKnowledgeModalProps) {
   const avatarT = useTranslations("avatarKnowledge");
+  const t = useTranslations("generationPanel");
   const [selectedKnowledgeImages, setSelectedKnowledgeImages] = useState<
     string[]
   >([]);
@@ -68,17 +69,15 @@ export function ImportKnowledgeModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Import from Knowledge</DialogTitle>
-          <DialogDescription>
-            Import Photos from your knowledge base
-          </DialogDescription>
+          <DialogTitle>{t("importFromKnowledgeTitle")}</DialogTitle>
+          <DialogDescription>{t("importFromKnowledgeDescription")}</DialogDescription>
         </DialogHeader>
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
           <div className="flex flex-row justify-between overflow-x-auto rounded-lg bg-card p-1">
             {([
-              { id: "logo", label: "Logo" },
-              { id: "product", label: "Product" },
-              { id: "avatar", label: "Avatar" },
+              { id: "logo", label: t("knowledgeTabLogo") },
+              { id: "product", label: t("knowledgeTabProduct") },
+              { id: "avatar", label: t("knowledgeTabAvatar") },
             ] as const).map((tab) => (
               <Button
                 key={tab.id}
@@ -107,9 +106,9 @@ export function ImportKnowledgeModal({
           ) : currentKnowledgeOptions.length === 0 ? (
             <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
               {activeKnowledgeTab === "logo"
-                ? "No logo found. Add business logo first."
+                ? t("noLogoFound")
                 : activeKnowledgeTab === "product"
-                ? "No product images found. Add product images first."
+                ? t("noProductImagesFound")
                 : avatarT("notAvailableDescription")}
             </div>
           ) : (
@@ -160,7 +159,7 @@ export function ImportKnowledgeModal({
         </div>
         <DialogFooterWithTwoButtons
           primaryButton={{
-            message: "Add Selected",
+            message: t("addSelected"),
             onClick: () => {
               if (selectedKnowledgeImages.length === 0) return;
               onAddSelected(selectedKnowledgeImages);
@@ -171,7 +170,7 @@ export function ImportKnowledgeModal({
                 : "",
           }}
           secondaryButton={{
-            message: "Cancel",
+            message: t("cancel"),
             onClick: onClose,
             variant: "outline",
           }}

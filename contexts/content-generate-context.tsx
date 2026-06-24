@@ -27,7 +27,6 @@ import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { RssArticleRes } from "@/models/api/library/rss.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
 import {
-  isPostmaticVisionModel,
   pickPostmaticVisionModel,
 } from "@/models/api/content/ai-model";
 import {
@@ -52,7 +51,6 @@ import {
   useProductKnowledgeGetAll,
   useProductKnowledgeGetStatus,
 } from "@/services/knowledge.api";
-import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
 import {
   useLibraryRSSArticle,
   useLibraryTemplateDeleteSaved,
@@ -60,8 +58,10 @@ import {
   useCreatorImageTemplates,
   useLibraryTemplateGetSaved,
   useLibraryTemplateSave,
+  useLibraryTemplateSaveOwnBusinessReferenceImage,
   useLibraryTemplateGetProductCategory,
 } from "@/services/library.api";
+import { useBusinessPurchaseGetHistory } from "@/services/purchase.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRouter, usePathname } from "@/i18n/navigation";
@@ -99,10 +99,17 @@ export interface Template {
 
 export type ContentMode = "knowledge" | "regenerate" | "mask" | "rss";
 export type TabMode = "knowledge" | "rss";
+export interface SelectedAvatarOption {
+  id: string;
+  imageUrl: string;
+  title: string;
+  source: "knowledge" | "browse";
+}
 
 interface BasicForm extends GenerateContentBase {
   productName: string;
   productImage: string;
+  selectedAvatars: SelectedAvatarOption[];
   customCategory: string;
   customDesignStyle: string;
   referenceImageName: string | null;
@@ -193,6 +200,7 @@ interface ContentGenerateContext {
   schedulerChatSeed: {
     productImage: string | null;
     referenceImage: string | null;
+    avatarImages: string[];
     productKnowledgeId: string | null;
   } | null;
   onSelectHistory: (
@@ -221,9 +229,14 @@ interface ContentGenerateContext {
 
   //   // HANDLER
   onSaveUnsave: (item: Template) => void;
+  onSaveUploadedReference: (payload: {
+    imageUrl: string;
+    name: string;
+  }) => Promise<void>;
   onConfirmUnsave: () => void;
   onCloseUnsaveModal: () => void;
   onSelectProduct: (item: ProductKnowledgeRes | null) => void;
+  onSelectAvatars: (items: SelectedAvatarOption[]) => void;
   onSelectReferenceImage: (
     imageUrl: string,
     imageName: string | null,
@@ -278,8 +291,10 @@ const initialFormBasic: ContentGenerateContext["form"]["basic"] = {
   prompt: "",
   ratio: "1:1",
   referenceImage: null,
+  additionalImages: [],
   productName: "",
   productImage: "",
+  selectedAvatars: [],
   customCategory: "",
   customDesignStyle: "",
   referenceImageName: null,
@@ -618,6 +633,7 @@ function buildSchedulerFallbackChatJob({
   imageUrl,
   productImage,
   referenceImage,
+  avatarImages = [],
   model,
   ratio,
   imageSize,
@@ -631,6 +647,7 @@ function buildSchedulerFallbackChatJob({
   imageUrl: string;
   productImage?: string | null;
   referenceImage?: string | null;
+  avatarImages?: string[];
   model: string;
   ratio: ValidRatio;
   imageSize?: string | null;
@@ -654,7 +671,7 @@ function buildSchedulerFallbackChatJob({
       prompt: schedulerFirstGeneratePrompt,
       caption: caption || "",
       chatSessionId: chatSessionId ?? null,
-      additionalImages: [],
+      additionalImages: avatarImages,
       systemBubbleId: null,
       category: "",
       designStyle: "",
@@ -686,6 +703,30 @@ function buildSchedulerFallbackChatJob({
         }
       : null,
   } satisfies JobData;
+}
+
+function mapSelectedAvatarsFromImages(
+  images: string[] | undefined,
+  options?: {
+    referenceImage?: string | null;
+    productImages?: string[];
+  }
+): SelectedAvatarOption[] {
+  const productImages = options?.productImages || [];
+
+  return (images || [])
+    .filter(
+      (imageUrl) =>
+        Boolean(imageUrl) &&
+        imageUrl !== options?.referenceImage &&
+        !productImages.includes(imageUrl)
+    )
+    .map((imageUrl, index) => ({
+      id: `history-avatar-${index}-${imageUrl}`,
+      imageUrl,
+      title: `Avatar ${index + 1}`,
+      source: "browse" as const,
+    }));
 }
 
 const ContentGenerateContext = createContext<
@@ -740,9 +781,22 @@ export const ContentGenerateProvider = ({
   );
   const { data: aiModelsRes, isLoading: isLoadingAiModels } =
     useContentAiModelGetAiModels(contentGenerateFormDataEnabled);
-  const { data: subscriptionTierRes } = useSubscribtionGetSubscription(
-    businessId
+  const billingHistoryFilterQuery = useMemo<Partial<FilterQuery>>(
+    () => ({
+      page: 1,
+      limit: 1000,
+      sort: "desc",
+      sortBy: "createdAt",
+      category: "",
+      search: "",
+    }),
+    []
   );
+  const {
+    data: billingHistoryRes,
+    isLoading: isLoadingBillingHistory,
+    isFetching: isFetchingBillingHistory,
+  } = useBusinessPurchaseGetHistory(businessId, billingHistoryFilterQuery);
   const { refetch: refetchRouteChat } = useContentImagePostChatGetById(
     businessId,
     routeChatSessionId,
@@ -841,6 +895,7 @@ export const ContentGenerateProvider = ({
   const [schedulerChatSeed, setSchedulerChatSeed] = useState<{
     productImage: string | null;
     referenceImage: string | null;
+    avatarImages: string[];
     productKnowledgeId: string | null;
   } | null>(null);
   const syncedSchedulerImageRef = useRef<string | null>(null);
@@ -855,17 +910,23 @@ export const ContentGenerateProvider = ({
   // AI Models state
   const [selectedAiModel, setSelectedAiModel] = useState<AiModelRes | null>(null);
   const hasManualAiModelSelectionRef = useRef(false);
+  const hasSuccessfulBillingPayment = useMemo(
+    () =>
+      (billingHistoryRes?.data?.data || []).some(
+        (transaction) => transaction.status === "Success"
+      ),
+    [billingHistoryRes?.data?.data]
+  );
+  const hasResolvedBillingHistory =
+    Boolean(billingHistoryRes) ||
+    (!isLoadingBillingHistory && !isFetchingBillingHistory);
   const isFreeUser = useMemo(() => {
-    const subscriptionResponse = subscriptionTierRes?.data;
-    const subscription = subscriptionResponse?.data?.subscription;
+    if (!hasResolvedBillingHistory) {
+      return true;
+    }
 
-    return Boolean(
-      subscriptionResponse?.responseMessage === "SUBSCRIPTION_NOT_AVAILABLE" ||
-        !subscription ||
-        (subscription.productType === "image_token" &&
-          subscription.productName === "Token Based")
-    );
-  }, [subscriptionTierRes?.data]);
+    return !hasSuccessfulBillingPayment;
+  }, [hasResolvedBillingHistory, hasSuccessfulBillingPayment]);
   const freeUserAllowedModel = useMemo(
     () => pickPostmaticVisionModel(aiModelsRes?.data?.data || []),
     [aiModelsRes?.data?.data]
@@ -873,38 +934,49 @@ export const ContentGenerateProvider = ({
 
   // Set default AI model when models are loaded
   useEffect(() => {
-    if (
-      aiModelsRes?.data?.data &&
-      aiModelsRes.data.data.length > 0 &&
-      (!selectedAiModel ||
-        (!hasManualAiModelSelectionRef.current &&
-          isFreeUser &&
-          !isPostmaticVisionModel(selectedAiModel.name)))
-    ) {
-      const defaultModel = pickPreferredAiModel(
-        aiModelsRes.data.data,
-        isFreeUser
-      );
-      if (!defaultModel) return;
-      const defaultModelRatios = normalizeValidRatios(defaultModel.validRatios);
-      setSelectedAiModel(defaultModel);
-      setFormBasic(prev => ({
-        ...prev,
-        model: defaultModel.name,
-        ratio: (defaultModelRatios[0] || prev.ratio || fallbackRatios[0]) as ValidRatio,
-        imageSize: defaultModel.imageSizes?.[0] || null,
-      }));
+    if (!hasResolvedBillingHistory || !aiModelsRes?.data?.data?.length) {
+      return;
     }
-  }, [aiModelsRes, isFreeUser, selectedAiModel]);
+
+    const defaultModel = pickPreferredAiModel(aiModelsRes.data.data, isFreeUser);
+    if (!defaultModel) return;
+
+    const shouldApplyDefault =
+      !selectedAiModel ||
+      (!hasManualAiModelSelectionRef.current &&
+        selectedAiModel.name !== defaultModel.name);
+
+    if (!shouldApplyDefault) {
+      return;
+    }
+
+    const defaultModelRatios = normalizeValidRatios(defaultModel.validRatios);
+    setSelectedAiModel(defaultModel);
+    setFormBasic((prev) => ({
+      ...prev,
+      model: defaultModel.name,
+      ratio: (defaultModelRatios[0] || prev.ratio || fallbackRatios[0]) as ValidRatio,
+      imageSize: defaultModel.imageSizes?.[0] || null,
+    }));
+  }, [aiModelsRes, hasResolvedBillingHistory, isFreeUser, selectedAiModel]);
 
   // Get valid ratios from selected model
   const validRatios = useMemo(() => {
+    if (!hasResolvedBillingHistory) {
+      return normalizeValidRatios(selectedAiModel?.validRatios);
+    }
+
     const model =
       selectedAiModel ||
       pickPreferredAiModel(aiModelsRes?.data?.data || [], isFreeUser);
 
     return normalizeValidRatios(model?.validRatios);
-  }, [aiModelsRes?.data?.data, isFreeUser, selectedAiModel]);
+  }, [
+    aiModelsRes?.data?.data,
+    hasResolvedBillingHistory,
+    isFreeUser,
+    selectedAiModel,
+  ]);
 
   const onSelectHistory = useCallback((
     item: JobData | null,
@@ -945,6 +1017,14 @@ export const ContentGenerateProvider = ({
         productKnowledgeId: item?.input?.productKnowledgeId || "",
         productName: item?.product?.name || "",
         productImage: activeImageUrl || "",
+        selectedAvatars: mapSelectedAvatarsFromImages(
+          item?.input?.additionalImages,
+          {
+            referenceImage: item?.input?.referenceImage,
+            productImages: item?.product?.images || [],
+          }
+        ),
+        additionalImages: item?.input?.additionalImages || [],
         category: item?.input?.category || "other",
         customCategory: item?.input?.category || "",
         designStyle: item?.input?.designStyle || "",
@@ -1027,6 +1107,14 @@ export const ContentGenerateProvider = ({
         productKnowledgeId: item?.input?.productKnowledgeId || "",
         productName: item?.product?.name || "",
         productImage: imageUrl,
+        selectedAvatars: mapSelectedAvatarsFromImages(
+          item?.input?.additionalImages,
+          {
+            referenceImage: item?.input?.referenceImage,
+            productImages: item?.product?.images || [],
+          }
+        ),
+        additionalImages: item?.input?.additionalImages || [],
         category: item?.input?.category || "other",
         customCategory: item?.input?.category || "",
         designStyle: item?.input?.designStyle || "",
@@ -1269,6 +1357,7 @@ export const ContentGenerateProvider = ({
       const restoredSeed = {
         productImage: seedProductImage || null,
         referenceImage: seedReferenceImage || null,
+        avatarImages: routeDraftMarker?.avatarImages || [],
         productKnowledgeId: productKnowledgeId || null,
       };
 
@@ -1295,6 +1384,7 @@ export const ContentGenerateProvider = ({
               imageUrl: selectedHistoryImage || "",
               productImage: seedProductImage,
               referenceImage: seedReferenceImage,
+              avatarImages: routeDraftMarker?.avatarImages || [],
               model: form.basic.model,
               ratio: form.basic.ratio,
               imageSize: form.basic.imageSize,
@@ -1373,6 +1463,10 @@ export const ContentGenerateProvider = ({
         productKnowledgeId,
         productImage: seedProductImage || prev.productImage,
         referenceImage: seedReferenceImage || prev.referenceImage,
+        selectedAvatars: mapSelectedAvatarsFromImages(
+          routeDraftMarker?.avatarImages
+        ),
+        additionalImages: routeDraftMarker?.avatarImages || [],
         caption: restoredCaption,
         prompt: "",
       }));
@@ -1401,6 +1495,7 @@ export const ContentGenerateProvider = ({
       const restoredSeed = {
         productImage: fallbackProductImage || null,
         referenceImage: fallbackReferenceImage || null,
+        avatarImages: routeDraftMarker?.avatarImages || [],
         productKnowledgeId: productKnowledgeId || null,
       };
       const fallbackJob = buildSchedulerFallbackChatJob({
@@ -1411,6 +1506,7 @@ export const ContentGenerateProvider = ({
         imageUrl: selectedHistoryImage,
         productImage: fallbackProductImage,
         referenceImage: fallbackReferenceImage,
+        avatarImages: routeDraftMarker?.avatarImages || [],
         model: form.basic.model,
         ratio: form.basic.ratio,
         imageSize: form.basic.imageSize,
@@ -1427,6 +1523,10 @@ export const ContentGenerateProvider = ({
         productKnowledgeId,
         productImage: fallbackProductImage || prev.productImage,
         referenceImage: fallbackReferenceImage || prev.referenceImage,
+        selectedAvatars: mapSelectedAvatarsFromImages(
+          routeDraftMarker?.avatarImages
+        ),
+        additionalImages: routeDraftMarker?.avatarImages || [],
         caption: restoredCaption,
         prompt: "",
       }));
@@ -1888,6 +1988,8 @@ export const ContentGenerateProvider = ({
    */
 
   const mSave = useLibraryTemplateSave();
+  const mSaveOwnBusinessReference =
+    useLibraryTemplateSaveOwnBusinessReferenceImage();
   const mUnsave = useLibraryTemplateDeleteSaved();
   const onSaveUnsave = async (item: Template) => {
     try {
@@ -1958,6 +2060,14 @@ export const ContentGenerateProvider = ({
     }
   };
 
+  const onSelectAvatars = (items: SelectedAvatarOption[]) => {
+    form.setBasic({
+      ...form.basic,
+      selectedAvatars: items,
+      additionalImages: items.map((item) => item.imageUrl),
+    });
+  };
+
   const onSelectReferenceImage = (
     imageUrl: string,
     imageName: string | null,
@@ -1983,6 +2093,43 @@ export const ContentGenerateProvider = ({
         generationPanelElement.scrollIntoView({ behavior: "smooth" });
       }
     }, 100);
+  };
+
+  const onSaveUploadedReference = async ({
+    imageUrl,
+    name,
+  }: {
+    imageUrl: string;
+    name: string;
+  }) => {
+    const res = await mSaveOwnBusinessReference.mutateAsync({
+      businessId,
+      formData: {
+        imageUrl,
+        name,
+      },
+    });
+
+    form.setBasic({
+      ...form.basic,
+      referenceImage: imageUrl,
+      referenceImageName: name,
+      referenceImagePublisher: null,
+    });
+    setSelectedTemplate(null);
+    setSavedQuery((prev) => ({
+      ...prev,
+      page: 1,
+    }));
+
+    showToast("success", res.data.responseMessage);
+
+    setTimeout(() => {
+      const selectedRef = document.getElementById("selected-reference-image");
+      if (selectedRef) {
+        selectedRef.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 500);
   };
 
   const onResetAdvance = () => {
@@ -2137,11 +2284,18 @@ export const ContentGenerateProvider = ({
       replyBubbleChatId && form.basic.referenceImageName === "Selected image"
         ? selectedGeneratedImageUrl || form.basic.referenceImage || null
         : null;
+    const selectedAvatarImages = form.basic.selectedAvatars.map(
+      (avatar) => avatar.imageUrl
+    );
     const chatAdditionalImages = Array.from(
       new Set(
         (
           isFirstSchedulerBubble
-            ? [form.basic.referenceImage, ...additionalImages]
+            ? [
+                form.basic.referenceImage,
+                ...selectedAvatarImages,
+                ...additionalImages,
+              ]
             : additionalImages
         ).filter(Boolean) as string[]
       )
@@ -2227,6 +2381,7 @@ export const ContentGenerateProvider = ({
       caption: form.basic.caption || "",
       productImage: preservedProductImage,
       referenceImage: preservedReferenceImage,
+      avatarImages: selectedAvatarImages,
       chatSessionId: chatSessionId,
       businessProductId: form.basic.productKnowledgeId || null,
       createdAt: now,
@@ -2239,6 +2394,7 @@ export const ContentGenerateProvider = ({
     setSchedulerChatSeed({
       productImage: preservedProductImage,
       referenceImage: preservedReferenceImage,
+      avatarImages: selectedAvatarImages,
       productKnowledgeId: form.basic.productKnowledgeId || null,
     });
     setHistories((prev) => upsertJobIntoHistory(prev, baseChatJob));
@@ -2334,6 +2490,7 @@ export const ContentGenerateProvider = ({
       caption: form.basic.caption || "",
       productImage: preservedProductImage,
       referenceImage: preservedReferenceImage,
+      avatarImages: selectedAvatarImages,
       chatSessionId: chatSessionId,
       businessProductId: form.basic.productKnowledgeId || null,
       createdAt: chatJob.createdAt || now,
@@ -2392,6 +2549,9 @@ export const ContentGenerateProvider = ({
         overrides?.imageSize !== undefined
           ? overrides.imageSize
           : form.basic.imageSize;
+      const selectedAvatarImages = form.basic.selectedAvatars.map(
+        (avatar) => avatar.imageUrl
+      );
       const handledBySchedulerChat = await submitSchedulerChatGenerate(
         effMode,
         overrides?.additionalImages || [],
@@ -2421,6 +2581,7 @@ export const ContentGenerateProvider = ({
               prompt: form.basic.prompt,
               productKnowledgeId: form.basic.productKnowledgeId,
               referenceImage: form.basic.referenceImage,
+              additionalImages: selectedAvatarImages,
               model: effectiveModel,
               imageSize: effectiveImageSize,
             },
@@ -2442,6 +2603,7 @@ export const ContentGenerateProvider = ({
               ratio: effectiveRatio,
               prompt: form.basic.prompt,
               caption: form.basic.caption,
+              additionalImages: selectedAvatarImages,
               category:
                 form.basic.category === "other"
                   ? form.basic.customCategory
@@ -2495,6 +2657,7 @@ export const ContentGenerateProvider = ({
                   : form.basic.category,
               advancedGenerate: form.advance,
               rss: form.rss,
+              additionalImages: selectedAvatarImages,
               model: effectiveModel,
               imageSize: effectiveImageSize,
             },
@@ -2516,6 +2679,7 @@ export const ContentGenerateProvider = ({
               ratio: effectiveRatio,
               prompt: form.basic.prompt,
               caption: form.basic.caption,
+              additionalImages: selectedAvatarImages,
               category:
                 form.basic.category === "other"
                   ? form.basic.customCategory
@@ -2574,6 +2738,9 @@ export const ContentGenerateProvider = ({
               advancedGenerate: form.advance,
               referenceImage: regenerateReferenceImage,
               prompt: regeneratePrompt,
+              additionalImages:
+                selectedHistory.input.additionalImages ||
+                selectedAvatarImages,
               ratio: effectiveRatio,
               model: effectiveModel,
               imageSize: effectiveImageSize,
@@ -3020,6 +3187,15 @@ export const ContentGenerateProvider = ({
               currentDraftMarker?.referenceImage ||
               selectedHistory.input.referenceImage ||
               null,
+            avatarImages:
+              currentDraftMarker?.avatarImages ||
+              mapSelectedAvatarsFromImages(
+                selectedHistory.input.additionalImages,
+                {
+                  referenceImage: selectedHistory.input.referenceImage,
+                  productImages: selectedHistory.product.images || [],
+                }
+              ).map((avatar) => avatar.imageUrl),
             chatSessionId: activeChatSessionId,
             businessProductId: selectedHistory.input.productKnowledgeId || null,
             createdAt: latestJob.createdAt || new Date().toISOString(),
@@ -3081,7 +3257,7 @@ export const ContentGenerateProvider = ({
     models: aiModelsRes?.data?.data || [],
     selectedModel: selectedAiModel,
     validRatios,
-    isLoading: isLoadingAiModels,
+    isLoading: isLoadingAiModels || !hasResolvedBillingHistory,
     isFreeUser,
     freeUserAllowedModel,
   };
@@ -3100,9 +3276,11 @@ export const ContentGenerateProvider = ({
         unsaveModal,
         setUnsaveModal,
         onSaveUnsave,
+        onSaveUploadedReference,
         onConfirmUnsave,
         onCloseUnsaveModal,
         onSelectProduct,
+        onSelectAvatars,
         rss,
         productKnowledges,
         onSelectReferenceImage,

@@ -251,6 +251,9 @@ export function PreviewPanel() {
             selectedHistory.input.referenceImage ||
             form.basic.referenceImage ||
             null,
+          avatarImages:
+            currentDraftMarker?.avatarImages ||
+            form.basic.selectedAvatars.map((avatar) => avatar.imageUrl),
           chatSessionId:
             schedulerDraftPost?.chatSessionId ?? currentDraftMarker?.chatSessionId ?? null,
           businessProductId:
@@ -285,6 +288,7 @@ export function PreviewPanel() {
       date,
       form.basic.productImage,
       form.basic.referenceImage,
+      form.basic.selectedAvatars,
       mEditSchedulePost,
       scheduleDate,
       scheduleTime,

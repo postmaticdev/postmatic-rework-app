@@ -94,6 +94,7 @@ type NewImagePost = {
   mode: string;
   ratio: string;
   additionalPrompt: string | null;
+  additionalImages?: string[];
   designStyle: string | null;
   category: string | null;
   referenceImageUrl: string | null;
@@ -341,6 +342,7 @@ const mapImagePostToJobGroup = (post: NewImagePost): GetAllJob => {
           ratio: post.ratio as never,
           prompt: post.additionalPrompt,
           caption,
+          additionalImages: post.additionalImages || [],
           category: post.category || "",
           designStyle: post.designStyle || "",
           referenceImage: post.referenceImageUrl,
@@ -514,6 +516,7 @@ const toImagePostPayload = async (
     appGenerativeImageModelId: modelId,
     numOfImages: 1,
     additionalPrompt: data.prompt || "",
+    additionalImages: data.additionalImages || [],
     designStyle: data.designStyle || "",
     category: data.category || "",
     referenceImage: data.referenceImage || "",
@@ -594,7 +597,12 @@ const draftService = {
     >;
   },
 
-  directPostFromDraft: (businessId: string, formData: DirectPostContentPld) => {
+  directPostFromDraft: (
+    _businessId: string,
+    _formData: DirectPostContentPld
+  ) => {
+    void _businessId;
+    void _formData;
     return Promise.resolve({
       data: {
         metaData: { code: 200, message: "OK" },
@@ -953,13 +961,25 @@ const postedService = {
     >;
   },
   repost: (businessId: string, formData: RepostContentPld) => {
-    return Promise.resolve({
-      data: {
-        metaData: { code: 200, message: "OK" },
-        responseMessage: "REPOST_NOT_AVAILABLE",
-        data: null,
-      },
-    }) as unknown as ReturnType<typeof api.post<BaseResponse<PostedImageRes>>>;
+    return api
+      .post<BaseResponse<NewImagePostUploadHistory>>(
+        `/generative-content/image-post-common/${businessId}/direct-post`,
+        {
+          imagePostScheduleId: formData.imagePostScheduleId,
+          platforms: formData.platforms,
+        }
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: res.data.data
+            ? mapUploadHistoryToPostedContent(res.data.data, businessId)
+            : null,
+        },
+      })) as unknown as ReturnType<
+      typeof api.post<BaseResponse<PostedImageRes>>
+    >;
   },
 };
 

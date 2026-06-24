@@ -14,6 +14,7 @@ import {
   useContentDraftGetAllDraftImage,
   useContentDraftSetReadyToPost,
   useContentPostedGetAllPostedImage,
+  useContentPostedRepost,
   useContentSchedulerManualAddToQueue,
   useContentPersonalCreate,
 } from "@/services/content/content.api";
@@ -184,6 +185,7 @@ export function ContentLibrary({
   const mDirectPostFromDraft = useContentDraftDirectPostFromDraft();
   const mSchedulePost = useContentSchedulerManualAddToQueue();
   const mAddToQueue = useContentDraftSetReadyToPost();
+  const mRepostPostedContent = useContentPostedRepost(businessId);
   const mCreatePersonal = useContentPersonalCreate();
 
   const [modalPost, setModalPost] = useState(false);
@@ -257,13 +259,14 @@ export function ContentLibrary({
 
   const handleRepostNow = async () => {
     try {
-      const res = await mDirectPostFromDraft.mutateAsync({
-        businessId,
-        formData: {
-          caption: formDataView.data.caption,
-          generatedImageContentId: formDataView.data.id,
-          platforms: formDataView.selectedPlatforms,
-        },
+      const imagePostScheduleId = Number(formDataView.data.id);
+      if (!Number.isFinite(imagePostScheduleId)) {
+        return;
+      }
+
+      const res = await mRepostPostedContent.mutateAsync({
+        imagePostScheduleId,
+        platforms: formDataView.selectedPlatforms,
       });
       showToast("success", res.data.responseMessage);
       onCloseModalView();

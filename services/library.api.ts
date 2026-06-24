@@ -11,6 +11,8 @@ import {
 } from "@/models/api/library/rss.type";
 import {
   PublishedTemplateRes,
+  SaveOwnBusinessReferenceImagePld,
+  SaveOwnBusinessReferenceImageRes,
   SavedCreatorImageMutationRes,
   SavedTemplatePld,
   SavedTemplateRes,
@@ -328,6 +330,18 @@ const templateService = {
       { creatorImageId: Number(formData.templateImageContentId) }
     );
   },
+  saveOwnBusinessReferenceImage: (
+    businessId: string,
+    formData: SaveOwnBusinessReferenceImagePld
+  ) => {
+    return api.post<BaseResponse<SaveOwnBusinessReferenceImageRes>>(
+      `/creator/business-creator-image/${businessId}/business-reference`,
+      {
+        imageUrl: formData.imageUrl,
+        name: formData.name,
+      }
+    );
+  },
   getSaved: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     const { productCategory, category, ...rest } = filterQuery || {};
 
@@ -417,6 +431,31 @@ export const useLibraryTemplateSave = () => {
       businessId: string;
       formData: SavedTemplatePld;
     }) => templateService.saveTemplate(businessId, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["libraryTemplateSaved"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["libraryTemplatePublished"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["creatorDesigns"],
+      });
+    },
+  });
+};
+
+export const useLibraryTemplateSaveOwnBusinessReferenceImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      businessId,
+      formData,
+    }: {
+      businessId: string;
+      formData: SaveOwnBusinessReferenceImagePld;
+    }) =>
+      templateService.saveOwnBusinessReferenceImage(businessId, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["libraryTemplateSaved"],

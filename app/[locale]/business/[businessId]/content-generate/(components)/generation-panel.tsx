@@ -8,9 +8,11 @@ import { showToast } from "@/helper/show-toast";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { helperService } from "@/services/helper.api";
-import { useAppAvatarGetAll } from "@/services/app-avatar.api";
 import { useBusinessGetById } from "@/services/business.api";
-import { useProductKnowledgeGetAll } from "@/services/knowledge.api";
+import {
+  useBusinessAvatarGetAll,
+  useProductKnowledgeGetAll,
+} from "@/services/knowledge.api";
 import {
   ImportKnowledgeModal,
   KnowledgeImageOption,
@@ -39,6 +41,7 @@ import { GenerateFormBasic } from "./generate-form-basic";
 import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { SelectedAvatars } from "./selected-avatars";
 
 export function GenerationPanel() {
   const { businessId } = useParams() as { businessId: string };
@@ -80,8 +83,8 @@ export function GenerationPanel() {
     },
     Boolean(businessId)
   );
-  const { data: appAvatarData, isLoading: isLoadingAppAvatars } =
-    useAppAvatarGetAll({
+  const { data: businessAvatarData, isLoading: isLoadingBusinessAvatars } =
+    useBusinessAvatarGetAll(businessId, {
       limit: 100,
       page: 1,
       sortBy: "name",
@@ -135,11 +138,11 @@ export function GenerationPanel() {
       {
         id: "business-logo",
         imageUrl: businessLogo,
-        sourceLabel: "Business Logo",
-        title: "Business Logo",
+        sourceLabel: t("knowledgeTabLogo"),
+        title: t("logo"),
       },
     ];
-  }, [businessData?.data?.data?.logo]);
+  }, [businessData?.data?.data?.logo, t]);
 
   const productImageOptions = useMemo<KnowledgeImageOption[]>(() => {
     const products = productKnowledgeData?.data?.data || [];
@@ -153,24 +156,24 @@ export function GenerationPanel() {
         options.push({
           id: `product-${product.id}-${imageIndex}`,
           imageUrl,
-          sourceLabel: "Product",
+          sourceLabel: t("knowledgeTabProduct"),
           title: product.name,
         });
       });
     });
 
     return options;
-  }, [productKnowledgeData?.data?.data]);
+  }, [productKnowledgeData?.data?.data, t]);
   const avatarImageOptions = useMemo<KnowledgeImageOption[]>(() => {
-    const avatars = appAvatarData?.data?.data || [];
+    const avatars = businessAvatarData?.data?.data || [];
 
     return avatars.map((avatar) => ({
       id: `avatar-${avatar.id}`,
       imageUrl: avatar.imageUrl,
-      sourceLabel: "Avatar",
+      sourceLabel: t("knowledgeTabAvatar"),
       title: avatar.name,
     }));
-  }, [appAvatarData?.data?.data]);
+  }, [businessAvatarData?.data?.data, t]);
 
   const handleRegenerate = () => {
     if (
@@ -290,12 +293,17 @@ export function GenerationPanel() {
                 ? schedulerChatSeed?.productImage ||
                 null
                 : null;
+              const initialAvatarImages = isInitialSchedulerBubble
+                ? schedulerChatSeed?.avatarImages || []
+                : [];
               const promptImages = isInitialSchedulerBubble
                 ? Array.from(
                   new Set(
                     [
                       initialReferenceImage,
                       initialProductImage,
+                      ...initialAvatarImages,
+                      ...additionalPromptImages,
                     ].filter(Boolean) as string[]
                   )
                 )
@@ -559,7 +567,7 @@ export function GenerationPanel() {
           logoImageOptions={logoImageOptions}
           productImageOptions={productImageOptions}
           avatarImageOptions={avatarImageOptions}
-          isLoadingAvatars={isLoadingAppAvatars}
+          isLoadingAvatars={isLoadingBusinessAvatars}
         />
       </>
     );
@@ -572,6 +580,7 @@ export function GenerationPanel() {
 
 
           <SelectedReferenceImage />
+          <SelectedAvatars />
           <GenerateFormBasic />
 
           {form.rss ? (

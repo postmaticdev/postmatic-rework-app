@@ -22,13 +22,6 @@ const MODEL_RESTRICTION_COPY: Record<string, ModelRestrictionCopy> = {
     topUp: "Top up now",
     useDefault: "Use the default model",
   },
-  jp: {
-    title: "無料ユーザー向けのモデル制限",
-    description:
-      "無料ユーザーは {modelName} モデルのみ使用できます。他のモデルを試すには今すぐトップアップしてください。",
-    topUp: "今すぐトップアップ",
-    useDefault: "通常モデルを使う",
-  },
 };
 
 export const getModelRestrictionCopy = (

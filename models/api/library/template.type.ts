@@ -3,6 +3,11 @@ export interface SavedTemplatePld {
   templateImageContentId: string;
 }
 
+export interface SaveOwnBusinessReferenceImagePld {
+  imageUrl: string;
+  name: string;
+}
+
 /* response for get saved templates */
 export interface SavedTemplateRes {
   name: string;
@@ -16,6 +21,20 @@ export interface SavedCreatorImageMutationRes {
   id: number;
   businessRootId: number;
   creatorImageId: number;
+  createdAt: string;
+}
+
+export interface SaveOwnBusinessReferenceImageRes {
+  savedId: number;
+  businessRootId: number;
+  creatorImageId: number;
+  name: string;
+  imageUrl: string;
+  isPublished: boolean;
+  isBanned: boolean;
+  bannedReason: string | null;
+  price: number;
+  profileId: string | null;
   createdAt: string;
 }
 

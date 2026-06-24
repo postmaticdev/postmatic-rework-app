@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { createAvatarKnowledgeSchema } from "./avatar.zod";
 import { createBusinessKnowledgeSchema } from "./business.zod";
 import { createProductKnowledgeSchema } from "./product.zod";
 import { createRoleKnowledgeSchema } from "./role.zod";
@@ -40,6 +41,18 @@ export const useProductKnowledgeSchema = () => {
   };
 
   return createProductKnowledgeSchema(messages);
+};
+
+export const useAvatarKnowledgeSchema = () => {
+  const t = useTranslations("avatarKnowledge");
+
+  const messages = {
+    zodAvatarPhoto: t("zodAvatarPhoto"),
+    zodAvatarName: t("zodAvatarName"),
+    zodMaxLengthAvatarName: t("zodMaxLengthAvatarName"),
+  };
+
+  return createAvatarKnowledgeSchema(messages);
 };
 
 // Hook to get role knowledge schema with i18n messages

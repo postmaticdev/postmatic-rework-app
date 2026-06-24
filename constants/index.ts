@@ -3,7 +3,7 @@ import type { PlatformEnum } from "@/models/api/knowledge/platform.type";
 export const NEXT_PUBLIC_API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN || "";
 export const API_ORIGIN = process.env.API_ORIGIN || "";
 export const NEXT_PUBLIC_AUTH_ORIGIN =
-  process.env.NEXT_PUBLIC_AUTH_ORIGIN || "https://auth.postmatic.id";
+  process.env.NEXT_PUBLIC_AUTH_ORIGIN || "";
 export const NEXT_PUBLIC_ENABLE_SOCKET =
   process.env.NEXT_PUBLIC_ENABLE_SOCKET === "true";
 export const NEXT_PUBLIC_SOCKET_ORIGIN =

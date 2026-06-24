@@ -6,6 +6,11 @@ import {
 } from "@/models/api/base-response.type";
 import { AdvancedGenerate } from "@/models/api/content/image.type";
 import {
+  BusinessAvatarDeleteRes,
+  BusinessAvatarPld,
+  BusinessAvatarRes,
+} from "@/models/api/knowledge/avatar.type";
+import {
   BusinessKnowledgePld,
   BusinessKnowledgeRes,
 } from "@/models/api/knowledge/business.type";
@@ -35,6 +40,16 @@ type BackendBusinessKnowledgeRes = BusinessKnowledgeRes & {
   businessPhone?: string | null;
   countryCode?: string | null;
   businessRootId?: string | number;
+};
+
+type BackendBusinessAvatarRes = Omit<
+  BusinessAvatarRes,
+  "appAvatarId" | "rootBusinessId"
+> & {
+  id: string | number;
+  appAvatarId?: string | number | null;
+  businessRootId?: string | number;
+  rootBusinessId?: string | number;
 };
 
 type BackendProductKnowledgeRes = Omit<ProductKnowledgeRes, "images"> & {
@@ -108,6 +123,31 @@ const toBusinessKnowledgePayload = (formData: BusinessKnowledgePld) => ({
   colorTone: formData.colorTone,
   businessPhone: sanitizePhone(formData.businessPhone),
   countryCode: sanitizeCountryCode(formData.countryCode),
+});
+
+const mapBusinessAvatar = (
+  avatar?: Partial<BackendBusinessAvatarRes> | null
+): BusinessAvatarRes => {
+  const item = avatar ?? {};
+
+  return {
+    id: String(item.id ?? ""),
+    name: item.name ?? "",
+    imageUrl: item.imageUrl ?? "",
+    appAvatarId:
+      item.appAvatarId === undefined || item.appAvatarId === null
+        ? null
+        : String(item.appAvatarId),
+    rootBusinessId: String(item.rootBusinessId ?? item.businessRootId ?? ""),
+    deletedAt: item.deletedAt ?? null,
+    createdAt: item.createdAt ?? "",
+    updatedAt: item.updatedAt ?? "",
+  };
+};
+
+const toBusinessAvatarPayload = (formData: BusinessAvatarPld) => ({
+  name: formData.name,
+  imageUrl: formData.imageUrl,
 });
 
 const mapProductKnowledge = (
@@ -241,6 +281,145 @@ export const useBusinessKnowledgeUpsert = () => {
     },
     onError: (error) => {
       throw error;
+    },
+  });
+};
+
+// ============================== AVATAR KNOWLEDGE ==============================
+
+const businessAvatarService = {
+  getAll: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
+    return api
+      .get<BaseResponseFiltered<BusinessAvatarRes[]>>(
+        `/business/avatar/${businessId}`,
+        {
+          params: filterQuery,
+        }
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: (Array.isArray(res.data.data) ? res.data.data : []).map(
+            mapBusinessAvatar
+          ),
+        },
+      }));
+  },
+
+  create: (businessId: string, formData: BusinessAvatarPld) => {
+    return api
+      .post<BaseResponse<BusinessAvatarRes>>(
+        `/business/avatar/${businessId}`,
+        toBusinessAvatarPayload(formData)
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: mapBusinessAvatar(res.data.data as BackendBusinessAvatarRes),
+        },
+      }));
+  },
+
+  update: (
+    businessId: string,
+    avatarId: string,
+    formData: BusinessAvatarPld
+  ) => {
+    return api
+      .put<BaseResponse<BusinessAvatarRes>>(
+        `/business/avatar/${businessId}/${avatarId}`,
+        toBusinessAvatarPayload(formData)
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: mapBusinessAvatar(res.data.data as BackendBusinessAvatarRes),
+        },
+      }));
+  },
+
+  delete: (businessId: string, avatarId: string) => {
+    return api
+      .delete<BaseResponse<BusinessAvatarDeleteRes>>(
+        `/business/avatar/${businessId}/${avatarId}`
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: mapBusinessAvatar(res.data.data as BackendBusinessAvatarRes),
+        },
+      }));
+  },
+};
+
+export const useBusinessAvatarGetAll = (
+  businessId: string,
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ["businessAvatar", businessId, filterQuery],
+    queryFn: () => businessAvatarService.getAll(businessId, filterQuery),
+    enabled: enabled && !!businessId,
+  });
+};
+
+export const useBusinessAvatarCreate = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      businessId,
+      formData,
+    }: {
+      businessId: string;
+      formData: BusinessAvatarPld;
+    }) => businessAvatarService.create(businessId, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["businessAvatar"],
+      });
+    },
+  });
+};
+
+export const useBusinessAvatarUpdate = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      businessId,
+      avatarId,
+      formData,
+    }: {
+      businessId: string;
+      avatarId: string;
+      formData: BusinessAvatarPld;
+    }) => businessAvatarService.update(businessId, avatarId, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["businessAvatar"],
+      });
+    },
+  });
+};
+
+export const useBusinessAvatarDelete = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      businessId,
+      avatarId,
+    }: {
+      businessId: string;
+      avatarId: string;
+    }) => businessAvatarService.delete(businessId, avatarId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["businessAvatar"],
+      });
     },
   });
 };
