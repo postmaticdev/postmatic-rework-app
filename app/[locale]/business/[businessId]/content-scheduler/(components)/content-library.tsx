@@ -38,6 +38,7 @@ import { useTranslations } from "next-intl";
 import { PersonalContentForm, PersonalPostModal } from "./personal-post-modal";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
+import { mapEnumPlatform } from "@/helper/map-enum-platform";
 
 export interface FormDataDraft {
   direct: DirectPostContentPld;
@@ -388,13 +389,21 @@ export function ContentLibrary({
     } catch { }
   };
 
+  const getPostedPlatforms = (content: PostedImageRes) =>
+    Array.from(
+      new Set([
+        ...(content.platforms || []),
+        ...(content.postedImageContents || []).map((post) => post.platform),
+      ])
+    );
+
   const renderItems = (): React.JSX.Element[] => {
     switch (type) {
       case "draft":
         return (paginatedContent as ImageContentRes[]).map((content) => (
           <div
             key={content.id}
-            className="relative border border-border bg-card  shadow-sm p-3 rounded-lg  group transition-all duration-300 hover:scale-105 cursor-pointer"
+            className="relative flex h-full flex-col border border-border bg-card shadow-sm p-3 rounded-lg group transition-all duration-300 hover:scale-105 cursor-pointer"
           >
             <div className="aspect-square rounded-lg overflow-hidden">
               {/* Template content placeholder */}
@@ -419,12 +428,12 @@ export function ContentLibrary({
               {/* Tag */}
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 flex flex-1 flex-col space-y-3">
               <p className="text-sm text-muted-foreground line-clamp-3">
                 {content.caption}
               </p>
 
-              <div className="flex space-x-2">
+              <div className="mt-auto flex space-x-2 pt-1">
                 {showAddtoQueue &&
                   (false ? (
                     <Button
@@ -461,46 +470,76 @@ export function ContentLibrary({
           </div>
         ));
       case "posted":
-        return (paginatedContent as PostedImageRes[]).map((content) => (
-          <div
-            key={content?.id}
-            className="relative group border border-border bg-card  shadow-sm p-4 rounded-lg group transition-all duration-300 hover:scale-105 cursor-pointer"
-          >
-            <div className="aspect-square  rounded-lg overflow-hidden">
-              {/* Template content placeholder */}
-              <div className="relative h-full w-full">
-                <Image
-                  src={content?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
-                  alt="image content"
-                  className="object-cover  select-none pointer-events-none
+        return (paginatedContent as PostedImageRes[]).map((content) => {
+          const postedPlatforms = getPostedPlatforms(content);
+
+          return (
+            <div
+              key={content?.id}
+              className="relative flex h-full flex-col border border-border bg-card shadow-sm p-4 rounded-lg group transition-all duration-300 hover:scale-105 cursor-pointer"
+            >
+              <div className="aspect-square rounded-lg overflow-hidden">
+                {/* Template content placeholder */}
+                <div className="relative h-full w-full">
+                  <Image
+                    src={content?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
+                    alt="image content"
+                    className="object-cover select-none pointer-events-none
              transform-gpu transition-transform duration-500 ease-out will-change-transform
              group-hover:scale-110"
-                  width={500}
-                  height={500}
-                />
+                    width={500}
+                    height={500}
+                  />
+                </div>
 
-
+                {/* Tag */}
               </div>
 
-              {/* Tag */}
-            </div>
+              <div className="mt-4 flex flex-1 flex-col space-y-3">
+                <p className="text-sm text-muted-foreground line-clamp-3">
+                  {content?.caption}
+                </p>
 
-            <div className="mt-4 space-y-3">
-              <p className="text-sm text-muted-foreground line-clamp-3">
-                {content?.caption}
-              </p>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t("postedTo")}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {postedPlatforms.length > 0 ? (
+                      postedPlatforms.map((platform) => (
+                        <span
+                          key={platform}
+                          className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-background-secondary px-2 py-1 text-xs text-foreground"
+                        >
+                          {mapEnumPlatform.getPlatformIcon(
+                            platform,
+                            "h-3.5 w-3.5 shrink-0"
+                          )}
+                          <span className="truncate">
+                            {mapEnumPlatform.getPlatformLabel(platform)}
+                          </span>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {t("notAvailable")}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-              <div className="flex space-x-2">
-                <Button
-                  className="flex-1 text-white"
-                  onClick={() => handleSetFormDataView(content)}
-                >
-                  {t("viewPost")}
-                </Button>
+                <div className="mt-auto flex space-x-2 pt-1">
+                  <Button
+                    className="flex-1 text-white"
+                    onClick={() => handleSetFormDataView(content)}
+                  >
+                    {t("viewPost")}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ));
+          );
+        });
       default:
         return [];
     }

@@ -250,7 +250,7 @@ export function ProductSection() {
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
                         <div className="flex items-center gap-2 mb-1">
-                          <div className="relative w-16 h-16 sm:w-32  sm:h-32 rounded-lg overflow-hidden flex-shrink-0">
+                          <div className="relative h-20 w-20 rounded-lg overflow-hidden flex-shrink-0">
                             <Image
                               src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                               alt={product.name}
@@ -272,7 +272,7 @@ export function ProductSection() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="hidden sm:flex flex-col lg:flex-row lg:gap-2">
+                          <div className="hidden sm:flex flex-col lg:flex-row lg:gap-2 align-center">
                             <h3 className="font-medium text-foreground mb-1">
                               {product.name}
                             </h3>

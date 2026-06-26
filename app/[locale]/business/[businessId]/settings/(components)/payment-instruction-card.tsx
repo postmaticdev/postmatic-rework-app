@@ -43,6 +43,7 @@ const BANK_LOGO_BY_METHOD: Record<string, string> = {
   permata: "/permata.png",
   cimb: "/cimbniaga.png",
   cimbniaga: "/cimbniaga.png",
+  gopay: "/gopay-logo.png",
 };
 
 const normalizePaymentMethod = (method?: string) =>

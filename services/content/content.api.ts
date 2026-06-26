@@ -59,6 +59,7 @@ type NewRepetitionItem = {
   modelName: string;
   platforms: string[];
   additionalPrompt: string | null;
+  avatarImageUrl?: string | null;
   additionalImages?: string[];
   createdAt: string;
   updatedAt: string;
@@ -239,6 +240,7 @@ const mapRepetitionToAutoGenerateSettings = (
       ratio: "1:1",
       category: "",
       additionalPrompt: item.additionalPrompt,
+      avatarImageUrl: item.avatarImageUrl || null,
       productKnowledgeId: String(item.businessProductId),
       rootBusinessId: String(item.businessRootId),
       advBusinessName: false,
@@ -1594,6 +1596,7 @@ const autoGenerateService = {
         time: formData.time,
         isActive: formData.isActive,
         additionalPrompt: formData.additionalPrompt,
+        avatarImageUrl: formData.avatarImageUrl || undefined,
         platforms: formData.platforms,
       }
     );
@@ -1614,6 +1617,7 @@ const autoGenerateService = {
         time: formData.time,
         isActive: formData.isActive,
         additionalPrompt: formData.additionalPrompt,
+        avatarImageUrl: formData.avatarImageUrl || undefined,
         platforms: formData.platforms,
       }
     );

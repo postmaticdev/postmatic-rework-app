@@ -10,17 +10,7 @@ export interface AiModelRes {
   imageSizes?: string[] | null;
 }
 
-export const POSTMATIC_VISION_MODEL_NAME = "gpt-image-1";
-
-const AI_MODEL_DISPLAY_NAMES: Record<string, string> = {
-  "gpt-image-1": "Postmatic Vision",
-  "GPT Image 1": "Postmatic Vision",
-  "gemini-2.5-flash-image": "Postmatic Vision Pro",
-  "gemini-2.5-flash-image-preview": "Postmatic Vision Pro",
-  "Gemini 2.5 Flash Image": "Postmatic Vision Pro",
-  "gemini-3-pro-image-preview": "Postmatic Vision Max",
-  "Gemini 3 Pro Image Preview": "Postmatic Vision Max",
-};
+export const GPT_IMAGE_1_MODEL_NAME = "gpt-image-1";
 
 type AiModelDisplaySource =
   | string
@@ -36,20 +26,14 @@ export const getAiModelDisplayName = (model: AiModelDisplaySource) => {
   if (!model) return "";
 
   if (typeof model === "string") {
-    return AI_MODEL_DISPLAY_NAMES[model] || model;
+    return model;
   }
 
-  return (
-    AI_MODEL_DISPLAY_NAMES[model.name] ||
-    (model.label && (AI_MODEL_DISPLAY_NAMES[model.label] || model.label)) ||
-    (model.description &&
-      (AI_MODEL_DISPLAY_NAMES[model.description] || model.description)) ||
-    model.name
-  );
+  return model.label || model.description || model.name;
 };
 
-export const isPostmaticVisionModel = (modelName?: string | null) =>
-  modelName === POSTMATIC_VISION_MODEL_NAME || modelName === "GPT Image 1";
+export const isGptImageOneModel = (modelName?: string | null) =>
+  modelName === GPT_IMAGE_1_MODEL_NAME || modelName === "GPT Image 1";
 
-export const pickPostmaticVisionModel = (models: AiModelRes[]) =>
-  models.find((model) => isPostmaticVisionModel(model.name)) || null;
+export const pickGptImageOneModel = (models: AiModelRes[]) =>
+  models.find((model) => isGptImageOneModel(model.name)) || null;

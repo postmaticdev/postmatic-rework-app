@@ -422,7 +422,7 @@
       "tax": "Pajak",
       "total": "Total",
       "processing": "Memproses...",
-      "continue": "Lanjut",
+      "continue": "Lanjutkan pembayaran",
       "enterPromoCodeValidation": "Masukkan kode promo.",
       "invalidTokenAmount": "Masukkan jumlah token yang valid.",
       "paymentExpired": "Batas pembayaran telah berakhir.",

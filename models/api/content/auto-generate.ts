@@ -13,6 +13,7 @@ export interface AutoGenerateSchedule {
   ratio: string;
   category: string;
   additionalPrompt: string | null;
+  avatarImageUrl?: string | null;
   productKnowledgeId: string;
   rootBusinessId: string;
   advBusinessName: boolean;
@@ -72,6 +73,7 @@ export interface CreateAutoGenerateScheduleRequest {
   ratio: string;
   category: string;
   additionalPrompt?: string;
+  avatarImageUrl?: string | null;
   productKnowledgeId: string;
   isActive: boolean;
   advBusinessName: boolean;

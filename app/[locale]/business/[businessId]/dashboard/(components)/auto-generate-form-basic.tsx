@@ -2,17 +2,23 @@
 
 import { Button } from "@/components/ui/button";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
-import { ChevronDown as ChevronDownIcon } from "lucide-react";
+import { ChevronDown as ChevronDownIcon, Trash2 } from "lucide-react";
 import { AutoProductSelectionModal } from "./auto-product-selection-modal";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ValidRatio } from "@/models/api/content/image.type";
 import { useTranslations } from "next-intl";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { AutoAvatarSelectionModal } from "./auto-avatar-selection-modal";
+import Image from "next/image";
+import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
+import { Card } from "@/components/ui/card";
+import { AiModelSelect } from "@/components/forms/ai-model-select";
 
 export const AutoGenerateFormBasic = () => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const { form, isLoading, aiModels, onSelectAiModel } = useAutoGenerate();
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const { form, isLoading, aiModels, onSelectAiModel, onSelectAvatar } =
+    useAutoGenerate();
   const { basic, setBasic } = form;
   const disabled = false; // Auto generate doesn't have selectedHistory
   const t = useTranslations("generationPanel");
@@ -151,31 +157,86 @@ export const AutoGenerateFormBasic = () => {
         </Button>
       </div>
 
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <label className="block text-sm font-medium">{t("avatarLabel")}</label>
+          <span className="text-xs text-muted-foreground">{t("optional")}</span>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full justify-between text-left font-normal"
+          onClick={() => setIsAvatarModalOpen(true)}
+          disabled={isLoading || disabled}
+        >
+          <span
+            className={
+              basic.selectedAvatar ? "text-foreground" : "text-muted-foreground"
+            }
+          >
+            {basic.selectedAvatar
+              ? t("selectedAvatarCount", { count: 1 })
+              : t("selectAvatar")}
+          </span>
+          <ChevronDownIcon className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {basic.selectedAvatar ? (
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted">
+                <Image
+                  src={basic.selectedAvatar.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                  alt={basic.selectedAvatar.title}
+                  fill
+                  className="object-cover"
+                  sizes="64px"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="line-clamp-1 text-sm font-medium text-foreground">
+                  {basic.selectedAvatar.title}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {basic.selectedAvatar.source === "knowledge"
+                    ? t("avatarSourceKnowledge")
+                    : t("avatarSourceBrowse")}
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              disabled={isLoading}
+              onClick={() => onSelectAvatar(null)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
       {/* AI Model */}
       <div>
         <label className="block text-sm font-medium mb-2">AI Model</label>
-        <select
-          className={cn(
-            "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-            isLoading ||
-              (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-          )}
+        <AiModelSelect
           disabled={isLoading || disabled || aiModels.isLoading}
-          value={basic?.model || ""}
-          onChange={(e) => {
+          isLoading={aiModels.isLoading}
+          models={aiModels.models}
+          selectedModel={basic?.model || ""}
+          onSelectModel={(modelName) => {
             if (disabled) return;
-            const selectedModel = aiModels.models.find(model => model.name === e.target.value);
+            const selectedModel = aiModels.models.find(
+              (model) => model.name === modelName
+            );
             if (selectedModel) {
               onSelectAiModel(selectedModel);
             }
           }}
-        >
-          {aiModels.models.map((model) => (
-            <option key={model.name} value={model.name}>
-              {getAiModelDisplayName(model)}
-            </option>
-          ))}
-        </select>
+        />
       </div>
 
       {/* {aiModels.selectedModel?.name === "gemini-3-pro-image-preview" &&
@@ -319,6 +380,15 @@ export const AutoGenerateFormBasic = () => {
         onClose={() => {
           setIsProductModalOpen(false);
         }}
+      />
+      <AutoAvatarSelectionModal
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        onSave={(item) => {
+          onSelectAvatar(item);
+          setIsAvatarModalOpen(false);
+        }}
+        selectedAvatar={basic.selectedAvatar}
       />
     </div>
   );

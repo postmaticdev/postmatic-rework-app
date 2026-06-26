@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { ChevronDown as ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 import { ValidRatio } from "@/models/api/content/image.type";
 import {
   SelectedAvatarOption,
@@ -13,6 +12,7 @@ import {
 } from "@/contexts/content-generate-context";
 import { AvatarSelectionModal } from "./avatar-selection-modal";
 import { ProductSelectionModal } from "./product-selection-modal";
+import { AiModelSelect } from "@/components/forms/ai-model-select";
 
 export const GenerateFormBasic = () => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -90,35 +90,21 @@ export const GenerateFormBasic = () => {
 
       <div>
         <label className="mb-2 block text-sm font-medium">AI Model</label>
-        <select
-          className={cn(
-            "w-full rounded-md border border-input bg-background-secondary p-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring",
-            isLoading
-          )}
+        <AiModelSelect
           disabled={isLoading || aiModels.isLoading}
-          value={basic?.model || ""}
-          onChange={(e) => {
+          isLoading={aiModels.isLoading}
+          models={aiModels.models}
+          selectedModel={basic?.model || ""}
+          onSelectModel={(modelName) => {
             const selectedModel = aiModels.models.find(
-              (model) => model.name === e.target.value
+              (model) => model.name === modelName
             );
 
             if (selectedModel) {
               onSelectAiModel(selectedModel);
             }
           }}
-        >
-          {aiModels.isLoading ? (
-            <option value="">Loading models...</option>
-          ) : null}
-          {!aiModels.isLoading && aiModels.models.length === 0 ? (
-            <option value="">No model available</option>
-          ) : null}
-          {aiModels.models.map((model) => (
-            <option key={model.name} value={model.name}>
-              {getAiModelDisplayName(model)}
-            </option>
-          ))}
-        </select>
+        />
       </div>
 
       {/* {aiModels.selectedModel?.name === "gemini-3-pro-image-preview" &&

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ImagePlus, Plus, Send } from "lucide-react";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { AiModelSelect } from "@/components/forms/ai-model-select";
 
 type ModelOption = {
   name: string;
@@ -124,24 +124,16 @@ export function ChatComposerField({
 
         {!isExpanded ? (
           <div className="flex items-center gap-2">
-            <select
-              className="h-8 w-[180px] shrink-0 rounded-md border border-input bg-background-secondary px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            <AiModelSelect
+              className="w-[180px] shrink-0"
+              size="sm"
+              side="top"
               disabled={disabled || isLoadingModels}
-              value={selectedModel}
-              onChange={(event) => onSelectModel(event.target.value)}
-            >
-              {isLoadingModels ? (
-                <option value="">Loading models...</option>
-              ) : null}
-              {!isLoadingModels && models.length === 0 ? (
-                <option value="">No model available</option>
-              ) : null}
-              {models.map((model) => (
-                <option key={model.name} value={model.name}>
-                  {getAiModelDisplayName(model)}
-                </option>
-              ))}
-            </select>
+              isLoading={isLoadingModels}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={onSelectModel}
+            />
             <Button
               type="button"
               onClick={onSubmit}
@@ -198,24 +190,16 @@ export function ChatComposerField({
           </DropdownMenu>
 
           <div className="flex items-center gap-2">
-            <select
-              className="h-8 w-[180px] shrink-0 rounded-md border border-input bg-background-secondary px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            <AiModelSelect
+              className="w-[180px] shrink-0"
+              size="sm"
+              side="top"
               disabled={disabled || isLoadingModels}
-              value={selectedModel}
-              onChange={(event) => onSelectModel(event.target.value)}
-            >
-              {isLoadingModels ? (
-                <option value="">Loading models...</option>
-              ) : null}
-              {!isLoadingModels && models.length === 0 ? (
-                <option value="">No model available</option>
-              ) : null}
-              {models.map((model) => (
-                <option key={model.name} value={model.name}>
-                  {getAiModelDisplayName(model)}
-                </option>
-              ))}
-            </select>
+              isLoading={isLoadingModels}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={onSelectModel}
+            />
             <Button
               type="button"
               onClick={onSubmit}

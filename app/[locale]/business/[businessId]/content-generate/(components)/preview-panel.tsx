@@ -25,6 +25,7 @@ import {
 } from "@/lib/scheduler-draft-markers";
 import {
   useContentCaptionEnhance,
+  useContentImageWatermarkGet,
   useContentSchedulerManualAddToQueue,
   useContentSchedulerManualEditQueue,
 } from "@/services/content/content.api";
@@ -40,11 +41,21 @@ import {
 } from "lucide-react";
 import { showToast } from "@/helper/show-toast";
 import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
+import { ImageWatermarkRes } from "@/models/api/content/image.type";
+
+const WATERMARK_POLL_INTERVAL_MS = 2000;
+const WATERMARK_POLL_TIMEOUT_MS = 60000;
+const WATERMARK_SCHEDULE_TIMEOUT_MS = 90000;
 
 export function PreviewPanel() {
+  const { mutateAsync: getImageWatermark } = useContentImageWatermarkGet();
   const previewPanelRef = useRef<HTMLDivElement>(null);
   const shouldAutoEnhanceOnFirstGenerateRef = useRef(false);
   const lastAutoEnhancedResultKeyRef = useRef<string | null>(null);
+  const previewWatermarkRequestKeyRef = useRef<string | null>(null);
+  const previewWatermarkRequestPromiseRef = useRef<Promise<string | null> | null>(
+    null
+  );
   const router = useRouter();
   const locale = useLocale();
   const searchParams = useSearchParams();
@@ -80,27 +91,45 @@ export function PreviewPanel() {
   const schedulerMode = Boolean(scheduleDate);
   const selectedImageUrl =
     selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
+  const selectedImageIndex = useMemo(() => {
+    if (!selectedHistory?.result?.images?.length || !selectedImageUrl) {
+      return 0;
+    }
+
+    const foundIndex = selectedHistory.result.images.findIndex(
+      (imageUrl) => imageUrl === selectedImageUrl
+    );
+
+    return foundIndex >= 0 ? foundIndex : 0;
+  }, [selectedHistory?.result?.images, selectedImageUrl]);
+  const selectedImageItemId =
+    selectedHistory?.result?.imageItemIds?.[selectedImageIndex];
   const modelRestrictionCopy = getModelRestrictionCopy(
     locale,
     aiModels.freeUserAllowedModel
       ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
       : getAiModelDisplayName("gpt-image-1")
   );
+  const [watermarkedPreviewUrl, setWatermarkedPreviewUrl] = useState<
+    string | null
+  >(null);
   const handleProtectedImageInteraction = (
     event:
       | React.MouseEvent<HTMLElement>
       | React.DragEvent<HTMLElement>
   ) => {
-    if (!aiModels.isFreeUser) return;
     event.preventDefault();
     event.stopPropagation();
   };
-  const protectedImageStyle = aiModels.isFreeUser
-    ? ({
-        WebkitTouchCallout: "none",
-        userSelect: "none",
-      } as const)
-    : undefined;
+  const protectedImageStyle = {
+    WebkitTouchCallout: "none",
+    userSelect: "none",
+  } as const;
+  const displayedPreviewImageUrl =
+    watermarkedPreviewUrl ||
+    selectedImageUrl ||
+    form.basic.productImage ||
+    DEFAULT_PLACEHOLDER_IMAGE;
 
   const [date, setDate] = useState(() => getCurrentScheduleInput().date);
   const [time, setTime] = useState(() => getCurrentScheduleInput().time);
@@ -133,6 +162,137 @@ export function PreviewPanel() {
         .map((platform) => platform as PlatformEnum)
     );
   }, [initialPlatforms]);
+
+  useEffect(() => {
+    setWatermarkedPreviewUrl(null);
+    previewWatermarkRequestKeyRef.current = null;
+    previewWatermarkRequestPromiseRef.current = null;
+  }, [selectedImageItemId, selectedImageUrl]);
+
+  const resolvePreviewWatermarkUrl = useCallback(
+    async ({
+      timeoutMs = WATERMARK_POLL_TIMEOUT_MS,
+    }: {
+      timeoutMs?: number;
+    } = {}): Promise<string | null> => {
+      if (!aiModels.isFreeUser) {
+        return selectedImageUrl || null;
+      }
+
+      if (watermarkedPreviewUrl) {
+        return watermarkedPreviewUrl;
+      }
+
+      if (!selectedImageUrl || typeof selectedImageItemId !== "number") {
+        return null;
+      }
+
+      const requestKey = `${selectedImageItemId}-${selectedImageUrl}-${timeoutMs}`;
+      if (
+        previewWatermarkRequestPromiseRef.current &&
+        previewWatermarkRequestKeyRef.current === requestKey
+      ) {
+        return previewWatermarkRequestPromiseRef.current;
+      }
+
+      const requestPromise = (async (): Promise<string | null> => {
+        const maxAttempts = Math.max(
+          1,
+          Math.ceil(timeoutMs / WATERMARK_POLL_INTERVAL_MS) + 1
+        );
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          try {
+            const watermarkRes = await getImageWatermark({
+              generatedImagePostItemId: selectedImageItemId,
+            });
+            const watermarkData: ImageWatermarkRes | undefined =
+              watermarkRes.data?.data;
+            const watermarkUrl = watermarkData?.imageUrls?.[0];
+            const canUseWatermark = Boolean(
+              watermarkData?.generatedImagePostItemId === selectedImageItemId &&
+                watermarkData?.isWatermarked &&
+                watermarkData?.isCached &&
+                watermarkUrl
+            );
+
+            if (canUseWatermark && watermarkUrl) {
+              setWatermarkedPreviewUrl(watermarkUrl);
+              return watermarkUrl;
+            }
+          } catch {}
+
+          if (attempt < maxAttempts) {
+            await new Promise((resolve) =>
+              window.setTimeout(resolve, WATERMARK_POLL_INTERVAL_MS)
+            );
+          }
+        }
+
+        return null;
+      })();
+
+      previewWatermarkRequestKeyRef.current = requestKey;
+      previewWatermarkRequestPromiseRef.current = requestPromise;
+
+      return requestPromise.finally(() => {
+        if (previewWatermarkRequestKeyRef.current === requestKey) {
+          previewWatermarkRequestPromiseRef.current = null;
+        }
+      });
+    },
+    [
+      aiModels.isFreeUser,
+      getImageWatermark,
+      selectedImageItemId,
+      selectedImageUrl,
+      watermarkedPreviewUrl,
+    ]
+  );
+
+  useEffect(() => {
+    if (
+      aiModels.isLoading ||
+      !aiModels.isFreeUser ||
+      !selectedImageUrl ||
+      typeof selectedImageItemId !== "number"
+    ) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const keepTryingWatermark = async () => {
+      while (!isCancelled) {
+        const watermarkUrl = await resolvePreviewWatermarkUrl();
+
+        if (isCancelled) {
+          return;
+        }
+
+        if (watermarkUrl) {
+          setWatermarkedPreviewUrl(watermarkUrl);
+          return;
+        }
+
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, WATERMARK_POLL_INTERVAL_MS)
+        );
+      }
+    };
+
+    void keepTryingWatermark();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    aiModels.isFreeUser,
+    aiModels.isLoading,
+    resolvePreviewWatermarkUrl,
+    selectedImageItemId,
+    selectedImageUrl,
+  ]);
 
   const platformOptions = useMemo(
     () =>
@@ -223,9 +383,34 @@ export function PreviewPanel() {
     router.push(`/business/${businessId}/settings?tab=billing&topUp=token`);
   };
 
+  const resolveScheduleImageUrl = useCallback(async () => {
+    if (!selectedImageUrl) {
+      return null;
+    }
+
+    if (!aiModels.isFreeUser) {
+      return selectedImageUrl;
+    }
+
+    const watermarkUrl = await resolvePreviewWatermarkUrl({
+      timeoutMs: WATERMARK_SCHEDULE_TIMEOUT_MS,
+    });
+
+    if (watermarkUrl) {
+      return watermarkUrl;
+    }
+
+    throw new Error("WATERMARK_REQUIRED_FOR_FREE_USER");
+  }, [aiModels.isFreeUser, resolvePreviewWatermarkUrl, selectedImageUrl]);
+
   const persistCaptionToSchedulerDraft = useCallback(
     async (nextCaption: string) => {
       if (!schedulerMode || !schedulerDraftId || !selectedHistory || !selectedImageUrl) {
+        return;
+      }
+
+      const scheduleImageUrl = await resolveScheduleImageUrl();
+      if (!scheduleImageUrl) {
         return;
       }
 
@@ -242,7 +427,7 @@ export function PreviewPanel() {
           jobId: selectedHistory.id,
           date: draftDate,
           time: draftTime,
-          image: selectedImageUrl,
+          image: scheduleImageUrl,
           caption: nextCaption,
           productImage:
             currentDraftMarker?.productImage || form.basic.productImage || null,
@@ -268,7 +453,7 @@ export function PreviewPanel() {
         businessId,
         idScheduler: schedulerDraftId,
         formData: {
-          imageUrl: selectedImageUrl,
+          imageUrl: scheduleImageUrl,
           caption: nextCaption,
           platforms: [],
           dateTime: new Date(`${draftDate}T${draftTime}`).toISOString(),
@@ -295,6 +480,7 @@ export function PreviewPanel() {
       schedulerDraftId,
       schedulerDraftPost?.chatSessionId,
       schedulerMode,
+      resolveScheduleImageUrl,
       selectedHistory,
       selectedImageUrl,
       time,
@@ -446,8 +632,14 @@ export function PreviewPanel() {
     }
 
     try {
+      const scheduleImageUrl = await resolveScheduleImageUrl();
+      if (!scheduleImageUrl) {
+        showToast("error", schedulerT("generateFirst"));
+        return;
+      }
+
       const formData = {
-        imageUrl: selectedImageUrl,
+        imageUrl: scheduleImageUrl,
         caption: form.basic.caption || selectedHistory.result.caption || "",
         platforms: connectedSelectedPlatforms,
         dateTime: scheduledAt.toISOString(),
@@ -486,6 +678,17 @@ export function PreviewPanel() {
         `/business/${businessId}/content-scheduler?selectedDate=${scheduleDate}`
       );
     } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "WATERMARK_REQUIRED_FOR_FREE_USER"
+      ) {
+        showToast(
+          "error",
+          "Watermark belum siap. Mohon tunggu sebentar sebelum menjadwalkan postingan."
+        );
+        return;
+      }
+
       showToast("error", error);
     }
   };
@@ -577,11 +780,7 @@ export function PreviewPanel() {
               />
               <div className="absolute bg-black z-0 w-full h-full opacity-50 blur-sm">
                 <Image
-                  src={
-                    selectedImageUrl ||
-                    form.basic.productImage ||
-                    DEFAULT_PLACEHOLDER_IMAGE
-                  }
+                  src={displayedPreviewImageUrl}
                   alt=""
                   fill
                   draggable={false}
@@ -593,11 +792,7 @@ export function PreviewPanel() {
             </div>
           ) : (
             <Image
-              src={
-                selectedImageUrl ||
-                form.basic.productImage ||
-                DEFAULT_PLACEHOLDER_IMAGE
-              }
+              src={displayedPreviewImageUrl}
               alt=""
               width={800}
               height={800}
@@ -778,11 +973,7 @@ export function PreviewPanel() {
 
       <ScheduleSummaryModal
         isOpen={isSummaryOpen}
-        imageUrl={
-          selectedImageUrl ||
-          form.basic.productImage ||
-          DEFAULT_PLACEHOLDER_IMAGE
-        }
+        imageUrl={displayedPreviewImageUrl}
         caption={form.basic.caption || selectedHistory?.result?.caption || ""}
         date={date}
         time={time}

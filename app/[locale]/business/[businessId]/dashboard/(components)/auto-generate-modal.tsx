@@ -186,6 +186,7 @@ export function AutoGenerateModal({
       ratio: basic.ratio || "1:1",
       category: basic.category || "sale",
       additionalPrompt: additionalPrompt.trim() || undefined,
+      avatarImageUrl: basic.avatarImageUrl || undefined,
       productKnowledgeId: basic.productKnowledgeId,
       isActive: isActiveStatus, // Use existing status when editing, default to true for new schedules
       advBusinessName: form.advance.businessKnowledge.name,
@@ -283,6 +284,15 @@ export function AutoGenerateModal({
         prompt: editingSchedule.additionalPrompt || "",
         productKnowledgeId: editingSchedule.productKnowledgeId,
         productName: getProductNameById(editingSchedule.productKnowledgeId),
+        selectedAvatar: editingSchedule.avatarImageUrl
+          ? {
+              id: `schedule-avatar-${editingSchedule.id}`,
+              imageUrl: editingSchedule.avatarImageUrl,
+              title: "Avatar",
+              source: "browse",
+            }
+          : null,
+        avatarImageUrl: editingSchedule.avatarImageUrl || null,
       });
 
       // Set the selected AI model to match the schedule's model

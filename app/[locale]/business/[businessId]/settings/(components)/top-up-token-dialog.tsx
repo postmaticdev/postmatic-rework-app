@@ -5,19 +5,13 @@ import { ReceiptText, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
+  DialogFooterWithButton,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { PaymentMethodSelect } from "@/components/forms/payment-method-select";
 import { showToast } from "@/helper/show-toast";
 import { translateApiResponseMessage } from "@/helper/api-response-message";
 import { formatIdr } from "@/helper/formatter";
@@ -168,6 +162,7 @@ export function TopUpTokenDialog({
         code: method.issued.code,
         name: method.issued.name,
         type: group.type,
+        image: method.issued.image,
       }))
     );
   }, [productDetail.data]);
@@ -518,24 +513,13 @@ export function TopUpTokenDialog({
                   <label className="text-sm font-medium text-foreground">
                     {tDialog("paymentMethod")}
                   </label>
-                  <Select
+                  <PaymentMethodSelect
                     value={paymentMethod}
                     onValueChange={setPaymentMethod}
                     disabled={productDetail.isLoading}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue
-                        placeholder={tDialog("selectPaymentMethod")}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {methodOptions.map((method) => (
-                        <SelectItem key={method.code} value={method.code}>
-                          {method.name} - {method.type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={methodOptions}
+                    placeholder={tDialog("selectPaymentMethod")}
+                  />
                 </div>
               </div>
 
@@ -659,22 +643,19 @@ export function TopUpTokenDialog({
         </div>
 
         {!checkoutResult ? (
-          <DialogFooter className="px-6 py-4">
-            <Button
-              onClick={handleCreatePayment}
-              disabled={
-                isCreatingPayment ||
-                priceQuery.isLoading ||
-                !tokenAmount ||
-                !paymentMethod
-              }
-
-            >
-              {isCreatingPayment
-                ? tDialog("processing")
-                : tDialog("continue")}
-            </Button>
-          </DialogFooter>
+          <DialogFooterWithButton
+            className="px-6 py-4"
+            buttonMessage={
+              isCreatingPayment ? tDialog("processing") : tDialog("continue")
+            }
+            onClick={handleCreatePayment}
+            disabled={
+              isCreatingPayment ||
+              priceQuery.isLoading ||
+              !tokenAmount ||
+              !paymentMethod
+            }
+          />
         ) : null}
       </DialogContent>
     </Dialog>

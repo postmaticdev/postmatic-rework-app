@@ -31,7 +31,7 @@ import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { RssArticleRes } from "@/models/api/library/rss.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
 import {
-  pickPostmaticVisionModel,
+  pickGptImageOneModel,
 } from "@/models/api/content/ai-model";
 import {
   GetAllJob,
@@ -398,7 +398,7 @@ const pickDefaultAiModel = (models: AiModelRes[]) =>
   null;
 
 const pickPreferredAiModel = (models: AiModelRes[], isFreeUser: boolean) =>
-  (isFreeUser ? pickPostmaticVisionModel(models) : null) ||
+  (isFreeUser ? pickGptImageOneModel(models) : null) ||
   pickDefaultAiModel(models);
 
 const notLoadingJobStatus: JobStatus[] = ["done", "error"];
@@ -412,6 +412,8 @@ const useIsomorphicLayoutEffect =
 
 const schedulerFirstGeneratePrompt =
   "Buat gambar konten promosi produk yang menarik untuk media sosial berdasarkan produk yang dipilih.";
+const REALTIME_IMAGE_ITEM_HYDRATION_ATTEMPTS = 5;
+const REALTIME_IMAGE_ITEM_HYDRATION_INTERVAL_MS = 1500;
 
 function formatCurrentTimeInput() {
   const now = new Date();
@@ -1049,7 +1051,7 @@ export const ContentGenerateProvider = ({
     return !hasSuccessfulBillingPayment;
   }, [hasResolvedBillingHistory, hasSuccessfulBillingPayment]);
   const freeUserAllowedModel = useMemo(
-    () => pickPostmaticVisionModel(aiModelsRes?.data?.data || []),
+    () => pickGptImageOneModel(aiModelsRes?.data?.data || []),
     [aiModelsRes?.data?.data]
   );
 
@@ -1121,7 +1123,7 @@ export const ContentGenerateProvider = ({
       );
       const effectiveModel =
         isFreeUser
-          ? pickPostmaticVisionModel(aiModelsRes?.data?.data || []) ||
+          ? pickGptImageOneModel(aiModelsRes?.data?.data || []) ||
             modelFromHistory
           : modelFromHistory;
       hasManualAiModelSelectionRef.current = false;
@@ -1205,7 +1207,7 @@ export const ContentGenerateProvider = ({
       );
       const effectiveModel =
         isFreeUser
-          ? pickPostmaticVisionModel(aiModelsRes?.data?.data || []) ||
+          ? pickGptImageOneModel(aiModelsRes?.data?.data || []) ||
             modelFromHistory
           : modelFromHistory;
       hasManualAiModelSelectionRef.current = false;
@@ -3080,6 +3082,7 @@ export const ContentGenerateProvider = ({
    *
    */
   const [isConnected, setIsConnected] = useState(false);
+  const inflightRealtimeImageItemHydrationRef = useRef(new Set<string>());
   const activeRealtimeChatSessionId = useMemo(() => {
     const selectedChatSessionId = selectedHistory?.input.chatSessionId;
     if (
@@ -3221,6 +3224,117 @@ export const ContentGenerateProvider = ({
         setSelectedGeneratedImageUrl(latestImage);
       }
 
+      const needsImageItemIdHydration = Boolean(
+        nextResolvedJob.status === "done" &&
+          latestImage &&
+          !nextResolvedJob.result?.imageItemIds?.length
+      );
+
+      if (needsImageItemIdHydration) {
+        const hydrationKey = `${payload.chatSessionId}:${nextResolvedJob.id}`;
+
+        if (!inflightRealtimeImageItemHydrationRef.current.has(hydrationKey)) {
+          inflightRealtimeImageItemHydrationRef.current.add(hydrationKey);
+
+          const selectedHistorySnapshot =
+            selectedHistoryRef.current || nextResolvedJob;
+          const resolvedInputImages = resolveJobInputImages({
+            avatarImageUrl: selectedHistorySnapshot.input.avatarImageUrl,
+            avatarImages: selectedHistorySnapshot.input.avatarImages,
+            additionalImages: selectedHistorySnapshot.input.additionalImages,
+            referenceImage: selectedHistorySnapshot.input.referenceImage,
+            productImages: selectedHistorySnapshot.product.images || [],
+          });
+
+          void (async () => {
+            try {
+              for (
+                let attempt = 1;
+                attempt <= REALTIME_IMAGE_ITEM_HYDRATION_ATTEMPTS;
+                attempt += 1
+              ) {
+                const result = await refetchSchedulerChat().catch(() => null);
+                const chat = result?.data?.data?.data;
+
+                if (chat) {
+                  const hydratedJobs = buildSchedulerChatJobs({
+                    chat,
+                    businessId,
+                    chatSessionId: payload.chatSessionId,
+                    productKnowledgeId:
+                      selectedHistorySnapshot.input.productKnowledgeId,
+                    model: selectedHistorySnapshot.input.model,
+                    ratio: selectedHistorySnapshot.input.ratio,
+                    imageSize: selectedHistorySnapshot.input.imageSize,
+                    productName: selectedHistorySnapshot.product.name,
+                    productImage:
+                      (selectedHistorySnapshot.input.productKnowledgeId
+                        ? productImageById.get(
+                            String(
+                              selectedHistorySnapshot.input.productKnowledgeId
+                            )
+                          )
+                        : "") ||
+                      selectedHistorySnapshot.product.images[0] ||
+                      "",
+                    referenceImage:
+                      selectedHistorySnapshot.input.referenceImage,
+                    avatarImages: resolvedInputImages.avatarImages,
+                    caption:
+                      selectedHistorySnapshot.result?.caption ||
+                      selectedHistorySnapshot.input.caption ||
+                      "",
+                  });
+
+                  const hydratedJob =
+                    hydratedJobs.find((job) => job.id === nextResolvedJob.id) ||
+                    hydratedJobs.find(
+                      (job) =>
+                        job.input.systemBubbleId ===
+                        (payload.systemBubbleId ?? null)
+                    ) ||
+                    null;
+
+                  const hydratedResult = hydratedJob?.result ?? null;
+                  const hydratedSystemBubbleId =
+                    hydratedJob?.input.systemBubbleId ?? null;
+
+                  if (hydratedResult?.imageItemIds?.length) {
+                    setHistories((prev) =>
+                      upsertJobIntoHistory(prev, {
+                        ...nextResolvedJob,
+                        input: {
+                          ...nextResolvedJob.input,
+                          systemBubbleId:
+                            hydratedSystemBubbleId ??
+                            nextResolvedJob.input.systemBubbleId ??
+                            null,
+                        },
+                        result: nextResolvedJob.result
+                          ? {
+                              ...nextResolvedJob.result,
+                              imageItemIds: hydratedResult.imageItemIds,
+                            }
+                          : hydratedResult,
+                      })
+                    );
+                    return;
+                  }
+                }
+
+                if (attempt < REALTIME_IMAGE_ITEM_HYDRATION_ATTEMPTS) {
+                  await sleep(REALTIME_IMAGE_ITEM_HYDRATION_INTERVAL_MS);
+                }
+              }
+            } finally {
+              inflightRealtimeImageItemHydrationRef.current.delete(
+                hydrationKey
+              );
+            }
+          })();
+        }
+      }
+
       const activeSchedulerDraftPost = schedulerDraftPostRef.current;
       const currentSelectedHistory =
         selectedHistoryRef.current || nextResolvedJob;
@@ -3302,8 +3416,9 @@ export const ContentGenerateProvider = ({
     },
     [
       businessId,
-      mEditScheduledPost,
       productImageById,
+      mEditScheduledPost,
+      refetchSchedulerChat,
       scheduleDateParam,
       scheduleTimeParam,
     ]

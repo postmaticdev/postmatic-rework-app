@@ -23,7 +23,6 @@ import { helperService } from "@/services/helper.api";
 import { useTranslations } from "next-intl";
 import { VALID_RATIOS, ValidRatio } from "@/models/api/content/image.type";
 import { cn } from "@/lib/utils";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 
 interface FullscreenImageModalProps {
   isOpen: boolean;
@@ -54,14 +53,14 @@ export function FullscreenImageModal({
 
   const m = useTranslations("modal");
 
-  // Force Postmatic Vision model when modal opens (mask feature only supports this model)
+  // Force GPT Image 1 model when modal opens (mask feature only supports this model)
   useEffect(() => {
     if (isOpen && aiModels.models.length > 0) {
       const gptModel = aiModels.models.find(model => model.name === "gpt-image-1");
       if (gptModel && form.basic.model !== "gpt-image-1") {
         onSelectAiModel(gptModel);
         
-        // Ensure ratio is valid for Postmatic Vision
+        // Ensure ratio is valid for GPT Image 1
         const validRatiosForGPT = [...VALID_RATIOS];
         if (!validRatiosForGPT.includes(form.basic.ratio)) {
           form.setBasic({ ...form.basic, ratio: "1:1" as ValidRatio, model: "gpt-image-1" });
@@ -1306,10 +1305,10 @@ export function FullscreenImageModal({
                 disabled={true}
                 value="gpt-image-1"
               >
-                <option value="gpt-image-1">{getAiModelDisplayName("gpt-image-1")}</option>
+                <option value="gpt-image-1">GPT Image 1</option>
               </select>
               <p className="text-xs text-muted-foreground mt-1">
-                Saat ini fitur mask hanya ada di model {getAiModelDisplayName("gpt-image-1")}
+                Saat ini fitur mask hanya ada di model GPT Image 1
               </p>
             </div>
 
@@ -1327,7 +1326,7 @@ export function FullscreenImageModal({
                   form.setBasic({ ...form.basic, ratio: e.target.value as ValidRatio });
                 }}
               >
-                {/* Only show valid ratios for Postmatic Vision */}
+                {/* Only show valid ratios for GPT Image 1 */}
                 {VALID_RATIOS.map((option) => (
                   <option key={option} value={option}>
                     {option}

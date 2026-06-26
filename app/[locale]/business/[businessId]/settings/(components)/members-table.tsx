@@ -4,29 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown, Shield } from "lucide-react";
-import {
-  useMemberGetAllMembers,
-  useMemberUpdateRole,
-} from "@/services/member.api";
+import { Shield } from "lucide-react";
+import { useMemberGetAllMembers } from "@/services/member.api";
 import { useParams } from "next/navigation";
 import { MemberManagementModal } from "@/app/[locale]/business/[businessId]/settings/(components)/member-management-modal";
 import { useState } from "react";
-import { MemberRole, MemberStatus } from "@/models/api/member/index.type";
-import { showToast } from "@/helper/show-toast";
+import { MemberStatus } from "@/models/api/member/index.type";
 import { useRole } from "@/contexts/role-context";
 import { useTranslations } from "next-intl";
-import {
-  getMemberRoleLabel,
-  getMemberStatusLabel,
-  ROLE_OPTIONS,
-} from "./member-display";
+import { getMemberRoleLabel, getMemberStatusLabel } from "./member-display";
 
 export function MembersTable() {
   const { businessId } = useParams() as { businessId: string };
@@ -34,30 +20,12 @@ export function MembersTable() {
   const members = dataMembers?.data?.data || [];
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const t = useTranslations("settings");
-  const mUpdateRole = useMemberUpdateRole();
 
   const { access } = useRole();
   const { invite, edit } = access.member;
 
   const onInviteMember = () => {
     setIsMemberModalOpen(true);
-  };
-
-  const onChangeRole = async (id: string, role: Exclude<MemberRole, "Owner">) => {
-    try {
-      const findMember = members.find((member) => member.id === id);
-      if (findMember?.role === role) return;
-      const res = await mUpdateRole.mutateAsync({
-        businessId,
-        formData: {
-          memberId: id,
-          role,
-        },
-      });
-      showToast("success", res.data.responseMessage);
-    } catch (error) {
-      showToast("error", error);
-    }
   };
 
   return (
@@ -77,7 +45,7 @@ export function MembersTable() {
               </Button>
             )}
           </div>
-            {/* Mobile list */}
+          {/* Mobile list */}
           <div className="block lg:hidden p-4 space-y-3">
             {members
               ?.filter((member) => JOINED_STATUS.includes(member.status))
@@ -122,44 +90,11 @@ export function MembersTable() {
                   </div>
 
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    {edit &&
-                    member.role !== "Owner" &&
-                    member.status === "Accepted" ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center"
-                            disabled={mUpdateRole.isPending}
-                          >
-                            <Shield className="h-4 w-4 mr-1" />
-                            {getMemberRoleLabel(member.role, t)}
-                            <ChevronDown className="h-4 w-4 ml-1" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          {ROLE_OPTIONS.map((role) => (
-                            <DropdownMenuItem
-                              key={role.value}
-                              onClick={() =>
-                                onChangeRole(member.id, role.value)
-                              }
-                            >
-                              {t(role.translationKey)}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : JOINED_STATUS.includes(member.status) ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center"
-                      >
+                    {JOINED_STATUS.includes(member.status) ? (
+                      <div className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm">
                         <Shield className="h-4 w-4 mr-1" />
                         {getMemberRoleLabel(member.role, t)}
-                      </Button>
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -220,45 +155,10 @@ export function MembersTable() {
                         {member.profile.email}
                       </td>
                       <td className="p-4">
-                        {edit &&
-                        member.role !== "Owner" &&
-                        member.status === "Accepted" ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto p-0 font-normal"
-                                disabled={mUpdateRole.isPending}
-                              >
-                                <Shield className="h-4 w-4 mr-1" />
-                                {getMemberRoleLabel(member.role, t)}
-                                <ChevronDown className="h-4 w-4 ml-1" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              {ROLE_OPTIONS.map((role) => (
-                                <DropdownMenuItem
-                                  key={role.value}
-                                  onClick={() =>
-                                    onChangeRole(member.id, role.value)
-                                  }
-                                >
-                                  {t(role.translationKey)}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-auto p-0 font-normal"
-                          >
-                            <Shield className="h-4 w-4 mr-1" />
-                            {getMemberRoleLabel(member.role, t)}
-                          </Button>
-                        )}
+                        <div className="inline-flex items-center text-sm font-normal">
+                          <Shield className="h-4 w-4 mr-1" />
+                          {getMemberRoleLabel(member.role, t)}
+                        </div>
                       </td>
                       <td className="p-4">
                         <Badge

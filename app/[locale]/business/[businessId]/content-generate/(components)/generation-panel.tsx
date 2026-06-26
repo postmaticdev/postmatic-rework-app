@@ -32,6 +32,7 @@ import {
   Bot,
   Check,
   Copy,
+  CreditCard,
   Newspaper,
   Pencil,
   Plus,
@@ -243,6 +244,19 @@ export function GenerationPanel() {
     router.push(`/business/${businessId}/settings?tab=billing&topUp=token`);
   };
 
+  const isInsufficientTokenError = (message?: string | null) => {
+    const normalizedMessage = message?.toLowerCase() || "";
+
+    return (
+      normalizedMessage.includes("token") &&
+      (normalizedMessage.includes("tidak mencukupi") ||
+        normalizedMessage.includes("insufficient") ||
+        normalizedMessage.includes("not enough") ||
+        normalizedMessage.includes("habis") ||
+        normalizedMessage.includes("saldo"))
+    );
+  };
+
   const handleAttachImage = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -401,18 +415,40 @@ export function GenerationPanel() {
 
                   <div className="space-y-3">
                     {job.status === "error" || job.stage === "error" ? (
-                      <div className="max-w-[82%] rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
-                        <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
-                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                          <div>
-                            <p className="font-medium">Image generation failed</p>
-                            <p className="mt-1 text-xs">
-                              {job.error?.message ||
-                                "The generated image could not be completed."}
-                            </p>
+                      (() => {
+                        const errorMessage =
+                          job.error?.message ||
+                          "The generated image could not be completed.";
+                        const shouldShowTopUpButton =
+                          isInsufficientTokenError(errorMessage);
+
+                        return (
+                          <div className="w-full max-w-[360px] rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
+                            <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+                              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="font-medium">
+                                  Image generation failed
+                                </p>
+                                <p className="mt-1 text-xs break-words">
+                                  {errorMessage}
+                                </p>
+                              </div>
+                            </div>
+                            {shouldShowTopUpButton ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="mt-4 h-9 w-full bg-blue-600 text-xs font-medium text-white hover:bg-blue-700"
+                                onClick={handleTopUpNow}
+                              >
+                                <CreditCard className="h-3.5 w-3.5" />
+                                {modelRestrictionCopy.topUp}
+                              </Button>
+                            ) : null}
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()
                     ) : job.result?.images?.length ? (
                       job.result.images.map((image, index) => {
                         const imageUrl = image || DEFAULT_PLACEHOLDER_IMAGE;
@@ -433,7 +469,7 @@ export function GenerationPanel() {
                               imageUrl={imageUrl}
                               imageItemId={job.result?.imageItemIds?.[index]}
                               alt={`generated-${index + 1}`}
-                              protectFromContextMenu={aiModels.isFreeUser}
+                              protectFromContextMenu
                               className="aspect-square w-full max-w-[360px] cursor-zoom-in rounded-lg border object-cover"
                             />
                             <div className="flex items-center gap-2">

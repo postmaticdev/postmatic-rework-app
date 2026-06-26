@@ -46,6 +46,13 @@ import { NEXT_PUBLIC_ENABLE_CONTENT_FEATURES } from "@/constants";
 import { usePathname } from "@/i18n/navigation";
 
 // Form interfaces
+export interface AutoGenerateAvatarOption {
+  id: string;
+  imageUrl: string;
+  title: string;
+  source: "knowledge" | "browse";
+}
+
 interface BasicForm {
   ratio: ValidRatio;
   category: string;
@@ -54,6 +61,8 @@ interface BasicForm {
   prompt: string | null;
   productName: string;
   productImage: string;
+  selectedAvatar: AutoGenerateAvatarOption | null;
+  avatarImageUrl: string | null;
   customCategory: string;
   customDesignStyle: string;
   caption: string;
@@ -112,6 +121,7 @@ type Ctx = {
 
   // Handlers
   onSelectProduct: (item: ProductKnowledgeRes | null) => void;
+  onSelectAvatar: (item: AutoGenerateAvatarOption | null) => void;
   onSelectAiModel: (model: AiModelRes) => void;
   onResetAdvance: () => void;
 };
@@ -164,6 +174,8 @@ const initialFormBasic: BasicForm = {
   ratio: "1:1",
   productName: "",
   productImage: "",
+  selectedAvatar: null,
+  avatarImageUrl: null,
   customCategory: "",
   customDesignStyle: "",
   caption: "",
@@ -314,6 +326,14 @@ export function AutoGenerateProvider({
       });
     }
   }, [formBasic]);
+
+  const onSelectAvatar = useCallback((item: AutoGenerateAvatarOption | null) => {
+    setFormBasic((prev) => ({
+      ...prev,
+      selectedAvatar: item,
+      avatarImageUrl: item?.imageUrl || null,
+    }));
+  }, []);
 
   const onSelectAiModel = useCallback((model: AiModelRes) => {
     const modelRatios = normalizeValidRatios(model.validRatios);
@@ -470,6 +490,7 @@ export function AutoGenerateProvider({
           ratio: scheduleData.ratio,
           category: scheduleData.category,
           additionalPrompt: scheduleData.additionalPrompt || null,
+          avatarImageUrl: scheduleData.avatarImageUrl || null,
           productKnowledgeId: scheduleData.productKnowledgeId,
           rootBusinessId: businessId,
           advBusinessName: scheduleData.advBusinessName,
@@ -617,6 +638,7 @@ export function AutoGenerateProvider({
               ratio: schedule.ratio,
               category: schedule.category,
               additionalPrompt: schedule.additionalPrompt || undefined,
+              avatarImageUrl: schedule.avatarImageUrl || undefined,
               productKnowledgeId: schedule.productKnowledgeId,
               isActive: schedule.isActive,
               advBusinessName: schedule.advBusinessName,
@@ -655,6 +677,7 @@ export function AutoGenerateProvider({
                 ratio: draftSchedule.ratio,
                 category: draftSchedule.category,
                 additionalPrompt: draftSchedule.additionalPrompt || undefined,
+                avatarImageUrl: draftSchedule.avatarImageUrl || undefined,
                 productKnowledgeId: draftSchedule.productKnowledgeId,
                 isActive: draftSchedule.isActive,
                 advBusinessName: draftSchedule.advBusinessName,
@@ -804,6 +827,7 @@ export function AutoGenerateProvider({
 
         // Handlers
         onSelectProduct,
+        onSelectAvatar,
         onSelectAiModel,
         onResetAdvance,
       };
@@ -827,6 +851,7 @@ export function AutoGenerateProvider({
       aiModels,
       isLoading,
       onSelectProduct,
+      onSelectAvatar,
       onSelectAiModel,
       onResetAdvance,
     ]

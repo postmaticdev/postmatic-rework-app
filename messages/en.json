@@ -422,7 +422,7 @@
       "tax": "Tax",
       "total": "Total",
       "processing": "Processing...",
-      "continue": "Continue",
+      "continue": "Continue to payment",
       "enterPromoCodeValidation": "Please enter a promo code.",
       "invalidTokenAmount": "Please enter a valid token amount.",
       "paymentExpired": "The payment deadline has passed.",
