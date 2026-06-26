@@ -99,6 +99,8 @@ export interface JobData {
     prompt: string | null;
     caption: string | null;
     chatSessionId?: number | null;
+    avatarImageUrl?: string | null;
+    avatarImages?: string[];
     additionalImages?: string[];
     systemBubbleId?: number | null;
     category: string;

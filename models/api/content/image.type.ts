@@ -267,6 +267,7 @@ export interface ImagePostChatBubbleRes {
   replyToBubbleId: number | null;
   replyToBubble?: ImagePostChatBubbleRes | null;
   appGenerativeImageModelId: number | null;
+  avatarImageUrl?: string | null;
   additionalImages?: string[] | null;
   errorMessage: string | null;
   images: ImagePostChatBubbleImageRes[] | null;
@@ -281,6 +282,7 @@ export interface ImagePostChatRes {
 
 export interface SendImageChatMessagePld {
   model: string;
+  avatarImageUrl?: string;
   additionalImages?: string[];
   prompt: string;
   ratio?: string;

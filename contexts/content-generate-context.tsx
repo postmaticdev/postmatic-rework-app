@@ -497,6 +497,55 @@ function getBubbleImageUrls(
   return bubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
 }
 
+function uniqueImageUrls(images: Array<string | null | undefined>) {
+  return Array.from(new Set(images.filter(Boolean) as string[]));
+}
+
+function buildSelectedAvatarsFromUrls(images: string[]): SelectedAvatarOption[] {
+  return uniqueImageUrls(images).map((imageUrl, index) => ({
+    id: `history-avatar-${index}-${imageUrl}`,
+    imageUrl,
+    title: `Avatar ${index + 1}`,
+    source: "browse" as const,
+  }));
+}
+
+function resolveJobInputImages({
+  avatarImageUrl,
+  avatarImages = [],
+  additionalImages,
+  referenceImage,
+  productImages,
+}: {
+  avatarImageUrl?: string | null;
+  avatarImages?: string[];
+  additionalImages?: string[] | null;
+  referenceImage?: string | null;
+  productImages?: string[];
+}) {
+  const normalizedAdditionalImages = uniqueImageUrls(additionalImages || []);
+  const explicitAvatarImages = uniqueImageUrls([
+    avatarImageUrl,
+    ...(avatarImages || []),
+  ]);
+  const inferredAvatarImages = explicitAvatarImages.length
+    ? explicitAvatarImages
+    : mapSelectedAvatarsFromImages(normalizedAdditionalImages, {
+        referenceImage,
+        productImages,
+      }).map((avatar) => avatar.imageUrl);
+  const resolvedAvatarImages = uniqueImageUrls(inferredAvatarImages);
+
+  return {
+    avatarImages: resolvedAvatarImages,
+    avatarImageUrl: resolvedAvatarImages[0] || null,
+    selectedAvatars: buildSelectedAvatarsFromUrls(resolvedAvatarImages),
+    additionalImages: normalizedAdditionalImages.filter(
+      (imageUrl) => !resolvedAvatarImages.includes(imageUrl)
+    ),
+  };
+}
+
 function buildSchedulerChatJobs({
   chat,
   businessId,
@@ -508,6 +557,7 @@ function buildSchedulerChatJobs({
   productName,
   productImage,
   referenceImage,
+  avatarImages = [],
   caption,
 }: {
   chat: ImagePostChatRes;
@@ -520,6 +570,7 @@ function buildSchedulerChatJobs({
   productName?: string;
   productImage?: string;
   referenceImage?: string | null;
+  avatarImages?: string[];
   caption?: string;
 }): JobData[] {
   const bubbles = [...(chat.bubbles || [])].sort(
@@ -547,9 +598,14 @@ function buildSchedulerChatJobs({
         : null);
     const replyReferenceImages = getBubbleImageUrls(replyBubble);
     const userImages = getBubbleImageUrls(userBubble);
-    const userAdditionalImages = (userBubble.additionalImages || []).filter(
-      Boolean
-    );
+    const resolvedInputImages = resolveJobInputImages({
+      avatarImageUrl: userBubble.avatarImageUrl,
+      avatarImages: index === 0 ? avatarImages : [],
+      additionalImages: userBubble.additionalImages || [],
+      referenceImage,
+      productImages: productImage ? [productImage] : [],
+    });
+    const userAdditionalImages = resolvedInputImages.additionalImages;
     const userPromptImages = Array.from(
       new Set([...replyReferenceImages, ...userImages, ...userAdditionalImages])
     );
@@ -586,6 +642,8 @@ function buildSchedulerChatJobs({
         prompt: userBubble.prompt || "",
         caption: caption || "",
         chatSessionId,
+        avatarImageUrl: resolvedInputImages.avatarImageUrl,
+        avatarImages: resolvedInputImages.avatarImages,
         additionalImages: index === 0 ? firstPromptAdditionalImages : userPromptImages,
         systemBubbleId: systemBubble?.id || null,
         category: "",
@@ -672,7 +730,9 @@ function buildSchedulerFallbackChatJob({
       prompt: schedulerFirstGeneratePrompt,
       caption: caption || "",
       chatSessionId: chatSessionId ?? null,
-      additionalImages: avatarImages,
+      avatarImageUrl: avatarImages[0] || null,
+      avatarImages,
+      additionalImages: [],
       systemBubbleId: null,
       category: "",
       designStyle: "",
@@ -715,19 +775,14 @@ function mapSelectedAvatarsFromImages(
 ): SelectedAvatarOption[] {
   const productImages = options?.productImages || [];
 
-  return (images || [])
-    .filter(
+  return buildSelectedAvatarsFromUrls(
+    (images || []).filter(
       (imageUrl) =>
         Boolean(imageUrl) &&
         imageUrl !== options?.referenceImage &&
         !productImages.includes(imageUrl)
     )
-    .map((imageUrl, index) => ({
-      id: `history-avatar-${index}-${imageUrl}`,
-      imageUrl,
-      title: `Avatar ${index + 1}`,
-      source: "browse" as const,
-    }));
+  );
 }
 
 const ContentGenerateContext = createContext<
@@ -987,6 +1042,13 @@ export const ContentGenerateProvider = ({
       setMode("regenerate");
       const activeImageUrl =
         options?.selectedImageUrl || item?.result?.images[0] || null;
+      const resolvedInputImages = resolveJobInputImages({
+        avatarImageUrl: item?.input?.avatarImageUrl,
+        avatarImages: item?.input?.avatarImages,
+        additionalImages: item?.input?.additionalImages,
+        referenceImage: item?.input?.referenceImage,
+        productImages: item?.product?.images || [],
+      });
       
       // Find and set the AI model from history
       const modelFromHistory = aiModelsRes?.data?.data?.find(
@@ -1018,14 +1080,8 @@ export const ContentGenerateProvider = ({
         productKnowledgeId: item?.input?.productKnowledgeId || "",
         productName: item?.product?.name || "",
         productImage: activeImageUrl || "",
-        selectedAvatars: mapSelectedAvatarsFromImages(
-          item?.input?.additionalImages,
-          {
-            referenceImage: item?.input?.referenceImage,
-            productImages: item?.product?.images || [],
-          }
-        ),
-        additionalImages: item?.input?.additionalImages || [],
+        selectedAvatars: resolvedInputImages.selectedAvatars,
+        additionalImages: resolvedInputImages.additionalImages,
         category: item?.input?.category || "other",
         customCategory: item?.input?.category || "",
         designStyle: item?.input?.designStyle || "",
@@ -1091,6 +1147,13 @@ export const ContentGenerateProvider = ({
       const effectiveModelRatios = normalizeValidRatios(
         effectiveModel?.validRatios
       );
+      const resolvedInputImages = resolveJobInputImages({
+        avatarImageUrl: item?.input?.avatarImageUrl,
+        avatarImages: item?.input?.avatarImages,
+        additionalImages: item?.input?.additionalImages,
+        referenceImage: item?.input?.referenceImage,
+        productImages: item?.product?.images || [],
+      });
       const nextRatio = effectiveModelRatios.includes(
         item?.result?.ratio as ValidRatio
       )
@@ -1108,14 +1171,8 @@ export const ContentGenerateProvider = ({
         productKnowledgeId: item?.input?.productKnowledgeId || "",
         productName: item?.product?.name || "",
         productImage: imageUrl,
-        selectedAvatars: mapSelectedAvatarsFromImages(
-          item?.input?.additionalImages,
-          {
-            referenceImage: item?.input?.referenceImage,
-            productImages: item?.product?.images || [],
-          }
-        ),
-        additionalImages: item?.input?.additionalImages || [],
+        selectedAvatars: resolvedInputImages.selectedAvatars,
+        additionalImages: resolvedInputImages.additionalImages,
         category: item?.input?.category || "other",
         customCategory: item?.input?.category || "",
         designStyle: item?.input?.designStyle || "",
@@ -1374,6 +1431,7 @@ export const ContentGenerateProvider = ({
             productName: form.basic.productName,
             productImage: seedProductImage,
             referenceImage: seedReferenceImage,
+            avatarImages: routeDraftMarker?.avatarImages || [],
             caption: restoredCaption,
           })
         : [
@@ -1404,6 +1462,20 @@ export const ContentGenerateProvider = ({
               isInitialSchedulerBubble
                 ? job.input.referenceImage || seedReferenceImage || null
                 : job.input.referenceImage || existingJob?.input.referenceImage || null,
+            avatarImageUrl:
+              job.input.avatarImageUrl ||
+              existingJob?.input.avatarImageUrl ||
+              (isInitialSchedulerBubble
+                ? routeDraftMarker?.avatarImages?.[0] || null
+                : null),
+            avatarImages:
+              job.input.avatarImages?.length
+                ? job.input.avatarImages
+                : existingJob?.input.avatarImages?.length
+                ? existingJob.input.avatarImages
+                : isInitialSchedulerBubble
+                ? routeDraftMarker?.avatarImages || []
+                : [],
             additionalImages:
               isInitialSchedulerBubble
                 ? job.input.additionalImages || []
@@ -1459,15 +1531,19 @@ export const ContentGenerateProvider = ({
       setSelectedJobId(latestJob.id);
       setSelectedGeneratedImageUrl(imageUrl || null);
       setSchedulerChatSeed(restoredSeed);
+      const restoredInputImages = resolveJobInputImages({
+        avatarImages: routeDraftMarker?.avatarImages || [],
+        additionalImages: latestJob.input.additionalImages,
+        referenceImage: seedReferenceImage || null,
+        productImages: seedProductImage ? [seedProductImage] : [],
+      });
       setFormBasic((prev) => ({
         ...prev,
         productKnowledgeId,
         productImage: seedProductImage || prev.productImage,
         referenceImage: seedReferenceImage || prev.referenceImage,
-        selectedAvatars: mapSelectedAvatarsFromImages(
-          routeDraftMarker?.avatarImages
-        ),
-        additionalImages: routeDraftMarker?.avatarImages || [],
+        selectedAvatars: restoredInputImages.selectedAvatars,
+        additionalImages: restoredInputImages.additionalImages,
         caption: restoredCaption,
         prompt: "",
       }));
@@ -1519,15 +1595,19 @@ export const ContentGenerateProvider = ({
       setSelectedJobId(fallbackJob.id);
       setSelectedGeneratedImageUrl(selectedHistoryImage);
       setSchedulerChatSeed(restoredSeed);
+      const fallbackInputImages = resolveJobInputImages({
+        avatarImages: routeDraftMarker?.avatarImages || [],
+        additionalImages: fallbackJob.input.additionalImages,
+        referenceImage: fallbackReferenceImage,
+        productImages: fallbackProductImage ? [fallbackProductImage] : [],
+      });
       setFormBasic((prev) => ({
         ...prev,
         productKnowledgeId,
         productImage: fallbackProductImage || prev.productImage,
         referenceImage: fallbackReferenceImage || prev.referenceImage,
-        selectedAvatars: mapSelectedAvatarsFromImages(
-          routeDraftMarker?.avatarImages
-        ),
-        additionalImages: routeDraftMarker?.avatarImages || [],
+        selectedAvatars: fallbackInputImages.selectedAvatars,
+        additionalImages: fallbackInputImages.additionalImages,
         caption: restoredCaption,
         prompt: "",
       }));
@@ -2065,7 +2145,6 @@ export const ContentGenerateProvider = ({
     form.setBasic({
       ...form.basic,
       selectedAvatars: items,
-      additionalImages: items.map((item) => item.imageUrl),
     });
   };
 
@@ -2288,13 +2367,21 @@ export const ContentGenerateProvider = ({
     const selectedAvatarImages = form.basic.selectedAvatars.map(
       (avatar) => avatar.imageUrl
     );
+    const primaryAvatarImage =
+      isFirstSchedulerBubble && selectedAvatarImages.length
+        ? selectedAvatarImages[0]
+        : undefined;
+    const additionalAvatarImages =
+      isFirstSchedulerBubble && selectedAvatarImages.length > 1
+        ? selectedAvatarImages.slice(1)
+        : [];
     const chatAdditionalImages = Array.from(
       new Set(
         (
           isFirstSchedulerBubble
             ? [
                 form.basic.referenceImage,
-                ...selectedAvatarImages,
+                ...additionalAvatarImages,
                 ...additionalImages,
               ]
             : additionalImages
@@ -2334,6 +2421,8 @@ export const ContentGenerateProvider = ({
         prompt: firstPrompt,
         caption: form.basic.caption,
         chatSessionId,
+        avatarImageUrl: primaryAvatarImage || null,
+        avatarImages: selectedAvatarImages,
         additionalImages: chatAdditionalImages,
         category: "",
         designStyle: "",
@@ -2407,6 +2496,7 @@ export const ContentGenerateProvider = ({
 
     const chatPayload = {
       model: effectiveModel,
+      avatarImageUrl: primaryAvatarImage,
       additionalImages: chatAdditionalImages,
       prompt: firstPrompt,
       ratio: effectiveRatio,
@@ -2741,9 +2831,12 @@ export const ContentGenerateProvider = ({
               advancedGenerate: form.advance,
               referenceImage: regenerateReferenceImage,
               prompt: regeneratePrompt,
-              additionalImages:
-                selectedHistory.input.additionalImages ||
-                selectedAvatarImages,
+              additionalImages: Array.from(
+                new Set([
+                  ...(selectedHistory.input.additionalImages || []),
+                  ...selectedAvatarImages,
+                ].filter(Boolean))
+              ),
               ratio: effectiveRatio,
               model: effectiveModel,
               imageSize: effectiveImageSize,
@@ -3085,6 +3178,15 @@ export const ContentGenerateProvider = ({
             selectedHistory.product.images[0],
           referenceImage:
             seedJob?.input?.referenceImage || selectedHistory.input.referenceImage,
+          avatarImages:
+            currentDraftMarker?.avatarImages ||
+            resolveJobInputImages({
+              avatarImageUrl: selectedHistory.input.avatarImageUrl,
+              avatarImages: selectedHistory.input.avatarImages,
+              additionalImages: selectedHistory.input.additionalImages,
+              referenceImage: selectedHistory.input.referenceImage,
+              productImages: selectedHistory.product.images || [],
+            }).avatarImages,
           caption: persistedCaption,
         });
         const mergedChatJobs = chatJobs.map((job, index) => {
@@ -3111,6 +3213,20 @@ export const ContentGenerateProvider = ({
                   : job.input.referenceImage ||
                     existingJob?.input.referenceImage ||
                     null,
+              avatarImageUrl:
+                job.input.avatarImageUrl ||
+                existingJob?.input.avatarImageUrl ||
+                (isInitialSchedulerBubble
+                  ? currentDraftMarker?.avatarImages?.[0] || null
+                  : null),
+              avatarImages:
+                job.input.avatarImages?.length
+                  ? job.input.avatarImages
+                  : existingJob?.input.avatarImages?.length
+                  ? existingJob.input.avatarImages
+                  : isInitialSchedulerBubble
+                  ? currentDraftMarker?.avatarImages || []
+                  : [],
               additionalImages:
                 isInitialSchedulerBubble
                   ? job.input.additionalImages || []
@@ -3192,13 +3308,13 @@ export const ContentGenerateProvider = ({
               null,
             avatarImages:
               currentDraftMarker?.avatarImages ||
-              mapSelectedAvatarsFromImages(
-                selectedHistory.input.additionalImages,
-                {
-                  referenceImage: selectedHistory.input.referenceImage,
-                  productImages: selectedHistory.product.images || [],
-                }
-              ).map((avatar) => avatar.imageUrl),
+              resolveJobInputImages({
+                avatarImageUrl: selectedHistory.input.avatarImageUrl,
+                avatarImages: selectedHistory.input.avatarImages,
+                additionalImages: selectedHistory.input.additionalImages,
+                referenceImage: selectedHistory.input.referenceImage,
+                productImages: selectedHistory.product.images || [],
+              }).avatarImages,
             chatSessionId: activeChatSessionId,
             businessProductId: selectedHistory.input.productKnowledgeId || null,
             createdAt: latestJob.createdAt || new Date().toISOString(),

@@ -852,6 +852,7 @@ const imagePostChatService = {
       `/generative-content/chat/${businessId}/${chatSessionId}/send-message-image`,
       {
         modelId,
+        avatarImageUrl: formData.avatarImageUrl || undefined,
         additionalImages: formData.additionalImages || [],
         prompt: formData.prompt,
         ratio: formData.ratio || undefined,

@@ -134,13 +134,14 @@ export function PaymentInstructionCard({
   const textPaymentAction = paymentActions.find(
     (action) => action.type === "text" && action.action !== "virtual-account"
   );
+  const qrCodeActionValue = qrCodeAction?.value;
 
   const hasPaymentInstruction = Boolean(
     qrCodeAction || virtualAccountAction || textPaymentAction
   );
   const shouldShowPaymentInstruction =
     hasPaymentInstruction && (isPending || persistPaymentMedia);
-  const shouldShowQrCodeImage = Boolean(qrCodeAction) && isPending;
+  const shouldShowQrCodeImage = Boolean(qrCodeActionValue) && isPending;
   const shouldShowQrisLogo = !isPending && (Boolean(qrCodeAction) || isQrisMethod(method));
   const instructionBoxClassName =
     "grid h-28 w-28 shrink-0 place-items-center self-start rounded-md border bg-white p-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:h-56 sm:w-56 sm:p-3";
@@ -189,9 +190,9 @@ export function PaymentInstructionCard({
         </div>
 
         {shouldShowPaymentInstruction ? (
-          shouldShowQrCodeImage ? (
+          shouldShowQrCodeImage && qrCodeActionValue ? (
             <a
-              href={qrCodeAction.value}
+              href={qrCodeActionValue}
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
@@ -201,7 +202,7 @@ export function PaymentInstructionCard({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={qrCodeAction.value}
+                src={qrCodeActionValue}
                 alt={t("qrisAlt")}
                 className="h-24 w-24 object-contain sm:h-52 sm:w-52"
               />

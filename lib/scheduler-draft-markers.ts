@@ -21,6 +21,43 @@ function getStorageKey(businessId: string) {
   return `${STORAGE_PREFIX}${businessId}`;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isSchedulerDraftMarker(item: unknown): item is SchedulerDraftMarker {
+  if (!isRecord(item)) {
+    return false;
+  }
+
+  return (
+    typeof item.draftId === "string" &&
+    typeof item.jobId === "string" &&
+    typeof item.date === "string" &&
+    (item.time === undefined || typeof item.time === "string") &&
+    typeof item.image === "string" &&
+    typeof item.caption === "string" &&
+    (item.productImage === undefined ||
+      item.productImage === null ||
+      typeof item.productImage === "string") &&
+    (item.referenceImage === undefined ||
+      item.referenceImage === null ||
+      typeof item.referenceImage === "string") &&
+    (item.avatarImages === undefined ||
+      (Array.isArray(item.avatarImages) &&
+        item.avatarImages.every((image: unknown) => typeof image === "string"))) &&
+    (item.chatSessionId === undefined ||
+      item.chatSessionId === null ||
+      typeof item.chatSessionId === "string" ||
+      typeof item.chatSessionId === "number") &&
+    (item.businessProductId === undefined ||
+      item.businessProductId === null ||
+      typeof item.businessProductId === "string" ||
+      typeof item.businessProductId === "number") &&
+    typeof item.createdAt === "string"
+  );
+}
+
 export function getSchedulerDraftMarkers(businessId: string) {
   if (typeof window === "undefined") {
     return [];
@@ -32,38 +69,12 @@ export function getSchedulerDraftMarkers(businessId: string) {
       return [];
     }
 
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
       return [];
     }
 
-    return parsed.filter(
-      (item): item is SchedulerDraftMarker =>
-        typeof item?.draftId === "string" &&
-        typeof item?.jobId === "string" &&
-        typeof item?.date === "string" &&
-        (item?.time === undefined || typeof item?.time === "string") &&
-        typeof item?.image === "string" &&
-        typeof item?.caption === "string" &&
-        (item?.productImage === undefined ||
-          item?.productImage === null ||
-          typeof item?.productImage === "string") &&
-        (item?.referenceImage === undefined ||
-          item?.referenceImage === null ||
-          typeof item?.referenceImage === "string") &&
-        (item?.avatarImages === undefined ||
-          (Array.isArray(item?.avatarImages) &&
-            item.avatarImages.every((image) => typeof image === "string"))) &&
-        (item?.chatSessionId === undefined ||
-          item?.chatSessionId === null ||
-          typeof item?.chatSessionId === "string" ||
-          typeof item?.chatSessionId === "number") &&
-        (item?.businessProductId === undefined ||
-          item?.businessProductId === null ||
-          typeof item?.businessProductId === "string" ||
-          typeof item?.businessProductId === "number") &&
-        typeof item?.createdAt === "string"
-    );
+    return parsed.filter(isSchedulerDraftMarker);
   } catch {
     return [];
   }

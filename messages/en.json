@@ -574,7 +574,7 @@
     "avatarLabel": "Avatar",
     "optional": "Optional",
     "selectAvatar": "Select Avatar",
-    "selectAvatarDescription": "Choose one or more avatars to use during content generation.",
+    "selectAvatarDescription": "Choose one avatar to use during content generation.",
     "searchAvatarPlaceholder": "Search avatars...",
     "avatarTabKnowledge": "Knowledge Avatar",
     "avatarTabBrowse": "Browse Avatar",

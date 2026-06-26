@@ -303,9 +303,22 @@ export function GenerationPanel() {
         <div className="flex h-full min-h-0 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6">
             {currentThread.map((job, jobIndex) => {
-              const additionalPromptImages = job.input.additionalImages || [];
               const isInitialSchedulerBubble =
                 jobIndex === 0 && job.id.startsWith("chat-");
+              const avatarPromptImages = Array.from(
+                new Set(
+                  [
+                    job.input.avatarImageUrl,
+                    ...(job.input.avatarImages || []),
+                    ...(isInitialSchedulerBubble
+                      ? schedulerChatSeed?.avatarImages || []
+                      : []),
+                  ].filter(Boolean) as string[]
+                )
+              );
+              const additionalPromptImages = (job.input.additionalImages || []).filter(
+                (imageUrl) => !avatarPromptImages.includes(imageUrl)
+              );
               const initialReferenceImage = isInitialSchedulerBubble
                 ? schedulerChatSeed?.referenceImage ||
                 null
@@ -314,16 +327,13 @@ export function GenerationPanel() {
                 ? schedulerChatSeed?.productImage ||
                 null
                 : null;
-              const initialAvatarImages = isInitialSchedulerBubble
-                ? schedulerChatSeed?.avatarImages || []
-                : [];
               const promptImages = isInitialSchedulerBubble
                 ? Array.from(
                   new Set(
                     [
                       initialReferenceImage,
                       initialProductImage,
-                      ...initialAvatarImages,
+                      ...avatarPromptImages,
                       ...additionalPromptImages,
                     ].filter(Boolean) as string[]
                   )
@@ -331,6 +341,7 @@ export function GenerationPanel() {
                 : Array.from(
                   new Set(
                     [
+                      ...avatarPromptImages,
                       ...additionalPromptImages,
                       ...(job.product?.images || []),
                       job.input.referenceImage,

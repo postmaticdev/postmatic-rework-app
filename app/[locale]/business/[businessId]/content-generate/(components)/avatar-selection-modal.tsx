@@ -72,7 +72,7 @@ export function AvatarSelectionModal({
       return;
     }
 
-    setTempSelected(selectedAvatars);
+    setTempSelected(selectedAvatars.slice(0, 1));
   }, [isOpen, selectedAvatars]);
 
   const businessAvatarOptions = useMemo<SelectedAvatarOption[]>(() => {
@@ -111,8 +111,8 @@ export function AvatarSelectionModal({
   const toggleAvatar = (item: SelectedAvatarOption) => {
     setTempSelected((current) =>
       current.some((avatar) => avatar.id === item.id)
-        ? current.filter((avatar) => avatar.id !== item.id)
-        : [...current, item]
+        ? []
+        : [item]
     );
   };
 
@@ -223,7 +223,7 @@ export function AvatarSelectionModal({
         <DialogFooterWithTwoButtons
           primaryButton={{
             message: t("applyAvatarSelection"),
-            onClick: () => onSave(tempSelected),
+            onClick: () => onSave(tempSelected.slice(0, 1)),
             className:
               tempSelected.length === 0
                 ? "pointer-events-none opacity-50"

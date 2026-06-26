@@ -55,7 +55,6 @@ export function SelectedAvatars() {
                   form.setBasic({
                     ...form.basic,
                     selectedAvatars: nextAvatars,
-                    additionalImages: nextAvatars.map((item) => item.imageUrl),
                   });
                 }}
               >

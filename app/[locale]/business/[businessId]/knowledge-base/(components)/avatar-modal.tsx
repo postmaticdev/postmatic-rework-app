@@ -61,7 +61,9 @@ export function AvatarModal({
           <div className="flex flex-col gap-6 md:flex-row md:items-start">
             <UploadPhoto
               label={t("avatarPhoto")}
-              onImageChange={(url) => updateField("imageUrl", url || "")}
+              onImageChange={(url: string | null) =>
+                updateField("imageUrl", url || "")
+              }
               currentImage={formValue.imageUrl}
               error={errors.imageUrl}
             />
