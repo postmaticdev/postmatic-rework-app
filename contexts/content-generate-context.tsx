@@ -7,7 +7,11 @@ import {
 } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
-import { createSocket, destroySocket, getSocket } from "@/lib/socket";
+import {
+  createSocket,
+  destroySocket,
+  RealtimeEnvelope,
+} from "@/lib/socket";
 import {
   getSchedulerDraftMarkers,
   upsertSchedulerDraftMarker,
@@ -62,9 +66,8 @@ import {
   useLibraryTemplateGetProductCategory,
 } from "@/services/library.api";
 import { useBusinessPurchaseGetHistory } from "@/services/purchase.api";
-import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
-import { useRouter, usePathname } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 
 import {
   Dispatch,
@@ -78,7 +81,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
 import { translateApiResponseMessage } from "@/helper/api-response-message";
 
 export interface Template {
@@ -421,6 +423,56 @@ function formatCurrentTimeInput() {
   const hour = now.getHours().toString().padStart(2, "0");
   const minute = now.getMinutes().toString().padStart(2, "0");
   return `${hour}:${minute}`;
+}
+
+type RealtimeGenerativeChatProgressData = {
+  businessRootId: number;
+  chatSessionId: number;
+  errorMessage: string | null;
+  generatedImagePostId: number | null;
+  imageUrls: string[];
+  message: string;
+  processState: "queued" | "processing" | "success" | "failed" | string;
+  progressPercentage: number;
+  progressStep: string;
+  reason: string;
+  systemBubbleId: number | null;
+  updatedAt: string;
+  userBubbleId: number;
+};
+
+function mapRealtimeProcessStateToJobStatus(processState: string): JobStatus {
+  switch (processState) {
+    case "success":
+      return "done";
+    case "failed":
+      return "error";
+    case "queued":
+      return "queued";
+    default:
+      return "processing";
+  }
+}
+
+function mapRealtimeProcessStateToJobStage(processState: string): JobStage {
+  switch (processState) {
+    case "success":
+      return "done";
+    case "failed":
+      return "error";
+    case "queued":
+      return "queued";
+    default:
+      return "processing";
+  }
+}
+
+function clampProgress(progress: number, processState: string) {
+  if (processState === "success" || processState === "failed") {
+    return 100;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(progress)));
 }
 
 function upsertJobIntoHistory(groups: GetAllJob[], incoming: JobData) {
@@ -801,7 +853,6 @@ export const ContentGenerateProvider = ({
    */
   const { businessId } = useParams() as { businessId: string };
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const pathname = usePathname();
   const t = useTranslations();
   const browserPathname =
@@ -813,6 +864,7 @@ export const ContentGenerateProvider = ({
     NEXT_PUBLIC_ENABLE_CONTENT_FEATURES && isContentGenerateRoute;
   const contentGenerateFormDataEnabled = isContentGenerateRoute;
   const scheduleDateParam = searchParams.get("scheduleDate");
+  const scheduleTimeParam = searchParams.get("scheduleTime");
   const selectedHistoryRouteId = searchParams.get("selectedHistoryId");
   const selectedHistoryRouteImage = searchParams.get("selectedHistoryImage");
   const routeChatSessionId = searchParams.get("chatSessionId");
@@ -941,10 +993,15 @@ export const ContentGenerateProvider = ({
         .find((job) => job.id === selectedJobId) || null
     );
   }, [histories, selectedJobId]);
+  const selectedHistoryRef = useRef<JobData | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
     null
   );
   const [schedulerDraftPost, setSchedulerDraftPost] = useState<{
+    id: number;
+    chatSessionId: number | null;
+  } | null>(null);
+  const schedulerDraftPostRef = useRef<{
     id: number;
     chatSessionId: number | null;
   } | null>(null);
@@ -956,6 +1013,14 @@ export const ContentGenerateProvider = ({
   } | null>(null);
   const syncedSchedulerImageRef = useRef<string | null>(null);
   const [isDraftSaved, setIsDraftSaved] = useState<boolean>(false);
+
+  useEffect(() => {
+    selectedHistoryRef.current = selectedHistory;
+  }, [selectedHistory]);
+
+  useEffect(() => {
+    schedulerDraftPostRef.current = schedulerDraftPost;
+  }, [schedulerDraftPost]);
 
   useEffect(() => {
     setSchedulerDraftPost(null);
@@ -2681,6 +2746,8 @@ export const ContentGenerateProvider = ({
           });
 
           const knowledgeJobId = resKnowledge.data.data.jobId;
+          const knowledgeChatSessionId =
+            resKnowledge.data.data.chatSessionId ?? null;
 
           await afterSubmitGenerate(knowledgeJobId, {
             id: knowledgeJobId,
@@ -2696,6 +2763,7 @@ export const ContentGenerateProvider = ({
               ratio: effectiveRatio,
               prompt: form.basic.prompt,
               caption: form.basic.caption,
+              chatSessionId: knowledgeChatSessionId,
               additionalImages: selectedAvatarImages,
               category:
                 form.basic.category === "other"
@@ -2757,6 +2825,7 @@ export const ContentGenerateProvider = ({
           });
 
           const rssJobId = resRss?.data?.data?.jobId;
+          const rssChatSessionId = resRss?.data?.data?.chatSessionId ?? null;
 
           await afterSubmitGenerate(rssJobId, {
             id: rssJobId,
@@ -2772,6 +2841,7 @@ export const ContentGenerateProvider = ({
               ratio: effectiveRatio,
               prompt: form.basic.prompt,
               caption: form.basic.caption,
+              chatSessionId: rssChatSessionId,
               additionalImages: selectedAvatarImages,
               category:
                 form.basic.category === "other"
@@ -2844,6 +2914,8 @@ export const ContentGenerateProvider = ({
           });
 
           const regenerateJobId = resRegenerate.data.data.jobId;
+          const regenerateChatSessionId =
+            resRegenerate.data.data.chatSessionId ?? null;
 
           await afterSubmitGenerate(regenerateJobId, {
             ...selectedHistory,
@@ -2858,6 +2930,8 @@ export const ContentGenerateProvider = ({
               ...selectedHistory.input,
               prompt: regeneratePrompt,
               caption: regenerateCaption,
+              chatSessionId:
+                regenerateChatSessionId ?? selectedHistory.input.chatSessionId,
               referenceImage: regenerateReferenceImage,
               ratio: effectiveRatio,
               model: effectiveModel,
@@ -3006,111 +3080,301 @@ export const ContentGenerateProvider = ({
    *
    */
   const [isConnected, setIsConnected] = useState(false);
-  const rbRef = useRef<string | null>(null);
-  const router = useRouter();
-  const joinRoom = useCallback((rb?: string | null) => {
-    const s = getSocket();
-    if (!s || !s.connected) return;
-    if (!rb) return;
-    s.emit("join:business", rb);
-  }, []);
+  const activeRealtimeChatSessionId = useMemo(() => {
+    const selectedChatSessionId = selectedHistory?.input.chatSessionId;
+    if (
+      typeof selectedChatSessionId === "number" &&
+      Number.isFinite(selectedChatSessionId)
+    ) {
+      return selectedChatSessionId;
+    }
 
-  // private function
-  const toastFinal = useCallback(
-    (job: JobData) => {
-      const phase = job.stage;
-      const isFinal = phase === "done" || phase === "error";
-      if (!isFinal) return;
+    const schedulerChatSessionId = schedulerDraftPost?.chatSessionId;
+    if (
+      typeof schedulerChatSessionId === "number" &&
+      Number.isFinite(schedulerChatSessionId)
+    ) {
+      return schedulerChatSessionId;
+    }
 
-  
-      const title =
-        phase === "done" ? t("toast.contentGeneration.completed") : t("toast.contentGeneration.failed");
-      const desc =
-        phase === "error"
-          ? job.error?.message ?? t("toast.contentGeneration.errorOccurred")
-          : t("toast.contentGeneration.completedWithProduct", { productName: job.product?.name ?? "" });
+    const parsedRouteChatSessionId = Number(routeChatSessionId);
+    if (
+      Number.isFinite(parsedRouteChatSessionId) &&
+      parsedRouteChatSessionId > 0
+    ) {
+      return parsedRouteChatSessionId;
+    }
 
-      toast(title, {
-        description: desc,
-        action: {
-          label: "Open",
-          onClick: () => {
-            if (!pathname.includes("content-generate")) {
-              router.push(`/business/${businessId}/content-generate`);
-            }
-            onSelectHistory(job);
+    return null;
+  }, [
+    routeChatSessionId,
+    schedulerDraftPost?.chatSessionId,
+    selectedHistory?.input.chatSessionId,
+  ]);
+
+  const applyRealtimeChatProgress = useCallback(
+    (payload: RealtimeGenerativeChatProgressData) => {
+      if (
+        !Number.isFinite(payload.chatSessionId) ||
+        !Number.isFinite(payload.userBubbleId)
+      ) {
+        return;
+      }
+
+      const nextJobId = `chat-${payload.userBubbleId}`;
+      let latestJob: JobData | null = null;
+      let latestImage = "";
+
+      setHistories((prev) => {
+        const flatJobs = prev.flatMap((group) => group.jobs);
+        const selectedJob = selectedHistoryRef.current;
+        const exactJob = flatJobs.find((job) => job.id === nextJobId) || null;
+        const selectedPendingJob =
+          selectedJob &&
+          selectedJob.id.startsWith("chat-pending-") &&
+          selectedJob.input.chatSessionId === payload.chatSessionId
+            ? selectedJob
+            : null;
+        const fallbackJob =
+          exactJob ||
+          selectedPendingJob ||
+          flatJobs.find(
+            (job) =>
+              job.id.startsWith("chat-") &&
+              job.input.chatSessionId === payload.chatSessionId &&
+              job.input.systemBubbleId === payload.systemBubbleId
+          ) ||
+          null;
+
+        if (!fallbackJob) return prev;
+
+        const nextStatus = mapRealtimeProcessStateToJobStatus(
+          payload.processState
+        );
+        const nextStage = mapRealtimeProcessStateToJobStage(
+          payload.processState
+        );
+        const resultImages = (payload.imageUrls || []).filter(Boolean);
+
+        latestJob = {
+          ...fallbackJob,
+          id: nextJobId,
+          rootBusinessId: String(payload.businessRootId || businessId),
+          status: nextStatus,
+          stage: nextStage,
+          progress: clampProgress(
+            payload.progressPercentage,
+            payload.processState
+          ),
+          updatedAt: payload.updatedAt || new Date().toISOString(),
+          input: {
+            ...fallbackJob.input,
+            chatSessionId: payload.chatSessionId,
+            systemBubbleId:
+              payload.systemBubbleId ?? fallbackJob.input.systemBubbleId ?? null,
           },
-        },
-      });
-    },
-    [onSelectHistory, businessId, router, pathname, t]
-  );
+          error: payload.errorMessage
+            ? {
+                message: payload.errorMessage,
+                stack: null,
+                attempt: fallbackJob.error?.attempt || 1,
+              }
+            : nextStatus === "error"
+            ? fallbackJob.error
+            : null,
+          result: resultImages.length
+            ? {
+                images: resultImages,
+                imageItemIds: fallbackJob.result?.imageItemIds,
+                ratio: fallbackJob.result?.ratio || fallbackJob.input.ratio,
+                category: fallbackJob.result?.category || "",
+                designStyle: fallbackJob.result?.designStyle || "",
+                caption:
+                  fallbackJob.result?.caption ||
+                  fallbackJob.input.caption ||
+                  "",
+                referenceImages: fallbackJob.result?.referenceImages || [],
+                productKnowledgeId:
+                  fallbackJob.result?.productKnowledgeId ||
+                  fallbackJob.input.productKnowledgeId,
+                tokenUsed: fallbackJob.result?.tokenUsed || 0,
+              }
+            : fallbackJob.result,
+        };
 
-  const updateJobData = useCallback((incoming: JobData) => {
-    setHistories((prev) => upsertJobIntoHistory(prev, incoming));
-  }, []);
+        latestImage = latestJob.result?.images?.[0] || "";
+
+        const nextGroups =
+          fallbackJob.id !== nextJobId
+            ? removeJobsFromHistory(prev, (job) => job.id === fallbackJob.id)
+            : prev;
+
+        return upsertJobIntoHistory(nextGroups, latestJob);
+      });
+
+      const nextResolvedJob = latestJob as JobData | null;
+      if (!nextResolvedJob) return;
+
+      setSelectedJobId(nextResolvedJob.id);
+
+      if (latestImage) {
+        setSelectedGeneratedImageUrl(latestImage);
+      }
+
+      const activeSchedulerDraftPost = schedulerDraftPostRef.current;
+      const currentSelectedHistory =
+        selectedHistoryRef.current || nextResolvedJob;
+
+      if (
+        !latestImage ||
+        !activeSchedulerDraftPost ||
+        !scheduleDateParam ||
+        syncedSchedulerImageRef.current === latestImage
+      ) {
+        return;
+      }
+
+      syncedSchedulerImageRef.current = latestImage;
+
+      const currentDraftMarker = getSchedulerDraftMarkers(businessId).find(
+        (marker) => marker.draftId === String(activeSchedulerDraftPost.id)
+      );
+      const persistedCaption =
+        currentDraftMarker?.caption ||
+        currentSelectedHistory.input.caption ||
+        currentSelectedHistory.result?.caption ||
+        "";
+      const resolvedAvatarImages =
+        currentDraftMarker?.avatarImages ||
+        resolveJobInputImages({
+          avatarImageUrl: currentSelectedHistory.input.avatarImageUrl,
+          avatarImages: currentSelectedHistory.input.avatarImages,
+          additionalImages: currentSelectedHistory.input.additionalImages,
+          referenceImage: currentSelectedHistory.input.referenceImage,
+          productImages: currentSelectedHistory.product.images || [],
+        }).avatarImages;
+
+      upsertSchedulerDraftMarker(businessId, {
+        draftId: String(activeSchedulerDraftPost.id),
+        jobId: nextResolvedJob.id,
+        date: scheduleDateParam,
+        time: scheduleTimeParam || formatCurrentTimeInput(),
+        image: latestImage,
+        caption: persistedCaption,
+        productImage:
+          currentDraftMarker?.productImage ||
+          (currentSelectedHistory.input.productKnowledgeId
+            ? productImageById.get(
+                String(currentSelectedHistory.input.productKnowledgeId)
+              )
+            : "") ||
+          null,
+        referenceImage:
+          currentDraftMarker?.referenceImage ||
+          currentSelectedHistory.input.referenceImage ||
+          null,
+        avatarImages: resolvedAvatarImages,
+        chatSessionId: payload.chatSessionId,
+        businessProductId:
+          currentSelectedHistory.input.productKnowledgeId || null,
+        createdAt: nextResolvedJob.createdAt || new Date().toISOString(),
+      });
+
+      void mEditScheduledPost
+        .mutateAsync({
+          businessId,
+          idScheduler: activeSchedulerDraftPost.id,
+          formData: {
+            imageUrl: latestImage,
+            caption: persistedCaption,
+            platforms: [],
+            dateTime: new Date(
+              `${scheduleDateParam}T${scheduleTimeParam || formatCurrentTimeInput()}`
+            ).toISOString(),
+            status: "draft",
+            withChatAI: true,
+            shareAsReference: true,
+            businessProductId: currentSelectedHistory.input.productKnowledgeId,
+            chatSessionId: payload.chatSessionId,
+          },
+        })
+        .catch(() => null);
+    },
+    [
+      businessId,
+      mEditScheduledPost,
+      productImageById,
+      scheduleDateParam,
+      scheduleTimeParam,
+    ]
+  );
+  const applyRealtimeChatProgressRef = useRef(applyRealtimeChatProgress);
+  useEffect(() => {
+    applyRealtimeChatProgressRef.current = applyRealtimeChatProgress;
+  }, [applyRealtimeChatProgress]);
 
   /** ===== Socket lifecycle ===== */
   useEffect(() => {
-    if (!NEXT_PUBLIC_ENABLE_SOCKET || !pathname.includes("content-generate")) {
+    if (!NEXT_PUBLIC_ENABLE_SOCKET || !isContentGenerateRoute) {
       setIsConnected(false);
       return;
     }
 
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem(ACCESS_TOKEN_KEY)
-        : null;
-    const socket = createSocket({ token });
+    const token = getBrowserAccessToken();
+    if (!token) {
+      setIsConnected(false);
+      return;
+    }
 
-    const onConnect = () => {
-      console.log("connect");
+    const socket = createSocket({ token });
+    if (socket.connected) {
       setIsConnected(true);
-      const rb = rbRef.current ?? businessId;
-      console.log("rb", rb);
-      if (rb) joinRoom(rb);
+    }
+
+    const handleOpen = () => {
+      setIsConnected(true);
     };
-    const onDisconnect = () => {
-      console.log("disconnect");
+    const handleClose = () => {
       setIsConnected(false);
     };
-    const onReconnect = () => {
-      console.log("reconnect");
-      setIsConnected(true);
-      const rb = rbRef.current ?? businessId;
-      if (rb) joinRoom(rb);
+    const handleMessage = (message: RealtimeEnvelope) => {
+      if (message.type !== "generative_content.chat.progress") return;
+
+      const payload = message.data as
+        | RealtimeGenerativeChatProgressData
+        | undefined;
+      if (!payload) return;
+
+      applyRealtimeChatProgressRef.current(payload);
     };
 
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
-    socket.on("reconnect", onReconnect);
-
-    /** === EVENT: imagegen:update (SIMPAN SEMUA PROGRESS) === */
-    socket.on("imagegen:update", (job: JobData) => {
-      updateJobData(job);
-
-      // Toast + notifikasi hanya saat final
-      const phase = job.stage;
-      if (phase === "done" || phase === "error") {
-        queryClient.invalidateQueries({
-          queryKey: ["contentJobGetAllJob"],
-        });
-        if (pathname.includes("content-generate")) {
-          onSelectHistory(job);
-        } else {
-          toastFinal(job);
-        }
-      }
-    });
+    socket.on("open", handleOpen);
+    socket.on("close", handleClose);
+    socket.on("message", handleMessage);
 
     return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
-      socket.off("reconnect", onReconnect);
-      socket.off("imagegen:update");
+      socket.off("open", handleOpen);
+      socket.off("close", handleClose);
+      socket.off("message", handleMessage);
       destroySocket();
     };
-  }, [businessId, joinRoom, onSelectHistory, pathname, queryClient, toastFinal, updateJobData]);
+  }, [isContentGenerateRoute]);
+
+  useEffect(() => {
+    if (!NEXT_PUBLIC_ENABLE_SOCKET || !activeRealtimeChatSessionId) return;
+
+    const token = getBrowserAccessToken();
+    if (!token) return;
+
+    const socket = createSocket({ token });
+    const topic = `generative_content.chat.${activeRealtimeChatSessionId}`;
+
+    socket.subscribe(topic);
+
+    return () => {
+      socket.unsubscribe(topic);
+    };
+  }, [activeRealtimeChatSessionId]);
 
   const socketEvent: ContentGenerateContext["socketEvent"] = {
     isConnected,
@@ -3122,12 +3386,15 @@ export const ContentGenerateProvider = ({
     const isFinal =
       notLoadingJobStatus.includes(selectedHistory.status) &&
       notLoadingJobStages.includes(selectedHistory.stage);
-    if (isFinal || isConnected) return;
+    if (isFinal) return;
 
     const isSchedulerChatJob = selectedHistory.id.startsWith("chat-");
     if (isSchedulerChatJob) {
+      if (isConnected && activeRealtimeChatSessionId) return;
+
       const activeSchedulerDraftPost = schedulerDraftPost;
-      const activeChatSessionId = activeSchedulerDraftPost?.chatSessionId;
+      const activeChatSessionId =
+        activeRealtimeChatSessionId || activeSchedulerDraftPost?.chatSessionId;
       if (!activeSchedulerDraftPost || activeChatSessionId == null) return;
 
       const intervalId = window.setInterval(async () => {
@@ -3291,7 +3558,7 @@ export const ContentGenerateProvider = ({
             draftId: String(activeSchedulerDraftPost.id),
             jobId: latestJob.id,
             date: scheduleDateParam,
-            time: searchParams.get("scheduleTime") || formatCurrentTimeInput(),
+            time: scheduleTimeParam || formatCurrentTimeInput(),
             image: latestImage,
             caption: persistedCaption,
             productImage:
@@ -3327,7 +3594,7 @@ export const ContentGenerateProvider = ({
               caption: persistedCaption,
               platforms: [],
               dateTime: new Date(
-                `${scheduleDateParam}T${searchParams.get("scheduleTime") || formatCurrentTimeInput()}`
+                `${scheduleDateParam}T${scheduleTimeParam || formatCurrentTimeInput()}`
               ).toISOString(),
               status: "draft",
               withChatAI: true,
@@ -3358,6 +3625,7 @@ export const ContentGenerateProvider = ({
 
     return () => window.clearInterval(intervalId);
   }, [
+    activeRealtimeChatSessionId,
     contentFeaturesEnabled,
     isConnected,
     businessId,
@@ -3366,8 +3634,8 @@ export const ContentGenerateProvider = ({
     refetchHistories,
     refetchSchedulerChat,
     scheduleDateParam,
+    scheduleTimeParam,
     schedulerDraftPost,
-    searchParams,
     selectedHistory,
     histories,
   ]);

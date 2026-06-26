@@ -90,6 +90,7 @@ type NewImagePost = {
   errorLog: string | null;
   businessRootId: number;
   businessProductId: number;
+  chatSessionId?: number | null;
   recordedModelName: string;
   mode: string;
   ratio: string;
@@ -158,6 +159,7 @@ type NewImagePostCreateRes = {
   status: string;
   mode: string;
   numOfImages: number;
+  chatSessionId?: number | null;
   createdAt: string;
 };
 
@@ -342,6 +344,7 @@ const mapImagePostToJobGroup = (post: NewImagePost): GetAllJob => {
           ratio: post.ratio as never,
           prompt: post.additionalPrompt,
           caption,
+          chatSessionId: post.chatSessionId ?? null,
           additionalImages: post.additionalImages || [],
           category: post.category || "",
           designStyle: post.designStyle || "",
@@ -463,6 +466,7 @@ const mapAiModel = (model: NewGenerativeImageModel): AiModelRes => ({
 
 const mapImagePostCreateToJob = (post: NewImagePostCreateRes): JobRes => ({
   jobId: String(post.id),
+  chatSessionId: post.chatSessionId ?? null,
 });
 
 let modelListPromise: Promise<NewGenerativeImageModel[]> | null = null;

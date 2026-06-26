@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { Progress } from "@/components/ui/progress";
+import { LogoLoader } from "@/components/base/logo-loader";
 import { showToast } from "@/helper/show-toast";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
@@ -30,7 +32,6 @@ import {
   Bot,
   Check,
   Copy,
-  Loader2,
   Newspaper,
   Pencil,
   Plus,
@@ -470,10 +471,24 @@ export function GenerationPanel() {
                         );
                       })
                     ) : (
-                      <div className="max-w-[82%] rounded-lg border bg-background-secondary p-4">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Generating image...
+                      <div className="w-full max-w-[82%] overflow-hidden rounded-2xl border bg-background-secondary sm:max-w-[360px]">
+                        <div className="relative flex min-h-48 items-center justify-center bg-card/40 p-6">
+                          <LogoLoader
+                            hideContentBackground={false}
+                            className="relative z-10"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+                        </div>
+                        <div className="space-y-3 border-t bg-background px-4 py-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-medium text-foreground">
+                              Generating image...
+                            </div>
+                            <div className="text-xs font-medium text-muted-foreground">
+                              {Math.max(0, Math.min(100, job.progress ?? 0))}%
+                            </div>
+                          </div>
+                          <Progress value={Math.max(0, Math.min(100, job.progress ?? 0))} />
                         </div>
                       </div>
                     )}

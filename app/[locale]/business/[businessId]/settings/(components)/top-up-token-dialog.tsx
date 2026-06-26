@@ -21,6 +21,12 @@ import { Button } from "@/components/ui/button";
 import { showToast } from "@/helper/show-toast";
 import { translateApiResponseMessage } from "@/helper/api-response-message";
 import { formatIdr } from "@/helper/formatter";
+import {
+  mergeCheckoutWithRealtimePayment,
+  normalizeRealtimePaymentStatus,
+  syncPaymentRealtimeCaches,
+  usePaymentRealtime,
+} from "@/hooks/use-payment-realtime";
 import { cn } from "@/lib/utils";
 import { useAppProductGetProductDetail } from "@/services/app-product.api";
 import {
@@ -217,6 +223,27 @@ export function TopUpTokenDialog({
     return () => clearInterval(timer);
   }, [isOpen]);
 
+  usePaymentRealtime({
+    businessId,
+    enabled: isOpen && !!checkoutResult?.id,
+    paymentId: checkoutResult?.id,
+    onStatusChanged: (payload) => {
+      const nextStatus = normalizeRealtimePaymentStatus(payload.status);
+
+      setCheckoutResult((current) =>
+        current?.id === payload.paymentHistoryId
+          ? mergeCheckoutWithRealtimePayment(current, payload)
+          : current
+      );
+      syncPaymentRealtimeCaches(queryClient, businessId, payload);
+
+      showToast(
+        nextStatus === "Success" ? "success" : "info",
+        tStatus(getPaymentStatusKey(nextStatus))
+      );
+    },
+  });
+
   const handleClose = (open: boolean) => {
     if (!open) {
       onClose();
@@ -344,8 +371,19 @@ export function TopUpTokenDialog({
       );
       showToast("info", tStatus(getPaymentStatusKey(res.data.data.status)));
       queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseDetail", checkoutResult.id],
+      });
+      queryClient.invalidateQueries({
         queryKey: ["businessPurchaseHistory", businessId],
       });
+      if (res.data.status === "Success") {
+        queryClient.invalidateQueries({
+          queryKey: ["tokenUsage", businessId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["subscribtionSubscription", businessId],
+        });
+      }
     } catch {
       showToast("error", t("toast.payment.paymentStatusCheckFailed"));
     } finally {

@@ -50,6 +50,7 @@ export interface ProductKnowledgeWithJobs {
 
 export interface JobRes {
   jobId: string;
+  chatSessionId?: number | null;
 }
 
 // Get ALL JOBS

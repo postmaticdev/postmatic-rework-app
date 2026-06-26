@@ -3,8 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  mergeBusinessPurchaseWithRealtimePayment,
+  syncPaymentRealtimeCaches,
+  usePaymentRealtime,
+} from "@/hooks/use-payment-realtime";
 import { CreditCard, Eye } from "lucide-react";
 import { useBusinessPurchaseGetHistory } from "@/services/purchase.api";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
@@ -18,7 +24,6 @@ import {
   FilterQuery,
   initialPagination,
 } from "@/models/api/base-response.type";
-import { PaginationWithControls } from "@/components/ui/pagination-with-controls";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useTranslations } from "next-intl";
 
@@ -34,6 +39,7 @@ export function HistoryTransactions() {
   });
   const { data: transactionsData } = useBusinessPurchaseGetHistory(businessId, filterQuery);
   const transactions = transactionsData?.data?.data || [];
+  const queryClient = useQueryClient();
   const t = useTranslations("settings");
   const tStatus = useTranslations("checkout.paymentStatusLabel");
   const { formatDate } = useDateFormat();
@@ -43,6 +49,19 @@ export function HistoryTransactions() {
   const onViewDetail = (transaction: BusinessPurchaseRes) => {
     setSelectedTransaction(transaction);
   };
+
+  usePaymentRealtime({
+    businessId,
+    subscribeBusinessTopic: true,
+    onStatusChanged: (payload) => {
+      syncPaymentRealtimeCaches(queryClient, businessId, payload);
+      setSelectedTransaction((current) =>
+        current?.id === payload.paymentHistoryId
+          ? mergeBusinessPurchaseWithRealtimePayment(current, payload)
+          : current
+      );
+    },
+  });
 
   return (
     <div className="space-y-4 sm:space-y-6">

@@ -2,6 +2,12 @@
 
 import { useCheckout } from "@/contexts/checkout-context";
 import { useDateFormat } from "@/hooks/use-date-format";
+import {
+  mergeCheckoutWithRealtimePayment,
+  normalizeRealtimePaymentStatus,
+  syncPaymentRealtimeCaches,
+  usePaymentRealtime,
+} from "@/hooks/use-payment-realtime";
 import { dateFormat } from "@/helper/date-format";
 import { formatIdr } from "@/helper/formatter";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
@@ -30,12 +36,39 @@ export function PaymentConfirmation({
 }: PaymentConfirmationProps) {
   const [expandedIndexes, setExpandedIndexes] = useState<number[]>([]);
   const [zoomImageIndex, setZoomImageIndex] = useState<number | null>(null);
-  const { product, detailPricing, checkoutResult } = useCheckout();
+  const { product, detailPricing, checkoutResult, setCheckoutResult } =
+    useCheckout();
   const { businessId } = useParams() as { businessId: string };
   const queryClient = useQueryClient();
   const [isChecking, setIsChecking] = useState(false);
   const t = useTranslations();
   const { formatDate } = useDateFormat();
+
+  usePaymentRealtime({
+    businessId,
+    enabled: !!checkoutResult?.id,
+    paymentId: checkoutResult?.id,
+    onStatusChanged: (payload) => {
+      const nextStatus = normalizeRealtimePaymentStatus(payload.status);
+
+      setCheckoutResult((current) =>
+        current?.id === payload.paymentHistoryId
+          ? mergeCheckoutWithRealtimePayment(current, payload)
+          : current
+      );
+      syncPaymentRealtimeCaches(queryClient, businessId, payload);
+
+      showToast(
+        nextStatus === "Success" ? "success" : "info",
+        mapEnumPaymentStatus.getStatusDescription(nextStatus, t)
+      );
+
+      if (nextStatus === "Success") {
+        setShowPaymentSuccess(true);
+      }
+    },
+  });
+
   if (!checkoutResult) return null;
 
   const handleCheckPaymentStatus = async () => {
@@ -45,14 +78,26 @@ export function PaymentConfirmation({
         businessId,
         checkoutResult?.id
       );
+      setCheckoutResult((current) =>
+        current ? { ...current, ...res.data } : current
+      );
       showToast(
         res.data.status === "Success" ? "success" : "info",
         mapEnumPaymentStatus.getStatusDescription(res.data.status, t)
       );
-      if (res.data.status !== checkoutResult?.status) {
-        queryClient.clear();
-      }
+      queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseDetail", checkoutResult.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseHistory", businessId],
+      });
       if (res.data.status === "Success") {
+        queryClient.invalidateQueries({
+          queryKey: ["tokenUsage", businessId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["subscribtionSubscription", businessId],
+        });
         await sleep(1000);
         setShowPaymentSuccess(true);
       }

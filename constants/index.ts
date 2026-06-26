@@ -9,7 +9,7 @@ export const NEXT_PUBLIC_ENABLE_SOCKET =
 export const NEXT_PUBLIC_SOCKET_ORIGIN =
   process.env.NEXT_PUBLIC_SOCKET_ORIGIN || NEXT_PUBLIC_API_ORIGIN;
 export const NEXT_PUBLIC_SOCKET_PATH =
-  process.env.NEXT_PUBLIC_SOCKET_PATH || "/socket.io";
+  process.env.NEXT_PUBLIC_SOCKET_PATH || "/api/realtime/ws";
 export const NEXT_PUBLIC_ENABLE_CONTENT_FEATURES =
   process.env.NEXT_PUBLIC_ENABLE_CONTENT_FEATURES === "true";
 export const DEFAULT_USER_AVATAR = "/user.png";

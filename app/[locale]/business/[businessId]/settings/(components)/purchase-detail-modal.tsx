@@ -12,6 +12,12 @@ import { ReceiptText } from "lucide-react";
 import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { showToast } from "@/helper/show-toast";
 import { formatIdr } from "@/helper/formatter";
+import {
+  mergeBusinessPurchaseWithRealtimePayment,
+  normalizeRealtimePaymentStatus,
+  syncPaymentRealtimeCaches,
+  usePaymentRealtime,
+} from "@/hooks/use-payment-realtime";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { dateFormat } from "@/helper/date-format";
 import { businessPurchaseService } from "@/services/purchase.api";
@@ -46,6 +52,25 @@ export function PurchaseDetailModal({
   const { formatDate } = useDateFormat();
 
   const paymentDetails = transaction?.paymentDetails ?? [];
+
+  usePaymentRealtime({
+    businessId,
+    enabled: isOpen && !!transaction?.id,
+    paymentId: transaction?.id,
+    onStatusChanged: (payload) => {
+      const nextStatus = normalizeRealtimePaymentStatus(payload.status);
+
+      if (transaction?.id === payload.paymentHistoryId) {
+        setTransaction(mergeBusinessPurchaseWithRealtimePayment(transaction, payload));
+      }
+      syncPaymentRealtimeCaches(queryClient, businessId, payload);
+
+      showToast(
+        nextStatus === "Success" ? "success" : "info",
+        mapEnumPaymentStatus.getStatusDescription(nextStatus, tToast)
+      );
+    },
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -102,8 +127,19 @@ export function PurchaseDetailModal({
       );
       setTransaction(res.data);
       queryClient.invalidateQueries({
-        queryKey: ["businessPurchaseHistory"],
+        queryKey: ["businessPurchaseDetail", transaction.id],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseHistory", businessId],
+      });
+      if (res.data.status === "Success") {
+        queryClient.invalidateQueries({
+          queryKey: ["tokenUsage", businessId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["subscribtionSubscription", businessId],
+        });
+      }
     } catch {
       showToast("error", tToast("toast.payment.paymentStatusCheckFailed"));
     } finally {
