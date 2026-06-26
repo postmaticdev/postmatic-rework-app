@@ -141,7 +141,7 @@ export function SessionLogin() {
                 className="flex items-center justify-between bg-background-secondary p-4 rounded-lg"
               >
                 <div>
-                  <p className="font-medium text-foreground">{label}aaa</p>
+                  <p className="font-medium text-foreground">{label}</p>
                   {sessionDate && (
                     <p className="text-sm text-muted-foreground">
                       {formatDate(new Date(sessionDate))}

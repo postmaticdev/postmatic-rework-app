@@ -376,7 +376,7 @@ export function TopUpTokenDialog({
       queryClient.invalidateQueries({
         queryKey: ["businessPurchaseHistory", businessId],
       });
-      if (res.data.status === "Success") {
+      if (res.data.data.status === "Success") {
         queryClient.invalidateQueries({
           queryKey: ["tokenUsage", businessId],
         });

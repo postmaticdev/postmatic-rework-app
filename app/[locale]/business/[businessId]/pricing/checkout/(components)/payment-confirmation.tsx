@@ -3,6 +3,7 @@
 import { useCheckout } from "@/contexts/checkout-context";
 import { useDateFormat } from "@/hooks/use-date-format";
 import {
+  mergeBusinessPurchaseWithRealtimePayment,
   mergeCheckoutWithRealtimePayment,
   normalizeRealtimePaymentStatus,
   syncPaymentRealtimeCaches,
@@ -53,7 +54,9 @@ export function PaymentConfirmation({
 
       setCheckoutResult((current) =>
         current?.id === payload.paymentHistoryId
-          ? mergeCheckoutWithRealtimePayment(current, payload)
+          ? "midtransId" in current
+            ? mergeCheckoutWithRealtimePayment(current, payload)
+            : mergeBusinessPurchaseWithRealtimePayment(current, payload)
           : current
       );
       syncPaymentRealtimeCaches(queryClient, businessId, payload);
