@@ -103,7 +103,7 @@ export default function CreatorPage() {
   const handleSubmit = () => {
     console.log("Form submitted:", formData);
     setIsDialogOpen(false);
-    // Reset form
+    // Reset formmmmmm
     setFormData({
       designName: "",
       keywords: [],
