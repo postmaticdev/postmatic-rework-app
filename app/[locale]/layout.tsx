@@ -18,6 +18,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { AutoGenerateProvider } from "@/contexts/auto-generate-context";
 
+import { NotificationProvider } from "@/contexts/notification-context";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -57,25 +59,27 @@ export default async function RootLayout({
           <NextIntlClientProvider messages={messages}>
             <Suspense fallback={null}>
               <QueryProvider>
-                <RoleProvider>
-                <AutoGenerateProvider>
-                  <AutoSchedulerAutosaveProvider>
-                    <ContentGenerateProvider>
-                      <FormNewBusinessProvider>
-                        <ManageKnowledgeProvider>
-                          <CheckoutProvider>
-                            <BusinessGridFilterProvider>
-                              <BusinessClientLayout>
-                                <main>{children}</main>
-                              </BusinessClientLayout>
-                            </BusinessGridFilterProvider>
-                          </CheckoutProvider>
-                        </ManageKnowledgeProvider>
-                      </FormNewBusinessProvider>
-                    </ContentGenerateProvider>
-                  </AutoSchedulerAutosaveProvider>
-                </AutoGenerateProvider>
-                </RoleProvider>
+                <NotificationProvider>
+                  <RoleProvider>
+                  <AutoGenerateProvider>
+                    <AutoSchedulerAutosaveProvider>
+                      <ContentGenerateProvider>
+                        <FormNewBusinessProvider>
+                          <ManageKnowledgeProvider>
+                            <CheckoutProvider>
+                              <BusinessGridFilterProvider>
+                                <BusinessClientLayout>
+                                  <main>{children}</main>
+                                </BusinessClientLayout>
+                              </BusinessGridFilterProvider>
+                            </CheckoutProvider>
+                          </ManageKnowledgeProvider>
+                        </FormNewBusinessProvider>
+                      </ContentGenerateProvider>
+                    </AutoSchedulerAutosaveProvider>
+                  </AutoGenerateProvider>
+                  </RoleProvider>
+                </NotificationProvider>
                 <Toaster />
               </QueryProvider>
             </Suspense>
