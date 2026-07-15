@@ -119,7 +119,7 @@ export function ReportIssueModal({
   onClose,
 }: ReportIssueModalProps) {
   const t = useTranslations("reportIssueModal");
-  const { addTicket } = useNotification();
+  const { refreshTickets } = useNotification();
   const { data: profileData } = useAuthProfileGetProfile();
   const { data: categoryData, isLoading: isCategoryLoading } =
     useTicketCategories(isOpen);
@@ -138,11 +138,6 @@ export function ReportIssueModal({
     return String(preferredCategory?.id ?? categories[0]?.id ?? "");
   }, [categories]);
 
-  const selectedCategory = useMemo(
-    () =>
-      categories.find((category) => String(category.id) === form.reportType),
-    [categories, form.reportType]
-  );
   const submittedCategoryId = useMemo(() => {
     if (form.reportType === OTHER_REPORT_TYPE) {
       return Number(defaultCategoryId);
@@ -220,8 +215,6 @@ export function ReportIssueModal({
     }
 
     try {
-      const categoryName = selectedCategory?.name || form.reportType;
-
       const response = await mCreateTicket.mutateAsync({
         subject: normalizedJudul,
         body: normalizedDetails,
@@ -233,16 +226,11 @@ export function ReportIssueModal({
         attachments: form.attachments,
       });
 
-      // Also create a local ticket room in notification context
-      addTicket(normalizedJudul, categoryName, normalizedDetails, form.attachments);
-
+      await refreshTickets();
       showToast("success", response.data.responseMessage);
       handleClose();
-    } catch {
-      // If API fails, still create local ticket room for demo purposes
-      const categoryName = selectedCategory?.name || form.reportType || "Umum";
-      addTicket(normalizedJudul, categoryName, normalizedDetails, form.attachments);
-      showToast("success", "Laporan berhasil dikirim! Tiket baru telah dibuat.");
+    } catch (error) {
+      showToast("error", error);
       handleClose();
     }
   };

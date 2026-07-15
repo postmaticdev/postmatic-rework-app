@@ -35,3 +35,32 @@ export interface WebsiteTicket {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface WebsiteTicketMessage {
+  id: number;
+  ticketId: number | null;
+  profileId: string | null;
+  profile?: {
+    id?: string | null;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+  } | null;
+  senderType: "customer" | "customer_service" | string | null;
+  body: string | null;
+  attachments: string[] | null;
+  quotedWebMessageId: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface WebsiteTicketDetail {
+  ticket: WebsiteTicket;
+  messages?: WebsiteTicketMessage[] | null;
+}
+
+export interface ReplyWebsiteTicketPld {
+  body: string;
+  quotedWebMessageId?: number;
+  attachments?: string[];
+}

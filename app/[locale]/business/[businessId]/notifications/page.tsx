@@ -2,10 +2,16 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import TextAlign from "@tiptap/extension-text-align";
+import LinkExtension from "@tiptap/extension-link";
+import OrderedList from "@tiptap/extension-ordered-list";
+
 import { useNotification, TicketItem } from "@/contexts/notification-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
   Bell,
@@ -13,21 +19,121 @@ import {
   Paperclip,
   Send,
   ChevronLeft,
-  Image as ImageIcon,
   FileText,
-  Video,
   X,
   Circle,
   Search,
   Play,
   Download,
+  Loader2,
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Link as LinkIcon,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  List,
+  ListOrdered,
 } from "lucide-react";
+import { showToast } from "@/helper/show-toast";
+import { cn } from "@/lib/utils";
+import { helperService } from "@/services/helper.api";
 
 type MediaViewerState = {
   type: "photo" | "video";
   url: string;
   name: string;
 } | null;
+
+const CustomOrderedList = OrderedList.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      type: {
+        default: "1",
+        parseHTML: (element) => element.getAttribute("type"),
+        renderHTML: (attributes) => ({
+          type: attributes.type,
+        }),
+      },
+    };
+  },
+});
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function hasHtmlTag(value: string) {
+  return /<\/?[a-z][\s\S]*>/i.test(value);
+}
+
+function sanitizeRichHtml(value?: string | null) {
+  const content = value ?? "";
+  const source = hasHtmlTag(content)
+    ? content
+    : escapeHtml(content).replace(/\n/g, "<br />");
+
+  return source
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+    .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
+    .replace(/\son\w+\s*=\s*(['"])[\s\S]*?\1/gi, "")
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "")
+    .replace(/\s(href|src)\s*=\s*(['"])\s*javascript:[\s\S]*?\2/gi, ' $1="#"');
+}
+
+function htmlToPreviewText(value?: string | null) {
+  return (value ?? "")
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isEmptyRichText(value: string) {
+  return !htmlToPreviewText(value).trim();
+}
+
+function RichMessageContent({
+  value,
+  className,
+}: {
+  value?: string | null;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "leading-relaxed text-inherit",
+        "[&_a]:font-medium [&_a]:underline",
+        "[&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-current/30 [&_blockquote]:pl-3 [&_blockquote]:opacity-90",
+        "[&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1 [&_code]:py-0.5",
+        "[&_h1]:mb-2 [&_h1]:mt-1 [&_h1]:text-xl [&_h1]:font-bold",
+        "[&_h2]:mb-2 [&_h2]:mt-1 [&_h2]:text-lg [&_h2]:font-bold",
+        "[&_h3]:mb-1.5 [&_h3]:mt-1 [&_h3]:text-base [&_h3]:font-bold",
+        "[&_img]:my-2 [&_img]:max-h-64 [&_img]:rounded-lg [&_img]:object-contain",
+        "[&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
+        "[&_video]:my-2 [&_video]:max-h-64 [&_video]:rounded-lg",
+        className
+      )}
+      dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(value) }}
+    />
+  );
+}
 
 function downloadFile(url: string, name: string) {
   const anchor = document.createElement("a");
@@ -147,11 +253,11 @@ export default function NotificationsPage() {
   const [ticketSearch, setTicketSearch] = useState("");
 
   // Chat Input states
-  const [chatInput, setChatInput] = useState("");
+  const [editorHtml, setEditorHtml] = useState("");
   const [attachments, setAttachments] = useState<
     { type: "photo" | "file" | "video"; name: string; url?: string; preview?: string }[]
   >([]);
-  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 
   // Mobile view state
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
@@ -160,6 +266,31 @@ export default function NotificationsPage() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previousTicketCountRef = useRef(0);
+
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+        orderedList: false,
+      }),
+      CustomOrderedList,
+      Underline,
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
+      LinkExtension.configure({
+        openOnClick: false,
+      }),
+    ],
+    content: "",
+    onUpdate: ({ editor }) => {
+      setEditorHtml(editor.getHTML());
+    },
+  });
 
   // Filtered lists
   const filteredNotifications = notifications.filter(
@@ -196,12 +327,26 @@ export default function NotificationsPage() {
     }
   }, [tickets, selectedTicketId]);
 
+  useEffect(() => {
+    setEditorHtml("");
+    editor?.commands.clearContent();
+    setAttachments((currentAttachments) => {
+      currentAttachments.forEach((attachment) => {
+        if (attachment.preview) URL.revokeObjectURL(attachment.preview);
+      });
+      return [];
+    });
+  }, [editor, selectedTicketId]);
+
   // Auto-select newest ticket if it appears (from report modal)
   useEffect(() => {
-    if (tickets.length > 0) {
+    const previousTicketCount = previousTicketCountRef.current;
+    previousTicketCountRef.current = tickets.length;
+
+    if (tickets.length > previousTicketCount && tickets[0]) {
       setSelectedTicketId(tickets[0].id);
     }
-  }, [tickets.length]);
+  }, [tickets]);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -224,47 +369,96 @@ export default function NotificationsPage() {
 
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!chatInput.trim() && attachments.length === 0) return;
+    const body = isEmptyRichText(editorHtml) ? "" : editorHtml;
+    if (!body && attachments.length === 0) return;
+    if (isUploadingAttachment) return;
     if (!selectedTicketId) return;
 
     sendChatMessage(
       selectedTicketId,
-      chatInput,
+      body,
       attachments.length > 0
         ? attachments.map((a) => ({ type: a.type, name: a.name, url: a.url }))
         : undefined
     );
 
-    setChatInput("");
+    setEditorHtml("");
+    editor?.commands.clearContent();
+    attachments.forEach((attachment) => {
+      if (attachment.preview) URL.revokeObjectURL(attachment.preview);
+    });
     setAttachments([]);
-    setShowAttachmentMenu(false);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  const handleLink = () => {
+    const previousUrl = editor?.getAttributes("link").href as string | undefined;
+    const url = window.prompt("Masukkan URL:", previousUrl ?? "https://");
+
+    if (url === null) return;
+    if (!url.trim()) {
+      editor?.chain().focus().unsetLink().run();
+      return;
     }
+
+    editor?.chain().focus().setLink({ href: url.trim() }).run();
   };
 
   // Real file picker handler
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? []);
-      const newAttachments = files.map((file) => {
-        const isImage = file.type.startsWith("image/");
-        const isVideo = file.type.startsWith("video/");
-        const type: "photo" | "file" | "video" = isImage ? "photo" : isVideo ? "video" : "file";
-        const preview = isImage || isVideo ? URL.createObjectURL(file) : undefined;
-        return { type, name: file.name, url: preview, preview };
-      });
-      setAttachments((prev) => [...prev, ...newAttachments]);
-      setShowAttachmentMenu(false);
-      // Reset input so same file can be re-selected
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+
+    if (files.length > imageFiles.length) {
+      showToast("warning", "Untuk saat ini lampiran tiket hanya mendukung gambar.");
+    }
+
+    if (imageFiles.length === 0) {
       e.target.value = "";
-    },
-    []
-  );
+      return;
+    }
+
+    const uploadingAttachments = imageFiles.map((file) => {
+      const preview = URL.createObjectURL(file);
+      return { type: "photo" as const, name: file.name, preview };
+    });
+
+    setAttachments((prev) => [...prev, ...uploadingAttachments]);
+    setIsUploadingAttachment(true);
+
+    try {
+      const uploadedAttachments = await Promise.all(
+        imageFiles.map(async (file, index) => ({
+          ...uploadingAttachments[index],
+          url: await helperService.uploadSingleImage({ image: file }),
+        }))
+      );
+
+      setAttachments((prev) =>
+        prev.map((attachment) => {
+          const uploaded = uploadedAttachments.find(
+            (item) => item.preview === attachment.preview
+          );
+          return uploaded ?? attachment;
+        })
+      );
+    } catch (error) {
+      uploadingAttachments.forEach((attachment) => {
+        if (attachment.preview) URL.revokeObjectURL(attachment.preview);
+      });
+      setAttachments((prev) =>
+        prev.filter(
+          (attachment) =>
+            !uploadingAttachments.some(
+              (uploading) => uploading.preview === attachment.preview
+            )
+        )
+      );
+      showToast("error", error);
+    } finally {
+      setIsUploadingAttachment(false);
+      e.target.value = "";
+    }
+  }, []);
 
   const removeAttachment = (index: number) => {
     setAttachments((prev) => {
@@ -289,10 +483,9 @@ export default function NotificationsPage() {
   );
 
   const renderMessageAttachments = (
-    attachments: NonNullable<TicketItem["messages"][number]["attachments"]>,
-    isUser: boolean
+    attachments: NonNullable<TicketItem["messages"][number]["attachments"]>
   ) => (
-    <div className="mt-2 space-y-2 border-t border-white/20 pt-2">
+    <div className="mt-2 space-y-2 border-t border-border pt-2">
       {attachments.map((file, idx) => (
         <div key={idx}>
           {file.type === "photo" && file.url && (
@@ -325,11 +518,7 @@ export default function NotificationsPage() {
             <button
               type="button"
               onClick={() => handleAttachmentClick(file)}
-              className={`flex w-full items-center gap-2 rounded-md p-2 text-xs transition-colors ${
-                isUser
-                  ? "bg-white/10 text-white hover:bg-white/20"
-                  : "bg-muted text-foreground hover:bg-muted/80"
-              }`}
+              className="flex w-full items-center gap-2 rounded-md bg-muted p-2 text-xs text-foreground transition-colors hover:bg-muted/80"
             >
               <FileText className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate font-medium">{file.name}</span>
@@ -353,6 +542,18 @@ export default function NotificationsPage() {
     };
     return map[status] || "bg-gray-100 text-gray-700";
   };
+
+  const canSendReply = !isEmptyRichText(editorHtml) || attachments.length > 0;
+  const toolbarButtonClass = (active?: boolean) =>
+    cn(
+      "h-8 shrink-0 rounded-md px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+      active && "bg-accent text-accent-foreground"
+    );
+  const toolbarIconClass = (active?: boolean) =>
+    cn(
+      "h-8 w-8 shrink-0 rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+      active && "bg-accent text-accent-foreground"
+    );
 
   return (
     <main className="flex-1 flex flex-col h-[calc(100vh-4.5rem)] overflow-hidden bg-background">
@@ -661,7 +862,7 @@ export default function NotificationsPage() {
                             {lastMsg && (
                               <p className="text-xs text-muted-foreground truncate mt-1">
                                 {lastMsg.sender === "user" ? "Anda: " : "CS: "}
-                                {lastMsg.text || "[Lampiran]"}
+                                {htmlToPreviewText(lastMsg.text) || "[Lampiran]"}
                               </p>
                             )}
                           </div>
@@ -719,87 +920,64 @@ export default function NotificationsPage() {
                   </div>
 
                   {/* Chat Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background/50 custom-scrollbar">
+                  <div className="flex-1 overflow-y-auto bg-background/50 custom-scrollbar">
+                    <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
                     {activeTicket.messages.map((msg) => {
                       const isUser = msg.sender === "user";
+                      const authorName = isUser ? "Anda" : "Customer Service";
+                      const authorRole = isUser ? "Pelapor" : "CS Agent";
                       return (
-                        <div
+                        <article
                           key={msg.id}
-                          className={`flex ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-200`}
+                          className="rounded-lg border border-border bg-card p-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-200"
                         >
-                          <div
-                            className={`max-w-[75%] flex flex-col ${
-                              isUser ? "items-end" : "items-start"
-                            }`}
-                          >
-                            <span className="text-[10px] text-muted-foreground/80 mb-1 px-1">
-                              {isUser ? "Anda" : "Customer Service"}
-                            </span>
-
+                          <div className="mb-3 flex items-center gap-3">
                             <div
-                              className={`rounded-2xl px-4 py-2.5 shadow-sm text-sm ${
+                              className={cn(
+                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
                                 isUser
-                                  ? "bg-primary text-primary-foreground rounded-tr-none"
-                                  : "bg-card border border-border text-foreground rounded-tl-none"
-                              }`}
-                            >
-                              {msg.isInitialReport ? (
-                                <div className="space-y-2">
-                                  <p className="text-base font-bold leading-snug">
-                                    {activeTicket.title}
-                                  </p>
-                                  {msg.category && (
-                                    <p className="text-xs opacity-90">
-                                      Kategori Masalah: {msg.category}
-                                    </p>
-                                  )}
-                                  {msg.attachments && msg.attachments.length > 0 && (
-                                    <div className="space-y-2 pt-1">
-                                      {msg.attachments.map((file, idx) =>
-                                        file.type === "photo" && file.url ? (
-                                          <button
-                                            key={idx}
-                                            type="button"
-                                            onClick={() => handleAttachmentClick(file)}
-                                            className="block max-w-[240px] overflow-hidden rounded-lg transition-opacity hover:opacity-90"
-                                          >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                              src={file.url}
-                                              alt={file.name}
-                                              className="h-auto w-full object-contain"
-                                            />
-                                          </button>
-                                        ) : null
-                                      )}
-                                    </div>
-                                  )}
-                                  {msg.text && (
-                                    <p className="leading-relaxed whitespace-pre-wrap pt-1">
-                                      {msg.text}
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <>
-                                  {msg.text && (
-                                    <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                                  )}
-                                  {msg.attachments &&
-                                    msg.attachments.length > 0 &&
-                                    renderMessageAttachments(msg.attachments, isUser)}
-                                </>
+                                  ? "bg-primary/15 text-primary"
+                                  : "bg-muted text-muted-foreground"
                               )}
+                            >
+                              {authorName.charAt(0)}
                             </div>
-
-                            <span className="text-[9px] text-muted-foreground/75 mt-1 px-1 block">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-foreground">
+                                {authorName}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">{authorRole}</p>
+                            </div>
+                            <span className="shrink-0 text-xs text-muted-foreground">
                               {msg.time}
                             </span>
                           </div>
-                        </div>
+
+                          <div className="space-y-2 text-sm text-foreground/90">
+                            {msg.isInitialReport && (
+                              <>
+                                <p className="text-base font-bold leading-snug text-foreground">
+                                  {activeTicket.title}
+                                </p>
+                                {msg.category && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Kategori Masalah: {msg.category}
+                                  </p>
+                                )}
+                              </>
+                            )}
+
+                            {msg.text && <RichMessageContent value={msg.text} />}
+
+                            {msg.attachments &&
+                              msg.attachments.length > 0 &&
+                              renderMessageAttachments(msg.attachments)}
+                          </div>
+                        </article>
                       );
                     })}
                     <div ref={chatEndRef} />
+                    </div>
                   </div>
 
                   {/* Attachment preview bar */}
@@ -847,95 +1025,217 @@ export default function NotificationsPage() {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                    accept="image/*"
                     className="hidden"
                     onChange={handleFileChange}
                   />
 
-                  {/* Chat Input Box */}
+                  {/* Rich Reply Editor */}
                   <form
                     onSubmit={handleSendMessage}
-                    className="p-3 border-t border-border bg-card flex flex-col gap-2 shrink-0 relative"
+                    className="border-t border-border bg-card p-3 shrink-0"
                   >
-                    <div className="flex items-end gap-2">
-                      {/* Attachment button */}
-                      <div className="relative">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-1 overflow-x-auto rounded-t-md border border-border/70 bg-muted/40 px-3 py-1.5">
                         <button
                           type="button"
-                          onClick={() => setShowAttachmentMenu((v) => !v)}
-                          className={`p-2.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200 hover:scale-105 active:scale-95 shrink-0 ${
-                            showAttachmentMenu ? "bg-muted text-foreground" : ""
-                          }`}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+                          className={toolbarButtonClass(editor?.isActive("heading", { level: 1 }))}
                         >
-                          <Paperclip className="w-4 h-4" />
+                          H1
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+                          className={toolbarButtonClass(editor?.isActive("heading", { level: 2 }))}
+                        >
+                          H2
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+                          className={toolbarButtonClass(editor?.isActive("heading", { level: 3 }))}
+                        >
+                          H3
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().setParagraph().run()}
+                          className={toolbarButtonClass(editor?.isActive("paragraph"))}
+                        >
+                          Paragraf
                         </button>
 
-                        {showAttachmentMenu && (
-                          <div className="absolute bottom-12 left-0 bg-card border border-border shadow-xl rounded-xl p-2 w-52 z-20 animate-in slide-in-from-bottom-2 duration-150 flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (fileInputRef.current) {
-                                  fileInputRef.current.accept = "image/*";
-                                  fileInputRef.current.click();
-                                }
-                              }}
-                              className="flex items-center gap-3 text-left text-xs font-semibold px-3 py-2 rounded-lg hover:bg-muted text-foreground/90 transition-colors"
-                            >
-                              <ImageIcon className="w-4 h-4 text-blue-500" />
-                              Upload Foto
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (fileInputRef.current) {
-                                  fileInputRef.current.accept = "video/*";
-                                  fileInputRef.current.click();
-                                }
-                              }}
-                              className="flex items-center gap-3 text-left text-xs font-semibold px-3 py-2 rounded-lg hover:bg-muted text-foreground/90 transition-colors"
-                            >
-                              <Video className="w-4 h-4 text-rose-500" />
-                              Upload Video
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (fileInputRef.current) {
-                                  fileInputRef.current.accept =
-                                    ".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip";
-                                  fileInputRef.current.click();
-                                }
-                              }}
-                              className="flex items-center gap-3 text-left text-xs font-semibold px-3 py-2 rounded-lg hover:bg-muted text-foreground/90 transition-colors"
-                            >
-                              <FileText className="w-4 h-4 text-amber-500" />
-                              Upload Dokumen
-                            </button>
-                          </div>
-                        )}
+                        <span className="mx-1 h-4 w-px shrink-0 bg-border" />
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().toggleBold().run()}
+                          className={toolbarIconClass(editor?.isActive("bold"))}
+                        >
+                          <Bold className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().toggleItalic().run()}
+                          className={toolbarIconClass(editor?.isActive("italic"))}
+                        >
+                          <Italic className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().toggleUnderline().run()}
+                          className={toolbarIconClass(editor?.isActive("underline"))}
+                        >
+                          <UnderlineIcon className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={handleLink}
+                          className={toolbarIconClass(editor?.isActive("link"))}
+                        >
+                          <LinkIcon className="h-4 w-4" />
+                        </Button>
+
+                        <span className="mx-1 h-4 w-px shrink-0 bg-border" />
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+                          className={toolbarIconClass(editor?.isActive({ textAlign: "left" }))}
+                        >
+                          <AlignLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+                          className={toolbarIconClass(editor?.isActive({ textAlign: "center" }))}
+                        >
+                          <AlignCenter className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+                          className={toolbarIconClass(editor?.isActive({ textAlign: "right" }))}
+                        >
+                          <AlignRight className="h-4 w-4" />
+                        </Button>
+
+                        <span className="mx-1 h-4 w-px shrink-0 bg-border" />
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                          className={toolbarIconClass(editor?.isActive("bulletList"))}
+                        >
+                          <List className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                          className={toolbarIconClass(editor?.isActive("orderedList"))}
+                        >
+                          <ListOrdered className="h-4 w-4" />
+                        </Button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            if (editor?.isActive("orderedList", { type: "a" })) {
+                              editor.chain().focus().toggleOrderedList().run();
+                              return;
+                            }
+
+                            editor
+                              ?.chain()
+                              .focus()
+                              .toggleOrderedList()
+                              .updateAttributes("orderedList", { type: "a" })
+                              .run();
+                          }}
+                          className={cn(
+                            toolbarButtonClass(editor?.isActive("orderedList", { type: "a" })),
+                            "gap-1 border border-border px-2"
+                          )}
+                        >
+                          a-b-c
+                        </button>
+
+                        <span className="mx-1 h-4 w-px shrink-0 bg-border" />
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isUploadingAttachment}
+                          onClick={() => fileInputRef.current?.click()}
+                          className={toolbarIconClass(false)}
+                        >
+                          {isUploadingAttachment ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Paperclip className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
 
-                      {/* Text area */}
-                      <div className="flex-1">
-                        <Textarea
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          onKeyDown={handleKeyPress}
-                          placeholder="Tulis tanggapan Anda... (Enter untuk Kirim)"
-                          rows={1}
-                          className="min-h-[40px] max-h-[120px] resize-none py-2.5 px-4 bg-muted/40 border-border rounded-xl focus-visible:ring-1 focus-visible:ring-primary w-full text-sm"
+                      <div className="relative rounded-b-md border border-t-0 border-border/70 bg-muted/20">
+                        {editor && editor.isEmpty && (
+                          <div className="pointer-events-none absolute left-4 top-3 select-none text-sm text-muted-foreground/70">
+                            Tulis balasan laporan di sini...
+                          </div>
+                        )}
+                        <EditorContent
+                          editor={editor}
+                          className="min-h-[96px] max-h-44 overflow-y-auto px-4 py-3 text-sm outline-none focus-within:ring-1 focus-within:ring-primary [&_.ProseMirror]:min-h-[72px] [&_.ProseMirror]:outline-none [&_a]:underline [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
                         />
                       </div>
 
-                      {/* Send */}
-                      <Button
-                        type="submit"
-                        disabled={!chatInput.trim() && attachments.length === 0}
-                        className="h-10 w-10 p-0 rounded-full shrink-0 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
+                      <div className="flex justify-end">
+                        <Button
+                          type="submit"
+                          disabled={isUploadingAttachment || !canSendReply}
+                          className="h-9 gap-2 px-4 text-xs font-medium"
+                        >
+                          {isUploadingAttachment ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          Kirim Balasan
+                        </Button>
+                      </div>
                     </div>
                   </form>
                 </div>
