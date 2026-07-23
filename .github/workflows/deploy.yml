@@ -1,0 +1,38 @@
+name: Deploy Workspace to Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v20
+        id: vercel_deploy
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          
+          vercel-args: ${{ github.ref_name == 'main' && '--prod' || '' }}
+          alias-domains: ${{ github.ref_name == 'staging' && 'workspace-staging.postmatic.id' || '' }}
+
+      - name: Send Notification to Discord
+        uses: sarisia/actions-status-discord@v1
+        if: always()
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: ${{ job.status }}
+          username: "中野 二乃 (Workspace)"
+          title: "Update Workspace: ${{ github.ref_name == 'main' && 'PRODUCTION 🚀' || 'STAGING 🛠️' }}"
+          content: ${{ job.status == 'failure' && '🚨 **@here W-waduh!** Kalian ngapain sih?! Workspace utamanya hancur dan gagal deploy! Kalau user nggak bisa kerja gimana?! Cepat tanggung jawab dan perbaiki sekarang juga!' || '✅ Workspace berhasil di-deploy. Y-ya, kerja tim kalian lumayan juga. U-user pasti merasa terbantu... B-bukan berarti aku peduli dengan user kalian, aku cuma lega log notifnya berwarna hijau!' }}
+          description: |
+            *Update Workspace* sudah selesai diproses oleh sistem.
+            Jangan lupa tes fitur utamanya, awas saja kalau sampai ada data pengguna yang *nyangkut* atau tidak bisa dimuat! 😤
