@@ -206,39 +206,13 @@ function MediaFullscreenOverlay({
   );
 }
 
-// ─── Dummy rich-content for notification detail ─────────────────────────────
-const NOTIF_RICH_CONTENT: Record<
-  string,
-  { body: string; mediaType?: "image" | "video"; mediaUrl?: string; caption?: string }
-> = {
-  "notif-1": {
-    body: "Kini Anda tidak perlu lagi memposting secara manual. Dengan integrasi terbaru Postmatic Scheduler, Anda dapat mengunggah gambar atau video pendek, menambahkan stiker tautan, dan menjadwalkan penayangan Instagram Story secara otomatis langsung dari workspace ini.\n\nFitur ini mendukung:\n• Upload gambar hingga 30MB (format JPEG, PNG, WEBP)\n• Upload video hingga 60 detik (format MP4, MOV)\n• Penjadwalan hingga 30 hari ke depan\n• Pratinjau tampilan story sebelum diterbitkan\n\nCobalah fitur ini sekarang di tab Content Scheduler!",
-    mediaType: "image",
-    mediaUrl:
-      "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&q=80",
-    caption: "Tampilan baru fitur Scheduler Instagram Story di Postmatic Dashboard",
-  },
-  "notif-2": {
-    body: "Sistem billing kami telah menerima pembayaran Anda untuk invoice #INV-2026-0701 tertanggal 13 Juli 2026 sebesar Rp 150.000 (Paket Pro Bulanan).\n\nDetail Transaksi:\n• Metode Pembayaran: Transfer Bank BCA\n• Nominal: Rp 150.000\n• Status: LUNAS ✓\n• Akses diperpanjang hingga: 13 Agustus 2026\n\nTerima kasih atas kepercayaan Anda menggunakan layanan Postmatic! Untuk melihat detail tagihan lengkap, kunjungi Settings > Billing.",
-    mediaType: "image",
-    mediaUrl:
-      "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80",
-    caption: "Konfirmasi pembayaran invoice #INV-2026-0701 — Status: LUNAS",
-  },
-  "notif-3": {
-    body: "Pemberitahuan Sistem: Kredit AI Anda saat ini tersisa 42 tokens. Jika kredit habis, penjadwalan otomatis atau pembuatan konten AI baru mungkin akan tertunda.\n\nRincian penggunaan kredit 7 hari terakhir:\n• Senin: -120 tokens (4 postingan)\n• Selasa: -95 tokens (3 postingan)\n• Rabu: -110 tokens (4 postingan)\n• Kamis: -88 tokens (3 postingan)\n• Jumat: -145 tokens (5 postingan)\n\nSilakan lakukan pengisian ulang melalui tab Settings > Billing atau klik tombol '+' di bagian kredit header untuk melakukan top-up instan.",
-    mediaType: "video",
-    mediaUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    caption: "Tutorial cara melakukan top-up kredit AI di Postmatic",
-  },
-};
-
 export default function NotificationsPage() {
   const {
     notifications,
     tickets,
     unreadCount,
+    isNotificationLoading,
+    notificationError,
     markAsRead,
     markAllAsRead,
     sendChatMessage,
@@ -308,7 +282,6 @@ export default function NotificationsPage() {
 
   const activeNotification = notifications.find((n) => n.id === selectedNotifId) || null;
   const activeTicket = tickets.find((t) => t.id === selectedTicketId) || null;
-  const richContent = selectedNotifId ? NOTIF_RICH_CONTENT[selectedNotifId] : null;
 
   // Auto-select first item
   useEffect(() => {
@@ -643,7 +616,17 @@ export default function NotificationsPage() {
               </div>
 
               <div className="overflow-y-auto flex-1 custom-scrollbar">
-                {filteredNotifications.length === 0 ? (
+                {isNotificationLoading ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin opacity-60" />
+                    <p className="text-sm">Memuat notifikasi...</p>
+                  </div>
+                ) : notificationError ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Gagal memuat notifikasi.</p>
+                  </div>
+                ) : filteredNotifications.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">Tidak ada notifikasi ditemukan.</p>
@@ -710,79 +693,59 @@ export default function NotificationsPage() {
               </div>
 
               {activeNotification ? (
-                <div className="flex flex-col min-h-full">
-                  {/* Header section */}
-                  <div className="sticky top-0 z-10 bg-card/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-start justify-between gap-4">
-                    <div>
-                      <h2 className="text-base font-bold text-foreground leading-snug">
-                        {activeNotification.title}
-                      </h2>
-                      <span className="text-xs text-muted-foreground mt-0.5 block">
-                        {activeNotification.time}
-                      </span>
+                <div className="min-h-full bg-muted/20 px-4 py-5 sm:px-6 lg:px-8">
+                  <article className="mx-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                    <header className="border-b border-border px-5 py-4 sm:px-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            {activeNotification.unread && (
+                              <Badge
+                                variant="secondary"
+                                className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                              >
+                                Baru
+                              </Badge>
+                            )}
+                            {activeNotification.channelType && (
+                              <Badge variant="outline" className="capitalize">
+                                {activeNotification.channelType}
+                              </Badge>
+                            )}
+                          </div>
+                          <h2 className="text-base font-bold leading-snug text-foreground">
+                            {activeNotification.title}
+                          </h2>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {activeNotification.time}
+                          </span>
+                        </div>
+                      </div>
+                    </header>
+
+                    <div className="flex-1 space-y-5 px-5 py-5 sm:px-6">
+                      <RichMessageContent
+                        value={activeNotification.content || activeNotification.message}
+                        className="text-sm leading-6 text-foreground/90"
+                      />
+
+                      {activeNotification.attachments &&
+                        activeNotification.attachments.length > 0 &&
+                        renderMessageAttachments(activeNotification.attachments)}
                     </div>
-                    {activeNotification.unread && (
-                      <Badge
-                        variant="secondary"
-                        className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 shrink-0"
+
+                    <footer className="flex justify-end border-t border-border px-5 py-4 sm:px-6">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => markAsRead(activeNotification.id)}
+                        disabled={!activeNotification.unread}
+                        className="text-xs"
                       >
-                        Baru
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Body */}
-                  <div className="flex-1 px-[15rem] py-6 space-y-6">
-                    {/* Media block */}
-                    {richContent?.mediaType === "image" && richContent.mediaUrl && (
-                      <div className="rounded-xl overflow-hidden border border-border shadow-sm">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={richContent.mediaUrl}
-                          alt={richContent.caption ?? "Notification media"}
-                          className="w-full h-auto object-contain"
-                        />
-                        {richContent.caption && (
-                          <p className="text-xs text-muted-foreground px-3 py-2 bg-card">
-                            {richContent.caption}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {richContent?.mediaType === "video" && richContent.mediaUrl && (
-                      <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-black">
-                        <video
-                          src={richContent.mediaUrl}
-                          controls
-                          className="w-full h-auto object-contain"
-                        />
-                        {richContent.caption && (
-                          <p className="text-xs text-muted-foreground px-3 py-2 bg-card">
-                            {richContent.caption}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Text content */}
-                    <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-line">
-                      {richContent?.body ?? activeNotification.content}
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="px-[15rem] pb-6 pt-2 border-t border-border flex justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => markAsRead(activeNotification.id)}
-                      disabled={!activeNotification.unread}
-                      className="text-xs"
-                    >
-                      {activeNotification.unread ? "Tandai sudah dibaca" : "Sudah Dibaca"}
-                    </Button>
-                  </div>
+                        {activeNotification.unread ? "Tandai sudah dibaca" : "Sudah Dibaca"}
+                      </Button>
+                    </footer>
+                  </article>
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">

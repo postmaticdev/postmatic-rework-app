@@ -14,21 +14,39 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ACCESS_TOKEN_KEY, NEXT_PUBLIC_ENABLE_SOCKET } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { createSocket, RealtimeEnvelope } from "@/lib/socket";
+import type { CommonNotification } from "@/models/api/notification.type";
 import type {
   WebsiteTicket,
   WebsiteTicketMessage,
 } from "@/models/api/ticket.type";
+import notificationService, {
+  NOTIFICATIONS_QUERY_KEY,
+  NOTIFICATION_UNREAD_COUNT_QUERY_KEY,
+} from "@/services/notification.api";
+import { useAuthProfileGetProfile } from "@/services/auth.api";
 import ticketService, {
   WEBSITE_TICKETS_QUERY_KEY,
 } from "@/services/ticket.api";
 
+export type NotificationAttachment = {
+  type: "photo" | "file" | "video";
+  name: string;
+  url?: string;
+};
+
 export interface NotificationItem {
   id: string;
+  remoteId?: number;
+  chatBlastMessageHistoryId?: number;
   title: string;
   message: string;
   time: string;
   unread: boolean;
   content: string;
+  createdAt?: string;
+  updatedAt?: string;
+  attachments?: NotificationAttachment[];
+  channelType?: string | null;
 }
 
 export interface ChatMessage {
@@ -40,11 +58,7 @@ export interface ChatMessage {
   createdAt?: string;
   isInitialReport?: boolean;
   category?: string;
-  attachments?: {
-    type: "photo" | "file" | "video";
-    name: string;
-    url?: string;
-  }[];
+  attachments?: NotificationAttachment[];
 }
 
 export interface TicketItem {
@@ -61,7 +75,9 @@ interface NotificationContextProps {
   notifications: NotificationItem[];
   tickets: TicketItem[];
   unreadCount: number;
+  isNotificationLoading: boolean;
   isTicketLoading: boolean;
+  notificationError: string | null;
   ticketError: string | null;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
@@ -71,11 +87,12 @@ interface NotificationContextProps {
     details: string,
     attachments?: string[]
   ) => string;
+  refreshNotifications: () => Promise<void>;
   refreshTickets: () => Promise<void>;
   sendChatMessage: (
     ticketId: string,
     text: string,
-    attachments?: { type: "photo" | "file" | "video"; name: string; url?: string }[]
+    attachments?: NotificationAttachment[]
   ) => void;
 }
 
@@ -84,6 +101,7 @@ const NotificationContext = createContext<NotificationContextProps | undefined>(
 );
 
 const TICKET_FALLBACK_REFRESH_INTERVAL_MS = 10_000;
+const NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS = 30_000;
 
 function getBrowserAccessToken() {
   if (typeof window === "undefined") return null;
@@ -165,11 +183,51 @@ function mapAttachments(urls?: string[] | null) {
 }
 
 function getPublicAttachmentUrls(
-  attachments?: { type: "photo" | "file" | "video"; name: string; url?: string }[]
+  attachments?: NotificationAttachment[]
 ) {
   return (attachments ?? [])
     .map((attachment) => attachment.url)
     .filter((url): url is string => Boolean(url && /^https?:\/\//i.test(url)));
+}
+
+function plainTextFromRichText(value?: string | null) {
+  return (value ?? "")
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function mapCommonNotification(notification: CommonNotification): NotificationItem {
+  const blast = notification.chatBlast;
+  const content = blast?.body ?? "";
+  const preview = plainTextFromRichText(content);
+  const createdAt =
+    notification.createdAt ?? blast?.createdAt ?? blast?.scheduledFor ?? undefined;
+  const updatedAt = notification.updatedAt ?? blast?.updatedAt ?? createdAt;
+
+  return {
+    id: String(notification.id),
+    remoteId: notification.id,
+    chatBlastMessageHistoryId:
+      notification.chatBlastMessageHistoryId ?? blast?.id ?? undefined,
+    title: blast?.subject || `Notifikasi #${notification.id}`,
+    message: preview || "Notifikasi baru dari Postmatic.",
+    time: formatDateTime(createdAt),
+    unread: !notification.readAt,
+    content,
+    createdAt,
+    updatedAt,
+    attachments: mapAttachments(blast?.attachments),
+    channelType: blast?.channelType,
+  };
 }
 
 function mapWebsiteMessage(message: WebsiteTicketMessage): ChatMessage {
@@ -188,8 +246,13 @@ function mapWebsiteMessage(message: WebsiteTicketMessage): ChatMessage {
 
 function mapWebsiteTicket(
   ticket: WebsiteTicket,
-  messages: WebsiteTicketMessage[] = []
+  messages: WebsiteTicketMessage[] = [],
+  categoryNameById: Map<number, string> = new Map()
 ): TicketItem {
+  const categoryName =
+    ticket.appTicketCategoryId != null
+      ? categoryNameById.get(ticket.appTicketCategoryId)
+      : undefined;
   const initialMessage: ChatMessage = {
     id: -Number(ticket.id),
     sender: "user",
@@ -198,9 +261,10 @@ function mapWebsiteTicket(
     createdAt: ticket.createdAt,
     isInitialReport: true,
     category:
-      ticket.appTicketCategoryId != null
+      categoryName ??
+      (ticket.appTicketCategoryId != null
         ? `Kategori #${ticket.appTicketCategoryId}`
-        : undefined,
+        : undefined),
     attachments: mapAttachments(ticket.attachments),
   };
 
@@ -223,8 +287,15 @@ function mapWebsiteTicket(
 }
 
 async function getWebsiteTicketRooms() {
-  const response = await ticketService.getWebsiteTickets();
+  const [response, categoriesResponse] = await Promise.all([
+    ticketService.getWebsiteTickets(),
+    ticketService.getCategories().catch(() => null),
+  ]);
   const tickets = response.data.data ?? [];
+  const categories = categoriesResponse?.data.data ?? [];
+  const categoryNameById = new Map(
+    categories.map((category) => [category.id, category.name])
+  );
 
   const details = await Promise.all(
     tickets.map(async (ticket) => {
@@ -239,7 +310,11 @@ async function getWebsiteTicketRooms() {
 
   return tickets
     .map((ticket, index) =>
-      mapWebsiteTicket(ticket, details[index]?.messages ?? [])
+      mapWebsiteTicket(
+        ticket,
+        details[index]?.messages ?? [],
+        categoryNameById
+      )
     )
     .sort(
       (a, b) =>
@@ -248,50 +323,73 @@ async function getWebsiteTicketRooms() {
     );
 }
 
+async function getCommonNotifications() {
+  const response = await notificationService.getNotifications();
+  const notifications = response.data.data ?? [];
+
+  return notifications
+    .map(mapCommonNotification)
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt ?? "").getTime() -
+        new Date(a.createdAt ?? "").getTime()
+    );
+}
+
+async function getCommonNotificationUnreadCount() {
+  const response = await notificationService.getUnreadCount();
+  return response.data.data?.totalUnread ?? 0;
+}
+
 function shouldRefreshForTicketEvent(message: RealtimeEnvelope) {
+  const type = message.type.toLowerCase();
+  const topic = message.topic?.toLowerCase() ?? "";
+
   return (
-    message.type === "chat.website.message.created" ||
-    message.type === "ticket.created" ||
-    message.type === "ticket.status_changed"
+    type === "chat.website.message.created" ||
+    type === "ticket.created" ||
+    type === "ticket.status_changed" ||
+    type.includes("ticket") ||
+    topic.startsWith("ticket.")
+  );
+}
+
+function shouldRefreshForNotificationEvent(message: RealtimeEnvelope) {
+  const type = message.type.toLowerCase();
+  const topic = message.topic?.toLowerCase() ?? "";
+
+  return (
+    type.includes("notification") ||
+    type.includes("blast") ||
+    topic.includes("notification") ||
+    topic.includes("blast")
   );
 }
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: "notif-1",
-      title: "Fitur Baru: Scheduler Instagram Story",
-      message:
-        "Sekarang Anda dapat menjadwalkan postingan Instagram Story secara langsung melalui dashboard Postmatic. Cobalah sekarang!",
-      time: "2 jam yang lalu",
-      unread: true,
-      content:
-        "Kini Anda tidak perlu lagi memposting secara manual. Dengan integrasi terbaru Postmatic Scheduler, Anda dapat mengunggah gambar atau video pendek, menambahkan stiker tautan, dan menjadwalkan penayangan Instagram Story secara otomatis langsung dari workspace ini. Cobalah fitur ini sekarang di tab Content Scheduler!",
-    },
-    {
-      id: "notif-2",
-      title: "Pembayaran Invoice Berhasil",
-      message:
-        "Invoice #INV-2026-0701 untuk perpanjangan langganan bulanan Anda telah berhasil diproses.",
-      time: "1 hari yang lalu",
-      unread: false,
-      content:
-        "Sistem billing kami telah menerima pembayaran Anda untuk invoice #INV-2026-0701 tertanggal 13 Juli 2026 sebesar Rp 150.000 (Paket Pro Bulanan). Akses fitur penuh Anda diperpanjang hingga 13 Agustus 2026. Terima kasih atas kepercayaan Anda menggunakan layanan Postmatic!",
-    },
-    {
-      id: "notif-3",
-      title: "Kredit AI Hampir Habis",
-      message:
-        "Kredit AI Anda tersisa kurang dari 50 tokens. Segera lakukan top-up agar postingan terjadwal tetap berjalan lancar.",
-      time: "3 hari yang lalu",
-      unread: true,
-      content:
-        "Pemberitahuan Sistem: Kredit AI Anda saat ini tersisa 42 tokens. Jika kredit habis, penjadwalan otomatis atau pembuatan konten AI baru mungkin akan tertunda. Silakan lakukan pengisian ulang melalui tab Settings > Billing atau klik tombol '+' di bagian kredit header untuk melakukan top-up instan.",
-    },
-  ]);
+  const profileQuery = useAuthProfileGetProfile();
+  const profileId = profileQuery.data?.data?.data?.id;
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const ticketsRef = useRef<TicketItem[]>(tickets);
+
+  const notificationsQuery = useQuery({
+    queryKey: NOTIFICATIONS_QUERY_KEY,
+    queryFn: getCommonNotifications,
+    refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
+      ? false
+      : NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
+  });
+
+  const notificationUnreadCountQuery = useQuery({
+    queryKey: NOTIFICATION_UNREAD_COUNT_QUERY_KEY,
+    queryFn: getCommonNotificationUnreadCount,
+    refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
+      ? false
+      : NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
+  });
 
   const websiteTicketsQuery = useQuery({
     queryKey: WEBSITE_TICKETS_QUERY_KEY,
@@ -306,9 +404,36 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [tickets]);
 
   useEffect(() => {
+    if (!notificationsQuery.data) return;
+    setNotifications(notificationsQuery.data);
+    if (typeof notificationUnreadCountQuery.data !== "number") {
+      setNotificationUnreadCount(
+        notificationsQuery.data.filter((notification) => notification.unread)
+          .length
+      );
+    }
+  }, [notificationUnreadCountQuery.data, notificationsQuery.data]);
+
+  useEffect(() => {
+    if (typeof notificationUnreadCountQuery.data !== "number") return;
+    setNotificationUnreadCount(notificationUnreadCountQuery.data);
+  }, [notificationUnreadCountQuery.data]);
+
+  useEffect(() => {
     if (!websiteTicketsQuery.data) return;
     setTickets(websiteTicketsQuery.data);
   }, [websiteTicketsQuery.data]);
+
+  const refreshNotifications = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: NOTIFICATIONS_QUERY_KEY,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: NOTIFICATION_UNREAD_COUNT_QUERY_KEY,
+      }),
+    ]);
+  }, [queryClient]);
 
   const refreshTickets = useCallback(async () => {
     await queryClient.invalidateQueries({
@@ -332,18 +457,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const token = getBrowserAccessToken();
     if (!token) return;
 
+    const ticketTopics = ticketTopicKey
+      ? ticketTopicKey.split("|").map((id) => `ticket.${id}`)
+      : [];
+    const profileTopics = profileId
+      ? [`notification.profile.${profileId}`, `ticket.profile.${profileId}`]
+      : [];
+    const topics = [...profileTopics, ...ticketTopics];
+
+    if (topics.length === 0) return;
+
     const socket = createSocket({
       token,
       tokenQueryKey: "postmaticAccessToken",
     });
-    const ticketTopics = ticketTopicKey
-      ? ticketTopicKey.split("|").map((id) => `ticket.${id}`)
-      : [];
-    const topics = ["chat.website.admin", "ticket.admin", ...ticketTopics];
 
     const handleMessage = (message: RealtimeEnvelope) => {
-      if (!shouldRefreshForTicketEvent(message)) return;
-      refreshTickets();
+      if (shouldRefreshForNotificationEvent(message)) {
+        refreshNotifications();
+      }
+
+      if (shouldRefreshForTicketEvent(message)) {
+        refreshTickets();
+      }
     };
 
     socket.on("message", handleMessage);
@@ -353,27 +489,77 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       socket.off("message", handleMessage);
       socket.unsubscribe(topics);
     };
-  }, [refreshTickets, ticketTopicKey]);
+  }, [profileId, refreshNotifications, refreshTickets, ticketTopicKey]);
 
-  const unreadCount = useMemo(() => {
+  const localUnreadCount = useMemo(() => {
     return notifications.filter((n) => n.unread).length;
   }, [notifications]);
+  const unreadCount =
+    notificationUnreadCountQuery.data == null && notificationUnreadCount === 0
+      ? localUnreadCount
+      : notificationUnreadCount;
 
-  const markAsRead = useCallback((id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
-    );
-  }, []);
+  const markAsRead = useCallback(
+    (id: string) => {
+      const notificationId = Number(id);
+
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
+      );
+      setNotificationUnreadCount((prev) => Math.max(prev - 1, 0));
+
+      if (!Number.isFinite(notificationId)) return;
+
+      notificationService
+        .getNotification(notificationId)
+        .then((response) => {
+          const notification = response.data.data;
+          if (notification) {
+            const mappedNotification = mapCommonNotification(notification);
+            setNotifications((prev) =>
+              prev.map((item) =>
+                item.id === mappedNotification.id ? mappedNotification : item
+              )
+            );
+          }
+          refreshNotifications();
+        })
+        .catch((error) => {
+          showToast("error", error);
+          refreshNotifications();
+        });
+    },
+    [refreshNotifications]
+  );
 
   const markAllAsRead = useCallback(() => {
+    const unreadNotificationIds = notifications
+      .filter((notification) => notification.unread)
+      .map((notification) => Number(notification.id))
+      .filter((notificationId) => Number.isFinite(notificationId));
+
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  }, []);
+    setNotificationUnreadCount(0);
+
+    if (!unreadNotificationIds.length) return;
+
+    Promise.allSettled(
+      unreadNotificationIds.map((notificationId) =>
+        notificationService.getNotification(notificationId)
+      )
+    )
+      .then(() => refreshNotifications())
+      .catch((error) => {
+        showToast("error", error);
+        refreshNotifications();
+      });
+  }, [notifications, refreshNotifications]);
 
   const sendChatMessage = useCallback(
     (
       ticketId: string,
       text: string,
-      attachments?: { type: "photo" | "file" | "video"; name: string; url?: string }[]
+      attachments?: NotificationAttachment[]
     ) => {
       const ticket = ticketsRef.current.find((item) => item.id === ticketId);
       const body = text.trim();
@@ -436,7 +622,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         notifications,
         tickets,
         unreadCount,
+        isNotificationLoading: notificationsQuery.isLoading,
         isTicketLoading: websiteTicketsQuery.isLoading,
+        notificationError:
+          notificationsQuery.error instanceof Error
+            ? notificationsQuery.error.message
+            : null,
         ticketError:
           websiteTicketsQuery.error instanceof Error
             ? websiteTicketsQuery.error.message
@@ -444,6 +635,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         markAsRead,
         markAllAsRead,
         addTicket,
+        refreshNotifications,
         refreshTickets,
         sendChatMessage,
       }}

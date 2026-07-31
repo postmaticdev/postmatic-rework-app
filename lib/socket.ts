@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ACCESS_TOKEN_KEY,
   NEXT_PUBLIC_SOCKET_ORIGIN,
   NEXT_PUBLIC_SOCKET_PATH,
 } from "@/constants";
@@ -52,7 +53,7 @@ function buildWebSocketUrl(
   origin: string,
   path: string,
   token?: string | null,
-  tokenQueryKey = "accessToken"
+  tokenQueryKey = ACCESS_TOKEN_KEY
 ) {
   const baseUrl = new URL(origin || window.location.origin);
   if (baseUrl.protocol === "https:") {
@@ -256,7 +257,7 @@ export function createSocket(opts: CreateSocketOpts = {}) {
     path: opts.path ?? NEXT_PUBLIC_SOCKET_PATH,
     reconnectDelayMs: opts.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS,
     token: opts.token ?? null,
-    tokenQueryKey: opts.tokenQueryKey ?? "accessToken",
+    tokenQueryKey: opts.tokenQueryKey ?? ACCESS_TOKEN_KEY,
     url: opts.url ?? NEXT_PUBLIC_SOCKET_ORIGIN,
   });
 
