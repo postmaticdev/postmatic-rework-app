@@ -9,7 +9,6 @@ import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import {
   createSocket,
-  destroySocket,
   RealtimeEnvelope,
 } from "@/lib/socket";
 import {
@@ -3471,7 +3470,6 @@ export const ContentGenerateProvider = ({
       socket.off("open", handleOpen);
       socket.off("close", handleClose);
       socket.off("message", handleMessage);
-      destroySocket();
     };
   }, [isContentGenerateRoute]);
 

@@ -40,7 +40,6 @@ type CreateSocketOpts = {
 
 type SubscribePayload = {
   topic?: string;
-  topics?: string[];
   type: "subscribe" | "unsubscribe";
 };
 
@@ -207,12 +206,10 @@ class BrowserRealtimeSocket {
     const filteredTopics = topics.filter(Boolean);
     if (!filteredTopics.length || !this.connected) return;
 
-    const payload: SubscribePayload =
-      filteredTopics.length === 1
-        ? { type: action, topic: filteredTopics[0] }
-        : { type: action, topics: filteredTopics };
-
-    this.send(payload);
+    filteredTopics.forEach((topic) => {
+      const payload: SubscribePayload = { type: action, topic };
+      this.send(payload);
+    });
   }
 
   private scheduleReconnect() {

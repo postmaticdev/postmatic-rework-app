@@ -101,6 +101,7 @@ const NotificationContext = createContext<NotificationContextProps | undefined>(
 );
 
 const TICKET_FALLBACK_REFRESH_INTERVAL_MS = 10_000;
+const TICKET_SOCKET_SAFETY_REFRESH_INTERVAL_MS = 30_000;
 const NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS = 30_000;
 
 function getBrowserAccessToken() {
@@ -378,25 +379,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const notificationsQuery = useQuery({
     queryKey: NOTIFICATIONS_QUERY_KEY,
     queryFn: getCommonNotifications,
-    refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
-      ? false
-      : NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
+    refetchInterval: NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
+    refetchIntervalInBackground: false,
   });
 
   const notificationUnreadCountQuery = useQuery({
     queryKey: NOTIFICATION_UNREAD_COUNT_QUERY_KEY,
     queryFn: getCommonNotificationUnreadCount,
-    refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
-      ? false
-      : NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
+    refetchInterval: NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
+    refetchIntervalInBackground: false,
   });
 
   const websiteTicketsQuery = useQuery({
     queryKey: WEBSITE_TICKETS_QUERY_KEY,
     queryFn: getWebsiteTicketRooms,
     refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
-      ? false
+      ? TICKET_SOCKET_SAFETY_REFRESH_INTERVAL_MS
       : TICKET_FALLBACK_REFRESH_INTERVAL_MS,
+    refetchIntervalInBackground: false,
   });
 
   useEffect(() => {
