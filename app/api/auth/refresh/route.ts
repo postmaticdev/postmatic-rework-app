@@ -1,5 +1,9 @@
-import { ACCESS_TOKEN_KEY, NEXT_PUBLIC_API_ORIGIN, REFRESH_TOKEN_KEY } from "@/constants";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/constants";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getAuthCookieOptions,
+  getBackendApiOrigin,
+} from "../_shared";
 
 type RefreshResponse = {
   metaData?: { code?: number; message?: string };
@@ -8,13 +12,6 @@ type RefreshResponse = {
     accessToken?: string;
     refreshToken?: string;
   };
-};
-
-const COOKIE_OPTIONS = {
-  path: "/",
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
-  maxAge: 60 * 60 * 24 * 7,
 };
 
 const FORWARDED_REFRESH_HEADERS = [
@@ -54,31 +51,52 @@ export async function POST(request: NextRequest) {
     if (value) headers.set(header, value);
   });
 
-  const upstream = await fetch(
-    `${NEXT_PUBLIC_API_ORIGIN}/api/account/auth/refresh-token`,
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ refreshToken }),
-      cache: "no-store",
-    }
-  );
+  const apiOrigin = getBackendApiOrigin();
+
+  if (!apiOrigin) {
+    return NextResponse.json(
+      {
+        metaData: { code: 500, message: "API origin is not configured" },
+        responseMessage: "API_ORIGIN_NOT_CONFIGURED",
+        data: null,
+      },
+      { status: 500 }
+    );
+  }
+
+  const upstream = await fetch(`${apiOrigin}/api/account/auth/refresh-token`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ refreshToken }),
+    cache: "no-store",
+  });
 
   const payload = (await upstream.json().catch(() => null)) as
     | RefreshResponse
     | null;
-  const response = NextResponse.json(payload, { status: upstream.status });
+  const responsePayload = payload
+    ? {
+        ...payload,
+        data: payload.data
+          ? { ...payload.data, refreshToken: undefined }
+          : payload.data,
+      }
+    : payload;
+  const response = NextResponse.json(responsePayload, {
+    status: upstream.status,
+  });
 
   const accessToken = payload?.data?.accessToken;
   const nextRefreshToken = payload?.data?.refreshToken;
+  const cookieOptions = getAuthCookieOptions(request);
 
   if (upstream.ok && accessToken) {
-    response.cookies.set(ACCESS_TOKEN_KEY, accessToken, COOKIE_OPTIONS);
+    response.cookies.set(ACCESS_TOKEN_KEY, accessToken, cookieOptions);
   }
 
   if (upstream.ok && nextRefreshToken) {
     response.cookies.set(REFRESH_TOKEN_KEY, nextRefreshToken, {
-      ...COOKIE_OPTIONS,
+      ...cookieOptions,
       httpOnly: true,
     });
   }

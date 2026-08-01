@@ -13,7 +13,7 @@ import {
 } from "@/models/api/base-response.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-const TICKET_CATEGORIES_QUERY_KEY = ["ticketCategories"] as const;
+export const TICKET_CATEGORIES_QUERY_KEY = ["ticketCategories"] as const;
 export const WEBSITE_TICKETS_QUERY_KEY = ["websiteTickets"] as const;
 
 const ticketService = {

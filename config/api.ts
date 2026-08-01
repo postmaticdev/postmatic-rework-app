@@ -14,12 +14,18 @@ import { BaseResponse } from "@/models/api/base-response.type";
 
 const MINUTE = 60_000;
 const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
+const API_BASE_URL = NEXT_PUBLIC_API_ORIGIN
+  ? `${NEXT_PUBLIC_API_ORIGIN.replace(/\/$/, "")}/api`
+  : "/api";
 
 export const api: AxiosInstance = axios.create({
-  baseURL:
-    typeof window === "undefined"
-      ? `${NEXT_PUBLIC_API_ORIGIN}/api`
-      : "/api/backend",
+  baseURL: API_BASE_URL,
+  timeout: MINUTE * 2,
+  headers: { "Content-Type": "application/json" },
+});
+
+export const workspaceApi: AxiosInstance = axios.create({
+  baseURL: "",
   timeout: MINUTE * 2,
   headers: { "Content-Type": "application/json" },
 });
@@ -62,16 +68,30 @@ function getCookie(name: string) {
   return value ? decodeURIComponent(value) : null;
 }
 
+function getClientCookieDomain() {
+  if (typeof window === "undefined") return "";
+  const hostname = window.location.hostname.toLowerCase();
+  return hostname === "postmatic.id" || hostname.endsWith(".postmatic.id")
+    ? "; Domain=.postmatic.id"
+    : "";
+}
+
 function setClientCookie(name: string, value: string | null) {
   if (typeof document === "undefined") return;
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  const domain = getClientCookieDomain();
   if (!value) {
     document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+    if (domain) {
+      document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}${domain}`;
+    }
     return;
   }
+
+  document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
   document.cookie = `${name}=${encodeURIComponent(
     value
-  )}; Path=/; Max-Age=604800; SameSite=Lax${secure}`;
+  )}; Path=/; Max-Age=604800; SameSite=Lax${secure}${domain}`;
 }
 
 export function setAuthToken(
@@ -104,74 +124,79 @@ function hardLogout() {
   }
 }
 
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = getAccessToken();
-    if (token) {
-      config.headers = config.headers ?? {};
-      config.headers[ACCESS_TOKEN_HEADER] = token;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+function applyAuthInterceptors(instance: AxiosInstance) {
+  instance.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+      const token = getAccessToken();
+      if (token) {
+        config.headers = config.headers ?? {};
+        config.headers[ACCESS_TOKEN_HEADER] = token;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
 
-api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalConfig = error.config as
-      | (AxiosRequestConfig & { _retry?: boolean })
-      | undefined;
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError) => {
+      const originalConfig = error.config as
+        | (AxiosRequestConfig & { _retry?: boolean })
+        | undefined;
 
-    const status = error.response?.status ?? error?.status;
-    const codeFromBody = (error.response?.data as BaseResponse)?.metaData?.code;
-    const isUnauthorized = status === 401 || codeFromBody === 401;
+      const status = error.response?.status ?? error?.status;
+      const codeFromBody = (error.response?.data as BaseResponse)?.metaData?.code;
+      const isUnauthorized = status === 401 || codeFromBody === 401;
 
-    if (!isUnauthorized || !originalConfig) {
-      return Promise.reject(error);
-    }
+      if (!isUnauthorized || !originalConfig) {
+        return Promise.reject(error);
+      }
 
-    if (originalConfig._retry) {
-      hardLogout();
-      return Promise.reject(error);
-    }
-    originalConfig._retry = true;
+      if (originalConfig._retry) {
+        hardLogout();
+        return Promise.reject(error);
+      }
+      originalConfig._retry = true;
 
-    try {
-      const rToken = getRefreshToken();
+      try {
+        const rToken = getRefreshToken();
 
-      if (isRefreshing) {
-        const newToken = await new Promise<string>((resolve) => {
-          addRefreshSubscriber(resolve);
-        });
+        if (isRefreshing) {
+          const newToken = await new Promise<string>((resolve) => {
+            addRefreshSubscriber(resolve);
+          });
+          originalConfig.headers = originalConfig.headers ?? {};
+          originalConfig.headers[ACCESS_TOKEN_HEADER] = newToken;
+          return instance.request(originalConfig);
+        }
+
+        isRefreshing = true;
+
+        const refreshResponse = await refreshApi.post<
+          BaseResponse<{ accessToken: string; refreshToken?: string }>
+        >("/api/auth/refresh", rToken ? { refreshToken: rToken } : {});
+
+        const payload = refreshResponse.data?.data;
+        if (!payload?.accessToken) {
+          throw new Error("Invalid refresh response");
+        }
+
+        setAuthToken(payload.accessToken, payload.refreshToken ?? null);
+        onRefreshed(payload.accessToken);
+
         originalConfig.headers = originalConfig.headers ?? {};
-        originalConfig.headers[ACCESS_TOKEN_HEADER] = newToken;
-        return api.request(originalConfig);
+        originalConfig.headers[ACCESS_TOKEN_HEADER] = payload.accessToken;
+
+        return instance.request(originalConfig);
+      } catch (e) {
+        hardLogout();
+        return Promise.reject(e);
+      } finally {
+        isRefreshing = false;
       }
-
-      isRefreshing = true;
-
-      const refreshResponse = await refreshApi.post<
-        BaseResponse<{ accessToken: string; refreshToken: string }>
-      >("/api/auth/refresh", rToken ? { refreshToken: rToken } : {});
-
-      const payload = refreshResponse.data?.data;
-      if (!payload?.accessToken) {
-        throw new Error("Invalid refresh response");
-      }
-
-      setAuthToken(payload.accessToken, payload.refreshToken ?? rToken);
-      onRefreshed(payload.accessToken);
-
-      originalConfig.headers = originalConfig.headers ?? {};
-      originalConfig.headers[ACCESS_TOKEN_HEADER] = payload.accessToken;
-
-      return api.request(originalConfig);
-    } catch (e) {
-      hardLogout();
-      return Promise.reject(e);
-    } finally {
-      isRefreshing = false;
     }
-  }
-);
+  );
+}
+
+applyAuthInterceptors(api);
+applyAuthInterceptors(workspaceApi);

@@ -1,4 +1,4 @@
-import { api } from "@/config/api";
+import { api, workspaceApi } from "@/config/api";
 import {
   LogoutAllSessionRes,
   ProfilePld,
@@ -9,22 +9,10 @@ import {
 } from "@/models/api/auth/profile.type";
 import { BaseResponse } from "@/models/api/base-response.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { REFRESH_TOKEN_KEY } from "@/constants";
 
 const AUTH_PROFILE_QUERY_KEY = ["authProfile"] as const;
 const AUTH_CURRENT_SESSION_QUERY_KEY = ["authCurrentSession"] as const;
 const AUTH_SESSIONS_QUERY_KEY = ["authSessions"] as const;
-
-const getRefreshTokenHeader = () => {
-  if (typeof window === "undefined") return undefined;
-
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refreshToken) return undefined;
-
-  return {
-    "X-Postmatic-RefreshToken": refreshToken,
-  };
-};
 
 const authProfileService = {
   getProfile: () => {
@@ -38,10 +26,8 @@ const authProfileService = {
     });
   },
   getCurrentSession: () => {
-    return api
-      .get<BaseResponse<SessionRes>>("/account/session", {
-        headers: getRefreshTokenHeader(),
-      })
+    return workspaceApi
+      .get<BaseResponse<SessionRes>>("/api/auth/session")
       .then((res) => {
         const session = res.data.data as SessionRes & {
           imageUrl?: string | null;
@@ -54,9 +40,7 @@ const authProfileService = {
       });
   },
   getSessions: () => {
-    return api.get<BaseResponse<Session[]>>("/account/session/all", {
-      headers: getRefreshTokenHeader(),
-    });
+    return workspaceApi.get<BaseResponse<Session[]>>("/api/auth/session/all");
   },
   updateProfile: (formData: ProfilePld) => {
     return api.put<BaseResponse<ProfileRes>>("/account/profile", {
@@ -70,13 +54,13 @@ const authProfileService = {
     });
   },
   logout: (sessionId?: string) => {
-    return api.post<BaseResponse<null>>("/account/session/logout", {
+    return workspaceApi.post<BaseResponse<null>>("/api/auth/session/logout", {
       sessionId,
     });
   },
   logoutAll: () => {
-    return api.post<BaseResponse<LogoutAllSessionRes>>(
-      "/account/session/logout-all"
+    return workspaceApi.post<BaseResponse<LogoutAllSessionRes>>(
+      "/api/auth/session/logout-all"
     );
   },
   changePassword: (formData: UpdatePasswordPld) => {

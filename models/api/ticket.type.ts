@@ -25,6 +25,8 @@ export interface WebsiteTicket {
   channel: string;
   priority: TicketPriority;
   slaStatus: string;
+  isPinned?: boolean | null;
+  unreadMessages?: number | null;
   whatsappRoomChatId: number | null;
   subject: string;
   body: string;

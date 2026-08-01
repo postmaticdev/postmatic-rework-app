@@ -2,6 +2,7 @@
 
 import {
   ACCESS_TOKEN_KEY,
+  NEXT_PUBLIC_API_ORIGIN,
   NEXT_PUBLIC_ENABLE_CONTENT_FEATURES,
   NEXT_PUBLIC_ENABLE_SOCKET,
 } from "@/constants";
@@ -389,6 +390,14 @@ const getBrowserAccessToken = () => {
   return cookieToken
     ? decodeURIComponent(cookieToken)
     : localStorage.getItem(ACCESS_TOKEN_KEY);
+};
+
+const getBackendApiUrl = (path: string) => {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+  if (!NEXT_PUBLIC_API_ORIGIN) return `/api${normalizedPath}`;
+
+  return new URL(`/api${normalizedPath}`, NEXT_PUBLIC_API_ORIGIN).toString();
 };
 
 const pickDefaultAiModel = (models: AiModelRes[]) =>
@@ -1839,7 +1848,7 @@ export const ContentGenerateProvider = ({
 
     const token = getBrowserAccessToken();
 
-    fetch(`/api/backend/creator/library?${params.toString()}`, {
+    fetch(getBackendApiUrl(`/creator/library?${params.toString()}`), {
       signal: controller.signal,
       headers: token ? { "X-Postmatic-AccessToken": token } : undefined,
     })

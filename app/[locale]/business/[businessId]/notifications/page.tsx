@@ -210,12 +210,14 @@ export default function NotificationsPage() {
   const {
     notifications,
     tickets,
-    unreadCount,
+    blastUnreadCount,
+    ticketUnreadCount,
     isNotificationLoading,
     notificationError,
     markAsRead,
     markAllAsRead,
     sendChatMessage,
+    setTicketListEnabled,
   } = useNotification();
 
   const [activeTab, setActiveTab] = useState<"notifications" | "tickets">("notifications");
@@ -287,6 +289,14 @@ export default function NotificationsPage() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    setTicketListEnabled(activeTab === "tickets");
+
+    return () => {
+      setTicketListEnabled(false);
+    };
+  }, [activeTab, setTicketListEnabled]);
 
   useEffect(() => {
     if (notifications.length > 0 && !selectedNotifId) {
@@ -549,9 +559,9 @@ export default function NotificationsPage() {
             >
               <Bell className="w-4 h-4" />
               Notification
-              {unreadCount > 0 && (
+              {blastUnreadCount > 0 && (
                 <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                  {unreadCount}
+                  {blastUnreadCount}
                 </span>
               )}
             </button>
@@ -565,11 +575,16 @@ export default function NotificationsPage() {
             >
               <MessageSquare className="w-4 h-4" />
               Ticket
+              {ticketUnreadCount > 0 && (
+                <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                  {ticketUnreadCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
 
-        {activeTab === "notifications" && unreadCount > 0 && (
+        {activeTab === "notifications" && blastUnreadCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
@@ -799,6 +814,7 @@ export default function NotificationsPage() {
                   <div className="divide-y divide-border">
                     {filteredTickets.map((ticket) => {
                       const lastMsg = ticket.messages[ticket.messages.length - 1];
+                      const hasUnread = ticket.unreadMessages > 0;
                       return (
                         <div
                           key={ticket.id}
@@ -806,36 +822,77 @@ export default function NotificationsPage() {
                             setSelectedTicketId(ticket.id);
                             setMobileView("detail");
                           }}
-                          className={`p-4 cursor-pointer transition-all duration-200 hover:bg-muted/40 flex flex-col gap-2 ${
+                          className={cn(
+                            "flex cursor-pointer flex-col gap-2 border-l-4 p-4 transition-all duration-200 hover:bg-muted/40",
                             selectedTicketId === ticket.id
-                              ? "bg-primary/5 border-l-4 border-primary"
-                              : "border-l-4 border-transparent"
-                          }`}
+                              ? "border-primary bg-primary/5"
+                              : hasUnread
+                                ? "border-blue-500 bg-blue-50/60 dark:bg-blue-950/15"
+                                : "border-transparent"
+                          )}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-blue-600 tracking-wide">
-                              {ticket.id}
+                            <div className="flex min-w-0 items-center gap-2">
+                              {hasUnread && (
+                                <Circle className="h-2.5 w-2.5 shrink-0 fill-blue-600 text-blue-600" />
+                              )}
+                              <span
+                                className={cn(
+                                  "truncate text-xs font-bold tracking-wide",
+                                  hasUnread ? "text-blue-700" : "text-blue-600"
+                                )}
+                              >
+                                {ticket.id}
+                              </span>
+                            </div>
+                            <span
+                              className={cn(
+                                "shrink-0 text-[10px]",
+                                hasUnread
+                                  ? "font-semibold text-blue-700"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {ticket.lastActivityTime}
                             </span>
-                            <span className="text-[10px] text-muted-foreground">{ticket.date}</span>
                           </div>
                           <div>
-                            <h4 className="text-sm font-semibold text-foreground line-clamp-1">
+                            <h4
+                              className={cn(
+                                "line-clamp-1 text-sm text-foreground",
+                                hasUnread ? "font-bold" : "font-semibold"
+                              )}
+                            >
                               {ticket.title}
                             </h4>
                             {lastMsg && (
-                              <p className="text-xs text-muted-foreground truncate mt-1">
+                              <p
+                                className={cn(
+                                  "mt-1 truncate text-xs",
+                                  hasUnread
+                                    ? "font-semibold text-foreground"
+                                    : "text-muted-foreground"
+                                )}
+                              >
                                 {lastMsg.sender === "user" ? "Anda: " : "CS: "}
                                 {htmlToPreviewText(lastMsg.text) || "[Lampiran]"}
                               </p>
                             )}
                           </div>
-                          <span
-                            className={`self-start text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(
-                              ticket.status
-                            )}`}
-                          >
-                            {ticket.status}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(
+                                ticket.status
+                              )}`}
+                            >
+                              {ticket.status}
+                            </span>
+                            {hasUnread && (
+                              <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                                {ticket.unreadMessages} baru
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
