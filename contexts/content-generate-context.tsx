@@ -425,9 +425,7 @@ const REALTIME_IMAGE_ITEM_HYDRATION_INTERVAL_MS = 1500;
 
 function formatCurrentTimeInput() {
   const now = new Date();
-  if (now.getSeconds() > 0 || now.getMilliseconds() > 0) {
-    now.setMinutes(now.getMinutes() + 1);
-  }
+  now.setMinutes(now.getMinutes() + 1);
   now.setSeconds(0, 0);
 
   const hour = now.getHours().toString().padStart(2, "0");

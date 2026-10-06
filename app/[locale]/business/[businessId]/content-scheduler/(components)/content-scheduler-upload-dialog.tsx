@@ -206,10 +206,16 @@ export function ContentSchedulerUploadDialog({
       showToast("error", t("selectDateAndTime"));
       return;
     }
-    const scheduledAt = new Date(`${date}T${time}`);
-    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+    let scheduledAt = new Date(`${date}T${time}`);
+    if (Number.isNaN(scheduledAt.getTime())) {
       showToast("error", t("selectDateAndTime"));
       return;
+    }
+    const now = new Date();
+    if (scheduledAt <= now) {
+      now.setMinutes(now.getMinutes() + 1);
+      now.setSeconds(0, 0);
+      scheduledAt = now;
     }
     if (selectedPlatforms.length === 0) {
       if (!hasConnectedPlatforms) {

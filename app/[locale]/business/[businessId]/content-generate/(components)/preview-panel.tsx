@@ -506,10 +506,11 @@ export function PreviewPanel() {
           businessId,
           formData: {
             imageUrl,
-            businessProductId: 
+            businessProductId: Number(
               form.basic.productKnowledgeId || 
               selectedHistory?.input?.productKnowledgeId || 
-              selectedHistory?.result?.productKnowledgeId,
+              selectedHistory?.result?.productKnowledgeId
+            ) || undefined,
           },
         });
         const nextCaption = res.data.data.caption;
@@ -620,10 +621,17 @@ export function PreviewPanel() {
       return;
     }
 
-    const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+    let scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
     if (Number.isNaN(scheduledAt.getTime())) {
       showToast("error", schedulerT("selectDateTime"));
       return;
+    }
+
+    const now = new Date();
+    if (scheduledAt <= now) {
+      now.setMinutes(now.getMinutes() + 1);
+      now.setSeconds(0, 0);
+      scheduledAt = now;
     }
 
     const connectedSelectedPlatforms = selectedPlatforms.filter((platform) =>
