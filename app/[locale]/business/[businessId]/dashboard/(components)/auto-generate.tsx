@@ -16,7 +16,7 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { AutoGenerateModal } from "./auto-generate-modal";
 import { AutoGenerateHistoryModal } from "./auto-generate-history-modal";
-import { Clock, Edit, History, Plus, Send, X } from "lucide-react";
+import { Clock, Edit, Plus, Send, X } from "lucide-react";
 import Image from "next/image";
 import {
   Dialog,
@@ -31,12 +31,6 @@ import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { cn } from "@/lib/utils";
 import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface AutoGenerateProps {
   handleIfNoPlatformConnected: () => void;
@@ -110,15 +104,7 @@ export function AutoGenerate({
   }, [schedules, selectedRepeatDays]);
 
   const visibleDays = DAYS.filter((day) => visibleDayValues.includes(day.value));
-  const selectableDays = DAYS.filter(
-    (day) => !visibleDayValues.includes(day.value)
-  );
 
-  const handleSelectRepeatDay = (day: number) => {
-    setSelectedRepeatDays((current) =>
-      current.includes(day) ? current : [...current, day]
-    );
-  };
 
   const handleRemoveRepeatDay = (day: number) => {
     if (getSchedulesByDay(day).length > 0) return;
@@ -129,6 +115,14 @@ export function AutoGenerate({
     setSelectedDay(day);
     setSelectedTime("");
     setSelectedPlatforms([]); // Will be selected in modal
+    setEditingSchedule(null);
+    setIsModalOpen(true);
+  };
+
+  const handleAddRepetition = () => {
+    setSelectedDay(null);
+    setSelectedTime("");
+    setSelectedPlatforms([]);
     setEditingSchedule(null);
     setIsModalOpen(true);
   };
@@ -329,28 +323,14 @@ export function AutoGenerate({
             <div className="flex items-center justify-between">
               <h1 className="text-xl font-bold">{t("autoGenerate")}</h1>
               <div className="flex flex-row gap-2 items-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      disabled={selectableDays.length === 0}
-                      className="bg-blue-600 text-white hover:bg-blue-700"
-                    >
-                      <Plus className="h-4 w-4" />
-                      {t("addRepetitionDay")}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    {selectableDays.map((day) => (
-                      <DropdownMenuItem
-                        key={day.value}
-                        onClick={() => handleSelectRepeatDay(day.value)}
-                      >
-                        {day.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  type="button"
+                  onClick={handleAddRepetition}
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("addRepetitionDay")}
+                </Button>
               </div>
             </div>
 
@@ -421,9 +401,8 @@ export function AutoGenerate({
                                         : ""
                                     )}
                                   >
-                                    <button
-                                      type="button"
-                                      className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg bg-card px-3 py-2 text-left transition-colors hover:bg-primary/10"
+                                    <div
+                                      className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-lg bg-card px-3 py-2 text-left transition-colors hover:bg-primary/10"
                                       onClick={(event) => {
                                         const target = event.target as HTMLElement;
                                         if (
@@ -470,7 +449,7 @@ export function AutoGenerate({
                                           />
                                         </div>
                                       </div>
-                                    </button>
+                                    </div>
                                   </div>
                                 );
                               })

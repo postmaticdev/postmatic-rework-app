@@ -24,7 +24,7 @@ import { useState } from "react";
 const ALLOWED_PLATFORMS: PlatformEnum[] = [
   "linked_in",
   "facebook_page",
-  "instagram_business",
+  "instagram_professional",
   "twitter",
 ];
 

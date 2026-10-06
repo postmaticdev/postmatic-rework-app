@@ -262,49 +262,49 @@ export default function NewBusinessWebsitePage() {
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
-  const prefillManualForm = () => {
+  const prefillManualForm = (draftParam: WebsiteDraft = draft) => {
     const finalCountryCode = resolveCountryCode(
-      draft.countryCode,
-      draft.businessPhone
+      draftParam.countryCode,
+      draftParam.businessPhone
     );
     const finalPhone = stripCountryCodeFromPhone(
-      draft.businessPhone,
+      draftParam.businessPhone,
       finalCountryCode
     );
-    const finalHashtags = parseHashtags(draft.hashtags);
+    const finalHashtags = parseHashtags(draftParam.hashtags);
 
     setFormData((current) => ({
       ...current,
       step1: {
         ...current.step1,
-        primaryLogo: draft.primaryLogoUrl || current.step1.primaryLogo,
-        name: draft.name,
-        category: draft.category,
-        description: draft.description,
-        website: draft.website,
+        primaryLogo: draftParam.primaryLogoUrl || current.step1.primaryLogo,
+        name: draftParam.name,
+        category: draftParam.category,
+        description: draftParam.description,
+        website: draftParam.website,
         businessPhone: finalPhone,
         countryCode: finalCountryCode,
-        colorTone: toColorToneValue(draft.colorTone),
+        colorTone: toColorToneValue(draftParam.colorTone),
       },
-      step2: draft.firstProduct
+      step2: draftParam.firstProduct
         ? {
           ...current.step2,
-          name: draft.firstProduct.name || current.step2.name,
-          category: draft.firstProduct.category || current.step2.category,
+          name: draftParam.firstProduct.name || current.step2.name,
+          category: draftParam.firstProduct.category || current.step2.category,
           description:
-            draft.firstProduct.description || current.step2.description,
-          price: Number(draft.firstProduct.price || 0),
-          currency: draft.firstProduct.currency || current.step2.currency,
+            draftParam.firstProduct.description || current.step2.description,
+          price: Number(draftParam.firstProduct.price || 0),
+          currency: draftParam.firstProduct.currency || current.step2.currency,
           images:
-            draft.firstProduct.imageUrls?.length > 0
-              ? draft.firstProduct.imageUrls
+            draftParam.firstProduct.imageUrls?.length > 0
+              ? draftParam.firstProduct.imageUrls
               : current.step2.images,
         }
         : current.step2,
       step3: {
         ...current.step3,
-        targetAudience: draft.targetAudience,
-        tone: draft.contentTone,
+        targetAudience: draftParam.targetAudience,
+        tone: draftParam.contentTone,
         hashtags: finalHashtags,
       },
     }));
@@ -385,8 +385,10 @@ export default function NewBusinessWebsitePage() {
         );
       }
 
-      setDraft(mapScrapperToDraft(finalResult));
-      setPhase("result");
+      const newDraft = mapScrapperToDraft(finalResult);
+      setDraft(newDraft); // Keep for consistency
+      prefillManualForm(newDraft);
+      router.push("/business/new-business/manual");
     } catch (error) {
       if (
         error instanceof Error &&

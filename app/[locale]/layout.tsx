@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/provider/query-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -20,15 +20,6 @@ import { AutoGenerateProvider } from "@/contexts/auto-generate-context";
 
 import { NotificationProvider } from "@/contexts/notification-context";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Postmatic Business",
@@ -48,8 +39,7 @@ export default async function RootLayout({
   }
   const messages = await getMessages();
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+    <>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -85,7 +75,6 @@ export default async function RootLayout({
             </Suspense>
           </NextIntlClientProvider>
         </ThemeProvider>
-      </body>
-    </html>
+    </>
   );
 }

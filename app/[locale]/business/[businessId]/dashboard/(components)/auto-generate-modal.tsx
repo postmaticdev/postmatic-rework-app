@@ -62,6 +62,7 @@ export function AutoGenerateModal({
   const [modalSelectedPlatforms, setModalSelectedPlatforms] = useState<PlatformEnum[]>(selectedPlatforms);
   const [modalHour, setModalHour] = useState<string>("");
   const [modalMinute, setModalMinute] = useState<string>("");
+  const [modalDay, setModalDay] = useState<number | null>(selectedDay);
   const prevBasicRef = useRef<typeof basic | null>(null);
   const prevAdvanceRef = useRef<typeof advance | null>(null);
 
@@ -102,10 +103,7 @@ export function AutoGenerateModal({
     { value: 6, label: t("saturday") },
   ];
 
-  const getDayName = (dayValue: number | null) => {
-    if (dayValue === null) return "";
-    return DAYS.find(day => day.value === dayValue)?.label || "";
-  };
+
 
   const togglePlatform = (platform: PlatformEnum) => {
     if (!connectedPlatforms.includes(platform)) return;
@@ -149,7 +147,7 @@ export function AutoGenerateModal({
       return;
     }
 
-    if (selectedDay === null) {
+    if (modalDay === null) {
       showToast("error", t("pleaseSelectDay"));
       return;
     }
@@ -178,7 +176,7 @@ export function AutoGenerateModal({
     console.log('Modal save - editingSchedule:', editingSchedule?.id, 'isActive:', isActiveStatus);
     
     const scheduleData: CreateAutoGenerateScheduleRequest = {
-      day: selectedDay,
+      day: modalDay,
       time: timeString,
       platforms: connectedSelectedPlatforms,
       model: basic.model || "gpt-image-1",
@@ -246,6 +244,7 @@ export function AutoGenerateModal({
   useEffect(() => {
     if (isOpen) {
       setModalSelectedPlatforms(selectedPlatforms);
+      setModalDay(selectedDay);
       
       // Parse selectedTime to hour and minute
       if (selectedTime) {
@@ -257,7 +256,7 @@ export function AutoGenerateModal({
         setModalMinute("");
       }
     }
-  }, [isOpen, selectedPlatforms, selectedTime]);
+  }, [isOpen, selectedPlatforms, selectedTime, selectedDay]);
 
   // Prefill form when editing an existing schedule
   useEffect(() => {
@@ -344,18 +343,33 @@ export function AutoGenerateModal({
           <DialogHeader>
             <DialogTitle>{t("configureAutoGenerate")}</DialogTitle>
             <DialogDescription>
-              {selectedDay !== null && (
-                <div className="flex flex-row items-center space-x-2 gap-2">
-                  {t("schedulingFor")} {getDayName(selectedDay)} {t("at")}
-                  <TimeInput
-                    hour={modalHour}
-                    minute={modalMinute}
-                    onHourChange={handleModalHourChange}
-                    onMinuteChange={handleModalMinuteChange}
-                  />
-                </div>
-              )}
+              {t("scheduleConfiguration")}
             </DialogDescription>
+            <div className="flex flex-row items-center space-x-2 gap-2 mt-2 text-muted-foreground text-sm">
+              <span>{t("schedulingFor")}</span>
+              <select
+                value={modalDay !== null ? modalDay.toString() : ""}
+                onChange={(e) => setModalDay(Number(e.target.value))}
+                disabled={!!editingSchedule}
+                className="rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="" disabled>
+                  {t("pleaseSelectDay")}
+                </option>
+                {DAYS.map((day) => (
+                  <option key={day.value} value={day.value.toString()}>
+                    {day.label}
+                  </option>
+                ))}
+              </select>
+              <span>{t("at")}</span>
+              <TimeInput
+                hour={modalHour}
+                minute={modalMinute}
+                onHourChange={handleModalHourChange}
+                onMinuteChange={handleModalMinuteChange}
+              />
+            </div>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto  space-y-4 sm:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 ">

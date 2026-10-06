@@ -127,7 +127,7 @@ export function OverviewContent() {
       [
         "linked_in",
         "facebook_page",
-        "instagram_business",
+        "instagram_professional",
         "twitter",
         "tiktok",
       ].includes(key)
@@ -149,7 +149,7 @@ export function OverviewContent() {
       [
         "linked_in",
         "facebook_page",
-        "instagram_business",
+        "instagram_professional",
         "twitter",
         "tiktok",
       ].includes(key)

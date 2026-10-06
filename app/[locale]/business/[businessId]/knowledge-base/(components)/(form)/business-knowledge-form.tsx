@@ -30,7 +30,7 @@ export function BusinessKnowledgeForm() {
     brandName: b("brandName"),
     category: b("category"),
     description: b("description"),
-    website: b("website"),
+    website: b("urlWebsite"),
     phone: b("phone"),
     colorTone: b("colorTone"),
   };

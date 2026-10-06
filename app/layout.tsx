@@ -25,11 +25,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <Suspense fallback={null}>
-        <main className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <Suspense fallback={null}>
           {children}
-        </main>
-      </Suspense>
+        </Suspense>
+      </body>
     </html>
   );
 }

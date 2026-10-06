@@ -79,7 +79,7 @@ export interface ConnectPlatformAccountRes {
 export type PlatformEnum =
   | "linked_in"
   | "facebook_page"
-  | "instagram_business"
+  | "instagram_professional"
   | "whatsapp_business"
   | "tiktok"
   | "youtube"

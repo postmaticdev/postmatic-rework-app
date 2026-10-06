@@ -28,6 +28,6 @@ export const LOGIN_URL = NEXT_PUBLIC_AUTH_ORIGIN;
 
 export const SOCIAL_MEDIA_PLATFORMS: PlatformEnum[] = [
   "facebook_page",
-  "instagram_business",
+  "instagram_professional",
   "linked_in",
 ];

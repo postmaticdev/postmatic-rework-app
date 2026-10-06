@@ -1602,7 +1602,7 @@ const autoGenerateService = {
         time: formData.time,
         isActive: formData.isActive,
         additionalPrompt: formData.additionalPrompt,
-        avatarImageUrl: formData.avatarImageUrl || undefined,
+        additionalImages: formData.avatarImageUrl ? [formData.avatarImageUrl] : undefined,
         platforms: formData.platforms,
       }
     );
@@ -1623,7 +1623,7 @@ const autoGenerateService = {
         time: formData.time,
         isActive: formData.isActive,
         additionalPrompt: formData.additionalPrompt,
-        avatarImageUrl: formData.avatarImageUrl || undefined,
+        additionalImages: formData.avatarImageUrl ? [formData.avatarImageUrl] : undefined,
         platforms: formData.platforms,
       }
     );

@@ -13,10 +13,10 @@ export const helperService = {
     });
     try {
       const formData = new FormData();
-      formData.append("image", data.image);
+      formData.append("asset", data.image);
 
-      const response = await api.post<BaseResponse<string | { imageUrl: string }>>(
-        "/app/image-uploader/upload-single-image",
+      const response = await api.post<BaseResponse<{ assetUrl: string } | string | { imageUrl: string }>>(
+        "/app/asset-uploader/upload",
         formData
       );
       
@@ -26,9 +26,13 @@ export const helperService = {
         );
       }
       
-      return typeof response.data.data === "string"
-        ? response.data.data
-        : response.data.data.imageUrl;
+      if (typeof response.data.data === "string") {
+        return response.data.data;
+      }
+      if (response.data.data && "assetUrl" in response.data.data) {
+        return response.data.data.assetUrl;
+      }
+      return (response.data.data as any).imageUrl;
     } catch (error) {
       console.error("Error uploading image:", error);
       throw new Error("Failed to upload image. Please try again.");

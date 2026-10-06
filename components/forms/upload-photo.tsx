@@ -26,12 +26,14 @@ interface UploadPhotoProps {
   uploadingText?: string;
 }
 
+const EMPTY_ARRAY: string[] = [];
+
 export function UploadPhoto({
   label,
   onImageChange,
   currentImage,
   onImagesChange,
-  currentImages = [],
+  currentImages = EMPTY_ARRAY,
   multiple = false,
   error,
   onFocus,
