@@ -506,6 +506,10 @@ export function PreviewPanel() {
           businessId,
           formData: {
             imageUrl,
+            businessProductId: 
+              form.basic.productKnowledgeId || 
+              selectedHistory?.input?.productKnowledgeId || 
+              selectedHistory?.result?.productKnowledgeId,
           },
         });
         const nextCaption = res.data.data.caption;

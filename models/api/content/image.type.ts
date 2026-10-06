@@ -225,6 +225,7 @@ export interface EnhanceCaptionPld {
   images?: string[];
   model?: string;
   currentCaption?: string | null;
+  businessProductId?: number | null;
 }
 
 /*

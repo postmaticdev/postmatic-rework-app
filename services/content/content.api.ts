@@ -492,7 +492,8 @@ const resolveImageModelId = async (model: string) => {
   if (Number.isFinite(directId) && directId > 0) return directId;
 
   const models = await getGenerativeImageModels();
-  const found = models.find(
+  const activeModels = models.filter((item) => item.isActive);
+  const found = activeModels.find(
     (item) => item.model === model || item.label === model
   );
 
@@ -519,6 +520,7 @@ const toImagePostPayload = async (
     mode,
     ratio: data.ratio,
     productKnowledgeId: Number(data.productKnowledgeId),
+    modelId: modelId,
     appGenerativeImageModelId: modelId,
     numOfImages: 1,
     additionalPrompt: data.prompt || "",
@@ -817,7 +819,10 @@ const captionService = {
 
     return api.post<BaseResponse<EnhanceCaptionRes>>(
       `/generative-content/caption/${businessId}/generate`,
-      { imageUrl }
+      { 
+        imageUrl, 
+        businessProductId: Number(formData.businessProductId) || undefined 
+      }
     );
   },
 };
@@ -858,6 +863,7 @@ const imagePostChatService = {
       `/generative-content/chat/${businessId}/${chatSessionId}/send-message-image`,
       {
         modelId,
+        appGenerativeImageModelId: modelId,
         avatarImageUrl: formData.avatarImageUrl || undefined,
         additionalImages: formData.additionalImages || [],
         prompt: formData.prompt,
