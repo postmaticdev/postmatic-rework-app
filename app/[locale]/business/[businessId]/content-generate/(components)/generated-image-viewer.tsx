@@ -11,6 +11,68 @@ import { showToast } from "@/helper/show-toast";
 import { ImageWatermarkRes } from "@/models/api/content/image.type";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 
+interface ProtectedCanvasImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+  style?: React.CSSProperties;
+  objectFit?: React.CSSProperties["objectFit"];
+  onClick?: (event: React.MouseEvent<HTMLElement>) => void;
+}
+
+const ProtectedCanvasImage = ({ src, alt, className, style, objectFit = "cover", onClick }: ProtectedCanvasImageProps) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  useEffect(() => {
+    if (!src) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let isActive = true;
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (!isActive) return;
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+    };
+    img.onerror = () => {
+      if (isActive && img.crossOrigin === "anonymous") {
+        img.crossOrigin = "";
+        img.src = src;
+      }
+    };
+    img.src = src;
+    
+    return () => {
+      isActive = false;
+    };
+  }, [src]);
+
+  return (
+    <div 
+      className={`relative overflow-hidden ${className || ""}`}
+      style={style}
+      onClick={onClick}
+    >
+      <canvas
+        ref={canvasRef}
+        aria-label={alt}
+        className="w-full h-full pointer-events-none"
+        style={{ objectFit, WebkitUserSelect: "none", userSelect: "none" }}
+      />
+      <div 
+        className="absolute inset-0 z-10 bg-transparent" 
+        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} 
+        onDragStart={e => { e.preventDefault(); e.stopPropagation(); }} 
+      />
+    </div>
+  );
+};
+
 const WATERMARK_POLL_INTERVAL_MS = 1500;
 const WATERMARK_POLL_TIMEOUT_MS = 15000;
 const ACCESS_RESOLUTION_POLL_INTERVAL_MS = 250;
@@ -36,6 +98,7 @@ type GeneratedImageViewerProps = {
   alt: string;
   protectFromContextMenu?: boolean;
   className?: string;
+  style?: React.CSSProperties;
   width?: number;
   height?: number;
 };
@@ -46,6 +109,7 @@ export function GeneratedImageViewer({
   alt,
   protectFromContextMenu = false,
   className,
+  style,
   width = 800,
   height = 800,
 }: GeneratedImageViewerProps) {
@@ -459,15 +523,12 @@ export function GeneratedImageViewer({
         onContextMenu={handleProtectedInteraction}
         onDragStart={handleProtectedInteraction}
       >
-        <Image
+        <ProtectedCanvasImage
           src={displayedImageUrl}
           alt={`${alt} fullscreen`}
-          width={1440}
-          height={1440}
-          draggable={false}
-          style={protectedImageStyle}
-          className="h-auto max-h-[100dvh] w-auto max-w-[100vw] cursor-zoom-out object-contain shadow-2xl"
-          onClick={(event) => event.stopPropagation()}
+          objectFit="contain"
+          className="h-dvh w-screen cursor-zoom-out"
+          onClick={() => setIsOpen(false)}
         />
       </div>
     </div>
@@ -477,22 +538,20 @@ export function GeneratedImageViewer({
     <>
       <button
         type="button"
-        className="block w-full max-w-[360px] rounded-lg"
+        className="block w-full max-w-full rounded-lg"
         onClick={() => setIsOpen(true)}
         onContextMenu={handleProtectedInteraction}
         onDragStart={handleProtectedInteraction}
       >
-        <Image
+        <ProtectedCanvasImage
           src={displayedImageUrl}
           alt={alt}
-          width={width}
-          height={height}
-          draggable={false}
-          style={protectedImageStyle}
+          objectFit="cover"
           className={
             className ||
-            "aspect-square w-full max-w-[360px] cursor-zoom-in rounded-lg border object-cover"
+            "aspect-square w-full max-w-full cursor-zoom-in rounded-lg border object-cover"
           }
+          style={style}
         />
       </button>
 

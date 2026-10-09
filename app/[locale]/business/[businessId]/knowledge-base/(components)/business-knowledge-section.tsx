@@ -63,20 +63,18 @@ export function BusinessKnowledgeSection() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="overflow-hidden rounded-lg xl:h-5/6 xl:w-5/6">
-              <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
-                <Image
-                  src={
-                    businessKnowledgeDetail?.primaryLogo ||
-                    businessKnowledgeDetail?.secondaryLogo ||
-                    businessData?.data?.data?.logo ||
-                    DEFAULT_BUSINESS_IMAGE
-                  }
-                  alt="Business Image"
-                  fill
-                  className="object-cover"
-                />
-              </div>
+            <div className="relative aspect-square w-full max-w-[280px] overflow-hidden rounded-lg md:max-w-full xl:w-5/6">
+              <Image
+                src={
+                  businessKnowledgeDetail?.primaryLogo ||
+                  businessKnowledgeDetail?.secondaryLogo ||
+                  businessData?.data?.data?.logo ||
+                  DEFAULT_BUSINESS_IMAGE
+                }
+                alt="Business Image"
+                fill
+                className="object-contain"
+              />
             </div>
 
             <div>

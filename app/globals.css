@@ -141,6 +141,18 @@
   body {
     @apply bg-background text-foreground;
   }
+  button, 
+  [role="button"], 
+  [role="menuitem"], 
+  [role="menuitemcheckbox"], 
+  [role="menuitemradio"], 
+  [role="option"], 
+  [type="button"], 
+  [type="submit"], 
+  [type="reset"], 
+  select {
+    cursor: pointer;
+  }
 }
 
 @layer components {

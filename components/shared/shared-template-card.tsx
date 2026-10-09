@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { CheckCircle2, Info } from "lucide-react";
 import { DEFAULT_USER_AVATAR } from "@/constants";
 import { Template } from "./shared-reference-panel";
 
@@ -38,66 +39,43 @@ export const SharedTemplateCard = ({
   return (
     <Card
       key={item.id}
-      className={`p-3 group transition-all duration-300 hover:scale-105 hover:shadow-lg ${
-        isSelected ? "border-primary border-2" : ""
+      className={`break-inside-avoid mb-4 group relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg ${
+        isSelected ? "border-primary border-4" : "border-transparent"
       }`}
+      onClick={() => {
+        if (!isLoading) {
+          onSelectReferenceImage(item.imageUrl, item.name, item);
+        }
+      }}
     >
-      <div className="relative">
-        <div className="relative aspect-square rounded-lg overflow-hidden">
-          {/* Business Image Content */}
+      <img
+        src={item.imageUrl}
+        alt={item.name || "Template"}
+        className="w-full h-auto block transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
+        loading="lazy"
+      />
+      
+      <button
+        type="button"
+        className="absolute top-2 left-2 z-10 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-sm transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDetail(item);
+        }}
+        aria-label={t("detail") || "Detail"}
+      >
+        <Info className="w-4 h-4" />
+      </button>
 
-          <Image
-            src={item.imageUrl}
-            alt="Placeholder Colorful"
-            onClick={() => onDetail(item)}
-            fill
-            className="object-cover  transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
-            priority
-          />
-        </div>
-        <div className="absolute top-2 right-2">
-          <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded hidden sm:block">
-            {categoryLabel}
-          </span>
-        </div>
-        <div className="absolute bottom-2 right-2">
-          <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded hidden sm:block">
-            {productCategoryLabel}
-          </span>
-        </div>
-      </div>
-
-      <div className="space-y-2 -mt-3">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-2">
-            <Image
-              src={item.publisher?.image || DEFAULT_USER_AVATAR}
-              alt={item.publisher?.name || "image"}
-              width={200}
-              height={200}
-              className="rounded-full w-8 h-8"
-            />
-
-            <div>
-              <h3 className="font-medium text-sm line-clamp-2">{item.name}</h3>
-              <p className="hidden sm:block text-xs ">Publisher: {item.publisher?.name}</p>
-            </div>
+      {/* Overlay to indicate loading or selected state if needed */}
+      {isSelected && (
+        <>
+          <div className="absolute inset-0 bg-primary/20 pointer-events-none" />
+          <div className="absolute top-2 right-2 pointer-events-none bg-primary text-white rounded-full">
+            <CheckCircle2 className="w-6 h-6 fill-primary text-white" />
           </div>
-        </div>
-        <p className="block sm:hidden text-xs ">Publisher: {item.publisher?.name}</p>
-    
-
-        <Button
-          className="w-full mt-0 sm:mt-3 bg-blue-500 hover:bg-blue-600 text-white text-sm"
-          disabled={isLoading || isSelected}
-          onClick={() => {
-            if (isLoading) return;
-            onSelectReferenceImage(item.imageUrl, item.name, item);
-          }}
-        >
-          {isSelected ? t("selected") : t("use")}
-        </Button>
-      </div>
+        </>
+      )}
     </Card>
   );
 };

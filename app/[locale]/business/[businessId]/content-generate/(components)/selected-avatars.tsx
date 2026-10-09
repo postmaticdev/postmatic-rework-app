@@ -19,47 +19,49 @@ export function SelectedAvatars() {
       <h3 className="text-sm font-medium">{t("selectedAvatars")}</h3>
       <div className="space-y-3">
         {form.basic.selectedAvatars.map((avatar) => (
-          <Card key={avatar.id} className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted">
+          <Card key={avatar.id} className="p-4 cursor-default">
+            <div className="flex flex-row gap-2 justify-between">
+              <div className="flex flex-row gap-3">
+                <div className="aspect-square w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
                   <Image
                     src={avatar.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
                     alt={avatar.title}
                     fill
                     className="object-cover"
-                    sizes="64px"
+                    sizes="(max-width: 768px) 100vw, 33vw"
                   />
                 </div>
-                <div className="min-w-0">
-                  <p className="line-clamp-1 text-sm font-medium text-foreground">
-                    {avatar.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {avatar.source === "knowledge"
-                      ? t("avatarSourceKnowledge")
-                      : t("avatarSourceBrowse")}
-                  </p>
+                <div className="flex-1 min-w-0 flex items-center">
+                  <div>
+                    <p className="line-clamp-2 text-sm font-medium">{avatar.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {avatar.source === "knowledge"
+                        ? t("avatarSourceKnowledge")
+                        : t("avatarSourceBrowse")}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                className="h-10 w-10 shrink-0"
-                disabled={isLoading}
-                onClick={() => {
-                  const nextAvatars = form.basic.selectedAvatars.filter(
-                    (item) => item.id !== avatar.id
-                  );
-                  form.setBasic({
-                    ...form.basic,
-                    selectedAvatars: nextAvatars,
-                  });
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex gap-2 items-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  disabled={isLoading}
+                  onClick={() => {
+                    const nextAvatars = form.basic.selectedAvatars.filter(
+                      (item) => item.id !== avatar.id
+                    );
+                    form.setBasic({
+                      ...form.basic,
+                      selectedAvatars: nextAvatars,
+                    });
+                  }}
+                >
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
           </Card>
         ))}

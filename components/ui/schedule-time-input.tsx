@@ -56,7 +56,10 @@ export function ScheduleTimeInput({
           onValueChange(minTime);
         }
       }}
-      className={className}
+      onClick={(e) => {
+        try { e.currentTarget.showPicker(); } catch {}
+      }}
+      className={`cursor-pointer ${className || ""}`}
     />
   );
 }

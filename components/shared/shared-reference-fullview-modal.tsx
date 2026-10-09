@@ -52,19 +52,6 @@ export function SharedReferenceFullviewModal({
           {/* Stats Row in Header */}
           <div className="flex items-center gap-4 text-sm text-muted-foreground pt-3">
             <div className="flex items-center gap-1">
-              <span className="text-yellow-500">★</span>
-              <span className="font-medium">{4.6}</span>
-              {/* TODO: gaada rating */}
-            </div>
-            <div className="text-muted-foreground">•</div>
-            <div className="flex items-center gap-1">
-              <span>
-                {20} {m("downloads")}
-                {/* TODO: gada download */}
-              </span>
-            </div>
-            <div className="text-muted-foreground">•</div>
-            <div className="flex items-center gap-1">
               <span>
                 {formatDate(new Date(template.createdAt))}
               </span>
@@ -73,7 +60,7 @@ export function SharedReferenceFullviewModal({
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scrollbar-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {/* Preview Image */}
           <Image
             src={template?.imageUrl}

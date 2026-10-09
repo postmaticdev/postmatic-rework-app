@@ -31,12 +31,14 @@ function BusinessDropdownLogo({
   business,
   size,
   className,
+  overrideImage,
 }: {
   business: BusinessRes;
   size: string;
   className?: string;
+  overrideImage?: string;
 }) {
-  const businessImage = business.logo || DEFAULT_BUSINESS_IMAGE;
+  const businessImage = overrideImage || business.logo || DEFAULT_BUSINESS_IMAGE;
 
   return (
     <Image
@@ -66,6 +68,10 @@ export function Header() {
 
   // Panggil usage hanya kalau ada businessId (kalau hook-mu dukung options)
   const { data: tokenUsageData } = useTokenGetTokenUsage(businessId ?? "");
+
+  const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(businessId ?? "");
+  const businessKnowledgeDetail = businessKnowledgeData?.data?.data;
+  const currentBusinessImage = businessKnowledgeDetail?.primaryLogo || businessKnowledgeDetail?.secondaryLogo;
 
   const credits = tokenUsageData?.data?.data?.availableToken ?? 0;
 
@@ -194,6 +200,7 @@ export function Header() {
                       <BusinessDropdownLogo
                         business={currentBusiness}
                         size="36px"
+                        overrideImage={currentBusinessImage}
                       />
                     </div>
                     <div className="min-w-0 flex-1">

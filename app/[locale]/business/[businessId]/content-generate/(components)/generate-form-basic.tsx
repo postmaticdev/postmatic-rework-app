@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown as ChevronDownIcon } from "lucide-react";
+import { ChevronDown as ChevronDownIcon, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import Image from "next/image";
+import { Plus, Trash2, Bot, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { ValidRatio } from "@/models/api/content/image.type";
 import {
   SelectedAvatarOption,
@@ -13,8 +17,42 @@ import {
 import { AvatarSelectionModal } from "./avatar-selection-modal";
 import { ProductSelectionModal } from "./product-selection-modal";
 import { AiModelSelect } from "@/components/forms/ai-model-select";
+import { SelectedAvatars } from "./selected-avatars";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-export const GenerateFormBasic = () => {
+const RatioIcon = ({ ratio }: { ratio: string }) => {
+  let width = "w-[16px]";
+  let height = "h-[16px]";
+  
+  if (ratio === "16:9") {
+    width = "w-[18px]";
+    height = "h-[10px]";
+  } else if (ratio === "9:16") {
+    width = "w-[10px]";
+    height = "h-[18px]";
+  } else if (ratio === "4:3") {
+    width = "w-[16px]";
+    height = "h-[12px]";
+  } else if (ratio === "3:4" || ratio === "4:5") {
+    width = "w-[12px]";
+    height = "h-[16px]";
+  } else if (ratio === "2:3") {
+    width = "w-[12px]";
+    height = "h-[18px]";
+  }
+
+  return (
+    <div className={`border-2 border-current rounded-[2px] ${width} ${height} opacity-70`} />
+  );
+};
+
+export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void }) => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const {
@@ -31,62 +69,89 @@ export const GenerateFormBasic = () => {
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="mb-2 block text-sm font-medium">
-          {t("productName")}
-        </label>
-        <Button
-          variant="outline"
-          className="w-full justify-between text-left font-normal"
-          onClick={() => setIsProductModalOpen(true)}
-          disabled={isLoading || disabled}
-        >
-          <span
-            className={
-              basic?.productKnowledgeId
-                ? "text-foreground"
-                : "text-muted-foreground"
-            }
-          >
-            {basic?.productKnowledgeId
-              ? basic?.productName
-              : t("selectProduct")}
-          </span>
-          <ChevronDownIcon className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="block text-sm font-medium">
-            {t("avatarLabel")}
-          </label>
-          <span className="text-xs text-muted-foreground">
-            {t("optional")}
-          </span>
+      {basic.productKnowledgeId ? (
+        <div className="space-y-4">
+          {/* Plus separator if reference image is selected */}
+          {basic.referenceImage && (
+            <div className="flex justify-center -mb-2 relative z-10">
+              <div className="bg-background rounded-full p-1 border shadow-sm">
+                <Plus className="w-4 h-4 text-muted-foreground" />
+              </div>
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <h3 className="font-medium text-sm">{t("productName")}</h3>
+            <Card 
+              className="p-4 cursor-pointer hover:bg-muted/50 transition-colors" 
+              onClick={() => !isLoading && !disabled && setIsProductModalOpen(true)}
+            >
+              <div className="flex flex-row gap-2 justify-between">
+                <div className="flex flex-row gap-3">
+                  <div className="aspect-square w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
+                    <Image
+                      src={basic.productImage || DEFAULT_PRODUCT_IMAGE}
+                      alt={basic.productName || ""}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center">
+                    <p className="line-clamp-2 text-sm font-medium">{basic.productName}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBasic({ ...basic, productKnowledgeId: "", productName: "", productImage: "" });
+                    }}
+                    disabled={isLoading || disabled}
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
         </div>
-        <Button
-          variant="outline"
-          className="w-full justify-between text-left font-normal"
-          onClick={() => setIsAvatarModalOpen(true)}
-          disabled={isLoading || disabled}
-        >
-          <span
-            className={
-              basic.selectedAvatars.length
-                ? "text-foreground"
-                : "text-muted-foreground"
-            }
+      ) : (
+        <div>
+          <label className="mb-2 block text-sm font-medium">
+            {t("productName")}
+          </label>
+          <Button
+            variant="outline"
+            className="w-full justify-between text-left font-normal"
+            onClick={() => setIsProductModalOpen(true)}
+            disabled={isLoading || disabled}
           >
-            {basic.selectedAvatars.length
-              ? t("selectedAvatarCount", {
-                  count: basic.selectedAvatars.length,
-                })
-              : t("selectAvatar")}
-          </span>
-          <ChevronDownIcon className="h-4 w-4" />
-        </Button>
-      </div>
+            <span className="text-muted-foreground">
+              {t("selectProduct")}
+            </span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Avatar Cards */}
+      {basic.selectedAvatars.length > 0 && (
+        <>
+          {/* Plus separator */}
+          <div className="flex justify-center -my-2 relative z-10">
+            <div className="bg-background rounded-full p-1 border shadow-sm">
+              <Plus className="w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+          <SelectedAvatars />
+        </>
+      )}
 
       <div>
         <label className="mb-2 block text-sm font-medium">AI Model</label>
@@ -135,26 +200,72 @@ export const GenerateFormBasic = () => {
         <label className="mb-2 block text-sm font-medium">
           {t("aspectRatio")}
         </label>
-        <select
-          className={cn(
-            "w-full rounded-md border border-input bg-background-secondary p-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring",
-            isLoading
-          )}
-          disabled={isLoading}
+        <Select
+          disabled={isLoading || aiModels.validRatios.length === 0}
           value={basic?.ratio || ""}
-          onChange={(e) => {
-            setBasic({ ...basic, ratio: e.target.value as ValidRatio });
+          onValueChange={(value) => {
+            setBasic({ ...basic, ratio: value as ValidRatio });
           }}
         >
-          {aiModels.validRatios.length === 0 ? (
-            <option value="">No ratio available</option>
-          ) : null}
-          {aiModels.validRatios.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className={cn("w-full bg-background-secondary", isLoading && "opacity-50 cursor-not-allowed")}>
+            <SelectValue placeholder="Select ratio" />
+          </SelectTrigger>
+          <SelectContent>
+            {aiModels.validRatios.map((option) => (
+              <SelectItem key={option} value={option}>
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    <RatioIcon ratio={option} />
+                  </div>
+                  <span>{option}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium">
+          Trend & Avatar <span className="text-muted-foreground font-normal text-xs">(Opsional)</span>
+        </label>
+        <div className="grid grid-cols-2 gap-4">
+          {/* Trend Button */}
+        {form.rss ? (
+          <Button
+            type="button"
+            variant="default"
+            onClick={() => form.onRssSelect(null)}
+            disabled={isLoading}
+            className="h-14 w-full bg-red-600 text-white hover:bg-red-700"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {t("removeSelectedTrend")}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="default"
+            onClick={onOpenTrend}
+            disabled={isLoading}
+            className="h-14 w-full"
+          >
+            <Newspaper className="h-4 w-4 mr-2" />
+            {t("addLatestTrend")}
+          </Button>
+        )}
+
+        <Button
+          type="button"
+          variant={basic.selectedAvatars.length > 0 ? "outline" : "default"}
+          onClick={() => setIsAvatarModalOpen(true)}
+          disabled={isLoading || disabled}
+          className="h-14 w-full"
+        >
+          <Bot className="h-4 w-4 mr-2" />
+          {t("selectAvatar")}
+        </Button>
+      </div>
       </div>
 
       {/* <div>

@@ -40,26 +40,30 @@ export const SharedSelectedReferenceImage = ({
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                unoptimized
               />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="mb-2 line-clamp-2 text-sm">{referenceImageName}</p>
-              {referenceImagePublisher && (
-                <p className="text-sm text-muted-foreground line-clamp-1">
-                  Publisher: {referenceImagePublisher}
-                </p>
-              )}
+            <div className="flex-1 min-w-0 flex items-center">
+              <div>
+                <p className="line-clamp-2 text-sm font-medium">{referenceImageName}</p>
+                {referenceImagePublisher && (
+                  <p className="text-sm text-muted-foreground line-clamp-1">
+                    Publisher: {referenceImagePublisher}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex gap-2 items-center">
             <Button
-              variant="destructive"
-              size="lg"
-              className="h-20 w-20 flex-shrink-0"
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               onClick={onRemove}
               disabled={isLoading}
             >
-              <Trash2 className="size-8" />
+              <Trash2 className="w-5 h-5" />
             </Button>
           </div>
         </div>

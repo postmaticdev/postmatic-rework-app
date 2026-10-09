@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { showToast } from "@/helper/show-toast";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
+import { cn } from "@/lib/utils";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { helperService } from "@/services/helper.api";
 import { useAppAvatarGetAll } from "@/services/app-avatar.api";
@@ -46,7 +47,6 @@ import { GenerateFormBasic } from "./generate-form-basic";
 import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
-import { SelectedAvatars } from "./selected-avatars";
 import { AiModelLogo } from "@/components/forms/ai-model-select";
 
 export function GenerationPanel() {
@@ -79,7 +79,26 @@ export function GenerationPanel() {
   const [previewPromptImage, setPreviewPromptImage] = useState<string | null>(null);
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [flyingImage, setFlyingImage] = useState<{ url: string; rect: DOMRect; isFlying: boolean; endX: number; endY: number } | null>(null);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
+
+  const triggerFlyAnimation = (url: string, targetRect: DOMRect) => {
+    const composer = document.getElementById("chat-composer-container");
+    const composerRect = composer?.getBoundingClientRect();
+    const endX = composerRect ? composerRect.left + 24 : window.innerWidth / 2 - 40;
+    const endY = composerRect ? composerRect.top + 24 : window.innerHeight - 100;
+
+    setFlyingImage({ url, rect: targetRect, isFlying: false, endX, endY });
+    
+    // Force a reflow and then trigger animation
+    setTimeout(() => {
+      setFlyingImage((prev) => (prev ? { ...prev, isFlying: true } : null));
+    }, 100);
+
+    setTimeout(() => {
+      setFlyingImage(null);
+    }, 1800);
+  };
   const { data: businessData } = useBusinessGetById(businessId);
   const { data: productKnowledgeData } = useProductKnowledgeGetAll(
     businessId,
@@ -321,7 +340,7 @@ export function GenerationPanel() {
     return (
       <>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6 scrollbar-hidden">
             {currentThread.map((job, jobIndex) => {
               const isInitialSchedulerBubble =
                 jobIndex === 0 && job.id.startsWith("chat-");
@@ -498,28 +517,39 @@ export function GenerationPanel() {
                               <AiModelLogo size="sm" imageUrl={modelObj?.image} />
                               {modelDisplayName}
                             </div>
-                            <GeneratedImageViewer
-                              imageUrl={imageUrl}
-                              imageItemId={job.result?.imageItemIds?.[index]}
-                              alt={`generated-${index + 1}`}
-                              protectFromContextMenu
-                              className="aspect-square w-full max-w-[360px] cursor-zoom-in rounded-lg border object-cover"
-                            />
+                            <div className="relative group max-w-[270px]">
+                              <GeneratedImageViewer
+                                imageUrl={imageUrl}
+                                imageItemId={job.result?.imageItemIds?.[index]}
+                                alt={`generated-${index + 1}`}
+                                protectFromContextMenu
+                                className="w-full cursor-zoom-in rounded-lg border object-cover"
+                                style={{ aspectRatio: job.result?.ratio ? job.result.ratio.replace(":", "/") : "1/1" }}
+                              />
+                              {form.basic.referenceImage !== imageUrl && (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="absolute top-2 right-2 z-10 h-8 px-3 text-xs bg-background/80 hover:bg-background/100 backdrop-blur-sm shadow-sm opacity-90 hover:opacity-100"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const imgElement = e.currentTarget.parentElement?.querySelector("canvas") || e.currentTarget.parentElement?.querySelector("img");
+                                    if (imgElement) {
+                                      triggerFlyAnimation(imageUrl, imgElement.getBoundingClientRect());
+                                    }
+                                    onSelectGeneratedImage(job, image, {
+                                      attachForEdit: true,
+                                    });
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5 mr-1" />
+                                  Edit
+                                </Button>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-3 text-xs"
-                                onClick={() =>
-                                  onSelectGeneratedImage(job, image, {
-                                    attachForEdit: true,
-                                  })
-                                }
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                                Edit
-                              </Button>
                               <Button
                                 type="button"
                                 size="sm"
@@ -540,7 +570,7 @@ export function GenerationPanel() {
                         );
                       })
                     ) : (
-                      <div className="w-full max-w-[82%] overflow-hidden rounded-2xl border bg-background-secondary sm:max-w-[360px]">
+                      <div className="w-full max-w-[82%] overflow-hidden rounded-2xl border bg-background-secondary sm:max-w-[270px]">
                         <div className="relative flex min-h-48 items-center justify-center bg-card/40 p-6">
                           <LogoLoader
                             hideContentBackground={false}
@@ -570,7 +600,7 @@ export function GenerationPanel() {
           <div className="sticky bottom-0 right-0 z-20 border-t border-border bg-card px-4 py-3 sm:px-6 lg:z-10">
             <div className="space-y-3">
               <div className="flex h-full">
-                <div className="min-w-0 flex-1 rounded-2xl border border-input bg-background-secondary p-3">
+                <div id="chat-composer-container" className="min-w-0 flex-1 rounded-2xl border border-input bg-background-secondary p-3">
                   {(selectedEditReferenceImage || attachedImages.length > 0) && (
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       {selectedEditReferenceImage ? (
@@ -593,6 +623,7 @@ export function GenerationPanel() {
                             onClick={() =>
                               form.setBasic({
                                 ...form.basic,
+                                referenceImage: "",
                                 referenceImageName: "",
                                 referenceImagePublisher: null,
                               })
@@ -713,32 +744,7 @@ export function GenerationPanel() {
 
 
           <SelectedReferenceImage />
-          <SelectedAvatars />
-          <GenerateFormBasic />
-
-          {form.rss ? (
-            <Button
-              type="button"
-              variant="default"
-              onClick={() => form.onRssSelect(null)}
-              disabled={isLoading}
-              className="h-14 w-full bg-red-600 text-white hover:bg-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-              {t("removeSelectedTrend")}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="default"
-              onClick={() => setIsTrendDialogOpen(true)}
-              disabled={isLoading}
-              className="h-14 w-full"
-            >
-              <Newspaper className="h-4 w-4" />
-              {t("addLatestTrend")}
-            </Button>
-          )}
+          <GenerateFormBasic onOpenTrend={() => setIsTrendDialogOpen(true)} />
 
           <SelectedArticleRss
             onChangeArticle={() => {
@@ -784,6 +790,35 @@ export function GenerationPanel() {
           )}
         </DialogContent>
       </Dialog>
+      
+      {flyingImage && (
+        <div 
+          className="fixed z-50 pointer-events-none"
+          style={
+            flyingImage.isFlying 
+            ? {
+                left: flyingImage.endX, 
+                top: flyingImage.endY,
+                width: 64, 
+                height: 64,
+                opacity: 0.3,
+                transform: "scale(0.75)",
+                transition: "all 1.8s cubic-bezier(0.25, 1, 0.5, 1)"
+              } 
+            : {
+                left: flyingImage.rect.left,
+                top: flyingImage.rect.top,
+                width: flyingImage.rect.width,
+                height: flyingImage.rect.height,
+                opacity: 1,
+                transform: "scale(1)",
+                transition: "none"
+              }
+          }
+        >
+          <img src={flyingImage.url} className="w-full h-full object-cover rounded-lg shadow-lg" />
+        </div>
+      )}
     </>
   );
 }

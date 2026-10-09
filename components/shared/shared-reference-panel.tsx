@@ -343,7 +343,7 @@ export function SharedReferencePanel({
             {publishedTemplates.isLoading ? (
               <TemplateGridSkeleton />
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="columns-2 gap-4 space-y-0">
                 {publishedTemplates?.contents.map((template, index) => (
                   <SharedTemplateCard
                     item={template}
@@ -369,11 +369,11 @@ export function SharedReferencePanel({
             {savedTemplates.isLoading ? (
               <TemplateGridSkeleton />
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="columns-2 gap-4 space-y-0">
                 {/* Upload Card */}
 
                 <div
-                  className={` w-full rounded-lg overflow-hidden border-2 border-dashed transition-colors flex items-center justify-center ${
+                  className={` w-full mb-4 break-inside-avoid rounded-lg overflow-hidden border-2 border-dashed transition-colors flex items-center justify-center ${
                     isUploading
                       ? "border-blue-300 bg-background"
                       : "border-border bg-background-secondary cursor-pointer hover:border-blue-300"

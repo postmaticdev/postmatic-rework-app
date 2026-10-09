@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ImagePlus, Plus, Send } from "lucide-react";
+import { Loader2, ImagePlus, Plus, Send, BookOpen } from "lucide-react";
 import { AiModelSelect } from "@/components/forms/ai-model-select";
 
 type ModelOption = {
@@ -108,6 +108,7 @@ export function ChatComposerField({
                   onAttachKnowledge();
                 }}
               >
+                <BookOpen className="h-4 w-4" />
                 Import from Knowledge
               </DropdownMenuItem>
             </DropdownMenuContent>

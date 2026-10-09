@@ -258,30 +258,24 @@ export function ProductSection() {
                               className="object-cover"
                             />
                           </div>
-                          <div className="flex flex-col sm:hidden items-start ">
+                          <div className="flex flex-col sm:hidden items-start mb-2">
                             <h3 className="font-medium text-foreground mb-1 text-sm line-clamp-1">
                               {product.name}
                             </h3>
-
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                                {product.category}
-                              </span>
-                            </div>
+                            <span className="bg-pink-100 text-pink-800 text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                              {product.category}
+                            </span>
                           </div>
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="hidden sm:flex flex-col lg:flex-row lg:gap-2 align-center">
-                            <h3 className="font-medium text-foreground mb-1">
+                          <div className="hidden sm:flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
+                            <h3 className="font-medium text-foreground text-base">
                               {product.name}
                             </h3>
-
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                                {product.category}
-                              </span>
-                            </div>
+                            <span className="bg-pink-100 text-pink-800 text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                              {product.category}
+                            </span>
                           </div>
 
                           <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">

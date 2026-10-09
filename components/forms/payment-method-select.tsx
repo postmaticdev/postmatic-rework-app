@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,11 +40,12 @@ const normalizePaymentMethod = (method?: string) =>
   (method || "").toLowerCase().replace(/[\s_-]/g, "");
 
 const getPaymentLogo = (method: PaymentMethodSelectOption) =>
+  method.image ||
   PAYMENT_LOGO_BY_METHOD[normalizePaymentMethod(method.code)] ||
   PAYMENT_LOGO_BY_METHOD[normalizePaymentMethod(method.name)];
 
 const getPaymentMethodLabel = (method: PaymentMethodSelectOption) =>
-  `${method.name} - ${method.type}`;
+  `${method.name || method.code} - ${method.type}`;
 
 function PaymentMethodLogo({ method }: { method: PaymentMethodSelectOption }) {
   const logoSrc = getPaymentLogo(method);
@@ -53,16 +53,17 @@ function PaymentMethodLogo({ method }: { method: PaymentMethodSelectOption }) {
   return (
     <span className="flex h-7 w-10 shrink-0 items-center justify-center rounded-md bg-white p-1 shadow-sm ring-1 ring-black/5">
       {logoSrc ? (
-        <Image
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
           src={logoSrc}
-          alt={`Logo ${method.name}`}
+          alt={`Logo ${method.name || method.code}`}
           width={36}
           height={24}
           className="max-h-5 w-auto object-contain"
         />
       ) : (
         <span className="text-[10px] font-semibold text-muted-foreground">
-          {method.name.slice(0, 2).toUpperCase()}
+          {(method.name || method.code || "??").slice(0, 2).toUpperCase()}
         </span>
       )}
     </span>

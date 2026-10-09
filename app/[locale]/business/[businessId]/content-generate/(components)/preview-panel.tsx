@@ -47,6 +47,26 @@ const WATERMARK_POLL_INTERVAL_MS = 2000;
 const WATERMARK_POLL_TIMEOUT_MS = 60000;
 const WATERMARK_SCHEDULE_TIMEOUT_MS = 90000;
 
+const getPaddingBottomStyle = (ratio?: string) => {
+  switch (ratio) {
+    case "16:9":
+      return "56.25%";
+    case "9:16":
+      return "177.77%";
+    case "4:3":
+      return "75%";
+    case "3:4":
+      return "133.33%";
+    case "4:5":
+      return "125%";
+    case "2:3":
+      return "150%";
+    case "1:1":
+    default:
+      return "100%";
+  }
+};
+
 export function PreviewPanel() {
   const { mutateAsync: getImageWatermark } = useContentImageWatermarkGet();
   const previewPanelRef = useRef<HTMLDivElement>(null);
@@ -801,7 +821,7 @@ export function PreviewPanel() {
   return (
     <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6 overflow-y-auto scrollbar-hidden">
       <CardNoGap className="flex-1 overflow-auto scrollbar-hidden">
-        <div className="p-4 border-b flex items-center justify-between">
+        <div className="sticky top-0 z-20 bg-card p-4 border-b flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Image
               src={businessLogo || "/logoblue.png"}
@@ -809,6 +829,7 @@ export function PreviewPanel() {
               width={200}
               height={200}
               className="w-8 h-8 rounded-full"
+              unoptimized
             />
             <span className="font-medium text-sm">{businessName}</span>
           </div>
@@ -825,43 +846,49 @@ export function PreviewPanel() {
           )}
         </div>
 
-        <div className="relative w-full h-fit transition-opacity">
-          {isLoading ? (
-            <div
-              className="flex items-center justify-center w-full h-full bg-background-secondary relative !aspect-square"
-              onContextMenu={handleProtectedImageInteraction}
-              onDragStart={handleProtectedImageInteraction}
-            >
-              <LogoLoader
-                hideContentBackground={false}
-                className="absolute z-10"
-              />
-              <div className="absolute bg-black z-0 w-full h-full opacity-50 blur-sm">
-                <Image
-                  src={displayedPreviewImageUrl}
-                  alt=""
-                  fill
-                  draggable={false}
-                  style={protectedImageStyle}
-                  className="object-cover w-full h-full"
-                  priority
+        <div 
+          className="relative w-full transition-all duration-300 overflow-hidden" 
+          style={{ paddingBottom: getPaddingBottomStyle(form.basic.ratio) }}
+        >
+          <div className="absolute inset-0 w-full h-full">
+            {isLoading ? (
+              <div
+                className="flex items-center justify-center w-full h-full bg-background-secondary relative"
+                onContextMenu={handleProtectedImageInteraction}
+                onDragStart={handleProtectedImageInteraction}
+              >
+                <LogoLoader
+                  hideContentBackground={false}
+                  className="absolute z-10"
                 />
+                <div className="absolute bg-black z-0 w-full h-full opacity-50 blur-sm">
+                  <Image
+                    src={displayedPreviewImageUrl}
+                    alt=""
+                    fill
+                    draggable={false}
+                    style={protectedImageStyle}
+                    className="object-cover w-full h-full"
+                    priority
+                    unoptimized
+                  />
+                </div>
               </div>
-            </div>
-          ) : (
-            <Image
-              src={displayedPreviewImageUrl}
-              alt=""
-              width={800}
-              height={800}
-              draggable={false}
-              onContextMenu={handleProtectedImageInteraction}
-              onDragStart={handleProtectedImageInteraction}
-              style={protectedImageStyle}
-              className="w-full h-auto"
-              priority
-            />
-          )}
+            ) : (
+              <Image
+                src={displayedPreviewImageUrl}
+                alt=""
+                fill
+                draggable={false}
+                onContextMenu={handleProtectedImageInteraction}
+                onDragStart={handleProtectedImageInteraction}
+                style={protectedImageStyle}
+                className="object-cover bg-background-secondary"
+                priority
+                unoptimized
+              />
+            )}
+          </div>
         </div>
 
         {isLoading &&
@@ -873,116 +900,54 @@ export function PreviewPanel() {
             </div>
           )}
 
-        <div className="p-4 border-b flex-col space-y-4">
-          <div className="text-sm">
-            <div className="font-medium mb-2">{businessName}</div>
-            <div className="relative">
-              <Textarea
-                value={form.basic.caption}
-                rows={4}
-                onChange={(e) => {
-                  form.setBasic({ ...form.basic, caption: e.target.value });
-                }}
-                className="min-h-[120px] resize-none rounded-2xl bg-background-secondary pr-14 text-sm"
-                placeholder={
-                  selectedHistory ? t("captionWillShowHere") : t("writeCaption")
-                }
-              />
-              {selectedHistory && (
-                <Button
-                  type="button"
-                  size="icon"
-                  className="absolute bottom-3 right-3 rounded-xl"
-                  onClick={() => void handleEnhanceCaption()}
-                  disabled={!canEnhanceCaption}
-                  title={t("enhanceCaption")}
-                  aria-label={t("enhanceCaption")}
-                >
-                  {isEnhanceCaptionLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <WandSparkles className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
+        <div className="p-4 border-b">
+          <div className="flex items-start gap-3">
+            <Image
+              src={businessLogo || "/logoblue.png"}
+              alt="logo"
+              width={32}
+              height={32}
+              className="w-8 h-8 rounded-full shrink-0 object-cover"
+              unoptimized
+            />
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold text-sm">{businessName}</span>
+              <div className="relative mt-1">
+                <Textarea
+                  value={form.basic.caption}
+                  rows={4}
+                  onChange={(e) => {
+                    form.setBasic({ ...form.basic, caption: e.target.value });
+                  }}
+                  className="min-h-[100px] w-full resize-none border-none bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none text-sm placeholder:text-muted-foreground/70"
+                  placeholder={
+                    selectedHistory ? t("captionWillShowHere") : t("writeCaption")
+                  }
+                />
+                {selectedHistory && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-transparent"
+                    onClick={() => void handleEnhanceCaption()}
+                    disabled={!canEnhanceCaption}
+                    title={t("enhanceCaption")}
+                    aria-label={t("enhanceCaption")}
+                  >
+                    {isEnhanceCaptionLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <WandSparkles className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {schedulerMode && (
-          <>
-            <div className="p-4 border-b">
-              <div className="grid gap-3 grid-cols-2">
-                <div className="flex h-12 items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
-                  <CalendarDays className="h-4 w-4 text-primary" />
-                  <input
-                    type="date"
-                    value={date}
-                    min={minDate}
-                    onChange={(event) => handleDateChange(event.target.value)}
-                    onBlur={() => {
-                      if (minDate && date && date < minDate) {
-                        handleDateChange(minDate);
-                      }
-                    }}
-                    className="h-full w-full bg-transparent text-sm outline-none"
-                  />
-                </div>
-                <ScheduleTimeInput
-                  date={date}
-                  value={time}
-                  onValueChange={handleTimeChange}
-                  className="h-12 rounded-2xl bg-background-secondary"
-                />
-              </div>
-            </div>
 
-            <div className="p-4 border-b space-y-3">
-              <div className="text-sm font-semibold">
-                {schedulerT("choosePlatform")}
-              </div>
-              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-                {platformOptions.map(({ platform, isConnected }) => {
-                  const isSelected =
-                    isConnected && selectedPlatforms.includes(platform);
-                  return (
-                    <button
-                      key={platform}
-                      type="button"
-                      onClick={() => togglePlatform(platform)}
-                      disabled={!isConnected}
-                      className={cn(
-                        "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
-                        isSelected
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-background-secondary",
-                        !isConnected &&
-                        "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
-                      )}
-                    >
-                      {mapEnumPlatform.getPlatformIcon(
-                        platform,
-                        isSelected
-                          ? "text-white"
-                          : !isConnected
-                            ? "text-muted-foreground"
-                            : ""
-                      )}
-                      <span className="flex flex-col leading-tight">
-                        <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
-                        {!isConnected && (
-                          <span className="text-[11px] font-normal">
-                            {schedulerT("notConnected")}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        )}
 
         {!schedulerMode && (
           <div className="p-4 border-b lg:border-none flex flex-col mb-2">
@@ -1007,7 +972,7 @@ export function PreviewPanel() {
           <div className="flex w-full gap-4">
             <Button
               variant="outline"
-              className="w-full"
+              className="w-full h-14"
               disabled={isLoading}
               onClick={() => onSelectHistory(null)}
             >
@@ -1018,7 +983,7 @@ export function PreviewPanel() {
         )}
         <Button
           onClick={handleGenerateClick}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+          className="w-full h-14 bg-blue-500 hover:bg-blue-600 text-white"
           disabled={isLoading}
         >
           <WandSparkles className="h-5 w-5" />
@@ -1036,6 +1001,8 @@ export function PreviewPanel() {
 
       <ScheduleSummaryModal
         isOpen={isSummaryOpen}
+        businessName={businessName}
+        businessLogo={businessLogo}
         imageUrl={displayedPreviewImageUrl}
         caption={form.basic.caption || selectedHistory?.result?.caption || ""}
         date={date}
