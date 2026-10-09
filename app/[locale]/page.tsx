@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { countBusiness } from "@/services/business.api";
-import { ACCESS_TOKEN_KEY } from "@/constants";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/constants";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { setAuthToken } from "@/config/api";
 import { useQueryClient } from "@tanstack/react-query";
@@ -34,7 +34,10 @@ const useCheckBusiness = () => {
         const accessToken =
           tokenFromParam ?? localStorage.getItem(ACCESS_TOKEN_KEY);
 
-        setAuthToken(accessToken, null);
+        const refreshToken =
+          refreshTokenFromParam ?? localStorage.getItem(REFRESH_TOKEN_KEY);
+
+        setAuthToken(accessToken, refreshToken);
         queryClient.clear();
 
         await fetch("/api/auth/sync", {
