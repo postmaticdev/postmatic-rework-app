@@ -26,8 +26,11 @@ const useCheckBusiness = () => {
 
     const run = async () => {
       const params = new URLSearchParams(window.location.search);
-      const tokenFromParam = params.get("postmaticAccessToken");
-      const refreshTokenFromParam = params.get("postmaticRefreshToken");
+      let tokenFromParam = params.get("postmaticAccessToken");
+      if (tokenFromParam) tokenFromParam = tokenFromParam.replace(/ /g, "+");
+
+      let refreshTokenFromParam = params.get("postmaticRefreshToken");
+      if (refreshTokenFromParam) refreshTokenFromParam = refreshTokenFromParam.replace(/ /g, "+");
       const rootBusinessIdFromParam = params.get("rootBusinessId");
 
       if (tokenFromParam || refreshTokenFromParam) {

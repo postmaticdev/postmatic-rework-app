@@ -130,7 +130,11 @@ function applyAuthInterceptors(instance: AxiosInstance) {
       const token = getAccessToken();
       if (token) {
         config.headers = config.headers ?? {};
-        config.headers[ACCESS_TOKEN_HEADER] = token;
+        if (typeof config.headers.set === "function") {
+          config.headers.set(ACCESS_TOKEN_HEADER, token);
+        } else {
+          config.headers[ACCESS_TOKEN_HEADER] = token;
+        }
       }
       return config;
     },
@@ -166,7 +170,11 @@ function applyAuthInterceptors(instance: AxiosInstance) {
             addRefreshSubscriber(resolve);
           });
           originalConfig.headers = originalConfig.headers ?? {};
-          originalConfig.headers[ACCESS_TOKEN_HEADER] = newToken;
+          if (typeof originalConfig.headers.set === "function") {
+            originalConfig.headers.set(ACCESS_TOKEN_HEADER, newToken);
+          } else {
+            originalConfig.headers[ACCESS_TOKEN_HEADER] = newToken;
+          }
           return instance.request(originalConfig);
         }
 
@@ -185,7 +193,11 @@ function applyAuthInterceptors(instance: AxiosInstance) {
         onRefreshed(payload.accessToken);
 
         originalConfig.headers = originalConfig.headers ?? {};
-        originalConfig.headers[ACCESS_TOKEN_HEADER] = payload.accessToken;
+        if (typeof originalConfig.headers.set === "function") {
+          originalConfig.headers.set(ACCESS_TOKEN_HEADER, payload.accessToken);
+        } else {
+          originalConfig.headers[ACCESS_TOKEN_HEADER] = payload.accessToken;
+        }
 
         return instance.request(originalConfig);
       } catch (e) {
