@@ -120,7 +120,7 @@ export function setAuthToken(
 function hardLogout() {
   setAuthToken(null, null);
   if (typeof window !== "undefined") {
-    window.location.href = LOGIN_URL;
+    window.location.href = LOGIN_URL || "https://auth.postmatic.id";
   }
 }
 

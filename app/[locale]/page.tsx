@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { countBusiness } from "@/services/business.api";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/constants";
@@ -20,8 +20,11 @@ export default function Home() {
 const useCheckBusiness = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const hasRun = useRef(false);
 
   return useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     let isMounted = true;
 
     const run = async () => {
@@ -83,6 +86,12 @@ const useCheckBusiness = () => {
         .catch((error) => {
           if (!isMounted) return;
           console.log("error", error);
+          const is404 = error?.response?.status === 404;
+          if (is404) {
+            router.replace("/business/new-business");
+          } else {
+            router.replace("/business");
+          }
         });
 
       console.log("done");
