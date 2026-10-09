@@ -14,6 +14,7 @@ export interface PlatformRes {
   connectUrl: string | null;
   disconnectUrl: string | null;
   accountId: string | null;
+  id: number | null;
 }
 
 export interface ConnectedPlatformSocialPlatformApiRes {

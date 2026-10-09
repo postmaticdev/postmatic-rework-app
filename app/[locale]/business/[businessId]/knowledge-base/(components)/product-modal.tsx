@@ -80,25 +80,7 @@ export function ProductModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {productAction === "select" && mode === "add" && (
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <Button
-                  onClick={() => setProductAction("add")}
-                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t("addProduct")}
-                </Button>
-                <Button
-                  onClick={() => setProductAction("edit")}
-                  variant="outline"
-                >
-                  {t("editProduct")}
-                </Button>
-              </div>
-            </div>
-          )}
+
 
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row w-full gap-6 items-start">

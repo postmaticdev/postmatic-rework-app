@@ -32,7 +32,7 @@ export const helperService = {
       if (response.data.data && "assetUrl" in response.data.data) {
         return response.data.data.assetUrl;
       }
-      return (response.data.data as any).imageUrl;
+      return (response.data.data as Record<string, string>).imageUrl;
     } catch (error) {
       console.error("Error uploading image:", error);
       throw new Error("Failed to upload image. Please try again.");

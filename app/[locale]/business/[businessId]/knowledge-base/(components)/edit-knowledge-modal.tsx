@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -72,14 +72,23 @@ export function EditKnowledgeModal({
   const { data: businessKnowledgeData } =
     useBusinessKnowledgeGetById(businessId);
 
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    if (isOpen && roleKnowledgeData && businessKnowledgeData) {
+    if (!isOpen) {
+      hasInitialized.current = false;
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && !hasInitialized.current && roleKnowledgeData && businessKnowledgeData) {
       setFormKnowledge({
         role: normalizeRoleKnowledge(roleKnowledgeData?.data?.data),
         business: normalizeBusinessKnowledge(businessKnowledgeData?.data?.data),
       });
       // Clear errors when modal opens
       setErrors({ business: {}, role: {} });
+      hasInitialized.current = true;
     }
   }, [
     isOpen,
@@ -151,7 +160,7 @@ export function EditKnowledgeModal({
           businessId,
           formData: prepareBusinessKnowledgePayload(formKnowledge.business),
         }),
-        await mRoleKnowledge.mutateAsync({
+        mRoleKnowledge.mutateAsync({
           businessId,
           formData: prepareRoleKnowledgePayload(formKnowledge.role),
         }),

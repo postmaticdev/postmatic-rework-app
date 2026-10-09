@@ -363,6 +363,8 @@ export interface PostedImageContent {
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  jobStatus?: string;
+  errorMessage?: string | null;
 }
 
 export interface AdvancedGenerate {

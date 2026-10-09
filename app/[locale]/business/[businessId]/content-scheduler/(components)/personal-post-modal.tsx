@@ -17,6 +17,7 @@ import { Loader2 } from "lucide-react";
 import { useContentCaptionEnhance } from "@/services/content/content.api";
 import { showToast } from "@/helper/show-toast";
 import { useParams } from "next/navigation";
+import { useProductKnowledgeGetAll } from "@/services/knowledge.api";
 
 export interface PersonalContentForm {
   image: string | null;
@@ -45,6 +46,7 @@ export function PersonalPostModal({
   const t = useTranslations("contentScheduler");
   const { businessId } = useParams() as { businessId: string };
   const mEnhanceCaption = useContentCaptionEnhance();
+  const { data: productsData } = useProductKnowledgeGetAll(businessId, undefined, isOpen);
 
   const handleGenerateCaption = async () => {
     if (!form.image) {
@@ -60,6 +62,7 @@ export function PersonalPostModal({
         businessId,
         formData: {
           imageUrl: form.image,
+          businessProductId: productsData?.data?.data?.[0]?.id ? Number(productsData.data.data[0].id) : undefined,
         },
       });
       setForm((prev) => ({ ...prev, caption: res.data.data.caption }));

@@ -20,6 +20,7 @@ import {
 } from "@/services/website-scrapper.api";
 import { cn } from "@/lib/utils";
 import { GlowEffect } from "@/components/motion-primitives/glow-effect";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 import {
   ArrowRight,
   CheckCircle2,
@@ -428,7 +429,7 @@ export default function NewBusinessWebsitePage() {
   ]);
 
   return (
-    <div className="ai-glow-page relative min-h-screen overflow-hidden bg-background">
+    <AuroraBackground className="ai-glow-page !justify-start">
       <div className="relative z-10 flex min-h-screen flex-col px-4 py-4 sm:px-6 sm:py-6">
         {phase === "input" && (
           <div className="flex flex-1 items-center justify-center py-8">
@@ -781,6 +782,6 @@ export default function NewBusinessWebsitePage() {
           </>
         )}
       </div>
-    </div>
+    </AuroraBackground>
   );
 }

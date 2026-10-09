@@ -218,6 +218,7 @@ export default function NotificationsPage() {
     markAllAsRead,
     sendChatMessage,
     setTicketListEnabled,
+    loadTicketMessages,
   } = useNotification();
 
   const [activeTab, setActiveTab] = useState<"notifications" | "tickets">("notifications");
@@ -309,6 +310,14 @@ export default function NotificationsPage() {
       setSelectedTicketId(tickets[0].id);
     }
   }, [tickets, selectedTicketId]);
+
+  useEffect(() => {
+    if (!selectedTicketId) return;
+    const numericId = parseInt(selectedTicketId.replace(/\D/g, ""), 10);
+    if (!Number.isNaN(numericId)) {
+      loadTicketMessages(numericId);
+    }
+  }, [selectedTicketId, loadTicketMessages]);
 
   useEffect(() => {
     setEditorHtml("");

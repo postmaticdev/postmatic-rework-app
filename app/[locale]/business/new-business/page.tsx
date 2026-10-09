@@ -6,33 +6,15 @@ import { Link } from "@/i18n/navigation";
 import { ArrowRight, Globe, PencilLine, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { motion } from 'motion/react';
-import { GlowEffect } from '@/components/motion-primitives/glow-effect';
+import { AuroraBackground } from '@/components/ui/aurora-background';
 
 export default function NewBusinessEntryPage() {
   const t = useTranslations("newBusinessEntry");
 
   return (
-    <div className="ai-glow-page relative min-h-screen overflow-hidden bg-background">
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10">
+    <AuroraBackground>
+      <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-4 py-10">
         <div className="relative w-full max-w-2xl">
-          <motion.div
-            className="pointer-events-none absolute inset-0 rounded-[2rem]"
-            animate={{
-              opacity: 1,
-            }}
-            transition={{
-              duration: 0.2,
-              ease: 'easeOut',
-            }}
-          >
-            <GlowEffect
-              colors={['#0894FF', '#C959DD', '#FF2E54', '#FF9004']}
-              mode='colorShift'
-              blur='medium'
-              duration={4}
-              className="rounded-[2rem]"
-            />
-          </motion.div>
           <Card className="relative z-10 rounded-[2rem] border-white/60 bg-white/95 p-6 shadow-[0_24px_90px_rgba(37,99,235,0.16)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] dark:shadow-[0_24px_120px_rgba(37,99,235,0.2)] sm:p-8">
             <div className="mb-8 flex flex-col items-center text-center">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.24em] text-blue-700 uppercase dark:text-blue-200">
@@ -96,6 +78,6 @@ export default function NewBusinessEntryPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </AuroraBackground>
   );
 }

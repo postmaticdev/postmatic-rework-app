@@ -104,6 +104,11 @@ export function ScheduleSummaryModal({
                     value={date}
                     min={minDate}
                     onChange={(event) => onDateChange(event.target.value)}
+                    onBlur={() => {
+                      if (minDate && date && date < minDate) {
+                        onDateChange(minDate);
+                      }
+                    }}
                     className="h-full w-full bg-transparent text-sm outline-none"
                   />
                 </div>

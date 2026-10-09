@@ -433,7 +433,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
               <span>
                 {currentView === "profile"
                   ? t("save")
-                  : "Ubah Password"}
+                  : t("savePassword")}
               </span>
             </Button>
           </div>

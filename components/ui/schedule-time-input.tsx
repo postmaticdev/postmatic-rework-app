@@ -36,9 +36,9 @@ export function ScheduleTimeInput({
   );
 
   useEffect(() => {
-    if (minTime && value && value < minTime) {
-      onValueChange(minTime);
-    }
+    // Optionally we can auto-correct if it's strictly less than minTime on mount/update,
+    // but doing it aggressively causes jumping.
+    // If we want to ensure valid time when submitting, we should check there.
   }, [minTime, onValueChange, value]);
 
   return (
@@ -49,9 +49,12 @@ export function ScheduleTimeInput({
       step={60}
       disabled={disabled}
       onChange={(event) => {
-        const nextValue = event.target.value;
-        if (minTime && nextValue && nextValue < minTime) return;
-        onValueChange(nextValue);
+        onValueChange(event.target.value);
+      }}
+      onBlur={() => {
+        if (minTime && value && value < minTime) {
+          onValueChange(minTime);
+        }
       }}
       className={className}
     />

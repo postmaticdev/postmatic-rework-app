@@ -782,15 +782,15 @@ const mapConnectedPlatform = (
       ? `/business/connected-platform/${connectedPlatform.businessRootId}/${connectedPlatform.platformCode}`
       : null,
     accountId: connectedPlatform?.platformUserId ?? null,
+    id: connectedPlatform?.id ?? null,
   };
 };
 
 const platformService = {
-  getAll: (businessId: string, from?: string) => {
+  getAll: (businessId: string) => {
     return api
       .get<BaseResponse<BusinessConnectedPlatformApiRes[]>>(
-        `/business/connected-platform/${businessId}`,
-        { params: { from } }
+        `/business/connected-platform/${businessId}`
       )
       .then((res) => {
         const mapped = (res.data.data ?? []).map(mapConnectedPlatform);
@@ -819,20 +819,19 @@ const platformService = {
       { tempCodeAccount }
     );
   },
-  disconnect: (businessId: string, platform: PlatformEnum) => {
-    return api.post<BaseResponse<PlatformRes>>(
-      `/business/connected-platform/${businessId}/${platform}`
+  disconnect: (businessId: string, platformId: number) => {
+    return api.delete<BaseResponse<null>>(
+      `/business/connected-platform/${businessId}/${platformId}`
     );
   },
 };
 
 export const usePlatformKnowledgeGetAll = (
-  businessId: string,
-  from?: string
+  businessId: string
 ) => {
   return useQuery({
-    queryKey: ["platformKnowledge", businessId, from],
-    queryFn: () => platformService.getAll(businessId, from),
+    queryKey: ["platformKnowledge", businessId],
+    queryFn: () => platformService.getAll(businessId),
     enabled: !!businessId,
   });
 };
@@ -886,11 +885,11 @@ export const usePlatformKnowledgeDisconnect = () => {
   return useMutation({
     mutationFn: ({
       businessId,
-      platform,
+      platformId,
     }: {
       businessId: string;
-      platform: PlatformEnum;
-    }) => platformService.disconnect(businessId, platform),
+      platformId: number;
+    }) => platformService.disconnect(businessId, platformId),
     onSuccess: ({}) => {
       queryClient.invalidateQueries({
         queryKey: ["platformKnowledge"],

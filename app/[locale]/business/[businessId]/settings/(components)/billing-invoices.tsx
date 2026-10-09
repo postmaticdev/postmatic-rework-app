@@ -69,7 +69,7 @@ export function BillingInvoices() {
               className="w-full border-border bg-muted/40 text-base font-medium"
             >
               <a
-                href="https://docs.postmatic.id/docs/penetapan-harga/paket-dan-harga"
+                href="https://docs.postmatic.id/our-features/pricing"
                 target="_blank"
                 rel="noopener noreferrer"
               >

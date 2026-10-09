@@ -55,32 +55,13 @@ export function ManageKnowledgeProvider({
     role: {},
   });
   const { businessId } = useParams() as { businessId: string };
-  const pathname = usePathname();
-
   const { data: businessKnowledgeData } =
     useBusinessKnowledgeGetById(businessId);
   const { data: roleKnowledgeData } = useRoleKnowledgeGetById(businessId);
-
-  const { data: platformsData } = usePlatformKnowledgeGetAll(
-    businessId,
-    pathname
-  );
+  const { data: platformsData } = usePlatformKnowledgeGetAll(businessId);
   const platforms = platformsData?.data.data || [];
 
-  useEffect(() => {
-    if (businessKnowledgeData) {
-      setFormKnowledge((prev) => ({
-        ...prev,
-        business: normalizeBusinessKnowledge(businessKnowledgeData.data.data),
-      }));
-    }
-    if (roleKnowledgeData) {
-      setFormKnowledge((prev) => ({
-        ...prev,
-        role: normalizeRoleKnowledge(roleKnowledgeData.data.data),
-      }));
-    }
-  }, [businessKnowledgeData, roleKnowledgeData]);
+
 
   return (
     <ManageKnowledgeContext.Provider

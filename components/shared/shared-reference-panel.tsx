@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Upload, Loader2 } from "lucide-react";
-import {
-  PaginationControls,
-} from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -107,6 +104,29 @@ export function SharedReferencePanel({
   const [activeTab, setActiveTab] = useState<"reference" | "saved">(
     "reference"
   );
+  
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const currentTemplates = activeTab === "reference" ? publishedTemplates : savedTemplates;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && currentTemplates.pagination?.hasNextPage && !currentTemplates.isLoading) {
+          currentTemplates.setFilterQuery({
+            ...currentTemplates.filterQuery,
+            page: (currentTemplates.filterQuery.page || 1) + 1,
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [activeTab, publishedTemplates, savedTemplates]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -284,7 +304,7 @@ export function SharedReferencePanel({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Tab Bar */}
-      <div className="shrink-0 p-4 sm:p-6">
+      <div className="shrink-0 p-4 pb-0 sm:p-6 sm:pb-0">
         <div className="flex justify-center">
           <div className={`flex  rounded-lg  w-full ${onAutoGenerate ? "bg-card" : "bg-background"}`}>
             <button
@@ -309,12 +329,16 @@ export function SharedReferencePanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-6">
+      {/* Sticky Search Bar */}
+      <div className="shrink-0 p-4 sm:p-6">
+        {activeTab === "reference" 
+          ? renderSearchControls(t("searchPlaceholder"), publishedTemplates)
+          : renderSearchControls(t("searchPlaceholderSaved"), savedTemplates)}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden px-4 pb-4 sm:px-6">
         {activeTab === "reference" && (
           <div className="space-y-4">
-            {/* Search Bar */}
-            {renderSearchControls(t("searchPlaceholder"), publishedTemplates)}
-
             {/* Template Grid */}
             {publishedTemplates.isLoading ? (
               <TemplateGridSkeleton />
@@ -341,9 +365,6 @@ export function SharedReferencePanel({
 
         {activeTab === "saved" && (
           <div className="space-y-4">
-            {/* Search Bar */}
-            {renderSearchControls(t("searchPlaceholderSaved"), savedTemplates)}
-
             {/* Saved References Grid */}
             {savedTemplates.isLoading ? (
               <TemplateGridSkeleton />
@@ -412,25 +433,13 @@ export function SharedReferencePanel({
         )}
       </div>
 
-      <div className="shrink-0 border-t bg-card px-4 py-3 sm:px-6">
-        <PaginationControls
-          pagination={
-            activeTab === "reference"
-              ? publishedTemplates.pagination
-              : savedTemplates.pagination
-          }
-          filterQuery={
-            activeTab === "reference"
-              ? publishedTemplates.filterQuery
-              : savedTemplates.filterQuery
-          }
-          setFilterQuery={
-            activeTab === "reference"
-              ? publishedTemplates.setFilterQuery
-              : savedTemplates.setFilterQuery
-          }
-          className="border-t-0 pt-0"
-        />
+      <div className="shrink-0">
+        <div ref={observerTarget} className="h-10 w-full flex items-center justify-center">
+          {((activeTab === "reference" && publishedTemplates.isLoading) || 
+            (activeTab === "saved" && savedTemplates.isLoading)) && (
+            <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
+          )}
+        </div>
       </div>
 
       {/* Detail Reference Dialog */}

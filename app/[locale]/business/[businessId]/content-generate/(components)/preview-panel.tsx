@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "@/i18n/navigation";
+import { useRouter, usePathname } from "@/i18n/navigation";
 import { CardNoGap } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -57,6 +57,7 @@ export function PreviewPanel() {
     null
   );
   const router = useRouter();
+  const pathname = usePathname();
   const locale = useLocale();
   const searchParams = useSearchParams();
   const { businessId } = useParams() as { businessId: string };
@@ -140,17 +141,62 @@ export function PreviewPanel() {
   const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
     useState(false);
   const [isAutoEnhancingCaption, setIsAutoEnhancingCaption] = useState(false);
+  
+  const [isScheduleTouched, setIsScheduleTouched] = useState(
+    !!searchParams.get("scheduleDate") || !!searchParams.get("scheduleTime")
+  );
+
   useEffect(() => {
-    if (scheduleDate) {
+    if (isScheduleTouched) return;
+    const intervalId = setInterval(() => {
+      const nextSchedule = getCurrentScheduleInput();
+      setDate((prev) => (prev !== nextSchedule.date ? nextSchedule.date : prev));
+      setTime((prev) => (prev !== nextSchedule.time ? nextSchedule.time : prev));
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [isScheduleTouched]);
+
+  const handleDateChange = (d: string) => {
+    setDate(d);
+    setIsScheduleTouched(true);
+  };
+
+  const handleTimeChange = (t: string) => {
+    setTime(t);
+    setIsScheduleTouched(true);
+  };
+
+  const lastPushedDate = useRef(scheduleDate);
+  const lastPushedTime = useRef(scheduleTime);
+
+  useEffect(() => {
+    if (scheduleDate && scheduleDate !== lastPushedDate.current) {
       setDate(scheduleDate);
+      lastPushedDate.current = scheduleDate;
     }
   }, [scheduleDate]);
 
   useEffect(() => {
-    if (scheduleTime) {
+    if (scheduleTime && scheduleTime !== lastPushedTime.current) {
       setTime(scheduleTime);
+      lastPushedTime.current = scheduleTime;
     }
   }, [scheduleTime]);
+
+  useEffect(() => {
+    if (!schedulerMode) return;
+    const timeoutId = setTimeout(() => {
+      if (date !== scheduleDate || time !== scheduleTime) {
+        const newParams = new URLSearchParams(searchParams.toString());
+        if (date) newParams.set("scheduleDate", date);
+        if (time) newParams.set("scheduleTime", time);
+        lastPushedDate.current = date || null;
+        lastPushedTime.current = time || null;
+        router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+      }
+    }, 400);
+    return () => clearTimeout(timeoutId);
+  }, [date, time, schedulerMode, scheduleDate, scheduleTime, router, pathname, searchParams]);
 
   useEffect(() => {
     if (!initialPlatforms) return;
@@ -753,8 +799,8 @@ export function PreviewPanel() {
   }, [mode, schedulerMode, selectedHistory, schedulerT]);
 
   return (
-    <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6">
-      <CardNoGap className="flex-1 overflow-auto">
+    <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6 overflow-y-auto scrollbar-hidden">
+      <CardNoGap className="flex-1 overflow-auto scrollbar-hidden">
         <div className="p-4 border-b flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Image
@@ -873,14 +919,19 @@ export function PreviewPanel() {
                     type="date"
                     value={date}
                     min={minDate}
-                    onChange={(event) => setDate(event.target.value)}
+                    onChange={(event) => handleDateChange(event.target.value)}
+                    onBlur={() => {
+                      if (minDate && date && date < minDate) {
+                        handleDateChange(minDate);
+                      }
+                    }}
                     className="h-full w-full bg-transparent text-sm outline-none"
                   />
                 </div>
                 <ScheduleTimeInput
                   date={date}
                   value={time}
-                  onValueChange={setTime}
+                  onValueChange={handleTimeChange}
                   className="h-12 rounded-2xl bg-background-secondary"
                 />
               </div>
@@ -997,8 +1048,8 @@ export function PreviewPanel() {
         onCaptionChange={(value) =>
           form.setBasic({ ...form.basic, caption: value })
         }
-        onDateChange={setDate}
-        onTimeChange={setTime}
+        onDateChange={handleDateChange}
+        onTimeChange={handleTimeChange}
         onTogglePlatform={togglePlatform}
         onEnhanceCaption={handleEnhanceCaption}
         onConfirm={handleConfirmSchedule}

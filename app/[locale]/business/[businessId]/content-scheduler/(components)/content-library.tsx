@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, Plus, Search, X } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { CreatePostModal } from "./create-post-modal";
 import { ViewPostModal } from "./view-post-modal";
 import Image from "next/image";
@@ -121,6 +122,12 @@ export function ContentLibrary({
   const t = useTranslations("contentScheduler");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useDebounce(() => {
+    setDebouncedSearch(searchQuery);
+  }, 500, [searchQuery]);
+
   const [historyFilterQuery, setHistoryFilterQuery] = useState<Partial<FilterQuery>>({
     page: 1,
     limit: 8,
@@ -128,43 +135,40 @@ export function ContentLibrary({
 
   const { data: draftContent, isLoading: isLoadingDraft } =
     useContentDraftGetAllDraftImage(businessId, {
-      search: searchQuery,
-      limit: 50,
+      search: debouncedSearch,
+      category: "drafts",
+      ...historyFilterQuery,
     });
-  const filteredContentDraft = (draftContent?.data.data || []).filter(
-    (item) => !item.readyToPost
-  );
+  const filteredContentDraft = draftContent?.data.data || [];
 
   const { data: postedContent, isLoading: isLoadingPosted } =
     useContentPostedGetAllPostedImage(businessId, {
-      search: searchQuery,
-      limit: 50,
+      search: debouncedSearch,
+      ...historyFilterQuery,
     });
-  const filteredPostedContent = (postedContent?.data.data || []).filter((item, index, items) => {
-    const image = item.images[0] || item.id;
-    return items.findIndex((candidate) => (candidate.images[0] || candidate.id) === image) === index;
-  });
+  const filteredPostedContent = postedContent?.data.data || [];
+  
   const currentContent =
     type === "draft" ? filteredContentDraft : filteredPostedContent;
-  const historyPagination = useMemo<Pagination>(() => {
-    const total = currentContent.length;
-    const limit = Math.max(historyFilterQuery.limit || 1, 1);
-    const totalPages = Math.max(Math.ceil(total / limit), 1);
-    const page = Math.min(Math.max(historyFilterQuery.page || 1, 1), totalPages);
+    
+  const backendPagination = type === "draft" ? draftContent?.data.pagination : postedContent?.data.pagination;
 
+  const historyPagination = useMemo<Pagination>(() => {
+    if (backendPagination) {
+      return backendPagination;
+    }
+    const limit = Math.max(historyFilterQuery.limit || 8, 1);
     return {
-      total,
-      page,
+      total: 0,
+      page: historyFilterQuery.page || 1,
       limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPrevPage: false,
     };
-  }, [currentContent.length, historyFilterQuery.limit, historyFilterQuery.page]);
-  const paginatedContent = useMemo(() => {
-    const start = (historyPagination.page - 1) * historyPagination.limit;
-    return currentContent.slice(start, start + historyPagination.limit);
-  }, [currentContent, historyPagination.limit, historyPagination.page]);
+  }, [backendPagination, historyFilterQuery]);
+
+  const paginatedContent = currentContent;
   const isLoadingContent =
     type === "draft" ? isLoadingDraft : isLoadingPosted;
 
@@ -328,7 +332,7 @@ export function ContentLibrary({
                 formDataDraft.queue.generatedImageContentId,
               imageUrl: formDataDraft.queue.imageUrl,
               dateTime: new Date(
-                formDataDraft.queue.date + " " + formDataDraft.queue.time
+                formDataDraft.queue.date + "T" + formDataDraft.queue.time
               ).toISOString(),
             },
           });
@@ -389,13 +393,6 @@ export function ContentLibrary({
     } catch { }
   };
 
-  const getPostedPlatforms = (content: PostedImageRes) =>
-    Array.from(
-      new Set([
-        ...(content.platforms || []),
-        ...(content.postedImageContents || []).map((post) => post.platform),
-      ])
-    );
 
   const renderItems = (): React.JSX.Element[] => {
     switch (type) {
@@ -471,8 +468,6 @@ export function ContentLibrary({
         ));
       case "posted":
         return (paginatedContent as PostedImageRes[]).map((content) => {
-          const postedPlatforms = getPostedPlatforms(content);
-
           return (
             <div
               key={content?.id}
@@ -505,21 +500,26 @@ export function ContentLibrary({
                     {t("postedTo")}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {postedPlatforms.length > 0 ? (
-                      postedPlatforms.map((platform) => (
+                    {content?.postedImageContents && content.postedImageContents.length > 0 ? (
+                      content.postedImageContents.map((post) => {
+                        const isFailed = post.jobStatus?.toLowerCase() === "failed" || post.jobStatus?.toLowerCase() === "error";
+                        return (
                         <span
-                          key={platform}
-                          className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-background-secondary px-2 py-1 text-xs text-foreground"
+                          key={post.id}
+                          className={`inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${isFailed ? "border-red-200 bg-red-50 text-red-700" : "border-border bg-background-secondary text-foreground"}`}
+                          title={post.errorMessage || ""}
                         >
                           {mapEnumPlatform.getPlatformIcon(
-                            platform,
+                            post.platform,
                             "h-3.5 w-3.5 shrink-0"
                           )}
                           <span className="truncate">
-                            {mapEnumPlatform.getPlatformLabel(platform)}
+                            {mapEnumPlatform.getPlatformLabel(post.platform)}
+                            {isFailed && " (Failed)"}
                           </span>
                         </span>
-                      ))
+                        );
+                      })
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         {t("notAvailable")}

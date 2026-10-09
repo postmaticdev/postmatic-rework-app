@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { showToast } from "@/helper/show-toast";
@@ -36,6 +37,7 @@ import {
   Newspaper,
   Pencil,
   Plus,
+  RefreshCw,
   Trash2,
   WandSparkles,
   X,
@@ -45,6 +47,7 @@ import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 import { SelectedAvatars } from "./selected-avatars";
+import { AiModelLogo } from "@/components/forms/ai-model-select";
 
 export function GenerationPanel() {
   const { businessId } = useParams() as { businessId: string };
@@ -64,6 +67,7 @@ export function GenerationPanel() {
     rss,
     onSelectAiModel,
     onSelectGeneratedImage,
+    onSelectHistory,
     onSubmitGenerate,
   } = useContentGenerate();
   const t = useTranslations("generationPanel");
@@ -72,6 +76,7 @@ export function GenerationPanel() {
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
   const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
     useState(false);
+  const [previewPromptImage, setPreviewPromptImage] = useState<string | null>(null);
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
@@ -316,7 +321,7 @@ export function GenerationPanel() {
     return (
       <>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {currentThread.map((job, jobIndex) => {
               const isInitialSchedulerBubble =
                 jobIndex === 0 && job.id.startsWith("chat-");
@@ -342,27 +347,18 @@ export function GenerationPanel() {
                 ? schedulerChatSeed?.productImage ||
                 null
                 : null;
-              const promptImages = isInitialSchedulerBubble
-                ? Array.from(
-                  new Set(
-                    [
-                      initialReferenceImage,
-                      initialProductImage,
-                      ...avatarPromptImages,
-                      ...additionalPromptImages,
-                    ].filter(Boolean) as string[]
-                  )
+              const promptImages = Array.from(
+                new Set(
+                  [
+                    initialReferenceImage,
+                    initialProductImage,
+                    job.input.referenceImage,
+                    ...(job.product?.images || []),
+                    ...avatarPromptImages,
+                    ...additionalPromptImages,
+                  ].filter(Boolean) as string[]
                 )
-                : Array.from(
-                  new Set(
-                    [
-                      ...avatarPromptImages,
-                      ...additionalPromptImages,
-                      ...(job.product?.images || []),
-                      job.input.referenceImage,
-                    ].filter(Boolean) as string[]
-                  )
-                );
+              );
 
               return (
                 <div key={job.id} className="space-y-3">
@@ -386,7 +382,8 @@ export function GenerationPanel() {
                                 alt={`prompt image ${imageIndex + 1}`}
                                 width={160}
                                 height={160}
-                                className="h-20 w-20 rounded-lg border object-cover sm:h-24 sm:w-24"
+                                className="h-20 w-20 rounded-lg border object-cover sm:h-24 sm:w-24 cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => setPreviewPromptImage(imageUrl)}
                               />
                             </div>
                           ))}
@@ -426,7 +423,7 @@ export function GenerationPanel() {
                           <div className="w-full max-w-[360px] rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
                             <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
                               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <p className="font-medium">
                                   Image generation failed
                                 </p>
@@ -434,6 +431,39 @@ export function GenerationPanel() {
                                   {errorMessage}
                                 </p>
                               </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-900/50"
+                                onClick={() => {
+                                  onSelectHistory(job);
+                                  setTimeout(() => {
+                                    const allowedModel = aiModels.freeUserAllowedModel;
+                                    if (aiModels.isFreeUser && allowedModel) {
+                                      const allowedRatios = allowedModel.validRatios.length
+                                        ? allowedModel.validRatios
+                                        : aiModels.validRatios;
+                                      const nextRatio = allowedRatios.includes(form.basic.ratio)
+                                        ? form.basic.ratio
+                                        : (allowedRatios[0] || aiModels.validRatios[0] || "1:1");
+
+                                      onSelectAiModel(allowedModel);
+                                      void onSubmitGenerate({
+                                        mode: "regenerate",
+                                        model: allowedModel.name,
+                                        ratio: nextRatio as "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9",
+                                        imageSize: allowedModel.imageSizes?.[0] || null,
+                                      });
+                                    } else {
+                                      void onSubmitGenerate({ mode: "regenerate" });
+                                    }
+                                  }, 100);
+                                }}
+                                title="Retry Generation"
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
                             </div>
                             {shouldShowTopUpButton ? (
                               <Button
@@ -456,14 +486,17 @@ export function GenerationPanel() {
                           selectedHistory?.id === job.id &&
                           selectedImage === image;
 
+                        const modelObj = aiModels.models.find(m => m.name === job.input.model || String(m.id) === String(job.input.model));
+                        const modelDisplayName = modelObj ? getAiModelDisplayName(modelObj) : (getAiModelDisplayName(job.input.model) || t("generatedResult"));
+
                         return (
                           <div
                             key={`${job.id}-${index}`}
                             className="max-w-[82%] space-y-2"
                           >
                             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                              <Bot className="h-3.5 w-3.5" />
-                              {getAiModelDisplayName(job.input.model) || t("generatedResult")}
+                              <AiModelLogo size="sm" imageUrl={modelObj?.image} />
+                              {modelDisplayName}
                             </div>
                             <GeneratedImageViewer
                               imageUrl={imageUrl}
@@ -654,6 +687,21 @@ export function GenerationPanel() {
           isLoadingAvatars={isLoadingBusinessAvatars}
           isLoadingMoreAvatars={isLoadingAppAvatars}
         />
+        <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
+          <DialogContent className="max-w-max p-0 bg-transparent border-none shadow-none [&>button]:hidden">
+            <DialogTitle className="sr-only">Image Preview</DialogTitle>
+            {previewPromptImage && (
+              <div className="relative h-[95vh] w-[95vw]">
+                <Image 
+                  src={previewPromptImage} 
+                  alt="Prompt preview" 
+                  fill
+                  className="object-contain rounded-md"
+                />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
@@ -661,7 +709,7 @@ export function GenerationPanel() {
   return (
     <>
       <div id="generation-panel" className="h-full flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
 
           <SelectedReferenceImage />
@@ -721,6 +769,21 @@ export function GenerationPanel() {
         cancelText={modelRestrictionCopy.useDefault}
       />
 
+      <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
+        <DialogContent className="max-w-max p-0 bg-transparent border-none shadow-none [&>button]:hidden">
+          <DialogTitle className="sr-only">Image Preview</DialogTitle>
+          {previewPromptImage && (
+            <div className="relative h-[95vh] w-[95vw]">
+              <Image 
+                src={previewPromptImage} 
+                alt="Prompt preview" 
+                fill
+                className="object-contain rounded-md"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

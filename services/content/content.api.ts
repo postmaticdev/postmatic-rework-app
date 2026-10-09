@@ -1,5 +1,5 @@
 import { api } from "@/config/api";
-import { BaseResponse, FilterQuery } from "@/models/api/base-response.type";
+import { BaseResponse, BaseResponseFiltered, FilterQuery } from "@/models/api/base-response.type";
 import {
   DeleteContentRes,
   DirectPostContentPld,
@@ -408,9 +408,8 @@ const mapUploadHistoryToPostedContent = (
   item: NewImagePostUploadHistory,
   businessId: string
 ): PostedImageRes => {
-  const successfulPlatforms = (item.platforms || []).filter(
-    (platform) => platform.jobStatus?.toLowerCase() === "success"
-  );
+  const allPlatforms = item.platforms || [];
+
 
   return {
     id: String(item.imagePostScheduleId),
@@ -425,8 +424,8 @@ const mapUploadHistoryToPostedContent = (
     deletedAt: null,
     createdAt: item.createdAt || item.publishAt,
     updatedAt: item.updatedAt || item.publishAt,
-    platforms: successfulPlatforms.map((platform) => platform.platformCode),
-    postedImageContents: successfulPlatforms.map((platform) => ({
+    platforms: allPlatforms.map((platform) => platform.platformCode),
+    postedImageContents: allPlatforms.map((platform) => ({
       id: String(platform.id),
       platform: platform.platformCode,
       url: platform.postUrl || "",
@@ -437,6 +436,8 @@ const mapUploadHistoryToPostedContent = (
       deletedAt: null,
       createdAt: platform.createdAt || item.createdAt,
       updatedAt: platform.updatedAt || item.updatedAt,
+      jobStatus: platform.jobStatus,
+      errorMessage: platform.errorMessage || null,
     })),
   };
 };
@@ -544,7 +545,7 @@ const draftService = {
     filterQuery?: Partial<FilterQuery>
   ) => {
     return api
-      .get<BaseResponse<NewBusinessImageContent[]>>(
+      .get<BaseResponseFiltered<NewBusinessImageContent[]>>(
         `/business/image-content/${businessId}`,
         { params: filterQuery }
       )
@@ -555,7 +556,7 @@ const draftService = {
           data: (res.data.data || []).map(mapBusinessImageContent),
         },
       })) as unknown as ReturnType<
-      typeof api.get<BaseResponse<ImageContentRes[]>>
+      typeof api.get<BaseResponseFiltered<ImageContentRes[]>>
     >;
   },
 
@@ -606,31 +607,23 @@ const draftService = {
   },
 
   directPostFromDraft: (
-    _businessId: string,
-    _formData: DirectPostContentPld
+    businessId: string,
+    formData: DirectPostContentPld
   ) => {
-    void _businessId;
-    void _formData;
-    return Promise.resolve({
-      data: {
-        metaData: { code: 200, message: "OK" },
-        responseMessage: "DIRECT_POST_NOT_AVAILABLE",
-        data: [],
-      },
-    }) as unknown as ReturnType<
+    return api.post(
+      `/generative-content/image-post-common/${businessId}/direct-post`,
+      {
+        imagePostScheduleId: Number(formData.generatedImageContentId),
+        platforms: formData.platforms,
+      }
+    ) as unknown as ReturnType<
       typeof api.post<BaseResponse<DirectPostContentRes[]>>
     >;
   },
-  deleteDraft: (generatedImageContentId: string) => {
-    return Promise.resolve({
-      data: {
-        metaData: { code: 200, message: "OK" },
-        responseMessage: "DELETE_DRAFT_NOT_AVAILABLE",
-        data: { id: generatedImageContentId },
-      },
-    }) as unknown as ReturnType<
-      typeof api.delete<BaseResponse<DeleteContentRes>>
-    >;
+  deleteDraft: (businessId: string, generatedImageContentId: string) => {
+    return api.delete<BaseResponse<DeleteContentRes>>(
+      `/generative-content/image-post-scheduled/${businessId}/${generatedImageContentId}`
+    );
   },
 };
 
@@ -741,10 +734,11 @@ export const useContentDraftDirectPostFromDraft = () => {
   });
 };
 
-export const useContentDraftDeleteDraft = (generatedImageContentId: string) => {
+export const useContentDraftDeleteDraft = (businessId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => draftService.deleteDraft(generatedImageContentId),
+    mutationFn: (generatedImageContentId: string) =>
+      draftService.deleteDraft(businessId, generatedImageContentId),
     onSuccess: ({}) => {
       queryClient.invalidateQueries({
         queryKey: ["contentDraftGetAllDraftImage"],
@@ -867,7 +861,7 @@ const imagePostChatService = {
         avatarImageUrl: formData.avatarImageUrl || undefined,
         additionalImages: formData.additionalImages || [],
         prompt: formData.prompt,
-        ratio: formData.ratio || undefined,
+        imageRatio: formData.ratio || undefined,
         bubbleChatId: formData.bubbleChatId || undefined,
         rss: formData.rss || undefined,
       }
@@ -957,7 +951,7 @@ const postedService = {
     filterQuery?: Partial<FilterQuery>
   ) => {
     return api
-      .get<BaseResponse<NewImagePostUploadHistory[]>>(
+      .get<BaseResponseFiltered<NewImagePostUploadHistory[]>>(
         `/generative-content/image-post-common/${businessId}/upload-history`,
         { params: filterQuery }
       )
@@ -970,7 +964,7 @@ const postedService = {
           ),
         },
       })) as unknown as ReturnType<
-      typeof api.get<BaseResponse<PostedImageRes[]>>
+      typeof api.get<BaseResponseFiltered<PostedImageRes[]>>
     >;
   },
   repost: (businessId: string, formData: RepostContentPld) => {

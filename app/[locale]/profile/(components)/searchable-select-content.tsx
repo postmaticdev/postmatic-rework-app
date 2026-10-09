@@ -193,6 +193,7 @@ export function SearchableCountrySelect({
         type="button"
         role="combobox"
         aria-expanded={isOpen}
+        aria-controls="dropdown-listbox"
         aria-haspopup="listbox"
         className={cn(
           "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-base shadow-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm [&>span]:line-clamp-1",

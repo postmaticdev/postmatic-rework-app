@@ -16,6 +16,7 @@ export type AiModelSelectOption = {
   name: string;
   label?: string;
   description?: string;
+  image?: string | null;
 };
 
 type AiModelSelectProps = {
@@ -30,24 +31,26 @@ type AiModelSelectProps = {
   side?: "top" | "right" | "bottom" | "left";
 };
 
-function AiModelLogo({ size = "default" }: { size?: "default" | "sm" }) {
+export function AiModelLogo({ size = "default", imageUrl }: { size?: "default" | "sm", imageUrl?: string | null }) {
   const isSmall = size === "sm";
 
   return (
     <span
       className={cn(
         "flex shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5",
-        isSmall ? "h-5 w-5" : "h-6 w-6"
+        isSmall ? "h-5 w-5" : "h-6 w-6",
+        !imageUrl && "bg-white" // ensure background is white for default logo
       )}
     >
       <Image
-        src="/logoblue.png"
+        src={imageUrl || "/logoblue.png"}
         alt=""
         width={isSmall ? 14 : 16}
         height={isSmall ? 14 : 16}
         className={cn(
           "object-contain",
-          isSmall ? "h-3.5 w-3.5" : "h-4 w-4"
+          isSmall ? "h-3.5 w-3.5" : "h-4 w-4",
+          imageUrl && (isSmall ? "h-5 w-5" : "h-6 w-6") // Use full size if custom image
         )}
       />
     </span>
@@ -56,14 +59,16 @@ function AiModelLogo({ size = "default" }: { size?: "default" | "sm" }) {
 
 function AiModelLabel({
   label,
+  imageUrl,
   size = "default",
 }: {
   label: string;
+  imageUrl?: string | null;
   size?: "default" | "sm";
 }) {
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <AiModelLogo size={size} />
+      <AiModelLogo size={size} imageUrl={imageUrl} />
       <span className="truncate">{label}</span>
     </span>
   );
@@ -102,7 +107,7 @@ export function AiModelSelect({
           disabled={disabled || isLoading || models.length === 0}
         >
           {selectedOption ? (
-            <AiModelLabel label={selectedLabel} size={size} />
+            <AiModelLabel label={selectedLabel} size={size} imageUrl={selectedOption.image} />
           ) : (
             <span className="truncate text-muted-foreground">
               {selectedLabel}
@@ -134,7 +139,7 @@ export function AiModelSelect({
               )}
               onSelect={() => onSelectModel(model.name)}
             >
-              <AiModelLabel label={label} size={size} />
+              <AiModelLabel label={label} size={size} imageUrl={model.image} />
             </DropdownMenuItem>
           );
         })}

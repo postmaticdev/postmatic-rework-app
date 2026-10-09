@@ -110,6 +110,7 @@ interface NotificationContextProps {
     text: string,
     attachments?: NotificationAttachment[]
   ) => void;
+  loadTicketMessages: (ticketId: number) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextProps | undefined>(
@@ -375,7 +376,7 @@ function mapWebsiteMessage(message: WebsiteTicketMessage): ChatMessage {
 
 function mapWebsiteTicket(
   ticket: WebsiteTicket,
-  messages: WebsiteTicketMessage[] = [],
+  mappedMessages: ChatMessage[] = [],
   categoryNameById: Map<number, string> = new Map()
 ): TicketItem {
   const categoryName =
@@ -397,7 +398,6 @@ function mapWebsiteTicket(
     attachments: mapAttachments(ticket.attachments),
   };
 
-  const mappedMessages = messages.map(mapWebsiteMessage);
   const allMessages = [initialMessage, ...mappedMessages].sort(
     (a, b) =>
       timestampOf(a.createdAt) -
@@ -451,23 +451,14 @@ async function getWebsiteTicketRooms(queryClient: QueryClient) {
     getTicketCategoryNameById(queryClient).catch(() => new Map<number, string>()),
   ]);
   const tickets = response.data.data ?? [];
-
-  const details = await Promise.all(
-    tickets.map(async (ticket) => {
-      try {
-        const detail = await ticketService.getWebsiteTicketDetail(ticket.id);
-        return detail.data.data;
-      } catch {
-        return null;
-      }
-    })
-  );
+  const existingData = queryClient.getQueryData<TicketItem[]>(WEBSITE_TICKETS_QUERY_KEY) ?? [];
+  const existingMessagesMap = new Map(existingData.map(t => [t.remoteId, t.messages.slice(1)]));
 
   return sortTicketsByLatestActivity(
-    tickets.map((ticket, index) =>
+    tickets.map((ticket) =>
       mapWebsiteTicket(
         ticket,
-        details[index]?.messages ?? [],
+        (existingMessagesMap.get(ticket.id) as ChatMessage[]) ?? [],
         categoryNameById
       )
     )
@@ -656,6 +647,38 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       void refreshTickets();
     }, delay);
   }, [refreshTickets, shouldLoadWebsiteTickets]);
+  const loadTicketMessages = useCallback(async (ticketId: number) => {
+    try {
+      const response = await ticketService.getWebsiteTicketDetail(ticketId);
+      const detail = response.data.data;
+      if (!detail) return;
+
+      queryClient.setQueryData<TicketItem[]>(WEBSITE_TICKETS_QUERY_KEY, (old) => {
+        if (!old) return old;
+        return old.map(t => {
+          if (t.remoteId === ticketId) {
+            const initialMessage = t.messages[0];
+            const mappedMessages = (detail.messages ?? []).map(mapWebsiteMessage);
+            const allMessages = [initialMessage, ...mappedMessages].sort(
+              (a, b) => timestampOf(a.createdAt) - timestampOf(b.createdAt)
+            );
+            const lastMessage = allMessages[allMessages.length - 1];
+            const lastActivityAt = lastMessage?.createdAt ?? detail.ticket.updatedAt ?? detail.ticket.createdAt;
+            
+            return {
+              ...t,
+              updatedAt: detail.ticket.updatedAt ?? detail.ticket.createdAt,
+              lastActivityAt,
+              lastActivityTime: formatDateTime(lastActivityAt),
+              unreadMessages: toSafeCount(detail.ticket.unreadMessages),
+              messages: allMessages,
+            };
+          }
+          return t;
+        });
+      });
+    } catch {}
+  }, [queryClient]);
 
   const ticketTopicKey = useMemo(
     () =>
@@ -905,6 +928,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         refreshTickets,
         setTicketListEnabled,
         sendChatMessage,
+        loadTicketMessages,
       }}
     >
       {children}

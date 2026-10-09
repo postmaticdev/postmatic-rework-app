@@ -43,7 +43,7 @@ export default function ContentGenerate() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div
           className={cn(
-            "relative w-full overflow-y-auto border-r bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden",
+            "relative w-full overflow-y-auto scrollbar-hidden border-r bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden",
             mode === "regenerate" ? "hidden" : "w-full lg:w-1/3"
           )}
         >

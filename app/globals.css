@@ -282,3 +282,19 @@
     linear-gradient(rgba(96, 165, 250, 0.07) 1px, transparent 1px),
     linear-gradient(90deg, rgba(96, 165, 250, 0.07) 1px, transparent 1px);
 }
+
+input[type="time"]::-webkit-calendar-picker-indicator {
+  display: block;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+@keyframes aurora {
+  from {
+    background-position: 50% 50%, 50% 50%;
+  }
+  to {
+    background-position: 350% 50%, 350% 50%;
+  }
+}
+

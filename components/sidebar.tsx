@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname } from "@/i18n/navigation";
+import { useRouter, usePathname, Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 
 import {
@@ -11,22 +11,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { useAutoSchedulerAutosave } from "@/contexts/auto-scheduler-autosave-context";
 import { useTranslations } from "next-intl";
 import { ReportIssueModal } from "@/components/report-issue-modal";
 
 export function Sidebar() {
-  const router = useRouter();
   const pathname = usePathname();
   const { businessId } = useParams() as { businessId: string };
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const { guardedNavigate } = useAutoSchedulerAutosave();
-
-  const handleClick = (href: string) => {
-    const fullPath = `/business/${businessId}/${href}`;
-    guardedNavigate(fullPath, router.push);
-  };
 
   const t = useTranslations("sideBar");
 
@@ -47,7 +39,7 @@ export function Sidebar() {
       icon: Settings,
     },
   ];
-  
+
   const helpItems = [
     {
       name: t("reportIssue"),
@@ -102,8 +94,8 @@ export function Sidebar() {
                   animation: "fadeInUp 0.6s ease-out forwards",
                 }}
               >
-                <button
-                  onClick={() => handleClick(item.href)}
+                <Link
+                  href={`/business/${businessId}/${item.href}`}
                   onMouseEnter={() => setHoveredItem(item.href)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={cn(
@@ -119,7 +111,7 @@ export function Sidebar() {
                       isHovered && "scale-110"
                     )}
                   />
-                </button>
+                </Link>
 
                 {/* Tooltip */}
                 <div

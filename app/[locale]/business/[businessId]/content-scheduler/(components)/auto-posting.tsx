@@ -58,15 +58,11 @@ export function AutoPosting({ handleIfNoPlatformConnected }: AutoPostingProps) {
               <Switch
                 checked={globalEnabled}
                 onCheckedChange={(v) => {
-                  if (lenConnectedPlatform === 0) {
+                  if (v && lenConnectedPlatform === 0) {
                     handleIfNoPlatformConnected();
+                    return;
                   }
                   setGlobalEnabled(v);
-                }}
-                onClick={() => {
-                  if (lenConnectedPlatform === 0) {
-                    handleIfNoPlatformConnected();
-                  }
                 }}
               />
               <Button onClick={onUpsert} disabled={loading || !isValueChanged}>

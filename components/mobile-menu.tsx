@@ -25,9 +25,11 @@ import { cn } from "@/lib/utils";
 import {
   useAuthProfileGetProfile,
   useAuthProfileLogout,
+  useAuthProfileGetCurrentSession,
 } from "@/services/auth.api";
 import {
   ACCESS_TOKEN_KEY,
+  REFRESH_TOKEN_KEY,
   DEFAULT_USER_AVATAR,
   LOGIN_URL,
 } from "@/constants";
@@ -115,15 +117,22 @@ export function MobileMenu() {
   };
 
   const mLogout = useAuthProfileLogout();
+  const { data: currentSessionData } = useAuthProfileGetCurrentSession();
+  const currentSessionId = currentSessionData?.data?.data?.session?.id;
   const tToast = useTranslations();
   
   const handleLogout = async () => {
     try {
-      await mLogout.mutateAsync(undefined);
+      if (currentSessionId) {
+        await mLogout.mutateAsync(currentSessionId);
+      } else {
+        await mLogout.mutateAsync(undefined);
+      }
     } catch {
     } finally {
       showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
       localStorage.removeItem(ACCESS_TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
       window.location.href = LOGIN_URL;
     }

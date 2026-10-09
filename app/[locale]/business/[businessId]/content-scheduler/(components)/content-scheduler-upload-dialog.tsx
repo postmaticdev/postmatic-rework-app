@@ -23,7 +23,7 @@ import {
   useContentSchedulerManualAddToQueue,
   useContentSchedulerManualEditQueue,
 } from "@/services/content/content.api";
-import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
+import { usePlatformKnowledgeGetAll, useProductKnowledgeGetAll } from "@/services/knowledge.api";
 import { CalendarDays, Loader2, Send, Sparkles } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -56,6 +56,7 @@ export function ContentSchedulerUploadDialog({
   const t = useTranslations("contentScheduler");
   const locale = useLocale();
   const { data: platformsData } = usePlatformKnowledgeGetAll(businessId);
+  const { data: productsData } = useProductKnowledgeGetAll(businessId, undefined, isOpen);
   const scheduleMutation = useContentSchedulerManualAddToQueue();
   const editScheduleMutation = useContentSchedulerManualEditQueue();
   const enhanceCaptionMutation = useContentCaptionEnhance();
@@ -140,6 +141,7 @@ export function ContentSchedulerUploadDialog({
         businessId,
         formData: {
           imageUrl: image,
+          businessProductId: productsData?.data?.data?.[0]?.id ? Number(productsData.data.data[0].id) : undefined,
         },
       });
 

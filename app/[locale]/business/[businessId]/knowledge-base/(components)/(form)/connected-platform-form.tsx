@@ -58,10 +58,10 @@ export function ConnectedPlatformForm() {
 
   const handleDisconnect = async () => {
     try {
-      if (!platformToDisconnect) return;
+      if (!platformToDisconnect || !platformToDisconnect.id) return;
       const response = await mdDisconnectPlatform.mutateAsync({
         businessId,
-        platform: platformToDisconnect.platform,
+        platformId: platformToDisconnect.id,
       });
       showToast("success", response.data.responseMessage);
     } catch {}

@@ -677,7 +677,7 @@ function buildSchedulerChatJobs({
         ? referenceImage || referenceImages[0] || null
         : replyReferenceImages[0] || userImages[0] || userAdditionalImages[0] || null;
     const firstPromptImages = productImage ? [productImage] : [];
-    const firstPromptAdditionalImages: string[] = [];
+    const firstPromptAdditionalImages = productImage ? [] : userPromptImages;
     const resultImages =
       systemBubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
     const resultImageItemIds = (systemBubble?.images || [])
@@ -978,7 +978,7 @@ export const ContentGenerateProvider = ({
             (job) =>
               !serverJobIds.has(job.id) &&
               job.status !== "done" &&
-              job.status !== "error"
+              job.status !== "error" && String(job.rootBusinessId) === String(businessId)
           );
 
         return localPendingJobs.reduce(
@@ -1903,17 +1903,12 @@ export const ContentGenerateProvider = ({
     sort: "desc",
   });
 
-  // Fetch all data when category filter is applied, otherwise use normal pagination
   const savedApiQuery = useMemo(() => {
-    if (savedQuery.productCategory || savedQuery.category) {
-      // Fetch all data for client-side filtering and pagination
-      return {
-        ...savedQuery,
-        limit: 999, // Fetch all data
-        page: 1,
-      };
-    }
-    return savedQuery;
+    return {
+      ...savedQuery,
+      limit: 999,
+      page: 1,
+    };
   }, [savedQuery]);
 
   const { data: savedRes, isLoading: isLoadingSaved } =
@@ -1999,8 +1994,8 @@ export const ContentGenerateProvider = ({
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const page = Math.min(requestedPage, totalPages);
 
-    const start = (page - 1) * limit;
-    const end = start + limit;
+    const start = 0;
+    const end = page * limit;
     const paginatedData = allFilteredPublishedData.slice(start, end);
 
     const pagination: Pagination = {
@@ -2071,41 +2066,32 @@ export const ContentGenerateProvider = ({
     templateCategoriesData,
   ]);
 
-  // Apply client-side pagination when category filter is active
+  // Apply client-side pagination
   const { paginatedData: filteredSavedData, pagination: adjustedSavedPagination } = useMemo(() => {
-    // If category filter is applied, do client-side pagination
-    if (savedQuery.productCategory || savedQuery.category) {
-      const limit = savedQuery.limit || 10;
-      const page = savedQuery.page || 1;
-      const total = allFilteredSavedData.length;
-      const totalPages = Math.max(1, Math.ceil(total / limit));
-      
-      // Slice data for current page
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginatedData = allFilteredSavedData.slice(start, end);
-      
-      const pagination: Pagination = {
-        limit,
-        page,
-        total,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      };
-      
-      return { paginatedData, pagination };
-    }
+    const limit = savedQuery.limit || 10;
+    const page = savedQuery.page || 1;
+    const total = allFilteredSavedData.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
     
-    // Otherwise use server-side pagination
-    return { paginatedData: allFilteredSavedData, pagination: savedPagination };
+    // Slice data for current page from 0 to accumulate for infinite scroll
+    const start = 0;
+    const end = page * limit;
+    const paginatedData = allFilteredSavedData.slice(start, end);
+    
+    const pagination: Pagination = {
+      limit,
+      page,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+    
+    return { paginatedData, pagination };
   }, [
     allFilteredSavedData,
-    savedQuery.category,
-    savedQuery.productCategory,
     savedQuery.limit,
     savedQuery.page,
-    savedPagination,
   ]);
 
   const savedTemplates: ContentGenerateContext["savedTemplates"] = {
@@ -2366,12 +2352,22 @@ export const ContentGenerateProvider = ({
     const scheduleDate = searchParams.get("scheduleDate");
     const scheduleTime = searchParams.get("scheduleTime") || formatCurrentTimeInput();
 
-    if (!scheduleDate) return false;
-
-    const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
-    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
-      showToast("error", t("contentGenerateScheduler.scheduleTimePassed"));
-      return true;
+    let scheduledAt: Date;
+    if (scheduleDate) {
+      scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      if (Number.isNaN(scheduledAt.getTime())) {
+        showToast("error", t("contentGenerateScheduler.scheduleTimePassed"));
+        return true;
+      }
+    } else {
+      scheduledAt = new Date();
+    }
+    
+    const currentDate = new Date();
+    if (scheduledAt <= currentDate) {
+      currentDate.setMinutes(currentDate.getMinutes() + 1);
+      currentDate.setSeconds(0, 0);
+      scheduledAt = currentDate;
     }
 
     if (!form.basic.productKnowledgeId) {
@@ -2396,7 +2392,7 @@ export const ContentGenerateProvider = ({
           formData: {
             caption: "",
             platforms: [],
-            dateTime: new Date(`${scheduleDate}T${scheduleTime}`).toISOString(),
+            dateTime: scheduledAt.toISOString(),
             status: "draft",
             withChatAI: true,
             shareAsReference: true,
@@ -2538,7 +2534,7 @@ export const ContentGenerateProvider = ({
     upsertSchedulerDraftMarker(businessId, {
       draftId: String(draft.id),
       jobId: pendingJobId,
-      date: scheduleDate,
+      date: scheduleDate || "",
       time: scheduleTime,
       image: form.basic.productImage || "",
       caption: form.basic.caption || "",
@@ -2650,7 +2646,7 @@ export const ContentGenerateProvider = ({
     upsertSchedulerDraftMarker(businessId, {
       draftId: String(draft.id),
       jobId: chatJob.id,
-      date: scheduleDate,
+      date: scheduleDate || "",
       time: scheduleTime,
       image: images[0] || form.basic.productImage || "",
       caption: form.basic.caption || "",
@@ -2670,7 +2666,7 @@ export const ContentGenerateProvider = ({
           imageUrl: images[0],
           caption: form.basic.caption || "",
           platforms: [],
-          dateTime: new Date(`${scheduleDate}T${scheduleTime}`).toISOString(),
+          dateTime: scheduledAt.toISOString(),
           status: "draft",
           withChatAI: true,
           shareAsReference: true,
@@ -2718,7 +2714,7 @@ export const ContentGenerateProvider = ({
       const selectedAvatarImages = form.basic.selectedAvatars.map(
         (avatar) => avatar.imageUrl
       );
-      const handledBySchedulerChat = await submitSchedulerChatGenerate(
+      await submitSchedulerChatGenerate(
         effMode,
         overrides?.additionalImages || [],
         {
@@ -2727,278 +2723,9 @@ export const ContentGenerateProvider = ({
           imageSize: effectiveImageSize,
         }
       );
-      if (handledBySchedulerChat) return;
-
-      switch (effMode) {
-        case "knowledge":
-          const resKnowledge = await mGenerateKnowledge.mutateAsync({
-            businessId,
-            formData: {
-              designStyle:
-                form.basic.designStyle === "other"
-                  ? form.basic.customDesignStyle
-                  : form.basic.designStyle,
-              category:
-                form.basic.category === "other"
-                  ? form.basic.customCategory
-                  : form.basic.category,
-              advancedGenerate: form.advance,
-              ratio: effectiveRatio,
-              prompt: form.basic.prompt,
-              productKnowledgeId: form.basic.productKnowledgeId,
-              referenceImage: form.basic.referenceImage,
-              additionalImages: selectedAvatarImages,
-              model: effectiveModel,
-              imageSize: effectiveImageSize,
-            },
-          });
-
-          const knowledgeJobId = resKnowledge.data.data.jobId;
-          const knowledgeChatSessionId =
-            resKnowledge.data.data.chatSessionId ?? null;
-
-          await afterSubmitGenerate(knowledgeJobId, {
-            id: knowledgeJobId,
-            type: "knowledge",
-            rootBusinessId: businessId,
-            status: "processing",
-            stage: "processing",
-            progress: 10,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            input: {
-              rss: null,
-              ratio: effectiveRatio,
-              prompt: form.basic.prompt,
-              caption: form.basic.caption,
-              chatSessionId: knowledgeChatSessionId,
-              additionalImages: selectedAvatarImages,
-              category:
-                form.basic.category === "other"
-                  ? form.basic.customCategory
-                  : form.basic.category,
-              designStyle:
-                form.basic.designStyle === "other"
-                  ? form.basic.customDesignStyle
-                  : form.basic.designStyle || "",
-              referenceImage: form.basic.referenceImage,
-              advancedGenerate: form.advance,
-              productKnowledgeId: form.basic.productKnowledgeId,
-              model: effectiveModel,
-              imageSize: effectiveImageSize,
-            },
-            error: null,
-            product: {
-              name: form.basic.productName,
-              description: "",
-              category: "",
-              currency: "IDR",
-              price: 0,
-              images: form.basic.productImage ? [form.basic.productImage] : [],
-            },
-            result: null,
-          });
-
-          showToast(
-            "success",
-            t("toast.contentGeneration.waiting")
-          );
-          break;
-        case "rss":
-          if (!form.rss) {
-            showToast("error", t("toast.validation.selectRSS"));
-            return;
-          }
-          const resRss = await mGenerateRss.mutateAsync({
-            businessId,
-            formData: {
-              productKnowledgeId: form.basic.productKnowledgeId,
-              referenceImage: form.basic.referenceImage,
-              ratio: effectiveRatio,
-              prompt: form.basic.prompt,
-              designStyle:
-                form.basic.designStyle === "other"
-                  ? form.basic.customDesignStyle
-                  : form.basic.designStyle,
-              category:
-                form.basic.category === "other"
-                  ? form.basic.customCategory
-                  : form.basic.category,
-              advancedGenerate: form.advance,
-              rss: form.rss,
-              additionalImages: selectedAvatarImages,
-              model: effectiveModel,
-              imageSize: effectiveImageSize,
-            },
-          });
-
-          const rssJobId = resRss?.data?.data?.jobId;
-          const rssChatSessionId = resRss?.data?.data?.chatSessionId ?? null;
-
-          await afterSubmitGenerate(rssJobId, {
-            id: rssJobId,
-            type: "rss",
-            rootBusinessId: businessId,
-            status: "processing",
-            stage: "processing",
-            progress: 10,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            input: {
-              rss: form.rss,
-              ratio: effectiveRatio,
-              prompt: form.basic.prompt,
-              caption: form.basic.caption,
-              chatSessionId: rssChatSessionId,
-              additionalImages: selectedAvatarImages,
-              category:
-                form.basic.category === "other"
-                  ? form.basic.customCategory
-                  : form.basic.category,
-              designStyle:
-                form.basic.designStyle === "other"
-                  ? form.basic.customDesignStyle
-                  : form.basic.designStyle || "",
-              referenceImage: form.basic.referenceImage,
-              advancedGenerate: form.advance,
-              productKnowledgeId: form.basic.productKnowledgeId,
-              model: effectiveModel,
-              imageSize: effectiveImageSize,
-            },
-            error: null,
-            product: {
-              name: form.basic.productName,
-              description: "",
-              category: "",
-              currency: "IDR",
-              price: 0,
-              images: form.basic.productImage ? [form.basic.productImage] : [],
-            },
-            result: null,
-          });
-
-          showToast(
-            "success",
-            t("toast.contentGeneration.waiting")
-          );
-          break;
-        case "regenerate":
-          if (
-            !selectedHistory ||
-            !(selectedGeneratedImageUrl || selectedHistory.result?.images[0])
-          ) {
-            showToast("error", t("toast.validation.selectHistory"));
-            return;
-          }
-          const regenerateReferenceImage =
-            selectedGeneratedImageUrl || selectedHistory.result?.images[0] || "";
-          const regeneratePrompt = form.basic.prompt || "";
-          const regenerateCaption = form.basic.caption || "";
-          const resRegenerate = await mGenerateKnowledge.mutateAsync({
-            businessId,
-            formData: {
-              productKnowledgeId: selectedHistory.input.productKnowledgeId,
-              designStyle:
-                (form.basic.designStyle === "other"
-                  ? form.basic.customDesignStyle
-                  : form.basic.designStyle) || "",
-              category:
-                (form.basic.category === "other"
-                  ? form.basic.customCategory
-                  : form.basic.category) || "",
-              advancedGenerate: form.advance,
-              referenceImage: regenerateReferenceImage,
-              prompt: regeneratePrompt,
-              additionalImages: Array.from(
-                new Set([
-                  ...(selectedHistory.input.additionalImages || []),
-                  ...selectedAvatarImages,
-                ].filter(Boolean))
-              ),
-              ratio: effectiveRatio,
-              model: effectiveModel,
-              imageSize: effectiveImageSize,
-            },
-          });
-
-          const regenerateJobId = resRegenerate.data.data.jobId;
-          const regenerateChatSessionId =
-            resRegenerate.data.data.chatSessionId ?? null;
-
-          await afterSubmitGenerate(regenerateJobId, {
-            ...selectedHistory,
-            id: regenerateJobId,
-            type: "regenerate",
-            status: "processing",
-            stage: "processing",
-            progress: 10,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            input: {
-              ...selectedHistory.input,
-              prompt: regeneratePrompt,
-              caption: regenerateCaption,
-              chatSessionId:
-                regenerateChatSessionId ?? selectedHistory.input.chatSessionId,
-              referenceImage: regenerateReferenceImage,
-              ratio: effectiveRatio,
-              model: effectiveModel,
-              imageSize: effectiveImageSize,
-            },
-            result: null,
-            error: null,
-          });
-          setFormBasic((prev) => ({ ...prev, prompt: "" }));
-
-          showToast(
-            "success",
-            t("toast.contentGeneration.waiting")
-          );
-          break;
-        case "mask":
-          if (!form.mask && !overrides?.maskUrl) {
-            showToast("error", t("toast.validation.selectMask"));
-            return;
-          }
-          if (!selectedHistory) {
-            showToast("error", t("toast.validation.selectHistory"));
-            return;
-          }
-          const resMask = await mGenerateMask.mutateAsync({
-            businessId,
-            formData: {
-              mask: form.mask || overrides?.maskUrl || "",
-              prompt: form.basic.prompt || "",
-              referenceImage:
-                selectedGeneratedImageUrl ||
-                selectedHistory?.result?.images[0] ||
-                "",
-              caption:
-                form.basic.caption || selectedHistory?.result?.caption || "",
-              ratio: effectiveRatio,
-              designStyle:
-                (form.basic.designStyle === "other"
-                  ? form.basic.customDesignStyle
-                  : form.basic.designStyle) || "",
-              category:
-                (form.basic.category === "other"
-                  ? form.basic.customCategory
-                  : form.basic.category) || "",
-              productKnowledgeId:
-                selectedHistory?.result?.productKnowledgeId || "",
-              model: effectiveModel,
-              imageSize: effectiveImageSize,
-            },
-          });
-          await afterSubmitGenerate(resMask?.data?.data?.jobId);
-          showToast(
-            "success",
-            t("toast.contentGeneration.waiting")
-          );
-          break;
-        default:
-          break;
-      }
+    } catch (error) {
+      console.error(error);
+      showToast("error", typeof t === "function" ? t("toast.contentGeneration.failed") : "Generation failed");
     } finally {
       setIsLoading(false);
     }

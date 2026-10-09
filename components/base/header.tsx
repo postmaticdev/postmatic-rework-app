@@ -36,16 +36,7 @@ function BusinessDropdownLogo({
   size: string;
   className?: string;
 }) {
-  const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(
-    business.id
-  );
-
-  const knowledgeLogo =
-    businessKnowledgeData?.data?.data?.primaryLogo ||
-    businessKnowledgeData?.data?.data?.primaryLogoUrl ||
-    "";
-  const businessImage =
-    knowledgeLogo || business.logo || DEFAULT_BUSINESS_IMAGE;
+  const businessImage = business.logo || DEFAULT_BUSINESS_IMAGE;
 
   return (
     <Image
@@ -98,7 +89,7 @@ export function Header() {
     const segments = pathname.split("?")[0].split("/").filter(Boolean);
     const i = segments.indexOf("business");
 
-    if (i === -1) {
+    if (i === -1 || segments[i + 1] === "new-business") {
       return `/business/${targetId}`;
     }
     if (segments[i + 1]) {
@@ -113,7 +104,6 @@ export function Header() {
   };
 
   const onBusinessChange = (targetBusinessId: string) => {
-    queryClient.clear(); // bersihkan cache TanStack
     router.push(buildBusinessPath(targetBusinessId));
     router.refresh(); // <- aktifkan kalau perlu refetch RSC
   };
@@ -132,11 +122,10 @@ export function Header() {
 
     const hasBusinesses = businesses.length > 0;
 
-    // Check if isNewBusiness=true is in the URL
-    const isNewBusiness = searchParams.get("isNewBusiness") === "true";
-
-    // Skip redirect if isNewBusiness=true
-    if (isNewBusiness) return;
+    // Allow new business flows to proceed unhindered
+    if (pathname.startsWith("/business/new-business")) {
+      return;
+    }
 
     // Kalau bukan halaman ber-scope bisnis, tidak usah apa-apa
     if (!pathname.startsWith("/business")) return;
@@ -211,57 +200,44 @@ export function Header() {
                       <div className="truncate text-xl font-medium leading-6 text-foreground">
                         {currentBusiness.name}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          router.push(
-                            buildSettingsPath(currentBusiness.id, "billing")
-                          )
-                        }
+                      <Link
+                        href={buildSettingsPath(currentBusiness.id, "billing")}
                         className="block text-sm leading-4 text-blue-600 hover:text-blue-700"
                       >
                         Pay as you go
-                      </button>
+                      </Link>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <Button
-                      type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        router.push(
-                          buildSettingsPath(currentBusiness.id, "overview")
-                        )
-                      }
-
+                      asChild
                     >
-                      <BarChart3 className="h-4 w-4 text-foreground" />
-                      Overview
+                      <Link href={buildSettingsPath(currentBusiness.id, "overview")}>
+                        <BarChart3 className="h-4 w-4 text-foreground" />
+                        Overview
+                      </Link>
                     </Button>
                     <Button
-                      type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        router.push(
-                          buildSettingsPath(currentBusiness.id, "workspace")
-                        )
-                      }
+                      asChild
                     >
-                      <Users className="h-4 w-4 text-foreground" />
-                      People
+                      <Link href={buildSettingsPath(currentBusiness.id, "workspace")}>
+                        <Users className="h-4 w-4 text-foreground" />
+                        People
+                      </Link>
                     </Button>
                   </div>
 
                   {otherBusinesses.length > 0 && (
                     <div className="-mx-2 mt-3 border-t border-border">
                       {otherBusinesses.map((business) => (
-                        <button
-                          type="button"
+                        <Link
                           key={business.id}
-                          onClick={() => onBusinessChange(business.id)}
+                          href={buildBusinessPath(business.id)}
                           className={cn(
                             "flex w-full border-b items-center  gap-3 p-2 text-left font-normal text-foreground outline-none transition-colors hover:bg-accent focus:bg-accent",
                             currentBusiness.id === business.id && "bg-accent"
@@ -276,17 +252,19 @@ export function Header() {
                           <span className="min-w-0 truncate">
                             {business.name}
                           </span>
-                        </button>
+                        </Link>
                       ))}
                     </div>
                   )}
 
                   <Button
-                    onClick={() => router.push("/business/new-business")}
+                    asChild
                     className="mt-2 h-9 w-full justify-center rounded-md bg-blue-600 font-normal text-white hover:bg-blue-700"
                   >
-                    <Plus className="h-4 w-4" />
-                    Create Workspace
+                    <Link href="/business/new-business">
+                      <Plus className="h-4 w-4" />
+                      Create Workspace
+                    </Link>
                   </Button>
                 </div>
               </DropdownMenuContent>
