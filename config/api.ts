@@ -144,7 +144,7 @@ export function adoptCookieSession() {
 // ===== Session cleanup & redirect ke halaman login =====
 
 const AUTH_REDIRECT_LOG_KEY = "postmaticAuthRedirectLog";
-const AUTH_REDIRECT_WINDOW_MS = 60_000;
+const AUTH_REDIRECT_WINDOW_MS = 5 * 60_000;
 const AUTH_REDIRECT_MAX = 3;
 const CLEAR_SESSION_TIMEOUT_MS = 3_000;
 
