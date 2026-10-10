@@ -82,17 +82,13 @@ const useCheckBusiness = () => {
         })
         .catch((error) => {
           console.log("error", error);
-          const is404 = error?.response?.status === 404;
-          if (is404) {
-            router.replace("/business/new-business");
-          } else {
-            router.replace("/business");
-          }
+          // Redirect to new-business on error since backend may return 500 for new users
+          router.replace("/business/new-business");
         });
 
       console.log("done");
     };
 
     run();
-  }, [queryClient, router]);
+  }, []);
 };
