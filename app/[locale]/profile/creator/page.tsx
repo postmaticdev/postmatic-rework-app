@@ -292,16 +292,16 @@ export default function CreatorPage() {
               </div>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm px-6 py-2.5 rounded-lg font-medium">
+                  <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm font-medium">
                     <Plus className="h-4 w-4 mr-2" />
                     Buat Desain
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent size="sm">
                   <DialogHeader>
                     <DialogTitle>Buat Desain Baru</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 p-6">
+                  <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4">
                     {/* Upload Design */}
                     <UploadPhoto
                       label="Unggah Desain"
@@ -336,7 +336,7 @@ export default function CreatorPage() {
                           placeholder="Tambah kata kunci"
                           onKeyPress={(e) => e.key === "Enter" && addKeyword()}
                         />
-                        <Button type="button" onClick={addKeyword} size="sm">
+                        <Button type="button" onClick={addKeyword} size="icon">
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
@@ -415,7 +415,7 @@ export default function CreatorPage() {
                 placeholder="Cari desain, template, atau kata kunci..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 py-3 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-xl"
+                className="pl-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
               />
             </div>
           </CardHeader>
@@ -433,9 +433,9 @@ export default function CreatorPage() {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <Button
-                        size="sm"
+                        size="icon-sm"
                         variant="secondary"
-                        className="h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm"
+                        className="bg-white/90 hover:bg-white shadow-sm"
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
@@ -456,44 +456,44 @@ export default function CreatorPage() {
             <div className="flex justify-center items-center mt-8 space-x-1">
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100"
+                size="icon-sm"
+                className="hover:bg-gray-100"
               >
                 <span className="text-gray-500">‹</span>
               </Button>
               <Button
                 variant="default"
-                size="sm"
-                className="h-9 w-9 p-0 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium"
+                size="icon-sm"
+                className="bg-blue-600 hover:bg-blue-700 font-medium"
               >
                 1
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100 text-gray-700"
+                size="icon-sm"
+                className="hover:bg-gray-100 text-gray-700"
               >
                 2
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100 text-gray-700"
+                size="icon-sm"
+                className="hover:bg-gray-100 text-gray-700"
               >
                 3
               </Button>
               <span className="text-gray-400 px-2">...</span>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100 text-gray-700"
+                size="icon-sm"
+                className="hover:bg-gray-100 text-gray-700"
               >
                 29
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100"
+                size="icon-sm"
+                className="hover:bg-gray-100"
               >
                 <span className="text-gray-500">›</span>
               </Button>
@@ -514,7 +514,7 @@ export default function CreatorPage() {
                 </p>
               </div>
               <Select defaultValue="all-status">
-                <SelectTrigger className="w-40 rounded-lg border-gray-200">
+                <SelectTrigger className="w-full sm:w-40 border-gray-200">
                   <SelectValue placeholder="Semua Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -528,7 +528,7 @@ export default function CreatorPage() {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 placeholder="Cari berdasarkan nama, email, atau kode referral..."
-                className="pl-12 py-3 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 rounded-xl"
+                className="pl-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
               />
             </div>
           </CardHeader>
@@ -593,8 +593,8 @@ export default function CreatorPage() {
                       <td className="py-4">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 hover:bg-gray-100 rounded-lg"
+                          size="icon-sm"
+                          className="hover:bg-gray-100"
                         >
                           <MoreHorizontal className="h-4 w-4 text-gray-500" />
                         </Button>
@@ -608,44 +608,44 @@ export default function CreatorPage() {
             <div className="flex justify-center items-center mt-8 space-x-1">
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100"
+                size="icon-sm"
+                className="hover:bg-gray-100"
               >
                 <span className="text-gray-500">‹</span>
               </Button>
               <Button
                 variant="default"
-                size="sm"
-                className="h-9 w-9 p-0 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium"
+                size="icon-sm"
+                className="bg-blue-600 hover:bg-blue-700 font-medium"
               >
                 1
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100 text-gray-700"
+                size="icon-sm"
+                className="hover:bg-gray-100 text-gray-700"
               >
                 2
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100 text-gray-700"
+                size="icon-sm"
+                className="hover:bg-gray-100 text-gray-700"
               >
                 3
               </Button>
               <span className="text-gray-400 px-2">...</span>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100 text-gray-700"
+                size="icon-sm"
+                className="hover:bg-gray-100 text-gray-700"
               >
                 29
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-9 w-9 p-0 rounded-lg hover:bg-gray-100"
+                size="icon-sm"
+                className="hover:bg-gray-100"
               >
                 <span className="text-gray-500">›</span>
               </Button>
@@ -697,7 +697,7 @@ export default function CreatorPage() {
               </div>
             </div>
 
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-medium shadow-sm">
+            <Button className="w-full bg-blue-600 hover:bg-blue-700 font-medium shadow-sm">
               Request Withdrawal
             </Button>
 
@@ -732,8 +732,8 @@ export default function CreatorPage() {
                       <p className="text-xs text-gray-500">11/29/2024</p>
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        size="icon-sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <ArrowRight className="h-3 w-3 text-gray-400" />
                       </Button>
@@ -761,8 +761,8 @@ export default function CreatorPage() {
                       <p className="text-xs text-gray-500">12/19/2024</p>
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        size="icon-sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <ArrowRight className="h-3 w-3 text-gray-400" />
                       </Button>

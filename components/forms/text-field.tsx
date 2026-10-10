@@ -27,7 +27,7 @@ export function TextField({
   onFocus
 }: TextFieldProps) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <Label className="text-sm font-medium text-foreground">{label}</Label>
       {multiline ? (
         <Textarea

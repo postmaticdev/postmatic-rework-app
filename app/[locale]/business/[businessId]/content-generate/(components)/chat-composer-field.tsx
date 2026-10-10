@@ -81,8 +81,8 @@ export function ChatComposerField({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-md border border-border bg-card hover:bg-card/80"
+                size="icon-sm"
+                className="shrink-0 border border-border bg-card hover:bg-card/80"
                 disabled={disabled || isUploadingAttachment}
               >
                 {isUploadingAttachment ? (
@@ -139,7 +139,8 @@ export function ChatComposerField({
               type="button"
               onClick={onSubmit}
               disabled={disabled || !canSubmit}
-              className="h-8 w-8 shrink-0 rounded-full p-0"
+              size="icon-sm"
+              className="shrink-0 rounded-full"
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -158,8 +159,8 @@ export function ChatComposerField({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-md border border-border bg-card hover:bg-card/80"
+                size="icon-sm"
+                className="shrink-0 border border-border bg-card hover:bg-card/80"
                 disabled={disabled || isUploadingAttachment}
               >
                 {isUploadingAttachment ? (
@@ -205,7 +206,8 @@ export function ChatComposerField({
               type="button"
               onClick={onSubmit}
               disabled={disabled || !canSubmit}
-              className="h-8 w-8 shrink-0 rounded-full p-0"
+              size="icon-sm"
+              className="shrink-0 rounded-full"
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

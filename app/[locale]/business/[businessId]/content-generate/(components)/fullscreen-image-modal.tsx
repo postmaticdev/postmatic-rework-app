@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "../../../../../../components/ui/textarea";
 import { useContentGenerate } from "@/contexts/content-generate-context";
@@ -1078,7 +1079,7 @@ export function FullscreenImageModal({
           <Button
             variant="ghost"
             size="icon"
-            className="touch-manipulation h-10 w-10"
+            className="touch-manipulation"
             onClick={handleUndo}
             disabled={historyIndex <= 0}
             aria-label="Undo"
@@ -1089,7 +1090,7 @@ export function FullscreenImageModal({
           <Button
             variant="ghost"
             size="icon"
-            className="touch-manipulation h-10 w-10"
+            className="touch-manipulation"
             onClick={handleRedo}
             disabled={historyIndex >= history.length - 1}
             aria-label="Redo"
@@ -1102,7 +1103,7 @@ export function FullscreenImageModal({
           <Button
             variant="ghost"
             size="icon"
-            className="touch-manipulation h-10 w-10"
+            className="touch-manipulation"
             onClick={handleDownload}
             aria-label="Download highlighted image"
             title="Download highlighted image"
@@ -1115,7 +1116,7 @@ export function FullscreenImageModal({
           <Button
             variant="ghost"
             size="icon"
-            className="touch-manipulation h-10 w-10"
+            className="touch-manipulation"
             onClick={onClose}
             aria-label="Close"
           >
@@ -1295,29 +1296,29 @@ export function FullscreenImageModal({
           {/* AI Model and Ratio Dropdowns */}
           <div className="grid grid-cols-2 gap-3">
             {/* AI Model */}
-            <div>
-              <label className="block text-xs font-medium mb-1.5">AI Model</label>
-              <select
+            <div className="space-y-2">
+              <label className="block text-xs font-medium">AI Model</label>
+              <NativeSelect
                 className={cn(
-                  "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring cursor-not-allowed opacity-60",
+                  "bg-background-secondary cursor-not-allowed opacity-60",
                   isLoading
                 )}
                 disabled={true}
                 value="gpt-image-1"
               >
                 <option value="gpt-image-1">GPT Image 1</option>
-              </select>
+              </NativeSelect>
               <p className="text-xs text-muted-foreground mt-1">
                 Saat ini fitur mask hanya ada di model GPT Image 1
               </p>
             </div>
 
             {/* Aspect Ratio */}
-            <div>
-              <label className="block text-xs font-medium mb-1.5">{t("generationPanel.aspectRatio")}</label>
-              <select
+            <div className="space-y-2">
+              <label className="block text-xs font-medium">{t("generationPanel.aspectRatio")}</label>
+              <NativeSelect
                 className={cn(
-                  "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
+                  "bg-background-secondary",
                   isLoading
                 )}
                 disabled={isLoading}
@@ -1332,7 +1333,7 @@ export function FullscreenImageModal({
                     {option}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           </div>
 

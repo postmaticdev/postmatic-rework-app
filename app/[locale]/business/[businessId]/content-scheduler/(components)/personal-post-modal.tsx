@@ -87,7 +87,7 @@ export function PersonalPostModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
           <div className="flex flex-col w-full gap-6 items-start">
             <UploadPhoto
               label="Photo"

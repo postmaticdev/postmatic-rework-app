@@ -171,9 +171,9 @@ export function MobileMenu() {
       {/* Burger Button */}
       <Button
         variant="ghost"
-        size="sm"
+        size="icon"
         onClick={() => setIsOpen(true)}
-        className="md:hidden p-2 hover:bg-muted"
+        className="md:hidden hover:bg-muted"
         aria-label="Buka menu"
       >
         <Menu className="h-5 w-5" />
@@ -196,9 +196,8 @@ export function MobileMenu() {
                 <h2 className="text-lg font-semibold">Menu</h2>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={() => setIsOpen(false)}
-                  className="p-2"
                 >
                   <X className="h-5 w-5" />
                 </Button>
@@ -232,9 +231,9 @@ export function MobileMenu() {
                   {/* Theme Toggle Button */}
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="icon-sm"
                     onClick={() => handleThemeToggle(!isDarkMode)}
-                    className="p-2 h-8 w-8 border-border hover:bg-muted transition-all duration-200 rounded-lg"
+                    className="border-border hover:bg-muted transition-all duration-200"
                     aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
                   >
                     {isDarkMode ? (
@@ -266,17 +265,19 @@ export function MobileMenu() {
                          <span className="text-xs text-muted-foreground">{tSideBar("token")}</span>
                        </div>
                      </div>
-                     <button
+                     <Button
+                       type="button"
+                       size="icon-sm"
                        onClick={() => {
                          router.push(
                            `/business/${businessId}/settings?tab=billing&topUp=token`
                          );
                          setIsOpen(false);
                        }}
-                       className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
+                       className="bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
                      >
                        <Plus className="w-4 h-4 text-white" />
-                     </button>
+                     </Button>
                    </div>
                  </div>
                )}

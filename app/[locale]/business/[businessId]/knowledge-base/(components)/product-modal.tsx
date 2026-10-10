@@ -79,7 +79,7 @@ export function ProductModal({
         </DialogHeader>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
 
 
           <div className="space-y-6">
@@ -121,24 +121,26 @@ export function ProductModal({
               rows={3}
               error={errors.description}
             />
-            <Label className="text-sm font-medium text-foreground mb-1">
-              {t("price")}
-            </Label>
-            <div className="flex w-full gap-6 items-start justify-between">
-              <CurrencyDropdown
-                value={formValue.currency}
-                onChange={(value) => updateField("currency", value)}
-                placeholder={placeholders.currency}
-                error={errors.currency}
-              />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">
+                {t("price")}
+              </Label>
+              <div className="flex w-full gap-6 items-start justify-between">
+                <CurrencyDropdown
+                  value={formValue.currency}
+                  onChange={(value) => updateField("currency", value)}
+                  placeholder={placeholders.currency}
+                  error={errors.currency}
+                />
 
-              <PriceInput
-                value={formValue.price}
-                onChange={(value) => updateField("price", value)}
-                placeholder={placeholders.price}
-                currency={formValue.currency || "IDR"}
-                error={errors.price}
-              />
+                <PriceInput
+                  value={formValue.price}
+                  onChange={(value) => updateField("price", value)}
+                  placeholder={placeholders.price}
+                  currency={formValue.currency || "IDR"}
+                  error={errors.price}
+                />
+              </div>
             </div>
           </div>
         </div>

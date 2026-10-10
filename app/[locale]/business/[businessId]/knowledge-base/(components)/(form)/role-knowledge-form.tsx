@@ -80,7 +80,7 @@ export function RoleKnowledgeForm() {
         <label className="text-sm font-medium text-foreground">
           {finalLabels.hashtags}
         </label>
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2">
           <Input
             value={currentHashtag}
             onChange={(e) => setCurrentHashtag(e.target.value)}
@@ -95,7 +95,7 @@ export function RoleKnowledgeForm() {
               }
             }}
           />
-          <Button type="button" onClick={addHashtag} className="px-3">
+          <Button type="button" onClick={addHashtag} size="icon">
             <Plus className="w-4 h-4" color="white" />
           </Button>
         </div>

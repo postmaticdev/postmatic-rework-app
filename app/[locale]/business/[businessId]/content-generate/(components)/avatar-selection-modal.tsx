@@ -134,7 +134,7 @@ export function AvatarSelectionModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+        <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:p-6">
           <div className="flex overflow-x-auto rounded-lg bg-card p-1">
             {([
               { id: "knowledge", label: t("avatarTabKnowledge") },

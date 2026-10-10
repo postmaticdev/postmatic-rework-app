@@ -919,7 +919,7 @@ export function PreviewPanel() {
                   onChange={(e) => {
                     form.setBasic({ ...form.basic, caption: e.target.value });
                   }}
-                  className="min-h-[100px] w-full resize-none border-none bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none text-sm placeholder:text-muted-foreground/70"
+                  className="min-h-[100px] w-full resize-none border-none bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none placeholder:text-muted-foreground/70"
                   placeholder={
                     selectedHistory ? t("captionWillShowHere") : t("writeCaption")
                   }
@@ -927,9 +927,9 @@ export function PreviewPanel() {
                 {selectedHistory && (
                   <Button
                     type="button"
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-transparent"
+                    className="absolute bottom-0 right-0 rounded-full text-muted-foreground hover:text-primary hover:bg-transparent"
                     onClick={() => void handleEnhanceCaption()}
                     disabled={!canEnhanceCaption}
                     title={t("enhanceCaption")}
@@ -950,8 +950,8 @@ export function PreviewPanel() {
 
 
         {!schedulerMode && (
-          <div className="p-4 border-b lg:border-none flex flex-col mb-2">
-            <label className="block text-sm font-medium mb-2">
+          <div className="p-4 border-b lg:border-none flex flex-col space-y-2 mb-2">
+            <label className="block text-sm font-medium">
               {t("optimizePrompt")}
             </label>
             <Textarea
@@ -960,7 +960,7 @@ export function PreviewPanel() {
               onChange={(e) =>
                 form.setBasic({ ...form.basic, prompt: e.target.value })
               }
-              className="min-h-[60px] max-h-[120px] resize-none border-border text-sm focus:ring-0 p-4"
+              className="min-h-[60px] max-h-[120px] resize-none border-border focus:ring-0"
               placeholder={t("writeOptimizePrompt")}
             />
           </div>
@@ -972,7 +972,8 @@ export function PreviewPanel() {
           <div className="flex w-full gap-4">
             <Button
               variant="outline"
-              className="w-full h-14"
+              size="lg"
+              className="w-full"
               disabled={isLoading}
               onClick={() => onSelectHistory(null)}
             >
@@ -983,7 +984,8 @@ export function PreviewPanel() {
         )}
         <Button
           onClick={handleGenerateClick}
-          className="w-full h-14 bg-blue-500 hover:bg-blue-600 text-white"
+          size="lg"
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white"
           disabled={isLoading}
         >
           <WandSparkles className="h-5 w-5" />

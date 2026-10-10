@@ -183,7 +183,7 @@ export function MemberManagementModal({
           </DialogHeader>
 
           {/* Body - Scrollable */}
-          <div className="flex-1 overflow-y-auto space-y-6 p-6">
+          <div className="flex-1 overflow-y-auto space-y-6 px-4 py-4 sm:p-6">
             {/* Add New Member Section */}
             <Card>
               <CardContent className="p-6">
@@ -278,7 +278,7 @@ export function MemberManagementModal({
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-auto p-0 font-normal sm:h-9 sm:w-full sm:justify-start sm:px-3"
+                                      className="font-normal sm:w-full sm:justify-start"
                                       disabled={mUpdateRole.isPending}
                                     >
                                       <Shield className="h-4 w-4 mr-1" />
@@ -303,7 +303,7 @@ export function MemberManagementModal({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-auto p-0 font-normal sm:h-9 sm:w-full sm:justify-start sm:px-3"
+                                  className="font-normal sm:w-full sm:justify-start"
                                 >
                                   <Shield className="h-4 w-4 mr-1" />
                                   {getMemberRoleLabel(member.role, t)}
@@ -315,10 +315,9 @@ export function MemberManagementModal({
                               {member.status === "Pending" && (
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon-sm"
                                   onClick={() => onResendInvite(member.id)}
                                   disabled={mResend.isPending}
-                                  className="h-9 w-9 p-0"
                                 >
                                   <Mail className="h-4 w-4" />
                                   <span className="sr-only">
@@ -332,11 +331,11 @@ export function MemberManagementModal({
                               {member.role !== "Owner" && (
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon-sm"
                                   onClick={() =>
                                     handleOpenDeleteConfirmation(member)
                                   }
-                                  className="h-9 w-9 p-0 text-red-600 hover:text-red-700"
+                                  className="text-red-600 hover:text-red-700"
                                   disabled={mDelete.isPending}
                                 >
                                   <Trash2 className="h-4 w-4" />

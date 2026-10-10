@@ -194,7 +194,7 @@ export function ImportKnowledgeModal({
           <DialogTitle>{t("importFromKnowledgeTitle")}</DialogTitle>
           <DialogDescription>{t("importFromKnowledgeDescription")}</DialogDescription>
         </DialogHeader>
-        <div className="flex-1 space-y-6 overflow-y-auto p-6">
+        <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:p-6">
           <div className="flex flex-row justify-between overflow-x-auto rounded-lg bg-card p-1">
             {([
               { id: "logo", label: t("knowledgeTabLogo") },
@@ -207,7 +207,7 @@ export function ImportKnowledgeModal({
                 variant={activeKnowledgeTab === tab.id ? "default" : "ghost"}
                 onClick={() => setActiveKnowledgeTab(tab.id)}
                 className={cn(
-                  "flex-1 p-5",
+                  "flex-1",
                   activeKnowledgeTab === tab.id
                     ? "bg-primary text-white"
                     : "text-muted-foreground hover:text-foreground"

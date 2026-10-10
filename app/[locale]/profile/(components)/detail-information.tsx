@@ -71,9 +71,9 @@ export function DetailInformation() {
               </div>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon-sm"
                 onClick={handleCopyReferralCode}
-                className="p-2 h-8 w-8 hover:bg-background"
+                className="hover:bg-background"
                 disabled={!referralCode}
               >
                 {isCopied ? (
@@ -106,7 +106,7 @@ export function DetailInformation() {
                 variant="default"
                 disabled={true}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {t("withdraw")}
               </Button>
@@ -145,7 +145,7 @@ export function DetailInformation() {
                 variant="default"
                 disabled={true}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {t("withdraw")}
               </Button>

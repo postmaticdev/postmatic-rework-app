@@ -59,7 +59,7 @@ export const SharedSelectedReferenceImage = ({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               onClick={onRemove}
               disabled={isLoading}
             >

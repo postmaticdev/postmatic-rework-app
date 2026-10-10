@@ -14,6 +14,7 @@ import { formatIdr } from "@/helper/formatter";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { showToast } from "@/helper/show-toast";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   PaymentAction as CheckoutPaymentAction,
 } from "@/models/api/purchase/checkout.type";
@@ -285,18 +286,19 @@ export function PaymentConfirmation({
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
+                    variant="secondary"
                     onClick={() => setZoomImageIndex(index)}
-                    className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                   >
                     {t("checkout.Instructions.qris.zoom")}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleDownloadImage(item.value)}
-                    className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
                   >
                     {t("checkout.Instructions.qris.downloadQR")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </Box>
@@ -323,12 +325,13 @@ export function PaymentConfirmation({
                     <h4 className="text-base sm:text-lg font-semibold">
                       QRIS Pembayaran
                     </h4>
-                    <button
+                    <Button
+                      variant="secondary"
                       onClick={() => setZoomImageIndex(null)}
-                      className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                      className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
                     >
                       Tutup
-                    </button>
+                    </Button>
                   </div>
                   <div className="w-full grid place-items-center p-2 sm:p-4">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -339,12 +342,12 @@ export function PaymentConfirmation({
                     />
                   </div>
                   <div className="flex items-center justify-end gap-2">
-                    <button
+                    <Button
                       onClick={() => handleDownloadImage(item.value)}
-                      className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm"
+                      className="bg-blue-600 text-white hover:bg-blue-700"
                     >
                       Unduh QR
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -367,18 +370,19 @@ export function PaymentConfirmation({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     onClick={() => handleOpenDeeplink(item.value)}
-                    className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
                   >
                     {t("checkout.Instructions.redirect.openApplication")}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="secondary"
                     onClick={() => handleCopy(item.value)}
-                    className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                   >
                     {t("checkout.Instructions.redirect.copyLink")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </Box>
@@ -427,17 +431,18 @@ export function PaymentConfirmation({
       </div>
 
       {/* Check Payment Status Button */}
-      <button
+      <Button
+        size="lg"
         onClick={handleCheckPaymentStatus}
         className={cn(
-          "text-white text-sm sm:text-base lg:text-lg font-medium w-full py-3 sm:py-4 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors mb-4",
+          "text-white w-full hover:bg-blue-700 dark:hover:bg-blue-600 mb-4",
           isChecking
             ? "bg-gray-500 dark:bg-gray-700"
             : "bg-blue-600 dark:bg-blue-500"
         )}
       >
         {isChecking ? t("checkout.checking") : t("checkout.checkPaymentStatus")}
-      </button>
+      </Button>
 
       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 break-words">
         {t("checkout.paymentExpiredAt")}: {checkoutResult?.expiredAt ?? "-"}
@@ -475,9 +480,11 @@ function IconButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
+      variant="secondary"
+      size="icon"
       onClick={onClick}
-      className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex-shrink-0"
+      className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 flex-shrink-0"
       title={title}
     >
       <svg
@@ -493,7 +500,7 @@ function IconButton({
           d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
         />
       </svg>
-    </button>
+    </Button>
   );
 }
 

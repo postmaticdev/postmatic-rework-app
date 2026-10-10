@@ -413,8 +413,8 @@ export function GenerationPanel() {
                           <Button
                             type="button"
                             variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0 rounded-full border border-input bg-card/90 hover:bg-muted"
+                            size="icon-sm"
+                            className="shrink-0 rounded-full border border-input bg-card/90 hover:bg-muted"
                             onClick={() => handleCopyPrompt(job.input.prompt || "")}
                             title={t("copyPrompt")}
                             aria-label={t("copyPrompt")}
@@ -453,8 +453,8 @@ export function GenerationPanel() {
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-900/50"
+                                size="icon-sm"
+                                className="text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-900/50"
                                 onClick={() => {
                                   onSelectHistory(job);
                                   setTimeout(() => {
@@ -488,7 +488,7 @@ export function GenerationPanel() {
                               <Button
                                 type="button"
                                 size="sm"
-                                className="mt-4 h-9 w-full bg-blue-600 text-xs font-medium text-white hover:bg-blue-700"
+                                className="mt-4 w-full bg-blue-600 text-white hover:bg-blue-700"
                                 onClick={handleTopUpNow}
                               >
                                 <CreditCard className="h-3.5 w-3.5" />
@@ -531,7 +531,7 @@ export function GenerationPanel() {
                                   type="button"
                                   variant="secondary"
                                   size="sm"
-                                  className="absolute top-2 right-2 z-10 h-8 px-3 text-xs bg-background/80 hover:bg-background/100 backdrop-blur-sm shadow-sm opacity-90 hover:opacity-100"
+                                  className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background/100 backdrop-blur-sm shadow-sm opacity-90 hover:opacity-100"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -555,8 +555,8 @@ export function GenerationPanel() {
                                 size="sm"
                                 className={
                                   isSelected
-                                    ? "h-8 bg-blue-600 px-3 text-xs text-white hover:bg-blue-700"
-                                    : "h-8 border border-input bg-muted px-3 text-xs text-foreground hover:bg-muted/80"
+                                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                                    : "border border-input bg-muted text-foreground hover:bg-muted/80"
                                 }
                                 onClick={() => onSelectGeneratedImage(job, image)}
                               >
@@ -688,7 +688,7 @@ export function GenerationPanel() {
               {schedulerMode && (
                 <Button
                   type="button"
-                  className="h-11 w-full bg-blue-500 text-white hover:bg-blue-600 lg:hidden"
+                  className="w-full bg-blue-500 text-white hover:bg-blue-600 lg:hidden"
                   disabled={isLoading || !selectedHistory}
                   onClick={handleOpenScheduleSummary}
                 >

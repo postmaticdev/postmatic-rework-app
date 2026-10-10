@@ -1,6 +1,7 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -55,13 +56,9 @@ export function BusinessCategoryDropdown({
       <div className="flex flex-col md:flex-row w-full justify-between items-center gap-2">
         <div className="space-y-2 w-full">
           <Label htmlFor="category">{label}</Label>
-          <select
+          <NativeSelect
             id="category"
-            className={`flex p-2 h-10 w-full items-center rounded-md border bg-background dark:bg-card px-3 py-2 text-sm shadow-xs ring-offset-background transition-[color,box-shadow] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-              error
-                ? "border-red-500 focus:ring-red-500"
-                : "border-input focus:ring-ring"
-            }`}
+            className={`bg-background dark:bg-card ${error ? "border-red-500" : ""}`}
             value={value || ""}
             onChange={(e) => handleCategoryChange(e.target.value)}
             onFocus={onFocus}
@@ -75,7 +72,7 @@ export function BusinessCategoryDropdown({
                 {category}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
       </div>
       {error && (

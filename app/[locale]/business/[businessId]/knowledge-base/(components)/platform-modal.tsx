@@ -25,7 +25,7 @@ export function PlatformModal({ isOpen, onClose }: PlatformModalProps) {
   const locale = params.locale;
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{m("managePlatformSocialMedia")}</DialogTitle>
           <DialogDescription>
@@ -33,13 +33,13 @@ export function PlatformModal({ isOpen, onClose }: PlatformModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
           <ConnectedPlatformForm />
         </div>
         <DialogFooterWithButton
           buttonMessage={m("close")}
           onClick={onClose}
-          className="items-center"
+          className="sm:justify-between"
         >
           <Link
             className="text-sm"

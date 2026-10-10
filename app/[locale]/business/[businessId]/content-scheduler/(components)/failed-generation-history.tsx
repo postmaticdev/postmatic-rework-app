@@ -131,7 +131,6 @@ export function FailedGenerationHistory() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 px-3 text-xs"
                     onClick={() => openJob(job)}
                   >
                     <ExternalLink className="h-3.5 w-3.5" />

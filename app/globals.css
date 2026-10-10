@@ -134,6 +134,23 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Shared control sizing (Input, Select, Button). 44px touch targets on
+   mobile, 40px from the `sm` breakpoint (640px) up. Exposed as variables so
+   a single unprefixed class (h-(--control-h)) can still be overridden. */
+:root {
+  --control-h: 2.75rem;
+  --control-h-lg: 3rem;
+  --control-h-icon-sm: 2.25rem;
+}
+
+@media (min-width: 40rem) {
+  :root {
+    --control-h: 2.5rem;
+    --control-h-lg: 2.75rem;
+    --control-h-icon-sm: 2rem;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

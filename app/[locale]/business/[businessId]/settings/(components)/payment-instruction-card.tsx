@@ -344,7 +344,7 @@ function PaymentTextInstruction({
         type="button"
         variant="outline"
         onClick={() => onCopy(value)}
-        className="h-8 w-full text-xs sm:h-10 sm:text-sm"
+        className="w-full"
       >
         <Copy className="h-4 w-4" />
         {copyLabel}

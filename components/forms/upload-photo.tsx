@@ -152,7 +152,7 @@ export function UploadPhoto({
                 type="button"
                 variant="secondary"
                 size="icon"
-                className="absolute -right-2 -top-2 h-7 w-7 rounded-full"
+                className="absolute -right-2 -top-2 size-7 rounded-full"
                 onClick={() => handleRemoveImage(index)}
               >
                 <X className="h-3.5 w-3.5" />

@@ -32,11 +32,11 @@ export function RssTrendModal({
 }: RssTrendModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6">
           <GenerateFormSelectRss onArticleSelected={onClose} />
         </div>
         {!hasSelectedRss && pagination.total !== 0 && (
@@ -45,7 +45,7 @@ export function RssTrendModal({
               pagination={pagination}
               setFilterQuery={setFilterQuery}
               filterQuery={filterQuery}
-              className="border-t-0 pt-0"
+              className="w-full border-t-0 pt-0"
             />
           </DialogFooter>
         )}

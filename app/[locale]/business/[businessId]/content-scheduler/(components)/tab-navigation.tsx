@@ -33,7 +33,7 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
           variant={activeTab === tab.id ? "default" : "ghost"}
           onClick={() => onTabChange(tab.id)}
           className={cn(
-            " p-6 flex-1",
+            "flex-1",
             activeTab === tab.id
               ? "bg-primary text-white"
               : "text-muted-foreground hover:text-foreground"

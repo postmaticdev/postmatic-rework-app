@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { TextField } from "@/components/forms/text-field";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -111,7 +112,7 @@ export function RSSModal({
         </DialogHeader>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
           {rssAction === "select" && mode === "add" && (
             <div className="space-y-4">
               <div className="flex gap-4">
@@ -197,12 +198,12 @@ export function RSSModal({
                 <label className="text-sm font-medium text-foreground">
                   {t("rssUrl")}
                 </label>
-                <input
+                <Input
                   type="text"
                   value={selectedRssUrl}
                   placeholder={placeholders.urlPreview}
                   disabled
-                  className="w-full px-3 py-2 border border-input bg-muted rounded-md text-sm text-muted-foreground cursor-not-allowed"
+                  className="bg-muted text-muted-foreground"
                 />
               </div>
 

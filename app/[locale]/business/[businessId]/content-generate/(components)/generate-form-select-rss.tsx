@@ -117,7 +117,7 @@ export const GenerateFormSelectRss = ({
                   onArticleSelected?.();
                 }}
                 disabled={!!form.rss || isLoading}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
               >
                 {t("use")}
               </Button>

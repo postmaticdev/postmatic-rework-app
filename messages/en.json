@@ -816,7 +816,12 @@
   "sessionLogin": {
     "title": "Session Login",
     "logoutAll": "Logout All",
-    "logout": "Logout"
+    "logout": "Logout",
+    "logoutConfirmTitle": "Confirm Logout",
+    "logoutConfirmDescription": "Are you sure you want to log out of this session?",
+    "logoutAllConfirmDescription": "Are you sure you want to log out of all sessions?",
+    "confirm": "Yes, Logout",
+    "cancel": "Cancel"
   },
   "editProfileModal": {
     "title": "Edit Profile",

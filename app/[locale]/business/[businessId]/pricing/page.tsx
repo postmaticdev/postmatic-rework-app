@@ -269,7 +269,7 @@ export default function Pricing() {
                                     onClick={() =>
                                       setPlanSelectedItem(plan.id, item.id)
                                     }
-                                    className={`px-3 py-1 rounded text-sm font-medium ${
+                                    className={`min-h-10 px-3 py-1 rounded text-sm font-medium ${
                                       isActive
                                         ? "bg-blue-600 text-white"
                                         : "bg-transparent text-gray-600 dark:text-gray-400"

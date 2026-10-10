@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
 import { ChevronDown as ChevronDownIcon, Trash2 } from "lucide-react";
 import { AutoProductSelectionModal } from "./auto-product-selection-modal";
@@ -135,50 +136,54 @@ export const AutoGenerateFormBasic = () => {
   
   return (
     <div className="space-y-4">
-      {/* Product Name */}
-      <div>
-        <label className="block text-sm font-medium mb-2">{t("productName")}</label>
-        <Button
-          variant="outline"
-          className="w-full justify-between text-left font-normal"
-          onClick={() => setIsProductModalOpen(true)}
-          disabled={isLoading || disabled}
-        >
-          <span
-            className={
-              basic?.productKnowledgeId
-                ? "text-foreground"
-                : "text-muted-foreground"
-            }
+      {/* Row 1: Product Name & Avatar */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Product Name */}
+        <div>
+          <label className="block text-sm font-medium mb-2">{t("productName")}</label>
+          <Button
+            variant="outline"
+            className="w-full justify-between text-left font-normal"
+            onClick={() => setIsProductModalOpen(true)}
+            disabled={isLoading || disabled}
           >
-            {basic?.productKnowledgeId ? basic?.productName : t("selectProduct")}
-          </span>
-          <ChevronDownIcon className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="block text-sm font-medium">{t("avatarLabel")}</label>
-          <span className="text-xs text-muted-foreground">{t("optional")}</span>
+            <span
+              className={
+                basic?.productKnowledgeId
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              }
+            >
+              {basic?.productKnowledgeId ? basic?.productName : t("selectProduct")}
+            </span>
+            <ChevronDownIcon className="h-4 w-4 shrink-0" />
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          className="w-full justify-between text-left font-normal"
-          onClick={() => setIsAvatarModalOpen(true)}
-          disabled={isLoading || disabled}
-        >
-          <span
-            className={
-              basic.selectedAvatar ? "text-foreground" : "text-muted-foreground"
-            }
+
+        {/* Avatar */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="block text-sm font-medium">{t("avatarLabel")}</label>
+            <span className="text-xs text-muted-foreground">{t("optional")}</span>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full justify-between text-left font-normal"
+            onClick={() => setIsAvatarModalOpen(true)}
+            disabled={isLoading || disabled}
           >
-            {basic.selectedAvatar
-              ? t("selectedAvatarCount", { count: 1 })
-              : t("selectAvatar")}
-          </span>
-          <ChevronDownIcon className="h-4 w-4" />
-        </Button>
+            <span
+              className={
+                basic.selectedAvatar ? "text-foreground truncate" : "text-muted-foreground"
+              }
+            >
+              {basic.selectedAvatar
+                ? t("selectedAvatarCount", { count: 1 })
+                : t("selectAvatar")}
+            </span>
+            <ChevronDownIcon className="h-4 w-4 shrink-0" />
+          </Button>
+        </div>
       </div>
 
       {basic.selectedAvatar ? (
@@ -209,7 +214,7 @@ export const AutoGenerateFormBasic = () => {
               type="button"
               variant="destructive"
               size="icon"
-              className="h-10 w-10 shrink-0"
+              className="shrink-0"
               disabled={isLoading}
               onClick={() => onSelectAvatar(null)}
             >
@@ -219,79 +224,57 @@ export const AutoGenerateFormBasic = () => {
         </Card>
       ) : null}
 
-      {/* AI Model */}
-      <div>
-        <label className="block text-sm font-medium mb-2">AI Model</label>
-        <AiModelSelect
-          disabled={isLoading || disabled || aiModels.isLoading}
-          isLoading={aiModels.isLoading}
-          models={aiModels.models}
-          selectedModel={basic?.model || ""}
-          onSelectModel={(modelName) => {
-            if (disabled) return;
-            const selectedModel = aiModels.models.find(
-              (model) => model.name === modelName
-            );
-            if (selectedModel) {
-              onSelectAiModel(selectedModel);
-            }
-          }}
-        />
-      </div>
-
-      {/* {aiModels.selectedModel?.name === "gemini-3-pro-image-preview" &&
-        aiModels.selectedModel?.imageSizes?.length ? (
+      {/* Row 2: AI Model & Aspect Ratio */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* AI Model */}
         <div>
-          <label className="block text-sm font-medium mb-2">Image Size</label>
-          <select
+          <label className="block text-sm font-medium mb-2">AI Model</label>
+          <AiModelSelect
+            disabled={isLoading || disabled || aiModels.isLoading}
+            isLoading={aiModels.isLoading}
+            models={aiModels.models}
+            selectedModel={basic?.model || ""}
+            onSelectModel={(modelName) => {
+              if (disabled) return;
+              const selectedModel = aiModels.models.find(
+                (model) => model.name === modelName
+              );
+              if (selectedModel) {
+                onSelectAiModel(selectedModel);
+              }
+            }}
+          />
+        </div>
+
+        {/* Aspect Ratio */}
+        <div>
+          <label className="block text-sm font-medium mb-2">{t("aspectRatio")}</label>
+          <NativeSelect
             className={cn(
-              "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-              isLoading
+              "bg-background-secondary",
+              isLoading ||
+                (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
             )}
-            disabled={isLoading || aiModels.isLoading}
-            value={basic?.imageSize || ""}
+            disabled={isLoading || disabled}
+            value={basic?.ratio || ""}
             onChange={(e) => {
-              
-              setBasic({ ...basic, imageSize: e.target.value });
+              if (disabled) return;
+              setBasic({ ...basic, ratio: e.target.value as ValidRatio });
             }}
           >
-            {(aiModels.selectedModel?.imageSizes || []).map((size) => (
-              <option key={size} value={size}>
-                {size}
+            {aiModels.validRatios.map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
-          </select>
+            {/* Show current ratio if it's not in validRatios (for editing existing schedules) */}
+            {basic?.ratio && !aiModels.validRatios.includes(basic.ratio) && (
+              <option key={basic.ratio} value={basic.ratio}>
+                {basic.ratio}
+              </option>
+            )}
+          </NativeSelect>
         </div>
-      ) : null} */}
-
-      {/* Aspect Ratio */}
-      <div>
-        <label className="block text-sm font-medium mb-2">{t("aspectRatio")}</label>
-        <select
-          className={cn(
-            "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-            isLoading ||
-              (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-          )}
-          disabled={isLoading || disabled}
-          value={basic?.ratio || ""}
-          onChange={(e) => {
-            if (disabled) return;
-            setBasic({ ...basic, ratio: e.target.value as ValidRatio });
-          }}
-        >
-          {aiModels.validRatios.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-          {/* Show current ratio if it's not in validRatios (for editing existing schedules) */}
-          {basic?.ratio && !aiModels.validRatios.includes(basic.ratio) && (
-            <option key={basic.ratio} value={basic.ratio}>
-              {basic.ratio}
-            </option>
-          )}
-        </select>
       </div>
 
       {/* Category */}

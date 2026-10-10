@@ -45,7 +45,7 @@ export function ActionBar() {
         </div>
         <Button
           onClick={handleNewBusiness}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 w-full sm:w-auto"
+          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           {t("createBusiness")}

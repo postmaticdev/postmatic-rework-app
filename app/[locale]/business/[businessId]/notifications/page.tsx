@@ -538,12 +538,12 @@ export default function NotificationsPage() {
   const canSendReply = !isEmptyRichText(editorHtml) || attachments.length > 0;
   const toolbarButtonClass = (active?: boolean) =>
     cn(
-      "h-8 shrink-0 rounded-md px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+      "h-(--control-h-icon-sm) shrink-0 rounded-md px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
       active && "bg-accent text-accent-foreground"
     );
   const toolbarIconClass = (active?: boolean) =>
     cn(
-      "h-8 w-8 shrink-0 rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+      "shrink-0 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
       active && "bg-accent text-accent-foreground"
     );
 
@@ -560,7 +560,7 @@ export default function NotificationsPage() {
           <div className="flex bg-muted p-1 rounded-lg">
             <button
               onClick={() => handleTabChange("notifications")}
-              className={`px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+              className={`min-h-10 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
                 activeTab === "notifications"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -576,7 +576,7 @@ export default function NotificationsPage() {
             </button>
             <button
               onClick={() => handleTabChange("tickets")}
-              className={`px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+              className={`min-h-10 px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
                 activeTab === "tickets"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -598,7 +598,7 @@ export default function NotificationsPage() {
             variant="ghost"
             size="sm"
             onClick={markAllAsRead}
-            className="text-xs text-blue-600 hover:text-blue-700 shrink-0"
+            className="text-blue-600 hover:text-blue-700 shrink-0"
           >
             Tandai semua dibaca
           </Button>
@@ -626,7 +626,7 @@ export default function NotificationsPage() {
                     value={notifSearch}
                     onChange={(e) => setNotifSearch(e.target.value)}
                     placeholder="Cari notifikasi..."
-                    className="pl-9 h-9 text-sm bg-muted/40 border-border"
+                    className="pl-9 bg-muted/40 border-border"
                   />
                   {notifSearch && (
                     <button
@@ -764,7 +764,6 @@ export default function NotificationsPage() {
                         size="sm"
                         onClick={() => markAsRead(activeNotification.id)}
                         disabled={!activeNotification.unread}
-                        className="text-xs"
                       >
                         {activeNotification.unread ? "Tandai sudah dibaca" : "Sudah Dibaca"}
                       </Button>
@@ -800,7 +799,7 @@ export default function NotificationsPage() {
                     value={ticketSearch}
                     onChange={(e) => setTicketSearch(e.target.value)}
                     placeholder="Cari tiket..."
-                    className="pl-9 h-9 text-sm bg-muted/40 border-border"
+                    className="pl-9 bg-muted/40 border-border"
                   />
                   {ticketSearch && (
                     <button
@@ -921,12 +920,14 @@ export default function NotificationsPage() {
                   {/* Chat Header */}
                   <div className="p-4 border-b border-border bg-card flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => setMobileView("list")}
-                        className="md:hidden p-1.5 hover:bg-muted rounded-lg transition-colors"
+                        className="md:hidden"
                       >
                         <ChevronLeft className="w-5 h-5 text-foreground" />
-                      </button>
+                      </Button>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-blue-600">{activeTicket.id}</span>
@@ -1104,7 +1105,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleBold().run()}
                           className={toolbarIconClass(editor?.isActive("bold"))}
@@ -1114,7 +1115,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleItalic().run()}
                           className={toolbarIconClass(editor?.isActive("italic"))}
@@ -1124,7 +1125,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleUnderline().run()}
                           className={toolbarIconClass(editor?.isActive("underline"))}
@@ -1134,7 +1135,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={handleLink}
                           className={toolbarIconClass(editor?.isActive("link"))}
@@ -1147,7 +1148,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().setTextAlign("left").run()}
                           className={toolbarIconClass(editor?.isActive({ textAlign: "left" }))}
@@ -1157,7 +1158,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().setTextAlign("center").run()}
                           className={toolbarIconClass(editor?.isActive({ textAlign: "center" }))}
@@ -1167,7 +1168,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().setTextAlign("right").run()}
                           className={toolbarIconClass(editor?.isActive({ textAlign: "right" }))}
@@ -1180,7 +1181,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleBulletList().run()}
                           className={toolbarIconClass(editor?.isActive("bulletList"))}
@@ -1190,7 +1191,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleOrderedList().run()}
                           className={toolbarIconClass(editor?.isActive("orderedList"))}
@@ -1226,7 +1227,7 @@ export default function NotificationsPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           disabled={isUploadingAttachment}
                           onClick={() => fileInputRef.current?.click()}
                           className={toolbarIconClass(false)}
@@ -1255,7 +1256,6 @@ export default function NotificationsPage() {
                         <Button
                           type="submit"
                           disabled={isUploadingAttachment || !canSendReply}
-                          className="h-9 gap-2 px-4 text-xs font-medium"
                         >
                           {isUploadingAttachment ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

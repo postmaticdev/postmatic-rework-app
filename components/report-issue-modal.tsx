@@ -251,9 +251,9 @@ export function ReportIssueModal({
         <form
           id="report-issue-form"
           onSubmit={handleSubmit}
-          className="flex-1 space-y-5 overflow-y-auto p-6"
+          className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:p-6"
         >
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="report-name">{t("name")}</Label>
               <Input
@@ -284,7 +284,7 @@ export function ReportIssueModal({
                 onValueChange={(value) => updateField("countryCode", value)}
                 placeholder={t("countryCode")}
                 searchPlaceholder={t("countryCodeSearch")}
-                className="w-40 bg-card"
+                className="w-28 sm:w-40 bg-card"
               />
               <Input
                 id="report-phone-number"
@@ -369,18 +369,16 @@ export function ReportIssueModal({
         </form>
 
         <DialogFooter>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              {t("cancel")}
-            </Button>
-            <Button
-              type="submit"
-              form="report-issue-form"
-              disabled={mCreateTicket.isPending || isCategoryLoading}
-            >
-              {mCreateTicket.isPending ? t("submitting") : t("submit")}
-            </Button>
-          </div>
+          <Button type="button" variant="outline" onClick={handleClose}>
+            {t("cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form="report-issue-form"
+            disabled={mCreateTicket.isPending || isCategoryLoading}
+          >
+            {mCreateTicket.isPending ? t("submitting") : t("submit")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

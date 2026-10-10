@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -114,7 +115,7 @@ export function ViewPostModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Post Image */}
           <div className="bg-card rounded-lg p-4 h-fit  flex items-center justify-center relative">
             <Image
@@ -159,7 +160,7 @@ export function ViewPostModal({
                   <Button
                     key={platform.id}
                     variant="outline"
-                    className="h-10 justify-start space-x-2 text-green-600 border-green-600 hover:bg-green-50"
+                    className="justify-start space-x-2 text-green-600 border-green-600 hover:bg-green-50"
                     onClick={() => handleShowPosted(platform)}
                   >
                     {mapEnumPlatform.getPlatformIcon(platform.platform)}
@@ -181,7 +182,7 @@ export function ViewPostModal({
                   <Button
                     key={platform.id}
                     variant="outline"
-                    className={`h-10 justify-start space-x-2 ${isSelectedPlatform(platform.id)
+                    className={`justify-start space-x-2 ${isSelectedPlatform(platform.id)
                       ? "bg-blue-600 text-white border-blue-600"
                       : "hover:bg-muted"
                       }`}
@@ -206,17 +207,16 @@ export function ViewPostModal({
 
         {/* Footer with Post Now Button */}
 
-        <div className="border-t p-4 sm:p-6">
+        <DialogFooter>
           <Button
             onClick={handlePostNow}
             disabled={formData?.selectedPlatforms?.length === 0}
-            className="w-full"
           >
             {t("repostNow")}{" "}
             {formData?.selectedPlatforms?.length > 0 &&
               `(${formData?.selectedPlatforms?.length})`}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

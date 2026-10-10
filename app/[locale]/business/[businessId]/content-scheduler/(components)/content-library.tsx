@@ -436,7 +436,7 @@ export function ContentLibrary({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 text-xs text-red-600 border-red-600 hover:bg-red-50"
+                      className="flex-1 text-red-600 border-red-600 hover:bg-red-50"
                       onClick={() => handleCancelQueue(content)}
                     >
                       <X className="h-3 w-3 mr-1" />

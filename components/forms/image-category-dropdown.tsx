@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Select,
   SelectContent,
@@ -43,14 +44,10 @@ export function ImageCategoryDropdown({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <Label className="text-sm font-medium text-foreground">{label}</Label>
-      <select
-        className={`flex p-2 h-10 w-full items-center rounded-md border bg-background dark:bg-card px-3 py-2 text-sm shadow-xs ring-offset-background transition-[color,box-shadow] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-          error
-            ? "border-red-500 focus:ring-red-500"
-            : "border-input focus:ring-ring"
-        }`}
+      <NativeSelect
+        className={`bg-background dark:bg-card ${error ? "border-red-500" : ""}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
@@ -64,7 +61,7 @@ export function ImageCategoryDropdown({
             {category.name}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       
       {error && (
         <div className="flex items-center gap-1">

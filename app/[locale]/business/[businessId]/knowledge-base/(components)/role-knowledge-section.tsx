@@ -53,8 +53,7 @@ export function RoleKnowledgeSection() {
             {roleKnowledge.write && (
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
+                size="icon-sm"
                 onClick={() => setIsEditModalOpen(true)}
               >
                 <Edit className="h-4 w-4" />

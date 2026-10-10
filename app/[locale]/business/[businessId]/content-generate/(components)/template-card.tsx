@@ -123,7 +123,7 @@ export const TemplateCard = ({ item, onDetail }: TemplateCardProps) => {
           <p className="block sm:hidden text-xs ">Publisher: {item.publisher?.name}</p>
 
         <Button
-          className="w-full my-0 sm:my-3 bg-blue-500 hover:bg-blue-600 text-white text-sm"
+          className="w-full my-0 sm:my-3 bg-blue-500 hover:bg-blue-600 text-white"
           disabled={isLoading || isSelected}
           onClick={() => {
             if (isLoading) return;

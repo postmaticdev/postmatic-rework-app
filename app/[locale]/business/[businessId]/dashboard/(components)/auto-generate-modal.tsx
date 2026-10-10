@@ -22,13 +22,20 @@ import { useParams } from "next/navigation";
 import { AutoGenerateFormBasic } from "./auto-generate-form-basic";
 import { AutoGenerateFormAdvanced } from "./auto-generate-form-advance";
 import { TextField } from "@/components/forms/text-field";
-import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
+import { usePlatformKnowledgeGetAll, useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { TimeInput } from "@/components/ui/time-input";
-import { Save, Sparkles, Trash2 } from "lucide-react";
+import { 
+  Save, Sparkles, Trash2, Send,
+  Heart, MessageCircle, Bookmark, MoreHorizontal, 
+  ThumbsUp, Share2, Globe, Repeat2, BadgeCheck, X,
+  CalendarDays, Clock as ClockIcon
+} from "lucide-react";
 import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AutoGenerateModalProps {
   isOpen: boolean;
@@ -52,10 +59,15 @@ export function AutoGenerateModal({
   editingSchedule,
 }: AutoGenerateModalProps) {
   const t = useTranslations("autoGenerate");
+  const tContentGenerate = useTranslations("contentGenerateScheduler");
   const mCreateSchedule = useContentAutoGenerateCreateSchedule();
   const mUpdateSchedule = useContentAutoGenerateUpdateSchedule();
   const { businessId } = useParams() as { businessId: string };
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
+  const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(businessId);
+
+  const businessName = businessKnowledgeData?.data?.data?.name || "Business Name";
+  const businessLogo = businessKnowledgeData?.data?.data?.primaryLogo || businessKnowledgeData?.data?.data?.primaryLogoUrl || "";
 
   // Form state
   const [additionalPrompt, setAdditionalPrompt] = useState<string>("");
@@ -65,6 +77,8 @@ export function AutoGenerateModal({
   const [modalDay, setModalDay] = useState<number | null>(selectedDay);
   const prevBasicRef = useRef<typeof basic | null>(null);
   const prevAdvanceRef = useRef<typeof advance | null>(null);
+
+  const [activePreviewPlatform, setActivePreviewPlatform] = useState<PlatformEnum>("instagram_professional");
 
   // Auto Generate Context
   const { form, isLoading, productKnowledges, aiModels, onSelectAiModel } = useAutoGenerate();
@@ -103,8 +117,6 @@ export function AutoGenerateModal({
     { value: 6, label: t("saturday") },
   ];
 
-
-
   const togglePlatform = (platform: PlatformEnum) => {
     if (!connectedPlatforms.includes(platform)) return;
 
@@ -131,6 +143,11 @@ export function AutoGenerateModal({
     }
   };
 
+  useEffect(() => {
+    if (modalSelectedPlatforms.length > 0 && !modalSelectedPlatforms.includes(activePreviewPlatform)) {
+      setActivePreviewPlatform(modalSelectedPlatforms[0]);
+    }
+  }, [modalSelectedPlatforms, activePreviewPlatform]);
 
   const handleSave = async () => {
     if (!basic?.productKnowledgeId) {
@@ -173,7 +190,6 @@ export function AutoGenerateModal({
     const timeString = `${hh}:${mm}`;
 
     const isActiveStatus = editingSchedule ? editingSchedule.isActive : true;
-    console.log('Modal save - editingSchedule:', editingSchedule?.id, 'isActive:', isActiveStatus);
     
     const scheduleData: CreateAutoGenerateScheduleRequest = {
       day: modalDay,
@@ -186,14 +202,13 @@ export function AutoGenerateModal({
       additionalPrompt: additionalPrompt.trim() || undefined,
       avatarImageUrl: basic.avatarImageUrl || undefined,
       productKnowledgeId: basic.productKnowledgeId,
-      isActive: isActiveStatus, // Use existing status when editing, default to true for new schedules
+      isActive: isActiveStatus,
       advBusinessName: form.advance.businessKnowledge.name,
       advBusinessCategory: form.advance.businessKnowledge.category,
       advBusinessDescription: form.advance.businessKnowledge.description,
       advBusinessLocation: form.advance.businessKnowledge.location,
       advBusinessLogo: form.advance.businessKnowledge.logo,
-      advBusinessUniqueSellingPoint:
-        form.advance.businessKnowledge.uniqueSellingPoint,
+      advBusinessUniqueSellingPoint: form.advance.businessKnowledge.uniqueSellingPoint,
       advBusinessWebsite: form.advance.businessKnowledge.website,
       advBusinessVisionMission: form.advance.businessKnowledge.visionMission,
       advBusinessColorTone: form.advance.businessKnowledge.colorTone,
@@ -225,7 +240,6 @@ export function AutoGenerateModal({
     }
   };
 
-  // Snapshot form when opening, restore when closing to avoid leaking state to content-generate
   useEffect(() => {
     if (isOpen) {
       prevBasicRef.current = structuredClone(basic);
@@ -237,16 +251,12 @@ export function AutoGenerateModal({
       prevAdvanceRef.current = null;
       setAdditionalPrompt("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Initialize platform selection and time when modal opens
   useEffect(() => {
     if (isOpen) {
       setModalSelectedPlatforms(selectedPlatforms);
       setModalDay(selectedDay);
-      
-      // Parse selectedTime to hour and minute
       if (selectedTime) {
         const [hour, minute] = selectedTime.split(':');
         setModalHour(hour || "");
@@ -258,22 +268,16 @@ export function AutoGenerateModal({
     }
   }, [isOpen, selectedPlatforms, selectedTime, selectedDay]);
 
-  // Prefill form when editing an existing schedule
   useEffect(() => {
     if (!isOpen) return;
     if (editingSchedule) {
       setModalSelectedPlatforms(editingSchedule.platforms);
-      
-      // Parse editingSchedule.time to hour and minute
       if (editingSchedule.time) {
         const [hour, minute] = editingSchedule.time.split(':');
         setModalHour(hour || "");
         setModalMinute(minute || "");
       }
-      
-      // Find the AI model that matches the schedule's model
       const scheduleModel = aiModels.models.find(model => model.name === editingSchedule.model);
-      
       setBasic({
         ...basic,
         model: editingSchedule.model,
@@ -294,12 +298,10 @@ export function AutoGenerateModal({
         avatarImageUrl: editingSchedule.avatarImageUrl || null,
       });
 
-      // Set the selected AI model to match the schedule's model
       if (scheduleModel) {
         onSelectAiModel(scheduleModel);
       }
 
-      // Prefill advance toggles from schedule flags
       setAdvance({
         ...advance,
         businessKnowledge: {
@@ -327,166 +329,368 @@ export function AutoGenerateModal({
         },
       });
 
-      // Set additional prompt
       setAdditionalPrompt(editingSchedule.additionalPrompt || "");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingSchedule]);
 
-  return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent 
-          className="max-w-5xl"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>{t("configureAutoGenerate")}</DialogTitle>
-            <DialogDescription>
-              {t("scheduleConfiguration")}
-            </DialogDescription>
-            <div className="flex flex-row items-center space-x-2 gap-2 mt-2 text-muted-foreground text-sm">
-              <span>{t("schedulingFor")}</span>
-              <select
-                value={modalDay !== null ? modalDay.toString() : ""}
-                onChange={(e) => setModalDay(Number(e.target.value))}
-                disabled={!!editingSchedule}
-                className="rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="" disabled>
-                  {t("pleaseSelectDay")}
-                </option>
-                {DAYS.map((day) => (
-                  <option key={day.value} value={day.value.toString()}>
-                    {day.label}
-                  </option>
-                ))}
-              </select>
-              <span>{t("at")}</span>
-              <TimeInput
-                hour={modalHour}
-                minute={modalMinute}
-                onHourChange={handleModalHourChange}
-                onMinuteChange={handleModalMinuteChange}
-              />
+  const renderCaptionArea = (className?: string) => (
+    <div className={cn("relative w-full group", className)}>
+      <Textarea
+        value={additionalPrompt}
+        readOnly
+        className="min-h-[60px] max-h-[300px] resize-none bg-transparent border-none p-0 focus-visible:ring-0 shadow-none text-sm scrollbar-hidden leading-relaxed text-muted-foreground"
+        placeholder={tContentGenerate("caption") + "..."}
+      />
+    </div>
+  );
+
+  const renderImagePreviewPlaceholder = () => (
+    <div className="w-full aspect-square flex flex-col items-center justify-center text-muted-foreground bg-muted border border-dashed border-border/50">
+      <Sparkles className="h-8 w-8 mb-2 opacity-50" />
+      <span className="text-sm font-medium">Generated Image</span>
+      <span className="text-xs opacity-70">Ratio: {basic.ratio || "1:1"}</span>
+    </div>
+  );
+
+  const renderLinkedInPreview = () => (
+    <div className="flex flex-col rounded-lg border border-border bg-card overflow-hidden shadow-sm w-full mx-auto max-w-[500px]">
+      <div className="p-4 flex justify-between items-start">
+        <div className="flex gap-3">
+          <div className="w-12 h-12 rounded-full bg-muted overflow-hidden shrink-0">
+            {businessLogo ? (
+              <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center font-bold text-lg">{businessName.charAt(0).toUpperCase()}</div>
+            )}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1">
+              <span className="font-semibold text-sm hover:text-blue-600 hover:underline cursor-pointer">{businessName}</span>
+              <BadgeCheck className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground text-xs">• 1st</span>
             </div>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto  space-y-4 sm:space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 ">
-              {/* Left Column - Reference Libary */}
-              <div className="space-y-6 md:overflow-y-auto max-h-full md:max-h-[calc(180vh-360px)]">
-              <div className="space-y-6 p-4 sm:p-6">
-              <AutoGenerateFormBasic />
-              <AutoGenerateFormAdvanced />
-              </div>
-              </div>
+            <span className="text-muted-foreground text-xs line-clamp-1">Postmatic Business Page</span>
+            <span className="text-muted-foreground text-xs flex items-center gap-1 mt-0.5">
+              Just now • <Globe className="w-3 h-3" />
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <MoreHorizontal className="w-5 h-5 cursor-pointer hover:text-foreground" />
+          <X className="w-5 h-5 cursor-pointer hover:text-foreground" />
+        </div>
+      </div>
+      <div className="px-4 pb-3">
+        {renderCaptionArea()}
+      </div>
+      <div className="w-full bg-black/5 flex items-center justify-center relative max-h-[500px] overflow-hidden">
+        {renderImagePreviewPlaceholder()}
+      </div>
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between border-t border-border/60 pt-3 text-muted-foreground">
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
+            <ThumbsUp className="w-5 h-5" />
+            <span className="text-sm font-medium">Like</span>
+          </div>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-sm font-medium">Comment</span>
+          </div>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
+            <Repeat2 className="w-5 h-5" />
+            <span className="text-sm font-medium">Repost</span>
+          </div>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
+            <Send className="w-5 h-5" />
+            <span className="text-sm font-medium">Send</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
-              {/* Right Column - Form and Status */}
-              <div id="auto-generate-form-section" className="space-y-6 p-4 sm:p-6">
-              
-             
+  const renderFacebookPreview = () => (
+    <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-sm w-full mx-auto max-w-[500px]">
+      <div className="p-4 flex justify-between items-start">
+        <div className="flex gap-3">
+          <div className="w-10 h-10 rounded-full bg-muted overflow-hidden shrink-0 border border-border/50">
+            {businessLogo ? (
+              <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center font-bold text-lg">{businessName.charAt(0).toUpperCase()}</div>
+            )}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center flex-wrap gap-x-1">
+              <span className="font-bold text-sm hover:underline cursor-pointer">{businessName}</span>
+              <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-muted-foreground text-sm font-semibold mx-1">•</span>
+              <span className="text-blue-500 font-semibold text-sm cursor-pointer hover:underline">Follow</span>
+            </div>
+            <span className="text-muted-foreground text-[13px] flex items-center gap-1 hover:underline cursor-pointer w-fit mt-0.5">
+              Just now • <Globe className="w-3.5 h-3.5" />
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-muted-foreground mt-1">
+          <MoreHorizontal className="w-5 h-5 cursor-pointer hover:bg-muted rounded-full" />
+          <X className="w-5 h-5 cursor-pointer hover:bg-muted rounded-full" />
+        </div>
+      </div>
+      <div className="px-4 pb-3">
+        {renderCaptionArea()}
+      </div>
+      <div className="w-full bg-black/5 flex items-center justify-center relative max-h-[600px] overflow-hidden border-y border-border/50">
+        {renderImagePreviewPlaceholder()}
+      </div>
+      <div className="px-4 py-2 flex items-center justify-between text-muted-foreground border-b border-border/50">
+        <div className="flex items-center gap-1.5 cursor-pointer hover:underline">
+          <div className="flex -space-x-1">
+             <div className="w-5 h-5 rounded-full bg-blue-500 border border-card flex items-center justify-center z-10">
+               <ThumbsUp className="w-2.5 h-2.5 text-white fill-white" />
+             </div>
+             <div className="w-5 h-5 rounded-full bg-red-500 border border-card flex items-center justify-center">
+               <Heart className="w-2.5 h-2.5 text-white fill-white" />
+             </div>
+          </div>
+          <span className="text-[13px]">12</span>
+        </div>
+        <div className="flex items-center gap-3 text-[13px]">
+          <span className="cursor-pointer hover:underline">1 Comment</span>
+          <span className="cursor-pointer hover:underline">1 Share</span>
+        </div>
+      </div>
+      <div className="px-4 py-1.5">
+        <div className="flex items-center justify-between text-muted-foreground font-semibold">
+          <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
+            <ThumbsUp className="w-5 h-5" />
+            <span className="text-sm">Like</span>
+          </div>
+          <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-sm">Comment</span>
+          </div>
+          <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
+            <Share2 className="w-5 h-5" />
+            <span className="text-sm">Share</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
-                {/* Platform Selection */}
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="text-lg font-semibold mb-4">
-                      {t("selectPlatforms")}
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {platformOptions.map(({ platform, isConnected }) => {
-                          const selected =
-                            isConnected &&
-                            modalSelectedPlatforms.includes(platform);
-                          return (
-                            <Button
-                              key={platform}
-                              variant="outline"
-                              onClick={() => togglePlatform(platform)}
-                              disabled={!isConnected}
-                              className={cn(
-                                "h-auto flex-shrink-0",
-                                selected
-                                  ? "bg-blue-600 hover:bg-blue-700"
-                                  : "hover:bg-muted",
-                                !isConnected &&
-                                  "cursor-not-allowed border-dashed bg-muted/30 opacity-70 hover:bg-muted/30"
-                              )}
-                            >
-                              <div className="bg-background-secondary p-1 rounded-md">
-                                {mapEnumPlatform.getPlatformIcon(
-                                  platform,
-                                  !isConnected ? "text-muted-foreground" : ""
-                                )}
-                              </div>
-                              <span
-                                className={cn(
-                                  "flex flex-col text-xs font-medium leading-tight",
-                                  selected ? "text-white" : "text-muted-foreground"
-                                )}
-                              >
-                                <span>
-                                  {mapEnumPlatform.getPlatformLabel(platform)}
-                                </span>
-                                {!isConnected && (
-                                  <span className="font-normal">
-                                    {t("notConnected")}
-                                  </span>
-                                )}
-                              </span>
-                            </Button>
-                          );
-                        })}
-                    </div>
-                  </CardContent>
-                </Card>
+  const renderInstagramPreview = () => (
+    <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-sm w-full mx-auto max-w-[470px]">
+      <div className="px-3 py-3 flex justify-between items-center bg-card">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 p-[2px]">
+            <div className="w-full h-full rounded-full border-2 border-card bg-muted flex items-center justify-center overflow-hidden">
+              {businessLogo ? (
+                <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold">{businessName.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-sm cursor-pointer">{businessName}</span>
+            <span className="text-muted-foreground text-sm">• 1m</span>
+          </div>
+        </div>
+        <MoreHorizontal className="w-5 h-5 text-foreground cursor-pointer" />
+      </div>
+      <div className="w-full bg-black/5 flex items-center justify-center relative min-h-[300px] max-h-[580px] overflow-hidden">
+        {renderImagePreviewPlaceholder()}
+      </div>
+      <div className="px-3 pt-3 pb-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between text-foreground">
+          <div className="flex items-center gap-4">
+            <Heart className="w-6 h-6 cursor-pointer hover:opacity-50 transition-opacity" />
+            <MessageCircle className="w-6 h-6 cursor-pointer hover:opacity-50 transition-opacity" style={{ transform: 'scaleX(-1)' }} />
+            <Send className="w-6 h-6 cursor-pointer hover:opacity-50 transition-opacity" />
+          </div>
+          <Bookmark className="w-6 h-6 text-foreground cursor-pointer hover:opacity-50 transition-opacity" />
+        </div>
+        <span className="font-semibold text-sm cursor-pointer mt-1 w-fit">12 likes</span>
+        <div className="text-sm mt-1 flex flex-col w-full">
+          <span className="font-semibold cursor-pointer w-fit mb-1">{businessName}</span>
+          {renderCaptionArea()}
+        </div>
+        <span className="text-muted-foreground text-sm mt-1 cursor-pointer w-fit">View all 1 comment</span>
+      </div>
+    </div>
+  );
 
+  const renderActivePreview = () => {
+    if (activePreviewPlatform === "linked_in") return renderLinkedInPreview();
+    if (activePreviewPlatform === "facebook_page") return renderFacebookPreview();
+    return renderInstagramPreview();
+  };
 
-                {/* Additional Prompt */}
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="text-lg font-semibold mb-4 flex gap-2 items-center">
-                    <Sparkles className="size-6" /> {t("additionalPrompt")} 
-                    </h3>
-                    <TextField
-                      label=""
-                      value={additionalPrompt}
-                      onChange={setAdditionalPrompt}
-                      placeholder={t("additionalPromptPlaceholder")}
-                      multiline={true}
-                      rows={3}
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent
+        size="xl"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>{t("configureAutoGenerate")}</DialogTitle>
+          <DialogDescription>
+            {t("scheduleConfiguration")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 scrollbar-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+            {/* Left Section - Form */}
+            <div className="flex flex-col gap-6 sticky top-0 h-fit">
+              <div className="space-y-4">
+                <div className="text-sm font-medium">{tContentGenerate("scheduleAt")}</div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <NativeSelect
+                      value={modalDay !== null ? modalDay.toString() : ""}
+                      onChange={(e) => setModalDay(Number(e.target.value))}
+                      disabled={!!editingSchedule}
+                      className="bg-background-secondary"
+                    >
+                      <option value="" disabled>
+                        {t("pleaseSelectDay")}
+                      </option>
+                      {DAYS.map((day) => (
+                        <option key={day.value} value={day.value.toString()}>
+                          {day.label}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </div>
+
+                  <div className="flex h-(--control-h) items-center gap-2 rounded-md border border-input bg-background-secondary px-3 shadow-xs">
+                    <ClockIcon className="h-4 w-4 text-primary shrink-0" />
+                    <TimeInput
+                      hour={modalHour}
+                      minute={modalMinute}
+                      onHourChange={handleModalHourChange}
+                      onMinuteChange={handleModalMinuteChange}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
+              </div>
+
+              <AutoGenerateFormBasic />
+
+              <div className="space-y-4">
+                <div className="text-sm font-medium">{tContentGenerate("choosePlatform")}</div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {platformOptions.map(({ platform, isConnected }) => {
+                    const isSelected = isConnected && modalSelectedPlatforms.includes(platform);
+                    return (
+                      <button
+                        key={platform}
+                        type="button"
+                        onClick={() => togglePlatform(platform)}
+                        disabled={!isConnected}
+                        className={cn(
+                          "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
+                          isSelected
+                            ? "border-primary bg-primary text-white"
+                            : "border-border bg-background-secondary",
+                          !isConnected &&
+                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
+                        )}
+                      >
+                        {mapEnumPlatform.getPlatformIcon(
+                          platform,
+                          isSelected
+                            ? "text-white"
+                            : !isConnected
+                              ? "text-muted-foreground"
+                              : ""
+                        )}
+                        <span className="flex flex-col leading-tight">
+                          <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
+                          {!isConnected && (
+                            <span className="text-[11px] font-normal">
+                              {tContentGenerate("notConnected")}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex gap-2 items-center">
+                  <Sparkles className="size-4 text-primary" /> Content Brief 
+                </label>
+                <Textarea
+                  value={additionalPrompt}
+                  onChange={(e) => setAdditionalPrompt(e.target.value)}
+                  placeholder={t("additionalPromptPlaceholder")}
+                  rows={3}
+                  className="max-h-[120px] scrollbar-hidden resize-none"
+                />
+              </div>
+
+              <AutoGenerateFormAdvanced />
+            </div>
+
+            {/* Right Section - Social Media Preview */}
+            <div className="flex flex-col gap-3">
+              {modalSelectedPlatforms.length > 1 && (
+                <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2">
+                  {modalSelectedPlatforms.map(platform => (
+                    <button
+                      key={platform}
+                      onClick={() => setActivePreviewPlatform(platform)}
+                      className={cn(
+                        "min-h-10 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors border",
+                        activePreviewPlatform === platform
+                          ? "bg-primary text-white border-primary"
+                          : "bg-background-secondary text-muted-foreground border-border hover:bg-muted"
+                      )}
+                    >
+                      {mapEnumPlatform.getPlatformIcon(platform, activePreviewPlatform === platform ? "text-white w-3 h-3" : "w-3 h-3")}
+                      {mapEnumPlatform.getPlatformLabel(platform)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-col h-fit transform lg:scale-[0.85] origin-top">
+                {renderActivePreview()}
               </div>
             </div>
           </div>
+        </div>
 
-          {editingSchedule ? (
-            <DialogFooterWithTwoButtons
-              secondaryButton={{
-                message: t("updateSchedule"),
-                onClick: handleSave,
-                variant: "default",
-                icon: <Save className="h-4 w-4" />,
-                className: "bg-primary hover:bg-blue-700 px-6 text-white "
-              }}
-              primaryButton={{
-                message: t("deleteSchedule"),
-                onClick: () => editingSchedule && onDelete?.(editingSchedule),
-                variant: "destructive",
-                icon: <Trash2 className="h-4 w-4" />,
-                className: "bg-red-600 hover:bg-red-700 text-white"
-              }}
-            />
-          ) : (
-            <DialogFooterWithButton
-              buttonMessage={t("saveSchedule")}
-              onClick={handleSave}
-              disabled={isLoading || !basic?.productKnowledgeId}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+        {editingSchedule ? (
+          <DialogFooterWithTwoButtons
+            primaryButton={{
+              message: t("updateSchedule"),
+              onClick: handleSave,
+              variant: "default",
+              icon: <Save className="h-4 w-4" />,
+              className: "bg-primary hover:bg-blue-700 text-white"
+            }}
+            secondaryButton={{
+              message: t("deleteSchedule"),
+              onClick: () => editingSchedule && onDelete?.(editingSchedule),
+              variant: "destructive",
+              icon: <Trash2 className="h-4 w-4" />,
+              className: "bg-red-600 hover:bg-red-700 text-white"
+            }}
+          />
+        ) : (
+          <DialogFooterWithButton
+            buttonMessage={t("saveSchedule")}
+            onClick={handleSave}
+            disabled={isLoading || !basic?.productKnowledgeId}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -12,7 +12,7 @@ import { useCheckout } from "@/contexts/checkout-context";
 import { showToast } from "@/helper/show-toast";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 
@@ -120,16 +120,14 @@ export default function CheckoutPage() {
               <PromoCodeSection />
 
               {/* Continue button */}
-              <button
+              <Button
+                size="lg"
                 onClick={handleCheckout}
                 disabled={disabled}
-                className={cn(
-                  "bg-blue-600 dark:bg-blue-500 text-white text-sm sm:text-base lg:text-lg font-medium w-full py-3 sm:py-3 lg:py-4 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                  disabled && "opacity-50 cursor-not-allowed"
-                )}
+                className="w-full bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600"
               >
                 {isLoading ? t("toast.validation.processing") : t("toast.validation.continue")}
-              </button>
+              </Button>
             </>
           </CardContent>
         </Card>

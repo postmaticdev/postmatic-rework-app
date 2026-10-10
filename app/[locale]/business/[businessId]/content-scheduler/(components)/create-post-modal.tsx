@@ -114,7 +114,7 @@ export function CreatePostModal({
             <div className="flex bg-muted rounded-lg p-1">
               <button
                 onClick={() => setPostType("now")}
-                className={`flex-1 flex items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex-1 flex min-h-10 items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   postType === "now"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -126,7 +126,7 @@ export function CreatePostModal({
               </button>
               <button
                 onClick={() => setPostType("schedule")}
-                className={`flex-1 flex items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex-1 flex min-h-10 items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   postType === "schedule"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -141,7 +141,7 @@ export function CreatePostModal({
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Media Upload Area */}
           <Image
             src={formData?.edit?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
@@ -183,7 +183,7 @@ export function CreatePostModal({
                 <Button
                   key={platform.id}
                   variant={platform.isActive ? "default" : "outline"}
-                  className={`h-10 sm:h-12 justify-start space-x-2 sm:space-x-3 text-xs sm:text-sm ${
+                  className={`justify-start space-x-2 sm:space-x-3 ${
                     isSelectedPlatform(platform.id)
                       ? "bg-blue-600 hover:bg-blue-700 "
                       : "bg-card text-muted- hover:bg-background-secondary"
@@ -232,7 +232,7 @@ export function CreatePostModal({
                     })
                   }
                   min={new Date().toISOString().split("T")[0]}
-                  className="bg-card text-sm sm:text-base"
+                  className="bg-card"
                 />
               </div>
 
@@ -250,7 +250,7 @@ export function CreatePostModal({
                       queue: { ...formData?.queue, time: e.target.value },
                     })
                   }
-                  className="bg-card text-sm sm:text-base"
+                  className="bg-card"
                 />
               </div>
             </div>

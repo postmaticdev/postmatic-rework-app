@@ -46,8 +46,8 @@ export function ConfirmationModal({
         if (!open) onClose();
       }}
     >
-      <AlertDialogContent className="max-w-md">
-        <AlertDialogHeader className="flex flex-row items-center gap-6">
+      <AlertDialogContent>
+        <AlertDialogHeader className="flex flex-row items-center gap-4 text-left sm:gap-6">
           <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
             <AlertTriangle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
           </div>
@@ -75,7 +75,7 @@ export function ConfirmationModal({
           </div>
         )}
 
-        <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <AlertDialogFooter>
           <AlertDialogCancel
             onClick={() => {
               if (onCancel) {
@@ -85,14 +85,13 @@ export function ConfirmationModal({
               onClose();
             }}
             disabled={isLoading}
-            className="w-full sm:w-auto"
           >
             {cancelText}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isLoading}
-            className="w-full bg-blue-500 text-white hover:bg-blue-600 sm:w-auto"
+            className="bg-blue-500 text-white hover:bg-blue-600"
           >
             {isLoading ? (
               <div className="flex items-center gap-2 text-white">

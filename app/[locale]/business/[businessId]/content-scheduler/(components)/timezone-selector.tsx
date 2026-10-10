@@ -111,7 +111,7 @@ export function TimezoneSelector() {
         aria-controls={listboxId}
         aria-expanded={isOpen ? "true" : "false"}
         aria-haspopup="listbox"
-        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-(--control-h) w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background sm:text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={() => setIsOpen((current) => !current)}
       >
         <span className="truncate">
@@ -140,7 +140,7 @@ export function TimezoneSelector() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search timezone..."
-                className="h-9 pl-9"
+                className="pl-9"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck={false}

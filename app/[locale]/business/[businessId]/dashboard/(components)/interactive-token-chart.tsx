@@ -15,6 +15,7 @@ import {
   Line,
 } from "recharts";
 import { ChartErrorBoundary } from "./chart-error-boundary";
+import { NativeSelect } from "@/components/ui/native-select";
 import { 
   getChartData, 
   getDateRangeLabel, 
@@ -116,7 +117,7 @@ const ChartTypeSelector = ({
           <button
             key={type.value}
             onClick={() => onChartTypeChange(type.value as ChartType)}
-            className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+            className={`min-h-10 px-3 py-1 rounded-lg text-sm transition-colors ${
               chartType === type.value
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -148,17 +149,17 @@ const PeriodSelector = ({
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-muted-foreground">Periode:</span>
-      <select
+      <NativeSelect
         value={period}
         onChange={(e) => onPeriodChange(e.target.value as TimePeriod)}
-        className="text-sm border border-border rounded px-3 py-1 bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-32 border-border bg-background"
       >
         {periods.map((p) => (
           <option key={p.value} value={p.value}>
             {p.label}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </div>
   );
 };

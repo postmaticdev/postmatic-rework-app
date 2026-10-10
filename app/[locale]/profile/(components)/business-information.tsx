@@ -61,7 +61,7 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
           <Button
             variant="default"
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {t("view")}
           </Button>

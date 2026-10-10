@@ -1,6 +1,7 @@
 "use client";
 
 import { Info } from "lucide-react";
+import { NativeSelect } from "@/components/ui/native-select";
 
 interface CurrencyDropdownProps {
   value: string;
@@ -45,10 +46,8 @@ export function CurrencyDropdown({
 }: CurrencyDropdownProps) {
   return (
     <div className="space-y-1">
-      <select
-        className={`flex p-2 h-10 w-full items-center rounded-md border bg-background dark:bg-card text-sm shadow-xs ring-offset-background transition-[color,box-shadow] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-          error ? "border-red-500 focus:ring-red-500" : "border-input focus:ring-ring"
-        }`}
+      <NativeSelect
+        className={`bg-background dark:bg-card ${error ? "border-red-500" : ""}`}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
@@ -63,7 +62,7 @@ export function CurrencyDropdown({
             {currency.code}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       {error && (
         <div className="flex items-center gap-1">
           <Info className="w-4 h-4 text-red-500" />

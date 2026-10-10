@@ -109,7 +109,7 @@ export function ScheduleItemPicker({
               max="59"
             />
             <div className="hidden sm:block">
-              <Button onClick={handleAddTime} className="px-3">
+              <Button onClick={handleAddTime}>
                 <Plus className="h-4 w-4 mr-1" />
                 {t("add")}
               </Button>
@@ -160,7 +160,7 @@ export function ScheduleItemPicker({
       </div>
 
       <div className="block sm:hidden w-full">
-        <Button onClick={handleAddTime} className="px-3 w-full">
+        <Button onClick={handleAddTime} className="w-full">
           <Plus className="h-4 w-4 mr-1" />
           {t("add")}
         </Button>
@@ -187,9 +187,9 @@ export function ScheduleItemPicker({
               </div>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon-sm"
                 onClick={() => onRemoveItem(item.time)}
-                className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                className="text-red-500 hover:text-red-700"
               >
                 <X className="h-4 w-4" />
               </Button>

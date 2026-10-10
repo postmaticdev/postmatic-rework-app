@@ -75,7 +75,7 @@ export function ReferenceFullviewModal({
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
           {/* Preview Image */}
 
           <Image
@@ -158,7 +158,6 @@ export function ReferenceFullviewModal({
 
         {/* Footer */}
         <DialogFooterWithTwoButtons
-          className="px-6 py-4 border-t rounded-b-lg"
           primaryButton={{
             message: m("buttonUse"),
             onClick: () => {
@@ -178,7 +177,7 @@ export function ReferenceFullviewModal({
               <Save className="mr-2 h-4 w-4" />
             ),
             variant: "outline",
-            className: `px-6 border-2 font-medium transition-all ${isSaved
+            className: `border-2 font-medium transition-all ${isSaved
                 ? "border-red-200 text-red-600 hover:bg-red-50"
                 : "border-gray-200 hover:bg-gray-50"
               }`,

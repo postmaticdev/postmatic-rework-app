@@ -2,6 +2,8 @@
 
 import { useCheckout } from "@/contexts/checkout-context";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function PromoCodeSection() {
   const {
@@ -26,7 +28,10 @@ export function PromoCodeSection() {
             <span className="bg-blue-600 dark:bg-blue-500 text-white text-sm px-3 py-1 rounded-md mr-2">
               {product?.benefitCode}
             </span>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={onClearPromo}
               className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             >
@@ -42,24 +47,22 @@ export function PromoCodeSection() {
                   clipRule="evenodd"
                 />
               </svg>
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
-        <div className="border border-gray-200 dark:border-gray-600 rounded-lg flex bg-white dark:bg-gray-800">
-          <input
-            type="text"
-            placeholder={t("promoCode")}
-            value={promoState}
-            onChange={(e) => setPromoState(e.target.value?.toUpperCase())}
-            className="flex-1 p-4 rounded-lg outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                onPromoSubmit();
-              }
-            }}
-          />
-        </div>
+        <Input
+          type="text"
+          placeholder={t("promoCode")}
+          value={promoState}
+          onChange={(e) => setPromoState(e.target.value?.toUpperCase())}
+          className="border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              onPromoSubmit();
+            }
+          }}
+        />
       )}
       {!product?.isValidCode && product?.hintCode && (
         <div className="text-red-500 text-sm mt-4">{product?.hintCode}</div>

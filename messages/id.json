@@ -816,7 +816,12 @@
   "sessionLogin": {
     "title": "Sesi Login",
     "logoutAll": "Keluar Semua",
-    "logout": "Keluar"
+    "logout": "Keluar",
+    "logoutConfirmTitle": "Konfirmasi Keluar",
+    "logoutConfirmDescription": "Apakah Anda yakin ingin keluar dari sesi ini?",
+    "logoutAllConfirmDescription": "Apakah Anda yakin ingin keluar dari semua sesi?",
+    "confirm": "Ya, Keluar",
+    "cancel": "Batal"
   },
   "editProfileModal": {
     "title": "Edit Profil",

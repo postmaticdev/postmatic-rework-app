@@ -196,7 +196,7 @@ export function SearchableCountrySelect({
         aria-controls="dropdown-listbox"
         aria-haspopup="listbox"
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-base shadow-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm [&>span]:line-clamp-1",
+          "flex h-(--control-h) w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-base shadow-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm [&>span]:line-clamp-1",
           className
         )}
         onClick={() => setIsOpen((o) => !o)}
@@ -226,7 +226,7 @@ export function SearchableCountrySelect({
             {/* Search */}
             <div className="sticky top-0 z-10 p-1 bg-popover border-b">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={searchInputRef}
                   placeholder={searchPlaceholder}
@@ -236,7 +236,7 @@ export function SearchableCountrySelect({
                     setFocusedIndex(-1);
                   }}
                   onKeyDown={handleSearchKeyDown}
-                  className="h-9 pl-8"
+                  className="pl-8"
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
                   autoComplete="off"
@@ -288,7 +288,7 @@ export function SearchableCountrySelect({
             {/* Search */}
             <div className="sticky top-0 z-10 p-1 bg-popover border-b">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={searchInputRef}
                   placeholder={searchPlaceholder}
@@ -298,7 +298,7 @@ export function SearchableCountrySelect({
                     setFocusedIndex(-1);
                   }}
                   onKeyDown={handleSearchKeyDown}
-                  className="h-9 pl-8"
+                  className="pl-8"
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
                   autoComplete="off"

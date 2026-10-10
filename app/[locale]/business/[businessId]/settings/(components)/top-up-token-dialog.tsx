@@ -481,8 +481,8 @@ export function TopUpTokenDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="overflow-hidden">
-        <DialogHeader className="px-6 py-5">
+      <DialogContent>
+        <DialogHeader>
           <DialogTitle >
             {checkoutResult
               ? tDialog("paymentInstruction")
@@ -490,7 +490,7 @@ export function TopUpTokenDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+        <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:p-6">
           {!checkoutResult ? (
             <>
               <div className="grid gap-4">
@@ -502,7 +502,6 @@ export function TopUpTokenDialog({
                     value={amount}
                     onChange={(event) => handleAmountChange(event.target.value)}
                     placeholder={defaultTokenAmountDisplay}
-                    className="h-11"
                   />
                   {/* <p className="text-xs text-muted-foreground">
                     Enter the token amount you want to buy. Max 1,000,000,000.
@@ -532,10 +531,11 @@ export function TopUpTokenDialog({
                     value={promoCode}
                     onChange={(event) => handlePromoCodeChange(event.target.value)}
                     placeholder={tDialog("enterPromoCode")}
-                    className="h-11 pr-20 uppercase"
+                    className="pr-20 uppercase"
                   />
                   <Button
                     type="button"
+                    size="sm"
                     onClick={handleCheckPromoCode}
                     disabled={
                       isCheckingPromoCode ||
@@ -544,7 +544,7 @@ export function TopUpTokenDialog({
                       !tokenAmount ||
                       !paymentMethod
                     }
-                    className="absolute right-1 top-1/2 h-9 -translate-y-1/2 px-3 text-sm"
+                    className="absolute right-1 top-1/2 h-8 -translate-y-1/2"
                   >
                     {isCheckingPromoCode
                       ? tDialog("checking")
@@ -644,7 +644,6 @@ export function TopUpTokenDialog({
 
         {!checkoutResult ? (
           <DialogFooterWithButton
-            className="px-6 py-4"
             buttonMessage={
               isCreatingPayment ? tDialog("processing") : tDialog("continue")
             }

@@ -353,17 +353,20 @@ function applyAuthInterceptors(instance: AxiosInstance) {
         isRefreshing = false;
         return instance.request(originalConfig);
       } catch (e) {
-        isRefreshing = false;
-        onRefreshFailed(e);
-
         // Server/jaringan bermasalah (bukan sesi invalid): jangan logout,
         // supaya tidak memantul ke login lalu kembali ke app berulang kali.
         const refreshStatus = (e as AxiosError)?.response?.status;
         const isServerOrNetworkError =
           axios.isAxiosError(e) && (!refreshStatus || refreshStatus >= 500);
         if (!isServerOrNetworkError) {
+          // Logout dulu sebelum menolak request yang menunggu, agar pemanggil
+          // sudah bisa membaca isAuthRedirecting()/isAuthRedirectBlocked()
+          // (mis. halaman root menampilkan "login ulang", bukan "coba lagi").
           await hardLogout();
         }
+
+        isRefreshing = false;
+        onRefreshFailed(e);
         return Promise.reject(e);
       }
     }

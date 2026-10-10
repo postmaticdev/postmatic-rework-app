@@ -66,7 +66,7 @@ export function AutoGenerateHistoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="">
+      <DialogContent>
         {/* Header */}
         <DialogHeader>
           <div>
@@ -78,7 +78,7 @@ export function AutoGenerateHistoryModal({
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <LogoLoader />

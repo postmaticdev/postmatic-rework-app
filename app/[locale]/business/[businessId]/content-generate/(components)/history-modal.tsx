@@ -111,7 +111,7 @@ export function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
         )}
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4">
           {histories.map((item, index) => {
             const isExpanded = expandedItems.has(item.productKnowledgeId);
 

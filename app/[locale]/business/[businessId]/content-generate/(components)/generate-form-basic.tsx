@@ -106,8 +106,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    size="icon-sm"
+                    className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     onClick={(e) => {
                       e.stopPropagation();
                       setBasic({ ...basic, productKnowledgeId: "", productName: "", productImage: "" });
@@ -122,8 +122,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
           </div>
         </div>
       ) : (
-        <div>
-          <label className="mb-2 block text-sm font-medium">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">
             {t("productName")}
           </label>
           <Button
@@ -153,8 +153,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
         </>
       )}
 
-      <div>
-        <label className="mb-2 block text-sm font-medium">AI Model</label>
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">AI Model</label>
         <AiModelSelect
           disabled={isLoading || aiModels.isLoading}
           isLoading={aiModels.isLoading}
@@ -196,8 +196,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
         </div>
       ) : null} */}
 
-      <div>
-        <label className="mb-2 block text-sm font-medium">
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
           {t("aspectRatio")}
         </label>
         <Select
@@ -225,8 +225,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
         </Select>
       </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-medium">
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
           Trend & Avatar <span className="text-muted-foreground font-normal text-xs">(Opsional)</span>
         </label>
         <div className="grid grid-cols-2 gap-4">
@@ -237,7 +237,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             variant="default"
             onClick={() => form.onRssSelect(null)}
             disabled={isLoading}
-            className="h-14 w-full bg-red-600 text-white hover:bg-red-700"
+            size="lg"
+            className="w-full bg-red-600 text-white hover:bg-red-700"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             {t("removeSelectedTrend")}
@@ -248,7 +249,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             variant="default"
             onClick={onOpenTrend}
             disabled={isLoading}
-            className="h-14 w-full"
+            size="lg"
+            className="w-full"
           >
             <Newspaper className="h-4 w-4 mr-2" />
             {t("addLatestTrend")}
@@ -260,7 +262,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
           variant={basic.selectedAvatars.length > 0 ? "outline" : "default"}
           onClick={() => setIsAvatarModalOpen(true)}
           disabled={isLoading || disabled}
-          className="h-14 w-full"
+          size="lg"
+          className="w-full"
         >
           <Bot className="h-4 w-4 mr-2" />
           {t("selectAvatar")}

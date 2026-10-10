@@ -266,7 +266,8 @@ export function Header() {
 
                   <Button
                     asChild
-                    className="mt-2 h-9 w-full justify-center rounded-md bg-blue-600 font-normal text-white hover:bg-blue-700"
+                    size="sm"
+                    className="mt-2 w-full justify-center bg-blue-600 font-normal text-white hover:bg-blue-700"
                   >
                     <Link href="/business/new-business">
                       <Plus className="h-4 w-4" />
@@ -304,8 +305,10 @@ export function Header() {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => {
               const activeBusinessId = businessId || currentBusiness?.id || businesses[0]?.id;
               router.push(
@@ -314,16 +317,16 @@ export function Header() {
                   : "/notifications"
               );
             }}
-            className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 hover:scale-105 active:scale-95 group"
+            className="relative text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 hover:scale-105 active:scale-95 group"
             aria-label="System Notifications"
           >
-            <Bell className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" />
+            <Bell className="size-5 transition-transform duration-300 group-hover:rotate-12" />
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-background animate-in zoom-in-50 duration-200">
                 {unreadCount}
               </span>
             )}
-          </button>
+          </Button>
 
           {/* Mobile Menu */}
           <MobileMenu />

@@ -94,7 +94,7 @@ export function PaymentMethodSelect({
         <Button
           type="button"
           variant="outline"
-          className="h-11 w-full justify-between border-input bg-background px-3 font-normal text-foreground hover:bg-background"
+          className="w-full justify-between border-input bg-background px-3 font-normal text-foreground hover:bg-background"
           disabled={disabled || options.length === 0}
         >
           {selectedOption ? (

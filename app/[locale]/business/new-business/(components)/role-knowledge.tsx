@@ -105,11 +105,11 @@ export function RoleKnowledge() {
         error={errors.step3.tone}
       />
 
-      <div className="">
+      <div className="space-y-2">
         <label className="text-sm font-medium text-foreground">
           {finalLabels.hashtags}
         </label>
-        <div className="flex gap-2 mt-1">
+        <div className="flex gap-2">
           <Input
             value={currentHashtag}
             placeholder={finalPlaceholders.hashtagInput}
@@ -159,7 +159,7 @@ export function RoleKnowledge() {
             }}
           />
 
-          <Button type="button" onClick={addHashtag} className="px-3">
+          <Button type="button" size="icon" onClick={addHashtag}>
             <Plus className="w-4 h-4" color="white" />
           </Button>
         </div>

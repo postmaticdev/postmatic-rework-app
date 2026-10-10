@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, UserPlus, Trash2, LogOut } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
@@ -133,8 +133,8 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 bg-card hover:bg-muted/30"
+                    size="icon-sm"
+                    className="bg-card hover:bg-muted/30"
                     onClick={(e) => {
                       e.stopPropagation();
                     }}
@@ -154,7 +154,9 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
                           handleClickInvite();
                         }}
                         data-no-card-nav
+                        className="flex items-center gap-2"
                       >
+                        <UserPlus className="w-4 h-4" />
                         Undang
                       </DropdownMenuItem>
 
@@ -165,7 +167,9 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
                           handleOpenDeleteModal();
                         }}
                         data-no-card-nav
+                        className="flex items-center gap-2"
                       >
+                        <Trash2 className="w-4 h-4" />
                         Hapus
                       </DropdownMenuItem>
                     </>
@@ -177,7 +181,9 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
                         setLeaveOpen(true); // buka dialog terkontrol
                       }}
                       data-no-card-nav
+                      className="flex items-center gap-2"
                     >
+                      <LogOut className="w-4 h-4" />
                       Keluar
                     </DropdownMenuItem>
                   )}

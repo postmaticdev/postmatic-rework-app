@@ -99,9 +99,9 @@ export function AiModelSelect({
         <Button
           type="button"
           variant="outline"
+          size={isSmall ? "sm" : "default"}
           className={cn(
             "w-full justify-between border-input bg-background-secondary px-2 font-normal text-foreground focus-visible:ring-ring",
-            isSmall ? "h-8 text-xs" : "h-10 text-sm",
             className
           )}
           disabled={disabled || isLoading || models.length === 0}

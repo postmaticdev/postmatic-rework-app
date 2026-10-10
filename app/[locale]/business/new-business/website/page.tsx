@@ -469,7 +469,8 @@ export default function NewBusinessWebsitePage() {
                 <div className="grid gap-3">
 
                   <Button
-                    className="h-14 rounded-full text-base shadow-[0_18px_40px_rgba(37,99,235,0.35)]"
+                    size="lg"
+                    className="shadow-[0_18px_40px_rgba(37,99,235,0.35)]"
                     disabled={!canContinue}
                     onClick={handleScrapWebsite}
                   >
@@ -562,7 +563,7 @@ export default function NewBusinessWebsitePage() {
 
                   <div className="hidden sm:flex xl:w-full">
                     <Button
-                      className="w-full rounded-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
+                      className="w-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
                       onClick={handleContinueToManual}
                     >
                       {t("manualCta")}
@@ -583,7 +584,7 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("primaryLogoUrl", event.target.value)
                           }
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
@@ -594,7 +595,7 @@ export default function NewBusinessWebsitePage() {
                         <Input
                           value={draft.name}
                           onChange={(event) => updateDraft("name", event.target.value)}
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
@@ -605,7 +606,7 @@ export default function NewBusinessWebsitePage() {
                         <Input
                           value={draft.category}
                           onChange={(event) => updateDraft("category", event.target.value)}
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
                     </div>
@@ -619,7 +620,7 @@ export default function NewBusinessWebsitePage() {
                         onChange={(event) =>
                           updateDraft("description", event.target.value)
                         }
-                        className="min-h-32 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        className="min-h-32 border-white/50 bg-white/80 dark:bg-slate-950/40"
                       />
                     </div>
 
@@ -631,7 +632,7 @@ export default function NewBusinessWebsitePage() {
                         <Input
                           value={draft.website}
                           onChange={(event) => updateDraft("website", event.target.value)}
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
@@ -644,7 +645,7 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("businessPhone", event.target.value)
                           }
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
                     </div>
@@ -660,7 +661,7 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("targetAudience", event.target.value)
                           }
-                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="min-h-28 border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
@@ -673,7 +674,7 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("contentTone", event.target.value)
                           }
-                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="min-h-28 border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
                     </div>
@@ -689,7 +690,7 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("hashtags", event.target.value)
                           }
-                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="min-h-28 border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
@@ -708,7 +709,7 @@ export default function NewBusinessWebsitePage() {
                             onChange={(event) =>
                               updateDraft("colorTone", event.target.value)
                             }
-                            className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                            className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                           />
                         </div>
                       </div>
@@ -772,7 +773,8 @@ export default function NewBusinessWebsitePage() {
             </div>
             <div className="fixed right-0 bottom-0 left-0 z-50 border-t border-white/20 bg-background/95 p-4 shadow-[0_-16px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-slate-950/95 sm:hidden">
               <Button
-                className="h-12 w-full rounded-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
+                size="lg"
+                className="w-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
                 onClick={handleContinueToManual}
               >
                 {t("manualCta")}

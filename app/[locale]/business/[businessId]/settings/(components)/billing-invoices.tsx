@@ -57,7 +57,7 @@ export function BillingInvoices() {
           <div className="flex w-full flex-col gap-3 lg:w-[260px]">
             <Button
               onClick={() => setIsDialogOpen(true)}
-              className="bg-blue-600 text-base font-medium text-white hover:bg-blue-700"
+              className="bg-blue-600 text-white hover:bg-blue-700"
             >
               <Send className="mr-2 h-4 w-4" />
               {t("topUpCredit")}
@@ -66,7 +66,7 @@ export function BillingInvoices() {
             <Button
               asChild
               variant="outline"
-              className="w-full border-border bg-muted/40 text-base font-medium"
+              className="w-full border-border bg-muted/40"
             >
               <a
                 href="https://docs.postmatic.id/our-features/pricing"

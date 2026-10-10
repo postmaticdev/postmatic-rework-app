@@ -369,8 +369,7 @@ export function AutoGenerate({
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
+                                size="icon-sm"
                                 onClick={() => handleRemoveRepeatDay(day.value)}
                                 aria-label={`Hapus ${day.label}`}
                               >
@@ -502,11 +501,11 @@ export function AutoGenerate({
 
       {/* Image Preview Modal */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>{t("generatedImages")}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+          <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 px-4 py-4 sm:p-6">
             {selectedImages.map((image, index) => (
               <div key={index} className="space-y-2">
                 <Image

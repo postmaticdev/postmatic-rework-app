@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   children: ReactNode;
@@ -43,12 +44,12 @@ export class ChartErrorBoundary extends Component<Props, State> {
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 Terjadi kesalahan saat memuat chart
               </p>
-              <button
+              <Button
                 onClick={() => this.setState({ hasError: false, error: undefined })}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                className="bg-blue-600 text-white hover:bg-blue-700"
               >
                 Coba Lagi
-              </button>
+              </Button>
             </div>
           </div>
         )

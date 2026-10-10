@@ -46,8 +46,8 @@ export function SelectedAvatars() {
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  size="icon-sm"
+                  className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   disabled={isLoading}
                   onClick={() => {
                     const nextAvatars = form.basic.selectedAvatars.filter(

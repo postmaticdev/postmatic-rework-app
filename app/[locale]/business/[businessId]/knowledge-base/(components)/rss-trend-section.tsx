@@ -391,8 +391,7 @@ export function RSSTrendSection({
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
+                                size="icon-sm"
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </Button>

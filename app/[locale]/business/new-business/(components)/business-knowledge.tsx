@@ -30,7 +30,7 @@ export function BusinessKnowledge() {
     brandName: t("brandName"),
     category: t("category"),
     description: t("description"),
-    website: t("urlWebsite"),
+    website: `${t("urlWebsite")} (Opsional)`,
     phone: t("phone"),
     colorTone: t("colorTone"),
   };

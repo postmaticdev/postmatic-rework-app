@@ -222,7 +222,7 @@ export function PurchaseDetailModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-6 p-6">
+        <div className="flex-1 overflow-y-auto space-y-6 px-4 py-4 sm:p-6">
           <PaymentInstructionCard
             status={transaction.status}
             statusTitle={statusTitle}

@@ -71,7 +71,7 @@ export function AutoPosting({ handleIfNoPlatformConnected }: AutoPostingProps) {
             </div>
           </div>
 
-          <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+          <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto scrollbar-hidden">
             {schedules.schedulerAutoPostings.map((schedule) => (
               <Card key={schedule.day} className="bg-background-secondary">
                 <CardContent className="p-4 sm:p-6">

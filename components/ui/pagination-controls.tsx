@@ -57,12 +57,11 @@ export function PaginationControls({
         {/* First Page Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => {
             setFilterQuery({ ...filterQuery, page: 1 });
           }}
           disabled={!hasPrevPage}
-          className="h-8 w-8 p-0"
           title="Halaman Pertama"
         >
           <ChevronLeft className="h-3 w-3 -mr-2" />
@@ -72,7 +71,7 @@ export function PaginationControls({
         {/* Previous Page Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => {
             setFilterQuery({
               ...filterQuery,
@@ -80,7 +79,6 @@ export function PaginationControls({
             });
           }}
           disabled={!hasPrevPage}
-          className="h-8 w-8 p-0"
           title="Halaman Sebelumnya"
         >
           <ChevronLeft className="h-3 w-3" />
@@ -109,11 +107,11 @@ export function PaginationControls({
               <Button
                 key={pageNum}
                 variant={page === pageNum ? "default" : "outline"}
-                size="sm"
+                size="icon-sm"
                 onClick={() => {
                   setFilterQuery({ ...filterQuery, page: pageNum });
                 }}
-                className="h-8 w-8 p-0 text-xs"
+                className="text-xs"
                 title={`Halaman ${pageNum}`}
               >
                 {pageNum}
@@ -125,7 +123,7 @@ export function PaginationControls({
         {/* Next Page Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => {
             setFilterQuery({
               ...filterQuery,
@@ -133,7 +131,6 @@ export function PaginationControls({
             });
           }}
           disabled={!hasNextPage}
-          className="h-8 w-8 p-0"
           title="Halaman Selanjutnya"
         >
           <ChevronRight className="h-3 w-3" />
@@ -142,7 +139,7 @@ export function PaginationControls({
         {/* Last Page Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => {
             setFilterQuery({
               ...filterQuery,
@@ -150,7 +147,6 @@ export function PaginationControls({
             });
           }}
           disabled={!hasNextPage}
-          className="h-8 w-8 p-0"
           title="Halaman Terakhir"
         >
           <ChevronRight className="h-3 w-3 -mr-2" />

@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -200,7 +201,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
           {currentView === "profile" ? (
             <>
               {/* Profile Image */}
@@ -266,7 +267,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     }
                     placeholder={t("countryCode")}
                     searchPlaceholder={t("countryCodeSearch")}
-                    className="w-40 bg-card"
+                    className="w-28 sm:w-40 bg-card"
                   />
                   <Input
                     type="number"
@@ -290,7 +291,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 {isSocialAccount ? (
                   <Button
                     variant="outline"
-                    className="w-full h-12 justify-between space-x-3 bg-card text-foreground hover:bg-background"
+                    className="w-full justify-between space-x-3 bg-card text-foreground hover:bg-background"
                   >
                     <div className="flex items-center space-x-3">
                       <FcGoogle className="h-5 w-5" />
@@ -302,7 +303,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 ) : (
                   <Button
                     variant="outline"
-                    className="w-full h-12 justify-between space-x-3 bg-card text-muted-foreground hover:bg-background"
+                    className="w-full justify-between space-x-3 bg-card text-muted-foreground hover:bg-background"
                     onClick={handleChangePassword}
                   >
                     <div className="flex items-center space-x-3">
@@ -410,34 +411,30 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           )}
         </div>
 
-        <div className="flex items-center justify-between p-6 pt-4 border-t border-border">
+        <DialogFooter>
           {currentView === "password" && (
             <Button
               variant="outline"
               onClick={handleBackToProfile}
-              className="flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>{t("back")}</span>
             </Button>
           )}
-          <div className={currentView === "password" ? "ml-auto" : "w-full"}>
-            <Button
-              onClick={
-                currentView === "profile"
-                  ? handleSaveProfile
-                  : handlePasswordSave
-              }
-              className="w-full flex items-center justify-center space-x-2"
-            >
-              <span>
-                {currentView === "profile"
-                  ? t("save")
-                  : t("savePassword")}
-              </span>
-            </Button>
-          </div>
-        </div>
+          <Button
+            onClick={
+              currentView === "profile"
+                ? handleSaveProfile
+                : handlePasswordSave
+            }
+          >
+            <span>
+              {currentView === "profile"
+                ? t("save")
+                : t("savePassword")}
+            </span>
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

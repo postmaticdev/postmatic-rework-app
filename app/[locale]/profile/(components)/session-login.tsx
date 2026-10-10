@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import {
   useAuthProfileGetCurrentSession,
   useAuthProfileGetSessions,
@@ -69,11 +70,37 @@ export function SessionLogin() {
   const currentSession = currentSessionData?.data?.data?.session ?? null;
   const currentSessionId = currentSession?.id ?? null;
 
+  const [logoutTarget, setLogoutTarget] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const sessions = useMemo(() => {
     const sessionList = sessionsData?.data?.data ?? [];
 
-    return sessionList
+    const uniqueSessionsMap = new Map<string, Session>();
+    
+    sessionList
       .map((session) => mergeSessionDetails(session, currentSession))
+      .forEach((session) => {
+        // Use clientIp and device for deduplication, fallback to session id
+        const key = (session.clientIp && session.device) ? `${session.clientIp}-${session.device}` : session.id;
+        
+        if (uniqueSessionsMap.has(key)) {
+          const existing = uniqueSessionsMap.get(key)!;
+          // Prefer current session over duplicates
+          if (session.id === currentSessionId) {
+            uniqueSessionsMap.set(key, session);
+          } else if (existing.id !== currentSessionId) {
+            // Keep the more recent session if both are not current
+            if (new Date(session.createdAt).getTime() > new Date(existing.createdAt).getTime()) {
+              uniqueSessionsMap.set(key, session);
+            }
+          }
+        } else {
+          uniqueSessionsMap.set(key, session);
+        }
+      });
+
+    return Array.from(uniqueSessionsMap.values())
       .sort((a, b) => {
         if (a.id === currentSessionId) return -1;
         if (b.id === currentSessionId) return 1;
@@ -82,80 +109,97 @@ export function SessionLogin() {
       });
   }, [currentSession, currentSessionId, sessionsData?.data?.data]);
 
-  const handleLogout = async (sessionId: string) => {
-    const isCurrentSession = sessionId === currentSessionId;
+  const handleConfirmLogout = async () => {
+    if (!logoutTarget) return;
+    
+    setIsLoggingOut(true);
 
-    try {
-      await mLogout.mutateAsync(sessionId);
-      showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
-    } catch {
-      return;
+    if (logoutTarget === "all") {
+      try {
+        await mLogoutAll.mutateAsync();
+        showToast("success", tToast("toast.auth.logoutAllSuccess"), tToast);
+        await sleep(1000);
+        await logoutAndRedirect();
+      } catch {
+        setIsLoggingOut(false);
+      }
+    } else {
+      const isCurrentSession = logoutTarget === currentSessionId;
+      try {
+        await mLogout.mutateAsync(logoutTarget);
+        showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
+        if (isCurrentSession) {
+          await sleep(1000);
+          await logoutAndRedirect();
+        } else {
+          setLogoutTarget(null);
+          setIsLoggingOut(false);
+        }
+      } catch {
+        setIsLoggingOut(false);
+      }
     }
-
-    if (!isCurrentSession) {
-      return;
-    }
-
-    await sleep(1000);
-    await logoutAndRedirect();
-  };
-
-  const handleLogoutAll = async () => {
-    try {
-      await mLogoutAll.mutateAsync();
-      showToast("success", tToast("toast.auth.logoutAllSuccess"), tToast);
-    } catch {
-      return;
-    }
-
-    await sleep(1000);
-    await logoutAndRedirect();
   };
 
   return (
-    <Card className="h-fit">
-      <CardContent className="p-6">
-        <div className="flex justify-between">
-          <h2 className="text-lg font-semibold text-foreground mb-6">
-            {t("title")}
-          </h2>
-          <Button variant="destructive" size="sm" onClick={handleLogoutAll}>
-            {t("logoutAll")}
-          </Button>
-        </div>
+    <>
+      <Card className="h-fit">
+        <CardContent className="p-6">
+          <div className="flex justify-between">
+            <h2 className="text-lg font-semibold text-foreground mb-6">
+              {t("title")}
+            </h2>
+            <Button variant="destructive" size="sm" onClick={() => setLogoutTarget("all")}>
+              {t("logoutAll")}
+            </Button>
+          </div>
 
-        <div className="space-y-4">
-          {sessions.map((session) => {
-            const label = formatSessionLabel(session);
-            const sessionDate = session.createdAt || session.expiredAt;
+          <div className="space-y-4">
+            {sessions.map((session) => {
+              const label = formatSessionLabel(session);
+              const sessionDate = session.createdAt || session.expiredAt;
 
-            return (
-              <div
-                key={session.id}
-                className="flex items-center justify-between bg-background-secondary p-4 rounded-lg"
-              >
-                <div>
-                  <p className="font-medium text-foreground">{label}</p>
-                  {sessionDate && (
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(new Date(sessionDate))}
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="text-white px-6"
-                  onClick={() => handleLogout(session.id)}
+              return (
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between bg-background-secondary p-4 rounded-lg"
                 >
-                  {t("logout")}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+                  <div>
+                    <p className="font-medium text-foreground">{label}</p>
+                    {sessionDate && (
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(new Date(sessionDate))}
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="text-white"
+                    onClick={() => setLogoutTarget(session.id)}
+                  >
+                    {t("logout")}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+      
+      <ConfirmationModal
+        isOpen={!!logoutTarget}
+        onClose={() => {
+          if (!isLoggingOut) setLogoutTarget(null);
+        }}
+        onConfirm={handleConfirmLogout}
+        title={t("logoutConfirmTitle")}
+        description={logoutTarget === "all" ? t("logoutAllConfirmDescription") : t("logoutConfirmDescription")}
+        confirmText={t("confirm")}
+        cancelText={t("cancel")}
+        isLoading={isLoggingOut}
+      />
+    </>
   );
 }

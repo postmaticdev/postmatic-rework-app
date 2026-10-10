@@ -10,6 +10,7 @@ import {
 import { Link, useRouter } from "@/i18n/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScheduleTimeInput } from "@/components/ui/schedule-time-input";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import {
@@ -135,21 +136,19 @@ function RetryEventForm({ event, businessId }: { event: SchedulerEvent; business
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-background p-2">
-      <div className="flex h-9 flex-1 items-center gap-2 rounded-lg border border-input bg-background-secondary px-2">
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full bg-transparent text-xs outline-none"
-        />
-      </div>
+      <Input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className="flex-1 bg-background-secondary sm:w-auto"
+      />
       <ScheduleTimeInput
         date={date}
         value={time}
         onValueChange={setTime}
-        className="h-9 flex-1 rounded-lg bg-background-secondary text-xs"
+        className="flex-1 bg-background-secondary sm:w-auto"
       />
-      <Button size="sm" onClick={handleRetry} disabled={mEdit.isPending}>
+      <Button onClick={handleRetry} disabled={mEdit.isPending}>
         Retry
       </Button>
     </div>
@@ -945,7 +944,7 @@ export function ContentSchedulerBoard({
                     className={buttonVariants({
                       variant: "outline",
                       className:
-                        "pointer-events-none h-10 w-auto min-w-[160px] px-4 text-center text-lg font-bold capitalize peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 sm:min-w-[220px] sm:text-xl",
+                        "pointer-events-none w-auto min-w-[160px] text-center text-lg font-bold capitalize peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 sm:min-w-[220px] sm:text-xl",
                     })}
                   >
                     {monthLabel}
@@ -1197,14 +1196,14 @@ export function ContentSchedulerBoard({
           <AutoGenerate
             handleIfNoPlatformConnected={handleIfNoPlatformConnected}
             cardClassName="flex-1 xl:max-h-[calc(100vh-8.5rem)] xl:overflow-hidden"
-            scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(80vh-19rem)] xl:overflow-y-auto xl:pr-1"
+            scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(80vh-19rem)] xl:overflow-y-auto scrollbar-hidden xl:pr-1"
           />
         </div>
       </div>
 
       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
-        <DialogContent className="w-full">
-          <DialogHeader className="">
+        <DialogContent>
+          <DialogHeader>
             <div className="flex items-start justify-between gap-4 pr-8">
               <div>
                 <DialogTitle>{formatDateTitle(selectedDate)}</DialogTitle>
@@ -1245,7 +1244,7 @@ export function ContentSchedulerBoard({
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6">
             <div className="space-y-3">
               {selectedDateEvents.map((event) => (
                 <div key={event.id} className="flex flex-col gap-2">
@@ -1302,7 +1301,7 @@ export function ContentSchedulerBoard({
                         <Button
                           type="button"
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           className="shrink-0"
                         >
                           <MoreVertical className="h-4 w-4" />
@@ -1352,14 +1351,14 @@ export function ContentSchedulerBoard({
       </Dialog>
 
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>{t("viewPost")}</DialogTitle>
             <DialogDescription>{viewEvent && formatFullDate(viewEvent.date)}</DialogDescription>
           </DialogHeader>
 
           {viewEvent && (
-            <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
+            <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:p-6">
               {viewEvent.postedUrl && (
                 <a
                   href={viewEvent.postedUrl}

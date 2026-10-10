@@ -475,7 +475,7 @@ export function SharedReferencePanel({
           setIsNameDialogOpen(true);
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>{t("saveUploadedReferenceTitle")}</DialogTitle>
             <DialogDescription>
@@ -483,7 +483,7 @@ export function SharedReferencePanel({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 p-4 sm:p-6">
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:p-6">
             <div className="space-y-2">
               <p className="text-sm font-medium">{t("referenceNameLabel")}</p>
               <Input
@@ -503,30 +503,28 @@ export function SharedReferencePanel({
             </div>
           </div>
 
-          <DialogFooter className="px-4 pb-4 sm:px-6 sm:pb-6">
-            <div className="flex w-full justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={resetNameDialog}
-                disabled={isPreparingUpload}
-              >
-                {t("cancelSaveReference")}
-              </Button>
-              <Button
-                onClick={handleContinueToFilePicker}
-                disabled={isPreparingUpload}
-                className="bg-blue-500 text-white hover:bg-blue-600"
-              >
-                {isPreparingUpload ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("selectingImage")}
-                  </>
-                ) : (
-                  t("continueToUpload")
-                )}
-              </Button>
-            </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={resetNameDialog}
+              disabled={isPreparingUpload}
+            >
+              {t("cancelSaveReference")}
+            </Button>
+            <Button
+              onClick={handleContinueToFilePicker}
+              disabled={isPreparingUpload}
+              className="bg-blue-500 text-white hover:bg-blue-600"
+            >
+              {isPreparingUpload ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("selectingImage")}
+                </>
+              ) : (
+                t("continueToUpload")
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
