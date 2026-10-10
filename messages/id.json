@@ -60,6 +60,14 @@
       "saved": "Disimpan"
     }
   },
+  "authCheck": {
+    "errorTitle": "Gagal memuat data bisnis",
+    "errorDescription": "Terjadi kendala saat menghubungi server. Silakan coba lagi.",
+    "retry": "Coba lagi",
+    "loopTitle": "Sesi login tidak dapat dipulihkan",
+    "loopDescription": "Login gagal beberapa kali berturut-turut. Silakan login ulang.",
+    "relogin": "Login ulang"
+  },
   "welcomeSection": {
     "welcome": "Selamat Datang,",
     "welcomeBack": "Selamat datang kembali,",

@@ -24,7 +24,8 @@ export const DOCUMENTATION_PAGE_URL = "https://docs.postmatic.id";
 export const ACCESS_TOKEN_KEY = "postmaticAccessToken";
 export const REFRESH_TOKEN_KEY = "postmaticRefreshToken";
 
-export const LOGIN_URL = NEXT_PUBLIC_AUTH_ORIGIN;
+// Fallback wajib: LOGIN_URL kosong membuat `location.href = ""` me-reload app (loop).
+export const LOGIN_URL = NEXT_PUBLIC_AUTH_ORIGIN || "https://auth.postmatic.id";
 
 export const SOCIAL_MEDIA_PLATFORMS: PlatformEnum[] = [
   "facebook_page",

@@ -37,16 +37,24 @@ const refreshApi: AxiosInstance = axios.create({
 });
 
 let isRefreshing = false;
-type ResolveFn = (token: string) => void;
-let refreshSubscribers: ResolveFn[] = [];
+type RefreshSubscriber = {
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+};
+let refreshSubscribers: RefreshSubscriber[] = [];
 
 function onRefreshed(token: string) {
-  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers.forEach((s) => s.resolve(token));
   refreshSubscribers = [];
 }
 
-function addRefreshSubscriber(callback: ResolveFn) {
-  refreshSubscribers.push(callback);
+function onRefreshFailed(error: unknown) {
+  refreshSubscribers.forEach((s) => s.reject(error));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(subscriber: RefreshSubscriber) {
+  refreshSubscribers.push(subscriber);
 }
 
 function getAccessToken() {
@@ -117,11 +125,117 @@ export function setAuthToken(
   }
 }
 
-function hardLogout() {
-  setAuthToken(null, null);
-  if (typeof window !== "undefined") {
-    window.location.href = LOGIN_URL || "https://auth.postmatic.id";
+// ===== Session cleanup & redirect ke halaman login =====
+
+const AUTH_REDIRECT_LOG_KEY = "postmaticAuthRedirectLog";
+const AUTH_REDIRECT_WINDOW_MS = 60_000;
+const AUTH_REDIRECT_MAX = 3;
+const CLEAR_SESSION_TIMEOUT_MS = 3_000;
+
+let isRedirectingToLogin = false;
+let isAuthBlocked = false;
+let hardLogoutPromise: Promise<void> | null = null;
+
+function readAuthRedirectLog(): number[] {
+  try {
+    const raw = sessionStorage.getItem(AUTH_REDIRECT_LOG_KEY);
+    const log = raw ? (JSON.parse(raw) as unknown) : [];
+    if (!Array.isArray(log)) return [];
+    const now = Date.now();
+    return log.filter(
+      (t): t is number =>
+        typeof t === "number" && now - t < AUTH_REDIRECT_WINDOW_MS
+    );
+  } catch {
+    return [];
   }
+}
+
+function recordAuthRedirect() {
+  try {
+    const log = [...readAuthRedirectLog(), Date.now()];
+    sessionStorage.setItem(AUTH_REDIRECT_LOG_KEY, JSON.stringify(log));
+  } catch {
+    // sessionStorage tidak tersedia, abaikan
+  }
+}
+
+/** Dipanggil setelah sesi terbukti valid agar penghitung loop kembali nol. */
+export function resetAuthRedirectLoop() {
+  isAuthBlocked = false;
+  try {
+    sessionStorage.removeItem(AUTH_REDIRECT_LOG_KEY);
+  } catch {
+    // abaikan
+  }
+}
+
+/** True saat browser sedang diarahkan ke halaman login. */
+export function isAuthRedirecting() {
+  return isRedirectingToLogin;
+}
+
+/**
+ * True bila redirect ke login sudah terjadi berulang kali dalam waktu singkat
+ * (login -> app -> 401 -> login -> ...). Redirect otomatis dihentikan agar
+ * tidak looping; UI harus menawarkan tombol login ulang.
+ */
+export function isAuthRedirectBlocked() {
+  return isAuthBlocked;
+}
+
+/**
+ * Hapus token di localStorage, cookie non-httpOnly, dan cookie httpOnly
+ * (lewat /api/auth/sync). Ditunggu sampai selesai agar halaman login tidak
+ * lagi melihat sesi lama lalu memantul balik ke app.
+ */
+export async function clearAuthSession() {
+  setAuthToken(null, null);
+  if (typeof window === "undefined") return;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CLEAR_SESSION_TIMEOUT_MS);
+  try {
+    await fetch("/api/auth/sync", {
+      method: "DELETE",
+      keepalive: true,
+      signal: controller.signal,
+    });
+  } catch {
+    // tetap lanjut ke login walaupun gagal
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Logout manual: bersihkan sesi lalu pindah ke halaman login. */
+export async function logoutAndRedirect() {
+  isRedirectingToLogin = true;
+  resetAuthRedirectLoop();
+  await clearAuthSession();
+  window.location.href = LOGIN_URL;
+}
+
+function hardLogout() {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (hardLogoutPromise) return hardLogoutPromise;
+
+  hardLogoutPromise = (async () => {
+    await clearAuthSession();
+
+    if (readAuthRedirectLog().length >= AUTH_REDIRECT_MAX) {
+      isAuthBlocked = true;
+      return;
+    }
+
+    isRedirectingToLogin = true;
+    recordAuthRedirect();
+    window.location.href = LOGIN_URL;
+  })().finally(() => {
+    if (!isRedirectingToLogin) hardLogoutPromise = null;
+  });
+
+  return hardLogoutPromise;
 }
 
 function applyAuthInterceptors(instance: AxiosInstance) {
@@ -156,29 +270,38 @@ function applyAuthInterceptors(instance: AxiosInstance) {
         return Promise.reject(error);
       }
 
+      // Sedang/sudah diarahkan ke login: jangan refresh ulang.
+      if (isRedirectingToLogin || isAuthBlocked) {
+        return Promise.reject(error);
+      }
+
       if (originalConfig._retry) {
-        hardLogout();
+        await hardLogout();
         return Promise.reject(error);
       }
       originalConfig._retry = true;
 
+      if (isRefreshing) {
+        let newToken: string;
+        try {
+          newToken = await new Promise<string>((resolve, reject) => {
+            addRefreshSubscriber({ resolve, reject });
+          });
+        } catch (e) {
+          return Promise.reject(e);
+        }
+        originalConfig.headers = originalConfig.headers ?? {};
+        if (typeof originalConfig.headers.set === "function") {
+          originalConfig.headers.set(ACCESS_TOKEN_HEADER, newToken);
+        } else {
+          originalConfig.headers[ACCESS_TOKEN_HEADER] = newToken;
+        }
+        return instance.request(originalConfig);
+      }
+
+      isRefreshing = true;
       try {
         const rToken = getRefreshToken();
-
-        if (isRefreshing) {
-          const newToken = await new Promise<string>((resolve) => {
-            addRefreshSubscriber(resolve);
-          });
-          originalConfig.headers = originalConfig.headers ?? {};
-          if (typeof originalConfig.headers.set === "function") {
-            originalConfig.headers.set(ACCESS_TOKEN_HEADER, newToken);
-          } else {
-            originalConfig.headers[ACCESS_TOKEN_HEADER] = newToken;
-          }
-          return instance.request(originalConfig);
-        }
-
-        isRefreshing = true;
 
         const refreshResponse = await refreshApi.post<
           BaseResponse<{ accessToken: string; refreshToken?: string }>
@@ -199,12 +322,21 @@ function applyAuthInterceptors(instance: AxiosInstance) {
           originalConfig.headers[ACCESS_TOKEN_HEADER] = payload.accessToken;
         }
 
+        isRefreshing = false;
         return instance.request(originalConfig);
       } catch (e) {
-        hardLogout();
-        return Promise.reject(e);
-      } finally {
         isRefreshing = false;
+        onRefreshFailed(e);
+
+        // Server/jaringan bermasalah (bukan sesi invalid): jangan logout,
+        // supaya tidak memantul ke login lalu kembali ke app berulang kali.
+        const refreshStatus = (e as AxiosError)?.response?.status;
+        const isServerOrNetworkError =
+          axios.isAxiosError(e) && (!refreshStatus || refreshStatus >= 500);
+        if (!isServerOrNetworkError) {
+          await hardLogout();
+        }
+        return Promise.reject(e);
       }
     }
   );

@@ -60,6 +60,14 @@
       "saved": "Saved"
     }
   },
+  "authCheck": {
+    "errorTitle": "Failed to load your businesses",
+    "errorDescription": "We had trouble reaching the server. Please try again.",
+    "retry": "Try again",
+    "loopTitle": "We couldn’t restore your login session",
+    "loopDescription": "Signing in failed several times in a row. Please log in again.",
+    "relogin": "Log in again"
+  },
   "welcomeSection": {
     "welcome": "Welcome,",
     "welcomeBack": "Welcome back,",

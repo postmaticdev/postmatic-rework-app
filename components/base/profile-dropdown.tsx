@@ -23,12 +23,8 @@ import {
 } from "@/services/auth.api";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
-import {
-  ACCESS_TOKEN_KEY,
-  REFRESH_TOKEN_KEY,
-  LOGIN_URL,
-  DEFAULT_USER_AVATAR,
-} from "@/constants";
+import { DEFAULT_USER_AVATAR } from "@/constants";
+import { logoutAndRedirect } from "@/config/api";
 import { useBusinessGetAll } from "@/services/business.api";
 
 export function ProfileDropdown() {
@@ -70,10 +66,7 @@ export function ProfileDropdown() {
     } catch {
     } finally {
       showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
-      window.location.href = LOGIN_URL;
+      await logoutAndRedirect();
     }
   };
 

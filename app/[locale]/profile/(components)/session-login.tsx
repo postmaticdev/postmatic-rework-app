@@ -10,7 +10,7 @@ import {
   useAuthProfileLogoutAll,
 } from "@/services/auth.api";
 import { useDateFormat } from "@/hooks/use-date-format";
-import { ACCESS_TOKEN_KEY, LOGIN_URL, REFRESH_TOKEN_KEY } from "@/constants";
+import { logoutAndRedirect } from "@/config/api";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { Session } from "@/models/api/auth/profile.type";
@@ -97,10 +97,7 @@ export function SessionLogin() {
     }
 
     await sleep(1000);
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
-    window.location.href = LOGIN_URL;
+    await logoutAndRedirect();
   };
 
   const handleLogoutAll = async () => {
@@ -112,10 +109,7 @@ export function SessionLogin() {
     }
 
     await sleep(1000);
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
-    window.location.href = LOGIN_URL;
+    await logoutAndRedirect();
   };
 
   return (
