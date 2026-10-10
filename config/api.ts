@@ -125,6 +125,22 @@ export function setAuthToken(
   }
 }
 
+/**
+ * postmatic-auth hanya menyimpan token di cookie. Bila cookie berisi token
+ * baru, selaraskan localStorage dan buang refresh token lama di sana agar
+ * tidak tercampur dengan sesi/user sebelumnya. Return true bila berubah.
+ */
+export function adoptCookieSession() {
+  if (typeof window === "undefined") return false;
+  const cookieToken = getCookie(ACCESS_TOKEN_KEY);
+  if (!cookieToken || cookieToken === localStorage.getItem(ACCESS_TOKEN_KEY)) {
+    return false;
+  }
+  localStorage.setItem(ACCESS_TOKEN_KEY, cookieToken);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  return true;
+}
+
 // ===== Session cleanup & redirect ke halaman login =====
 
 const AUTH_REDIRECT_LOG_KEY = "postmaticAuthRedirectLog";
@@ -208,12 +224,24 @@ export async function clearAuthSession() {
   }
 }
 
+/**
+ * URL halaman login dengan `from` = origin app ini, supaya setelah login
+ * postmatic-auth mengembalikan user ke sini (bukan ke default from-nya).
+ */
+export function getLoginUrl() {
+  const url = new URL("/login", LOGIN_URL);
+  if (typeof window !== "undefined") {
+    url.searchParams.set("from", `${window.location.origin}/`);
+  }
+  return url.toString();
+}
+
 /** Logout manual: bersihkan sesi lalu pindah ke halaman login. */
 export async function logoutAndRedirect() {
   isRedirectingToLogin = true;
   resetAuthRedirectLoop();
   await clearAuthSession();
-  window.location.href = LOGIN_URL;
+  window.location.href = getLoginUrl();
 }
 
 function hardLogout() {
@@ -230,7 +258,7 @@ function hardLogout() {
 
     isRedirectingToLogin = true;
     recordAuthRedirect();
-    window.location.href = LOGIN_URL;
+    window.location.href = getLoginUrl();
   })().finally(() => {
     if (!isRedirectingToLogin) hardLogoutPromise = null;
   });

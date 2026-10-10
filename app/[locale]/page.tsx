@@ -7,6 +7,7 @@ import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/constants";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { Button } from "@/components/ui/button";
 import {
+  adoptCookieSession,
   isAuthRedirectBlocked,
   isAuthRedirecting,
   logoutAndRedirect,
@@ -129,6 +130,8 @@ const useCheckBusiness = () => {
             window.location.hash
           }`
         );
+      } else if (adoptCookieSession()) {
+        queryClient.clear();
       }
 
       await checkBusiness();

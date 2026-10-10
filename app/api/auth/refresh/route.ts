@@ -28,17 +28,10 @@ const FORWARDED_REFRESH_HEADERS = [
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
-  const cookieRefreshToken = request.cookies.get(REFRESH_TOKEN_KEY)?.value;
-  const bodyRefreshToken =
-    typeof body?.refreshToken === "string" ? body.refreshToken : undefined;
+  const refreshToken =
+    request.cookies.get(REFRESH_TOKEN_KEY)?.value ?? body?.refreshToken;
 
-  // Cookie diutamakan; token dari body dipakai bila cookie tidak ada/basi.
-  const refreshTokens = [cookieRefreshToken, bodyRefreshToken].filter(
-    (token, index, list): token is string =>
-      !!token && list.indexOf(token) === index
-  );
-
-  if (refreshTokens.length === 0) {
+  if (!refreshToken) {
     return NextResponse.json(
       {
         metaData: { code: 401, message: "Unauthorized" },
@@ -71,17 +64,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let upstream!: Response;
-  for (const refreshToken of refreshTokens) {
-    upstream = await fetch(`${apiOrigin}/api/account/auth/refresh-token`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ refreshToken }),
-      cache: "no-store",
-    });
-    // Hanya coba token berikutnya bila token ini ditolak (4xx), bukan saat server error.
-    if (upstream.ok || upstream.status >= 500) break;
-  }
+  const upstream = await fetch(`${apiOrigin}/api/account/auth/refresh-token`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ refreshToken }),
+    cache: "no-store",
+  });
 
   const payload = (await upstream.json().catch(() => null)) as
     | RefreshResponse
