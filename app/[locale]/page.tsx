@@ -25,7 +25,6 @@ const useCheckBusiness = () => {
   return useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
-    let isMounted = true;
 
     const run = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -70,8 +69,6 @@ const useCheckBusiness = () => {
 
       countBusiness()
         .then((totalBusiness) => {
-          if (!isMounted) return;
-
           if (!totalBusiness || totalBusiness === 0) {
             console.log("no business");
             router.replace("/business/new-business");
@@ -84,7 +81,6 @@ const useCheckBusiness = () => {
           }
         })
         .catch((error) => {
-          if (!isMounted) return;
           console.log("error", error);
           const is404 = error?.response?.status === 404;
           if (is404) {
@@ -98,9 +94,5 @@ const useCheckBusiness = () => {
     };
 
     run();
-
-    return () => {
-      isMounted = false;
-    };
   }, [queryClient, router]);
 };
