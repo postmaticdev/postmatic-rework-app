@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -182,7 +182,12 @@ export function RSSTrendSection({
 
   const e = useTranslations("errors");
   const r = useTranslations("rssKnowledge");
+  const [isSavingRSS, setIsSavingRSS] = useState(false);
+  const isSavingRSSRef = useRef(false);
   const handleSaveRSS = async (item: AddRssPld & { id?: string }) => {
+    if (isSavingRSSRef.current) return;
+    isSavingRSSRef.current = true;
+    setIsSavingRSS(true);
     try {
       // Validate form data
       const result = rssKnowledgeSchema.safeParse(item);
@@ -242,6 +247,9 @@ export function RSSTrendSection({
         return;
       }
       showToast("error", e("FailedToSaveRSS"));
+    } finally {
+      isSavingRSSRef.current = false;
+      setIsSavingRSS(false);
     }
   };
 
@@ -445,6 +453,7 @@ export function RSSTrendSection({
         }}
         onChange={setSelectedRSS}
         errors={rssErrors}
+        isSubmitting={isSavingRSS}
       />
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}

@@ -45,8 +45,26 @@ type SubscribePayload = {
 
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 30_000;
 const DEFAULT_RECONNECT_DELAY_MS = 2_000;
+const MAX_RECONNECT_DELAY_MS = 30_000;
 
 let socket: BrowserRealtimeSocket | null = null;
+
+// Access token terbaru (cookie dari postmatic-auth / refresh, atau localStorage).
+// Dibaca ulang setiap connect supaya reconnect setelah token di-refresh tidak
+// memakai token lama yang sudah expired.
+function readLatestAccessToken() {
+  if (typeof document === "undefined") return null;
+  const fromCookie = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${ACCESS_TOKEN_KEY}=`))
+    ?.split("=")[1];
+  if (fromCookie) return decodeURIComponent(fromCookie);
+  try {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
 
 function buildWebSocketUrl(
   origin: string,
@@ -78,12 +96,17 @@ class BrowserRealtimeSocket {
     open: new Set(),
   };
   private manualDisconnect = false;
+  private reconnectAttempts = 0;
   private reconnectTimeoutId: number | null = null;
   private subscriptions = new Set<string>();
   private ws: WebSocket | null = null;
 
   constructor(private readonly opts: Required<CreateSocketOpts>) {
     this.connect();
+  }
+
+  setToken(token: string | null) {
+    this.opts.token = token;
   }
 
   get connected() {
@@ -106,7 +129,7 @@ class BrowserRealtimeSocket {
     const wsUrl = buildWebSocketUrl(
       this.opts.url,
       this.opts.path,
-      this.opts.token,
+      readLatestAccessToken() ?? this.opts.token,
       this.opts.tokenQueryKey
     );
 
@@ -164,6 +187,7 @@ class BrowserRealtimeSocket {
   }
 
   private readonly handleOpen = (event: Event) => {
+    this.reconnectAttempts = 0;
     this.startHeartbeat();
     this.emit("open", event);
     this.flushSubscriptions("subscribe", [...this.subscriptions]);
@@ -214,9 +238,16 @@ class BrowserRealtimeSocket {
 
   private scheduleReconnect() {
     this.clearReconnect();
+    // Exponential backoff (2s, 4s, 8s ... maks 30s) agar server tidak dibanjiri
+    // handshake saat token invalid atau server sedang down.
+    const delay = Math.min(
+      this.opts.reconnectDelayMs * 2 ** this.reconnectAttempts,
+      MAX_RECONNECT_DELAY_MS
+    );
+    this.reconnectAttempts += 1;
     this.reconnectTimeoutId = window.setTimeout(() => {
       this.connect();
-    }, this.opts.reconnectDelayMs);
+    }, delay);
   }
 
   private clearReconnect() {
@@ -246,7 +277,10 @@ export function getSocket() {
 }
 
 export function createSocket(opts: CreateSocketOpts = {}) {
-  if (socket) return socket;
+  if (socket) {
+    if (opts.token) socket.setToken(opts.token);
+    return socket;
+  }
 
   socket = new BrowserRealtimeSocket({
     heartbeatIntervalMs:

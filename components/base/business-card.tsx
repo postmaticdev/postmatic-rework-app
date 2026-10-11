@@ -33,6 +33,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { useTranslations } from "next-intl";
 
 interface BusinessCardProps {
   business: BusinessRes;
@@ -41,6 +42,8 @@ interface BusinessCardProps {
 
 export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
   const router = useRouter();
+  const t = useTranslations("businessCard");
+  const tModal = useTranslations("modal");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false); // controlled AlertDialog (Keluar)
   const { id, name, description, logo, members, userPosition } = business;
@@ -120,7 +123,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
           <div className="relative aspect-square bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg overflow-hidden">
             <Image
               src={businessImage}
-              alt="Gambar Bisnis"
+              alt={t("imageAlt")}
               fill
               className="object-cover rounded-xl select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
               priority
@@ -157,7 +160,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
                         className="flex items-center gap-2"
                       >
                         <UserPlus className="w-4 h-4" />
-                        Undang
+                        {t("invite")}
                       </DropdownMenuItem>
 
                       <DropdownMenuItem
@@ -170,7 +173,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
                         className="flex items-center gap-2"
                       >
                         <Trash2 className="w-4 h-4" />
-                        Hapus
+                        {tModal("delete")}
                       </DropdownMenuItem>
                     </>
                   ) : (
@@ -184,7 +187,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
                       className="flex items-center gap-2"
                     >
                       <LogOut className="w-4 h-4" />
-                      Keluar
+                      {t("leave")}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -227,10 +230,9 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
           data-no-card-nav
         >
           <AlertDialogHeader>
-            <AlertDialogTitle>Keluar Bisnis</AlertDialogTitle>
+            <AlertDialogTitle>{t("leaveTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin keluar bisnis ini? Tindakan ini tidak
-              dapat dibatalkan.
+              {t("leaveDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -241,7 +243,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
               }}
               data-no-card-nav
             >
-              Batal
+              {tModal("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={async (e) => {
@@ -251,7 +253,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
               }}
               data-no-card-nav
             >
-              Keluar
+              {t("leave")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -262,8 +264,8 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
           isOpen={isDeleteModalOpen}
           onClose={handleCloseDeleteModal}
           onConfirm={handleDelete}
-          title="Hapus Bisnis"
-          description="Apakah Anda yakin ingin menghapus bisnis ini? Tindakan ini tidak dapat dibatalkan."
+          title={t("deleteTitle")}
+          description={t("deleteDescription")}
           itemName={name}
           isLoading={mDelete.isPending}
         />

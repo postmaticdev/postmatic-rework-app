@@ -73,6 +73,8 @@ export function EditKnowledgeModal({
     useBusinessKnowledgeGetById(businessId);
 
   const hasInitialized = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -152,6 +154,9 @@ export function EditKnowledgeModal({
   };
 
   const onSubmit = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       validateForms();
 
@@ -188,6 +193,9 @@ export function EditKnowledgeModal({
       }
 
       showToast("error", error);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -240,6 +248,7 @@ export function EditKnowledgeModal({
         <DialogFooterWithButton
           buttonMessage={m("save")}
           onClick={onSubmit}
+          disabled={isSubmitting}
         />
       </DialogContent>
     </Dialog>

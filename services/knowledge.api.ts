@@ -274,9 +274,14 @@ export const useBusinessKnowledgeUpsert = () => {
       businessId: string;
       formData: BusinessKnowledgePld;
     }) => businessKnowledgeService.upsert(businessId, formData),
-    onSuccess: ({}) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["businessKnowledge"],
+      });
+      // Business name/logo shown in the header and business list come from these queries.
+      queryClient.invalidateQueries({ queryKey: ["businesses"] });
+      queryClient.invalidateQueries({
+        queryKey: ["business", variables.businessId],
       });
     },
     onError: (error) => {

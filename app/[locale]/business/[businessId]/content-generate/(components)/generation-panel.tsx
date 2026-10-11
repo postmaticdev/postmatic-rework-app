@@ -11,7 +11,7 @@ import { showToast } from "@/helper/show-toast";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { cn } from "@/lib/utils";
 import { useContentGenerate } from "@/contexts/content-generate-context";
-import { helperService } from "@/services/helper.api";
+import { helperService, validateUploadImageFile } from "@/services/helper.api";
 import { useAppAvatarGetAll } from "@/services/app-avatar.api";
 import { useBusinessGetById } from "@/services/business.api";
 import {
@@ -72,6 +72,7 @@ export function GenerationPanel() {
   } = useContentGenerate();
   const t = useTranslations("generationPanel");
   const schedulerT = useTranslations("contentGenerateScheduler");
+  const tRoot = useTranslations();
   const [isTrendDialogOpen, setIsTrendDialogOpen] = useState(false);
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
   const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
@@ -287,10 +288,19 @@ export function GenerationPanel() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const invalidReason = validateUploadImageFile(file);
+    if (invalidReason) {
+      showToast("error", tRoot(`toast.content.${invalidReason}`));
+      if (attachInputRef.current) attachInputRef.current.value = "";
+      return;
+    }
+
     try {
       setIsUploadingAttachment(true);
       const imageUrl = await helperService.uploadSingleImage({ image: file });
       setAttachedImages((current) => Array.from(new Set([...current, imageUrl])));
+    } catch (error) {
+      showToast("error", error);
     } finally {
       setIsUploadingAttachment(false);
       if (attachInputRef.current) attachInputRef.current.value = "";

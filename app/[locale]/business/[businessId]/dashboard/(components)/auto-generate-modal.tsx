@@ -60,6 +60,7 @@ export function AutoGenerateModal({
 }: AutoGenerateModalProps) {
   const t = useTranslations("autoGenerate");
   const tContentGenerate = useTranslations("contentGenerateScheduler");
+  const tAutoPosting = useTranslations("autoPosting");
   const mCreateSchedule = useContentAutoGenerateCreateSchedule();
   const mUpdateSchedule = useContentAutoGenerateUpdateSchedule();
   const { businessId } = useParams() as { businessId: string };
@@ -177,11 +178,11 @@ export function AutoGenerateModal({
     const h = parseInt(modalHour, 10);
     const m = parseInt(modalMinute, 10);
     if (Number.isNaN(h) || h < 0 || h > 23) {
-      showToast("error", t("hourMustBe0-23"));
+      showToast("error", tAutoPosting("hourMustBe0-23"));
       return;
     }
     if (Number.isNaN(m) || m < 0 || m > 59) {
-      showToast("error", t("minuteMustBe0-59"));
+      showToast("error", tAutoPosting("minuteMustBe0-59"));
       return;
     }
 

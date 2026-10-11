@@ -271,7 +271,7 @@ export function PaymentConfirmation({
                 <button
                   onClick={() => setZoomImageIndex(index)}
                   className="w-full max-w-xs sm:max-w-sm md:max-w-md rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-                  aria-label="Perbesar QR "
+                  aria-label={t("checkout.Instructions.qris.zoom")}
                   title={t("checkout.Instructions.qris.clickToZoom")}
                 >
                   {/* aspect-square agar QR tidak gepeng */}
@@ -279,7 +279,7 @@ export function PaymentConfirmation({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.value}
-                      alt="QRIS untuk pembayaran"
+                      alt={t("checkout.Instructions.qris.imageAlt")}
                       className="max-h-full max-w-full object-contain"
                     />
                   </div>
@@ -323,21 +323,21 @@ export function PaymentConfirmation({
                 >
                   <div className="flex justify-between items-center mb-2 sm:mb-4">
                     <h4 className="text-base sm:text-lg font-semibold">
-                      QRIS Pembayaran
+                      {t("checkout.Instructions.qris.zoomTitle")}
                     </h4>
                     <Button
                       variant="secondary"
                       onClick={() => setZoomImageIndex(null)}
                       className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
                     >
-                      Tutup
+                      {t("modal.close")}
                     </Button>
                   </div>
                   <div className="w-full grid place-items-center p-2 sm:p-4">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.value}
-                      alt="QRIS untuk pembayaran"
+                      alt={t("checkout.Instructions.qris.imageAlt")}
                       className="max-h-[70vh] object-contain"
                     />
                   </div>
@@ -346,7 +346,7 @@ export function PaymentConfirmation({
                       onClick={() => handleDownloadImage(item.value)}
                       className="bg-blue-600 text-white hover:bg-blue-700"
                     >
-                      Unduh QR
+                      {t("checkout.Instructions.qris.downloadQR")}
                     </Button>
                   </div>
                 </div>
@@ -404,12 +404,14 @@ export function PaymentConfirmation({
     <div className="text-center">
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
-          Pembayaran dengan {checkoutResult?.method?.toUpperCase()}
+          {t("checkout.paymentWith", {
+            method: checkoutResult?.method?.toUpperCase() ?? "",
+          })}
         </h1>
       </div>
 
             <p className="text-gray-600 dark:text-gray-300 mb-4 sm:mb-6 text-sm sm:text-base">
-        {(product?.name || checkoutResult?.productName || "")} - Total {formatIdr(detailPricing?.total)}
+        {(product?.name || checkoutResult?.productName || "")} - {t("checkout.total")} {formatIdr(detailPricing?.total)}
       </p>
 
       {checkoutResult?.paymentActions.map((action, index) => (

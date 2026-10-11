@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import DOMPurify from "dompurify";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -74,19 +75,55 @@ function hasHtmlTag(value: string) {
   return /<\/?[a-z][\s\S]*>/i.test(value);
 }
 
+// Allowlist sanitizer (DOMPurify): konten berasal dari blast admin dan pesan
+// tiket, jadi hanya tag/atribut format teks yang diizinkan dan URL hanya
+// http(s)/mailto/tel. Atribut style hanya menyisakan text-align (TextAlign).
+const RICH_HTML_ALLOWED_TAGS = [
+  "a", "b", "blockquote", "br", "code", "em", "h1", "h2", "h3", "hr", "i",
+  "img", "li", "ol", "p", "pre", "s", "source", "span", "strong", "u", "ul",
+  "video",
+];
+const RICH_HTML_ALLOWED_ATTR = [
+  "alt", "controls", "href", "rel", "src", "style", "target", "title", "type",
+];
+const TEXT_ALIGN_STYLE = /text-align\s*:\s*(left|right|center|justify)/i;
+let isRichHtmlHookInstalled = false;
+
+function installRichHtmlHook() {
+  if (isRichHtmlHookInstalled) return;
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.tagName === "A" && node.hasAttribute("href")) {
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+    const style = node.getAttribute("style");
+    if (style !== null) {
+      const align = style.match(TEXT_ALIGN_STYLE)?.[1];
+      if (align) node.setAttribute("style", `text-align: ${align}`);
+      else node.removeAttribute("style");
+    }
+  });
+  isRichHtmlHookInstalled = true;
+}
+
 function sanitizeRichHtml(value?: string | null) {
   const content = value ?? "";
   const source = hasHtmlTag(content)
     ? content
     : escapeHtml(content).replace(/\n/g, "<br />");
 
-  return source
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
-    .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
-    .replace(/\son\w+\s*=\s*(['"])[\s\S]*?\1/gi, "")
-    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "")
-    .replace(/\s(href|src)\s*=\s*(['"])\s*javascript:[\s\S]*?\2/gi, ' $1="#"');
+  // Tanpa DOM (render di server) jangan pernah meneruskan HTML mentah.
+  if (typeof window === "undefined" || !DOMPurify.isSupported) {
+    return escapeHtml(htmlToPreviewText(source));
+  }
+
+  installRichHtmlHook();
+  return DOMPurify.sanitize(source, {
+    ALLOWED_TAGS: RICH_HTML_ALLOWED_TAGS,
+    ALLOWED_ATTR: RICH_HTML_ALLOWED_ATTR,
+    // http(s)/mailto/tel atau URL relatif; skema lain (javascript:, data:, ...) ditolak.
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
+  });
 }
 
 function htmlToPreviewText(value?: string | null) {

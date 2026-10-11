@@ -137,7 +137,7 @@ export function SharedReferenceFullviewModal({
                   }`,
               }
               : {
-                message: m("buttonClose"),
+                message: m("close"),
                 onClick: onClose,
                 variant: "outline" as const,
                 className: "border-2 font-medium transition-all border-gray-200 hover:bg-gray-50",

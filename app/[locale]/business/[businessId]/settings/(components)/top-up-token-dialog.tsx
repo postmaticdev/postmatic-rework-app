@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ReceiptText, RefreshCw } from "lucide-react";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
   syncPaymentRealtimeCaches,
   usePaymentRealtime,
 } from "@/hooks/use-payment-realtime";
+import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 import { useAppProductGetProductDetail } from "@/services/app-product.api";
 import {
@@ -145,13 +146,19 @@ export function TopUpTokenDialog({
     null
   );
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [now, setNow] = useState(() => Date.now());
 
   const tokenAmount = Number(clampTokenAmount(amount) || 0);
+  // Debounce the amount used for price/product queries so typing doesn't fire a request per keystroke.
+  const [debouncedTokenAmount, setDebouncedTokenAmount] = useState(tokenAmount);
+  useDebounce(() => setDebouncedTokenAmount(tokenAmount), 500, [tokenAmount]);
+  const isTokenAmountSettling = tokenAmount !== debouncedTokenAmount;
 
   const productDetail = useAppProductGetProductDetail({
     rootBusinessId: businessId,
-    productId: tokenAmount ? String(tokenAmount) : "",
+    productId: debouncedTokenAmount ? String(debouncedTokenAmount) : "",
     type: "token",
   });
 
@@ -173,7 +180,7 @@ export function TopUpTokenDialog({
 
   const priceQuery = usePaymentImageTokenPrice({
     businessId,
-    tokenAmount,
+    tokenAmount: debouncedTokenAmount,
     paymentMethod,
     referralCode: checkedPromoCode || undefined,
     enabled: isOpen && !checkoutResult,
@@ -297,8 +304,14 @@ export function TopUpTokenDialog({
       return;
     }
 
-    const discountCode = promoCode.trim() || undefined;
+    if (isSubmittingRef.current) return;
 
+    // Only send a promo code that was checked and accepted, never a typed-but-unchecked one.
+    const discountCode =
+      isPromoCodeChecked && price?.referral?.valid ? checkedPromoCode : undefined;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       const res =
         selectedMethod.type === "Virtual Account"
@@ -350,6 +363,9 @@ export function TopUpTokenDialog({
         apiError.response?.data?.metaData?.message ||
         t("toast.defaultError")
       );
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -645,12 +661,17 @@ export function TopUpTokenDialog({
         {!checkoutResult ? (
           <DialogFooterWithButton
             buttonMessage={
-              isCreatingPayment ? tDialog("processing") : tDialog("continue")
+              isCreatingPayment || isSubmitting
+                ? tDialog("processing")
+                : tDialog("continue")
             }
             onClick={handleCreatePayment}
             disabled={
               isCreatingPayment ||
+              isSubmitting ||
+              isTokenAmountSettling ||
               priceQuery.isLoading ||
+              priceQuery.isError ||
               !tokenAmount ||
               !paymentMethod
             }

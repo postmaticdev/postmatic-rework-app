@@ -22,7 +22,7 @@ export default function CheckoutPage() {
   const mCheckoutPayBank = useCheckoutPayBank();
   const mCheckoutPayEWallet = useCheckoutPayEWallet();
   const queryClient = useQueryClient();
-  const { selectedPayment, product, setCheckoutResult, promoState } =
+  const { selectedPayment, product, setCheckoutResult, promoCode } =
     useCheckout();
 
   const isLoading = mCheckoutPayBank.isPending || mCheckoutPayEWallet.isPending;
@@ -54,7 +54,9 @@ export default function CheckoutPage() {
   };
 
   const handleCheckout = async () => {
-    const discountCode = promoState?.trim() || undefined;
+    // Only send the promo code that was applied (via the URL), not a typed-but-unapplied one.
+    const discountCode =
+      promoCode && product?.isValidCode ? promoCode.trim() : undefined;
 
     try {
       if (!selectedPayment) {

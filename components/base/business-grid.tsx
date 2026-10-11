@@ -12,6 +12,7 @@ import { ChartNoAxesCombined } from "lucide-react";
 import { NoContent } from "./no-content";
 import { BusinessGridSkeleton } from "../grid-skeleton/business-grid-skeleton";
 import { useBusinessGridFilter } from "@/contexts/business-grid-context";
+import { useTranslations } from "next-intl";
 
 export function BusinessGrid() {
   const { filterQuery, setFilterQuery } = useBusinessGridFilter();
@@ -20,6 +21,7 @@ export function BusinessGrid() {
   const businesses = data?.data?.data || [];
   const pagination = data?.data?.pagination || initialPagination;
   const router = useRouter();
+  const t = useTranslations("businessGrid");
 
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(
@@ -34,8 +36,8 @@ export function BusinessGrid() {
       ) : businesses.length === 0 ? (
         <NoContent
           icon={ChartNoAxesCombined}
-          title="Tidak ada bisnis yang ditemukan"
-          titleDescription="Tambahkan bisnis baru"
+          title={t("emptyTitle")}
+          titleDescription={t("emptyDescription")}
         // buttonText="Tambah Bisnis"
         // onButtonClick={() => router.push("/business/new-business")}
         />

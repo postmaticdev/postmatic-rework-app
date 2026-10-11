@@ -115,8 +115,8 @@ export default function CreatorPage() {
 
   const affiliatorData = [
     {
-      name: "Hasan Rama",
-      email: "hayhasan.project@gmail.com",
+      name: "Creator Demo",
+      email: "creator@example.com",
       status: "Active",
       code: "HXSNX221",
       totalSpend: "Rp 1.200.000",
@@ -124,8 +124,8 @@ export default function CreatorPage() {
       paidDate: "12/12/2025",
     },
     {
-      name: "Hasan Rama",
-      email: "hayhasan.project@gmail.com",
+      name: "Creator Demo",
+      email: "creator@example.com",
       status: "Active",
       code: "HXSNX221",
       totalSpend: "Rp 1.200.000",
@@ -133,8 +133,8 @@ export default function CreatorPage() {
       paidDate: "12/12/2025",
     },
     {
-      name: "Hasan Rama",
-      email: "hayhasan.project@gmail.com",
+      name: "Creator Demo",
+      email: "creator@example.com",
       status: "Active",
       code: "HXSNX221",
       totalSpend: "Rp 1.200.000",
@@ -142,8 +142,8 @@ export default function CreatorPage() {
       paidDate: "12/12/2025",
     },
     {
-      name: "Hasan Rama",
-      email: "hayhasan.project@gmail.com",
+      name: "Creator Demo",
+      email: "creator@example.com",
       status: "Active",
       code: "HXSNX221",
       totalSpend: "Rp 1.200.000",
@@ -151,8 +151,8 @@ export default function CreatorPage() {
       paidDate: "12/12/2025",
     },
     {
-      name: "Hasan Rama",
-      email: "hayhasan.project@gmail.com",
+      name: "Creator Demo",
+      email: "creator@example.com",
       status: "Active",
       code: "HXSNX221",
       totalSpend: "Rp 1.200.000",

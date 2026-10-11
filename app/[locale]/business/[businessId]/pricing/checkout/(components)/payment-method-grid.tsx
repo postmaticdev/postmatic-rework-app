@@ -13,18 +13,20 @@ export function PaymentMethodGrid() {
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {method.methods.map((m, i) => (
-              <div
+              <button
+                type="button"
                 key={i}
+                aria-pressed={selectedPayment?.code === m.issued.code}
                 onClick={() =>
                   setSelectedPayment({ code: m.issued.code, type: method.type })
                 }
-                className={`border rounded-lg p-4 flex items-center cursor-pointer transition-all ${
+                className={`w-full text-left border rounded-lg p-4 flex items-center cursor-pointer transition-all ${
                   selectedPayment?.code === m.issued.code
                     ? "border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                     : "border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
                 }`}
               >
-                <div className="bg-gray-200 dark:bg-gray-500 rounded-full w-10 h-10 lg:w-12 lg:h-12 mr-3 lg:mr-4 overflow-hidden">
+                <span className="bg-gray-200 dark:bg-gray-500 rounded-full w-10 h-10 lg:w-12 lg:h-12 mr-3 lg:mr-4 overflow-hidden">
                   <Image
                     src={m.issued.image}
                     alt={m.issued.name}
@@ -32,17 +34,17 @@ export function PaymentMethodGrid() {
                     height={200}
                     className="object-cover w-full h-full"
                   />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-gray-900 dark:text-white text-sm lg:text-base">
+                </span>
+                <span className="flex-1">
+                  <span className="block font-medium text-gray-900 dark:text-white text-sm lg:text-base">
                     {m.issued.name}
-                  </h3>
+                  </span>
                   <span className="bg-blue-600 dark:bg-blue-500 text-white text-xs px-2 py-1 rounded-sm">
                     {method.type}
                   </span>
-                </div>
+                </span>
                 {selectedPayment?.code === m.issued.code && (
-                  <div className="ml-2">
+                  <span className="ml-2">
                     <svg
                       className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600 dark:text-blue-500"
                       fill="currentColor"
@@ -54,9 +56,9 @@ export function PaymentMethodGrid() {
                         clipRule="evenodd"
                       />
                     </svg>
-                  </div>
+                  </span>
                 )}
-              </div>
+              </button>
             ))}
           </div>
         </div>

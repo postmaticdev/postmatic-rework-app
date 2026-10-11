@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getAuthCookieOptions,
   getBackendApiOrigin,
+  isSameOriginRequest,
 } from "../_shared";
 
 type RefreshResponse = {
@@ -27,9 +28,21 @@ const FORWARDED_REFRESH_HEADERS = [
 ] as const;
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const refreshToken =
-    request.cookies.get(REFRESH_TOKEN_KEY)?.value ?? body?.refreshToken;
+  // Refresh menulis cookie sesi: tolak request lintas origin, dan hanya pakai
+  // refresh token dari cookie httpOnly (bukan dari body) agar halaman lain
+  // tidak bisa menanamkan sesi miliknya ke browser korban (login CSRF).
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json(
+      {
+        metaData: { code: 403, message: "Forbidden" },
+        responseMessage: "CROSS_ORIGIN_REQUEST_REJECTED",
+        data: null,
+      },
+      { status: 403 }
+    );
+  }
+
+  const refreshToken = request.cookies.get(REFRESH_TOKEN_KEY)?.value;
 
   if (!refreshToken) {
     return NextResponse.json(

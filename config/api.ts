@@ -11,6 +11,7 @@ import {
   LOGIN_URL,
 } from "@/constants";
 import { BaseResponse } from "@/models/api/base-response.type";
+import { destroySocket } from "@/lib/socket";
 
 const MINUTE = 60_000;
 const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
@@ -62,9 +63,60 @@ function getAccessToken() {
   return getCookie(ACCESS_TOKEN_KEY) ?? localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-function getRefreshToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+/**
+ * 401 dari backend yang merupakan error bisnis (bukan token invalid/expired).
+ * Untuk kode ini jangan refresh token dan jangan logout, cukup teruskan error
+ * ke pemanggil (mis. user Google membuka "ganti password" ->
+ * CREDENTIAL_USER_NOT_FOUND).
+ */
+const NON_SESSION_UNAUTHORIZED_MESSAGES = new Set([
+  "CREDENTIAL_USER_NOT_FOUND",
+  "INVALID_SESSION_ID",
+  "INVALID_CREDENTIALS",
+  "EMAIL_NOT_VERIFIED",
+  "EMAIL_NOT_FOUND",
+  "INVALID_SIGNATURE",
+]);
+
+const REFRESH_LOCK_NAME = "postmatic-auth-refresh";
+
+function readRequestToken(config: AxiosRequestConfig) {
+  const headers = config.headers as
+    | (Record<string, unknown> & { get?: (name: string) => unknown })
+    | undefined;
+  if (!headers) return null;
+  const value =
+    typeof headers.get === "function"
+      ? headers.get(ACCESS_TOKEN_HEADER)
+      : headers[ACCESS_TOKEN_HEADER];
+  return typeof value === "string" ? value : null;
+}
+
+/**
+ * Jalankan refresh di bawah Web Lock lintas tab. Bila tab lain sudah me-refresh
+ * selama kita menunggu lock (access token di cookie/localStorage sudah berbeda
+ * dari token request yang gagal), pakai token itu tanpa refresh ulang. Ini
+ * mencegah tab kedua mengirim refresh token lama yang sudah dirotasi lalu
+ * ter-logout.
+ */
+async function runRefreshExclusive(
+  failedToken: string | null,
+  refresh: () => Promise<string>
+): Promise<string> {
+  const locks =
+    typeof navigator !== "undefined"
+      ? (navigator as Navigator & { locks?: LockManager }).locks
+      : undefined;
+  if (!locks?.request) return refresh();
+
+  return locks.request(REFRESH_LOCK_NAME, async () => {
+    const current = getAccessToken();
+    if (current && failedToken && current !== failedToken) {
+      api.defaults.headers.common[ACCESS_TOKEN_HEADER] = current;
+      return current;
+    }
+    return refresh();
+  });
 }
 
 function getCookie(name: string) {
@@ -118,11 +170,11 @@ export function setAuthToken(
     delete api.defaults.headers.common[ACCESS_TOKEN_HEADER];
   }
 
-  if (refreshToken) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-  } else {
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-  }
+  // Refresh token hanya disimpan di cookie httpOnly (diset postmatic-auth,
+  // /api/auth/sync, atau /api/auth/refresh). Jangan pernah simpan di
+  // localStorage karena bisa dibaca JavaScript; hapus sisa versi lama.
+  void refreshToken;
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 /**
@@ -208,6 +260,7 @@ export function isAuthRedirectBlocked() {
 export async function clearAuthSession() {
   setAuthToken(null, null);
   if (typeof window === "undefined") return;
+  destroySocket();
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CLEAR_SESSION_TIMEOUT_MS);
@@ -291,10 +344,18 @@ function applyAuthInterceptors(instance: AxiosInstance) {
         | undefined;
 
       const status = error.response?.status ?? error?.status;
-      const codeFromBody = (error.response?.data as BaseResponse)?.metaData?.code;
+      const responseBody = error.response?.data as BaseResponse | undefined;
+      const codeFromBody = responseBody?.metaData?.code;
       const isUnauthorized = status === 401 || codeFromBody === 401;
 
       if (!isUnauthorized || !originalConfig) {
+        return Promise.reject(error);
+      }
+
+      if (
+        responseBody?.responseMessage &&
+        NON_SESSION_UNAUTHORIZED_MESSAGES.has(responseBody.responseMessage)
+      ) {
         return Promise.reject(error);
       }
 
@@ -329,25 +390,31 @@ function applyAuthInterceptors(instance: AxiosInstance) {
 
       isRefreshing = true;
       try {
-        const rToken = getRefreshToken();
+        const newAccessToken = await runRefreshExclusive(
+          readRequestToken(originalConfig),
+          async () => {
+            // Refresh token dikirim otomatis lewat cookie httpOnly.
+            const refreshResponse = await refreshApi.post<
+              BaseResponse<{ accessToken: string; refreshToken?: string }>
+            >("/api/auth/refresh", {});
 
-        const refreshResponse = await refreshApi.post<
-          BaseResponse<{ accessToken: string; refreshToken?: string }>
-        >("/api/auth/refresh", rToken ? { refreshToken: rToken } : {});
+            const payload = refreshResponse.data?.data;
+            if (!payload?.accessToken) {
+              throw new Error("Invalid refresh response");
+            }
 
-        const payload = refreshResponse.data?.data;
-        if (!payload?.accessToken) {
-          throw new Error("Invalid refresh response");
-        }
+            setAuthToken(payload.accessToken, null);
+            return payload.accessToken;
+          }
+        );
 
-        setAuthToken(payload.accessToken, payload.refreshToken ?? null);
-        onRefreshed(payload.accessToken);
+        onRefreshed(newAccessToken);
 
         originalConfig.headers = originalConfig.headers ?? {};
         if (typeof originalConfig.headers.set === "function") {
-          originalConfig.headers.set(ACCESS_TOKEN_HEADER, payload.accessToken);
+          originalConfig.headers.set(ACCESS_TOKEN_HEADER, newAccessToken);
         } else {
-          originalConfig.headers[ACCESS_TOKEN_HEADER] = payload.accessToken;
+          originalConfig.headers[ACCESS_TOKEN_HEADER] = newAccessToken;
         }
 
         isRefreshing = false;

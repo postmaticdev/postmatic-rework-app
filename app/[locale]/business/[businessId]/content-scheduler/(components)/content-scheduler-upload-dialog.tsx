@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +32,10 @@ import {
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
+import {
+  getCurrentScheduleInput,
+  getNextSchedulableDate,
+} from "@/lib/schedule-date-time";
 
 interface ContentSchedulerUploadDialogProps {
   isOpen: boolean;
@@ -77,7 +80,10 @@ export function ContentSchedulerUploadDialog({
   const [date, setDate] = useState("");
   const [time, setTime] = useState("08:00");
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
-  const [draftScheduleId, setDraftScheduleId] = useState<number | null>(null);
+  // Draft id and in-flight draft creation are refs so async handlers always
+  // see the latest value (avoids creating duplicate/orphan drafts).
+  const draftScheduleIdRef = useRef<number | null>(null);
+  const draftCreationRef = useRef<Promise<number> | null>(null);
 
   const [activePreviewPlatform, setActivePreviewPlatform] = useState<PlatformEnum>("instagram_professional");
 
@@ -98,7 +104,8 @@ export function ContentSchedulerUploadDialog({
     setSelectedPlatforms(editDraft?.platforms || []);
     setImage(editDraft?.image || null);
     setCaption(editDraft?.caption || "");
-    setDraftScheduleId(editDraft?.id || null);
+    draftScheduleIdRef.current = editDraft?.id || null;
+    draftCreationRef.current = null;
   }, [editDraft, isOpen, selectedDate]);
 
   useEffect(() => {
@@ -171,24 +178,43 @@ export function ContentSchedulerUploadDialog({
     }
   };
 
+  // Backend rejects a publishAt in the past (e.g. the 08:00 default on today),
+  // so drafts use the same "next minute" fallback as scheduling does.
+  const resolveDraftDateTime = () => {
+    const candidate = new Date(`${date}T${time}`);
+    if (Number.isNaN(candidate.getTime()) || candidate <= new Date()) {
+      return getNextSchedulableDate().toISOString();
+    }
+    return candidate.toISOString();
+  };
+
+  // Waits for an in-flight draft creation so we never create a second draft
+  // (orphan) for the same dialog session.
+  const waitForPendingDraftCreation = async () => {
+    if (draftCreationRef.current) {
+      await draftCreationRef.current.catch(() => null);
+    }
+    return draftScheduleIdRef.current;
+  };
+
   const handleImageChange = async (nextImage: string | null) => {
     setImage(nextImage);
 
-    if (!nextImage) {
-      if (!editDraft) setDraftScheduleId(null);
-      return;
-    }
+    // Keep the draft id when the image is removed so the next upload updates
+    // the same draft instead of creating another one.
+    if (!nextImage) return;
 
     try {
-      if (draftScheduleId) {
+      const existingDraftId = await waitForPendingDraftCreation();
+      if (existingDraftId) {
         await editScheduleMutation.mutateAsync({
           businessId,
-          idScheduler: draftScheduleId,
+          idScheduler: existingDraftId,
           formData: {
             imageUrl: nextImage,
             caption,
             platforms: selectedPlatforms,
-            dateTime: new Date(`${date}T${time}`).toISOString(),
+            dateTime: resolveDraftDateTime(),
             status: "draft",
             withChatAI: false,
           },
@@ -196,19 +222,33 @@ export function ContentSchedulerUploadDialog({
         return;
       }
 
-      const draft = await scheduleMutation.mutateAsync({
-        businessId,
-        formData: {
-          imageUrl: nextImage,
-          caption: "",
-          platforms: [],
-          dateTime: new Date(`${date}T${time}`).toISOString(),
-          status: "draft",
-          withChatAI: false,
-        },
-      });
-
-      setDraftScheduleId(draft.data.data.id);
+      const creation = scheduleMutation
+        .mutateAsync({
+          businessId,
+          formData: {
+            imageUrl: nextImage,
+            caption: "",
+            platforms: [],
+            dateTime: resolveDraftDateTime(),
+            status: "draft",
+            withChatAI: false,
+          },
+        })
+        .then((draft) => {
+          // Ignore results from a previous dialog session (ref reset on open).
+          if (draftCreationRef.current === creation) {
+            draftScheduleIdRef.current = draft.data.data.id;
+          }
+          return draft.data.data.id;
+        });
+      draftCreationRef.current = creation;
+      try {
+        await creation;
+      } finally {
+        if (draftCreationRef.current === creation) {
+          draftCreationRef.current = null;
+        }
+      }
     } catch (error) {
       showToast("error", error as string);
     }
@@ -257,10 +297,11 @@ export function ContentSchedulerUploadDialog({
         withChatAI: false,
       };
 
-      if (draftScheduleId) {
+      const existingDraftId = await waitForPendingDraftCreation();
+      if (existingDraftId) {
         await editScheduleMutation.mutateAsync({
           businessId,
-          idScheduler: draftScheduleId,
+          idScheduler: existingDraftId,
           formData,
         });
       } else {

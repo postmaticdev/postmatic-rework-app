@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,9 +134,14 @@ export function ProductSection() {
   const mProductUpdate = useProductKnowledgeUpdate();
   const mProductCreate = useProductKnowledgeCreate();
   const mProductDelete = useProductKnowledgeDelete();
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
   const handleSave = async (
     productData: ProductKnowledgePld & { id?: string }
   ) => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
       // Validate form data
       const result = productKnowledgeSchema.safeParse(productData);
@@ -189,6 +194,9 @@ export function ProductSection() {
         return;
       }
       showToast("error", t("toast.product.saveFailed"));
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -338,6 +346,7 @@ export function ProductSection() {
         formValue={selectedProduct}
         onChange={setSelectedProduct}
         errors={productErrors}
+        isSubmitting={isSaving}
       />
 
       <DeleteConfirmationModal

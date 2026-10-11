@@ -124,5 +124,52 @@ export async function forwardAuthRequest(
 
   const payload = await upstream.json().catch(() => null);
 
-  return NextResponse.json(payload, { status: upstream.status });
+  return NextResponse.json(stripRefreshTokens(payload), {
+    status: upstream.status,
+  });
+}
+
+/**
+ * Refresh token hanya boleh hidup di cookie httpOnly. Backend menyertakannya
+ * di beberapa respons (mis. data.session.refreshToken pada GET session), jadi
+ * buang semua field `refreshToken` sebelum diteruskan ke browser.
+ */
+export function stripRefreshTokens(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripRefreshTokens);
+  if (!value || typeof value !== "object") return value;
+
+  const result: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "refreshToken") continue;
+    result[key] = stripRefreshTokens(child);
+  }
+  return result;
+}
+
+/**
+ * Tolak request lintas origin ke route yang menulis cookie sesi (CSRF /
+ * login CSRF). Browser selalu mengirim header Origin untuk POST/DELETE fetch;
+ * request tanpa Origin atau dari origin lain ditolak.
+ */
+export function isSameOriginRequest(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host.toLowerCase();
+  } catch {
+    return false;
+  }
+
+  const allowedHosts = [
+    request.headers.get("x-forwarded-host"),
+    request.headers.get("host"),
+    request.nextUrl.host,
+  ]
+    .filter((h): h is string => Boolean(h))
+    .flatMap((h) => h.split(","))
+    .map((h) => h.trim().toLowerCase());
+
+  return allowedHosts.includes(originHost);
 }

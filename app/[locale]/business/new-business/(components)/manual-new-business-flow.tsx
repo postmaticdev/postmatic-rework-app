@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -53,13 +53,18 @@ export function ManualNewBusinessFlow() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
 
-  const { formData, setBusinessId, errors, setErrors } = useFormNewBusiness();
+  const { formData, setBusinessId, errors, setErrors, resetForm } =
+    useFormNewBusiness();
   const { step1, step2, step3 } = formData;
 
   const mBusiness = useBusinessCreate();
   const isLoading = mBusiness.isPending;
+  // Ref-based in-flight guard: isLoading from the closure can be stale on a fast double click.
+  const isSubmittingRef = useRef(false);
 
   const onSubmit = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     try {
       if (isLoading) {
         throw new Error(t("isLoading"));
@@ -76,9 +81,12 @@ export function ManualNewBusinessFlow() {
       const id = business.data.data.id;
 
       router.push(`/business/${id}/content-scheduler`);
+      resetForm();
     } catch (error) {
       console.log(error);
       showToast("error", error);
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 

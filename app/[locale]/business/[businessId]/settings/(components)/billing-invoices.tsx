@@ -7,6 +7,7 @@ import { Info, Send, Zap } from "lucide-react";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTokenGetTokenUsage } from "@/services/tier/token.api";
+import { useRole } from "@/contexts/role-context";
 import { HistoryTransactions } from "./history-transactions";
 import { TopUpTokenDialog } from "./top-up-token-dialog";
 
@@ -21,6 +22,8 @@ export function BillingInvoices() {
     searchParams.get("topUp") === "token"
   );
   const topUpAmount = searchParams.get("amount") || undefined;
+  const { access } = useRole();
+  const canPurchase = access.purchase.write;
 
   return (
     <div className="space-y-6">
@@ -55,13 +58,15 @@ export function BillingInvoices() {
           </div>
 
           <div className="flex w-full flex-col gap-3 lg:w-[260px]">
-            <Button
-              onClick={() => setIsDialogOpen(true)}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {t("topUpCredit")}
-            </Button>
+            {canPurchase && (
+              <Button
+                onClick={() => setIsDialogOpen(true)}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {t("topUpCredit")}
+              </Button>
+            )}
 
             <Button
               asChild
@@ -84,7 +89,7 @@ export function BillingInvoices() {
       <HistoryTransactions />
 
       <TopUpTokenDialog
-        isOpen={isDialogOpen}
+        isOpen={canPurchase && isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
         initialAmount={topUpAmount}
       />

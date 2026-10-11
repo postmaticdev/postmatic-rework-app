@@ -76,27 +76,14 @@ export function SessionLogin() {
   const sessions = useMemo(() => {
     const sessionList = sessionsData?.data?.data ?? [];
 
+    // One row per session id so every session can be revoked individually.
     const uniqueSessionsMap = new Map<string, Session>();
-    
+
     sessionList
       .map((session) => mergeSessionDetails(session, currentSession))
       .forEach((session) => {
-        // Use clientIp and device for deduplication, fallback to session id
-        const key = (session.clientIp && session.device) ? `${session.clientIp}-${session.device}` : session.id;
-        
-        if (uniqueSessionsMap.has(key)) {
-          const existing = uniqueSessionsMap.get(key)!;
-          // Prefer current session over duplicates
-          if (session.id === currentSessionId) {
-            uniqueSessionsMap.set(key, session);
-          } else if (existing.id !== currentSessionId) {
-            // Keep the more recent session if both are not current
-            if (new Date(session.createdAt).getTime() > new Date(existing.createdAt).getTime()) {
-              uniqueSessionsMap.set(key, session);
-            }
-          }
-        } else {
-          uniqueSessionsMap.set(key, session);
+        if (!uniqueSessionsMap.has(session.id)) {
+          uniqueSessionsMap.set(session.id, session);
         }
       });
 

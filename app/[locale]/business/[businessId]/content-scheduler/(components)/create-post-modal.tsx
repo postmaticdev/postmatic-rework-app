@@ -19,6 +19,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { useParams } from "next/navigation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import { dateManipulation } from "@/helper/date-manipulation";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useTranslations } from "next-intl";
 
@@ -231,7 +232,7 @@ export function CreatePostModal({
                       queue: { ...formData?.queue, date: e.target.value },
                     })
                   }
-                  min={new Date().toISOString().split("T")[0]}
+                  min={dateManipulation.ymd(new Date())}
                   className="bg-card"
                 />
               </div>

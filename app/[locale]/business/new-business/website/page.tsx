@@ -183,12 +183,18 @@ function mapScrapperToDraft(item: WebsiteScrapperHistoryItem): WebsiteDraft {
 
 export default function NewBusinessWebsitePage() {
   const router = useRouter();
-  const { setFormData } = useFormNewBusiness();
+  const { setFormData, resetForm } = useFormNewBusiness();
   const t = useTranslations("newBusinessWebsite");
   const b = useTranslations("businessKnowledge");
   const r = useTranslations("roleKnowledge");
   const mWebsiteScrapper = useWebsiteScrapperCreate();
   const pollingSessionRef = useRef(0);
+  const isScrappingRef = useRef(false);
+
+  // Entering the website flow fresh: drop any data left from a previous run.
+  useEffect(() => {
+    resetForm();
+  }, [resetForm]);
 
   const loadingSteps = useMemo(
     () => [
@@ -349,7 +355,8 @@ export default function NewBusinessWebsitePage() {
   };
 
   const handleScrapWebsite = async () => {
-    if (!canContinue) return;
+    if (!canContinue || isScrappingRef.current) return;
+    isScrappingRef.current = true;
 
     const normalized = normalizeUrl(websiteInput);
     setWebsiteInput(normalized);
@@ -404,6 +411,8 @@ export default function NewBusinessWebsitePage() {
       }
 
       showToast("error", error);
+    } finally {
+      isScrappingRef.current = false;
     }
   };
 

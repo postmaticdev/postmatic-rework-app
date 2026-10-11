@@ -74,7 +74,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
 
         {/* Header */}
         <div className="mb-8">
-          <h2 className=" text-sm mb-4">Subscribe to Postmatic</h2>
+          <h2 className=" text-sm mb-4">{t("subscribeToPostmatic")}</h2>
           <div
             className={`font-bold text-white mb-6 ${
               isDesktop ? "text-3xl" : "text-2xl"
@@ -84,7 +84,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
             <span
               className={` font-normal ${isDesktop ? "text-lg" : "text-base"}`}
             >
-              per {billedInfo}
+              {t("perPeriod", { period: billedInfo ?? "" })}
             </span>
           </div>
 
@@ -123,7 +123,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                       isDesktop ? "text-xs" : "text-xs"
                     }`}
                   >
-                    Billed {product?.validForInfo}
+                    {t("billedPeriod", { period: product?.validForInfo ?? "" })}
                   </p>
                 </div>
               </div>

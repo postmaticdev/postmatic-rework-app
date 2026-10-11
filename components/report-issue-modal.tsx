@@ -230,8 +230,8 @@ export function ReportIssueModal({
       showToast("success", response.data.responseMessage);
       handleClose();
     } catch (error) {
+      // Keep the modal open with the user's input so they can retry.
       showToast("error", error);
-      handleClose();
     }
   };
 
@@ -302,12 +302,12 @@ export function ReportIssueModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="report-judul">Judul Laporan</Label>
+            <Label htmlFor="report-judul">{t("subject")}</Label>
             <Input
               id="report-judul"
               value={form.judul}
               onChange={(event) => updateField("judul", event.target.value)}
-              placeholder="Masukkan judul laporan Anda..."
+              placeholder={t("subjectPlaceholder")}
             />
           </div>
 

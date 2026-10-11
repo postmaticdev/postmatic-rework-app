@@ -29,8 +29,11 @@ import {
   useContentDraftSetReadyToPost,
   useContentSchedulerManualEditQueue,
   useContentSchedulerManualRemove,
+  useContentSchedulerTimezoneGetTimezone,
 } from "@/services/content/content.api";
+import { getNextSchedulableDate } from "@/lib/schedule-date-time";
 import { showToast } from "@/helper/show-toast";
+import { removeSchedulerDraftMarker } from "@/lib/scheduler-draft-markers";
 import { NoContent } from "@/components/base/no-content";
 import { UpcomingPostsSkeleton } from "@/components/grid-skeleton/upcoming-posts-skeleton";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
@@ -67,6 +70,9 @@ export function SchedulePost({
   const [schedulerManualPostingId, setSchedulerManualPostingId] = useState<
     number | null
   >(null);
+  const [editingPost, setEditingPost] = useState<UpcomingPostRes | null>(null);
+  const { data: timezoneData } = useContentSchedulerTimezoneGetTimezone(businessId);
+  const businessTimeZone = timezoneData?.data.data.timezone;
   const upcomingFilterQuery: Partial<FilterQuery> & { includeDrafts?: boolean } =
     filterQuery ?? {
       dateStart: dateManipulation.ymd(new Date()),
@@ -93,6 +99,7 @@ export function SchedulePost({
 
   const onCloseModal = () => {
     setIsModalOpen(false);
+    setEditingPost(null);
     setFormDataDraft({
       direct: initialDirectForm,
       queue: initialQueueForm,
@@ -101,6 +108,7 @@ export function SchedulePost({
   };
 
   const handleEditPost = (item: UpcomingPostRes) => {
+    setEditingPost(item);
     setSchedulerManualPostingId(item.schedulerManualPostingId);
     setIsModalOpen(true);
     setFormDataDraft({
@@ -164,6 +172,12 @@ export function SchedulePost({
             businessId,
             idScheduler: postToCancel.schedulerManualPostingId,
           });
+          // Drop any local draft marker for this post so a deleted draft
+          // doesn't reappear in the scheduler board.
+          removeSchedulerDraftMarker(
+            businessId,
+            String(postToCancel.schedulerManualPostingId)
+          );
           showToast("success", res.data.responseMessage);
         } else {
           const res = await mReadyToPost.mutateAsync({
@@ -177,10 +191,60 @@ export function SchedulePost({
     } catch { }
   };
 
+  // The direct-post endpoint publishes the caption stored on the scheduled
+  // post (it only takes id + platforms), so persist an edited caption first
+  // via the regular edit endpoint, keeping image/platforms/status/publishAt.
+  const persistEditedCaptionBeforeDirectPost = async () => {
+    const post = editingPost;
+    const editedCaption = formDataDraft.direct.caption ?? "";
+    if (!post?.schedulerManualPostingId) return true;
+    if (editedCaption === (post.generatedImageContent.caption || "")) return true;
+
+    const imageUrl =
+      post.generatedImageContent.images?.[0] || post.images?.[0];
+    // Without an image the direct post itself reports the missing image.
+    if (!imageUrl) return true;
+
+    const isDraft = post.status?.toLowerCase() === "draft";
+    let publishAt = new Date(post.date);
+    // The backend rejects a publishAt in the past (small margin for latency).
+    if (
+      Number.isNaN(publishAt.getTime()) ||
+      publishAt.getTime() <= Date.now() + 30 * 1000
+    ) {
+      if (!isDraft) {
+        showToast("error", t("captionEditPastSchedule"));
+        return false;
+      }
+      publishAt = getNextSchedulableDate();
+    }
+
+    // Send the wall time in the business time zone (that's how the backend
+    // parses publishAt) so the stored publish time stays unchanged.
+    const wall = dateFormat.getWallDateTimeInTimeZone(publishAt, businessTimeZone);
+    await mSchedulerEdit.mutateAsync({
+      businessId,
+      idScheduler: post.schedulerManualPostingId,
+      formData: {
+        imageUrl,
+        caption: editedCaption,
+        platforms: post.platforms,
+        dateTime: new Date(`${wall.date}T${wall.time}`).toISOString(),
+        status: isDraft ? "draft" : "ready",
+        withChatAI: post.withChatAI ?? false,
+        businessProductId: post.businessProductId
+          ? String(post.businessProductId)
+          : undefined,
+      },
+    });
+    return true;
+  };
+
   const handleSubmit = async () => {
     try {
       switch (postType) {
         case "now":
+          if (!(await persistEditedCaptionBeforeDirectPost())) return;
           const resDirect = await mDirectPostFromDraft.mutateAsync({
             businessId,
             formData: formDataDraft.direct,
@@ -211,7 +275,9 @@ export function SchedulePost({
           onCloseModal();
           break;
       }
-    } catch { }
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
   return (

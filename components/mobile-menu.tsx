@@ -36,9 +36,11 @@ import { useTokenGetTokenUsage } from "@/services/tier/token.api";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { ReportIssueModal } from "@/components/report-issue-modal";
+import { useRole } from "@/contexts/role-context";
 
 export function MobileMenu() {
   const router = useRouter();
+  const { access } = useRole();
   const pathname = usePathname();
   const { formatDate } = useDateFormat();
   const { theme, setTheme } = useTheme();
@@ -265,6 +267,7 @@ export function MobileMenu() {
                          <span className="text-xs text-muted-foreground">{tSideBar("token")}</span>
                        </div>
                      </div>
+                     {access.purchase.write && (
                      <Button
                        type="button"
                        size="icon-sm"
@@ -278,6 +281,7 @@ export function MobileMenu() {
                      >
                        <Plus className="w-4 h-4 text-white" />
                      </Button>
+                     )}
                    </div>
                  </div>
                )}

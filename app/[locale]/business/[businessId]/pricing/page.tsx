@@ -20,11 +20,14 @@ import { useTranslations } from "next-intl";
 import { useCheckoutPayBank } from "@/services/purchase.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
+import { useRole } from "@/contexts/role-context";
 
 export default function Pricing() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { businessId } = useParams() as { businessId: string };
+  const { access } = useRole();
+  const canPurchase = access.purchase.write;
   const { data: tokenData } = useAppProductGetToken(businessId || "");
   const { data: subscriptionData } = useAppProductGetSubscription(
     businessId || ""
@@ -71,6 +74,7 @@ export default function Pricing() {
   const tToast = useTranslations();
 
   const checkoutFreeProduct = async (id: string) => {
+    if (!canPurchase) return;
     try {
       await mCheckoutBank.mutateAsync({
         businessId,
@@ -87,6 +91,7 @@ export default function Pricing() {
   };
 
   const onSelectItem = (type: "token" | "subscription", id: string) => {
+    if (!canPurchase) return;
     queryClient.clear();
     if (type === "token") {
       router.push(
@@ -208,6 +213,7 @@ export default function Pricing() {
                       <Button
                         className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300"
                         onClick={() => onSelectItem("token", pkg.id)}
+                        disabled={!canPurchase}
                       >
                         <Zap className="w-4 h-4 mr-2" />
                         {t("getToken")}
@@ -331,7 +337,8 @@ export default function Pricing() {
                               : "bg-blue-600 hover:bg-blue-700 text-white"
                           }`}
                           disabled={
-                            plan.appProductSubscriptionItems?.[0]?.isClaimed
+                            plan.appProductSubscriptionItems?.[0]?.isClaimed ||
+                            !canPurchase
                           }
                           onClick={() => {
                             if (

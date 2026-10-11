@@ -28,6 +28,7 @@ interface ProductModalProps {
   formValue: ProductKnowledgePld & { id?: string };
   onChange: (productData: ProductKnowledgePld & { id?: string }) => void;
   errors?: Record<string, string>;
+  isSubmitting?: boolean;
 }
 
 export function ProductModal({
@@ -38,6 +39,7 @@ export function ProductModal({
   formValue,
   onChange,
   errors = {},
+  isSubmitting = false,
 }: ProductModalProps) {
   const [productAction, setProductAction] = useState<"add" | "edit" | "select">(
     mode
@@ -148,6 +150,7 @@ export function ProductModal({
         <DialogFooterWithButton
           buttonMessage={buttonText}
           onClick={handleSave}
+          disabled={isSubmitting}
         />
       </DialogContent>
     </Dialog>

@@ -834,7 +834,7 @@ export const useContentCaptionEnhance = () => {
 };
 
 // ============================== IMAGE POST AI CHAT ==============================
-const imagePostChatService = {
+export const imagePostChatService = {
   getAllChats: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     return api.get<BaseResponse<ImagePostChatSessionRes[]>>(
       `/generative-content/chat/${businessId}`,

@@ -16,6 +16,7 @@ import {
   getSchedulerDraftMarkers,
   upsertSchedulerDraftMarker,
 } from "@/lib/scheduler-draft-markers";
+import { getNextSchedulableDate } from "@/lib/schedule-date-time";
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import {
   AdvancedGenerate,
@@ -40,6 +41,7 @@ import {
   JobStatus,
 } from "@/models/socket-content";
 import {
+  imagePostChatService,
   useContentDraftSaveDraftContent,
   useContentImagePostChatGetById,
   useContentImagePostChatSendImageMessage,
@@ -431,6 +433,16 @@ function formatCurrentTimeInput() {
   const hour = now.getHours().toString().padStart(2, "0");
   const minute = now.getMinutes().toString().padStart(2, "0");
   return `${hour}:${minute}`;
+}
+
+// The backend rejects a publishAt in the past, so background draft edits get
+// the same "next minute" adjustment as draft creation.
+function resolveSchedulerDraftDateTime(date: string, time: string) {
+  const scheduledAt = new Date(`${date}T${time}`);
+  if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+    return getNextSchedulableDate().toISOString();
+  }
+  return scheduledAt.toISOString();
 }
 
 type RealtimeGenerativeChatProgressData = {
@@ -1394,12 +1406,22 @@ export const ContentGenerateProvider = ({
   };
   const shouldRestoreSchedulerChat =
     Boolean(routeChatSessionId && routeScheduledPostId);
+  // Mirror of isRestoringSchedulerChat for effects that must not re-run when
+  // it changes (re-running would re-enable the loader after a restore ends).
+  const isRestoringSchedulerChatRef = useRef(false);
+  useEffect(() => {
+    isRestoringSchedulerChatRef.current = isRestoringSchedulerChat;
+  }, [isRestoringSchedulerChat]);
+  // Route key of the scheduler-chat restore that was started; the restore
+  // runs once per key, and only that run may clear the loader.
+  const schedulerRestoreKeyRef = useRef<string | null>(null);
 
   useIsomorphicLayoutEffect(() => {
     if (!shouldRestoreSchedulerChat) {
-      if (isRestoringSchedulerChat) {
+      if (isRestoringSchedulerChatRef.current) {
         setLoadingState(false);
       }
+      isRestoringSchedulerChatRef.current = false;
       setIsRestoringSchedulerChat(false);
       setSchedulerDraftPost(null);
       setSchedulerChatSeed(null);
@@ -1409,55 +1431,172 @@ export const ContentGenerateProvider = ({
 
     setMode("regenerate");
     setTab("knowledge");
-    setLoadingState(true);
-    setIsRestoringSchedulerChat(true);
     setSchedulerDraftPost({
       id: Number(routeScheduledPostId),
       chatSessionId: Number(routeChatSessionId),
     });
+    // Show the loader before paint only when this route still needs a
+    // restore; the restore effect below clears it on every exit path.
+    const restoreKeyPrefix = `${routeScheduledPostId}|${routeChatSessionId}|`;
+    if (
+      lastAppliedHistoryRouteKeyRef.current?.startsWith(restoreKeyPrefix) ||
+      schedulerRestoreKeyRef.current?.startsWith(restoreKeyPrefix)
+    ) {
+      return;
+    }
+    setLoadingState(true);
+    isRestoringSchedulerChatRef.current = true;
+    setIsRestoringSchedulerChat(true);
   }, [
-    isRestoringSchedulerChat,
     routeChatSessionId,
     routeScheduledPostId,
     shouldRestoreSchedulerChat,
   ]);
 
+  // Latest values read by the scheduler-chat restore when its request
+  // resolves; kept in a ref so the restore effect doesn't re-run (and cancel
+  // the in-flight restore) every time histories/form change.
+  const schedulerRestoreInputsRef = useRef({
+    histories,
+    formBasic,
+    productImageById,
+  });
   useEffect(() => {
-    if (!routeChatSessionId || !routeScheduledPostId) return;
+    schedulerRestoreInputsRef.current = {
+      histories,
+      formBasic,
+      productImageById,
+    };
+  }, [formBasic, histories, productImageById]);
+
+  useEffect(() => {
+    if (!routeChatSessionId || !routeScheduledPostId) {
+      schedulerRestoreKeyRef.current = null;
+      return;
+    }
     const selectedHistoryImage = searchParams.get("selectedHistoryImage");
     const scheduleDate = searchParams.get("scheduleDate");
     const routeKey = `${routeScheduledPostId}|${routeChatSessionId}|${selectedHistoryImage || ""}`;
 
-    if (lastAppliedHistoryRouteKeyRef.current === routeKey) {
-      setLoadingState(false);
+    const finishRestore = () => {
+      if (isRestoringSchedulerChatRef.current) {
+        setLoadingState(false);
+      }
+      isRestoringSchedulerChatRef.current = false;
       setIsRestoringSchedulerChat(false);
+    };
+
+    if (lastAppliedHistoryRouteKeyRef.current === routeKey) {
+      schedulerRestoreKeyRef.current = routeKey;
+      finishRestore();
       return;
     }
 
-    let isActive = true;
+    // Run the restore once per route key; a re-run of this effect for the
+    // same key must neither restart nor cancel the in-flight restore.
+    if (schedulerRestoreKeyRef.current === routeKey) return;
+    schedulerRestoreKeyRef.current = routeKey;
+    const isActive = () => schedulerRestoreKeyRef.current === routeKey;
+
     setMode("regenerate");
     setTab("knowledge");
     setLoadingState(true);
+    isRestoringSchedulerChatRef.current = true;
     setIsRestoringSchedulerChat(true);
     setSchedulerDraftPost({
       id: Number(routeScheduledPostId),
       chatSessionId: Number(routeChatSessionId),
     });
 
-    refetchRouteChat().then((result) => {
-      if (!isActive) return;
+    const applyFallbackRestore = () => {
+      if (!isActive() || !selectedHistoryImage) return;
 
+      const { formBasic: restoreFormBasic, productImageById: restoreProductImageById } =
+        schedulerRestoreInputsRef.current;
       const productKnowledgeId = routeBusinessProductId || "";
       const routeDraftMarker = getSchedulerDraftMarkers(businessId).find(
         (marker) => marker.draftId === String(routeScheduledPostId)
       );
       const originalProductImage =
         (productKnowledgeId
-          ? productImageById.get(String(productKnowledgeId))
+          ? restoreProductImageById.get(String(productKnowledgeId))
+          : "") || "";
+      const fallbackProductImage =
+        routeDraftMarker?.productImage ||
+        originalProductImage ||
+        restoreFormBasic.productImage;
+      const fallbackReferenceImage =
+        routeDraftMarker?.referenceImage || restoreFormBasic.referenceImage;
+      const restoredCaption = routeDraftMarker?.caption || restoreFormBasic.caption;
+      const restoredSeed = {
+        productImage: fallbackProductImage || null,
+        referenceImage: fallbackReferenceImage || null,
+        avatarImages: routeDraftMarker?.avatarImages || [],
+        productKnowledgeId: productKnowledgeId || null,
+      };
+      const fallbackJob = buildSchedulerFallbackChatJob({
+        scheduledPostId: routeScheduledPostId,
+        businessId,
+        chatSessionId: Number(routeChatSessionId),
+        productKnowledgeId,
+        imageUrl: selectedHistoryImage,
+        productImage: fallbackProductImage,
+        referenceImage: fallbackReferenceImage,
+        avatarImages: routeDraftMarker?.avatarImages || [],
+        model: restoreFormBasic.model,
+        ratio: restoreFormBasic.ratio,
+        imageSize: restoreFormBasic.imageSize,
+        productName: restoreFormBasic.productName,
+        caption: restoredCaption,
+      });
+
+      setHistories((prev) => upsertJobIntoHistory(prev, fallbackJob));
+      setSelectedJobId(fallbackJob.id);
+      setSelectedGeneratedImageUrl(selectedHistoryImage);
+      setSchedulerChatSeed(restoredSeed);
+      const fallbackInputImages = resolveJobInputImages({
+        avatarImages: routeDraftMarker?.avatarImages || [],
+        additionalImages: fallbackJob.input.additionalImages,
+        referenceImage: fallbackReferenceImage,
+        productImages: fallbackProductImage ? [fallbackProductImage] : [],
+      });
+      setFormBasic((prev) => ({
+        ...prev,
+        productKnowledgeId,
+        productImage: fallbackProductImage || prev.productImage,
+        referenceImage: fallbackReferenceImage || prev.referenceImage,
+        selectedAvatars: fallbackInputImages.selectedAvatars,
+        additionalImages: fallbackInputImages.additionalImages,
+        caption: restoredCaption,
+        prompt: "",
+      }));
+      lastAppliedHistoryRouteKeyRef.current = routeKey;
+    };
+
+    refetchRouteChat().then((result) => {
+      if (!isActive()) return;
+      // refetch() resolves (does not throw) on request errors.
+      if (result.isError) {
+        applyFallbackRestore();
+        return;
+      }
+
+      const {
+        histories: restoreHistories,
+        formBasic: restoreFormBasic,
+        productImageById: restoreProductImageById,
+      } = schedulerRestoreInputsRef.current;
+      const productKnowledgeId = routeBusinessProductId || "";
+      const routeDraftMarker = getSchedulerDraftMarkers(businessId).find(
+        (marker) => marker.draftId === String(routeScheduledPostId)
+      );
+      const originalProductImage =
+        (productKnowledgeId
+          ? restoreProductImageById.get(String(productKnowledgeId))
           : "") || "";
       const chat = result.data?.data?.data;
       if (!chat && !selectedHistoryImage) return;
-      const existingThreadJobs = histories
+      const existingThreadJobs = restoreHistories
         .flatMap((group) => group.jobs)
         .filter(
           (job) =>
@@ -1477,14 +1616,14 @@ export const ContentGenerateProvider = ({
       const seedReferenceImage =
         seedJob?.input?.referenceImage ||
         routeDraftMarker?.referenceImage ||
-        form.basic.referenceImage;
+        restoreFormBasic.referenceImage;
       const seedProductImage =
         originalProductImage ||
         routeDraftMarker?.productImage ||
         seedJob?.product?.images?.[0] ||
         selectedHistoryImage ||
-        form.basic.productImage;
-      const restoredCaption = routeDraftMarker?.caption || form.basic.caption;
+        restoreFormBasic.productImage;
+      const restoredCaption = routeDraftMarker?.caption || restoreFormBasic.caption;
       const restoredSeed = {
         productImage: seedProductImage || null,
         referenceImage: seedReferenceImage || null,
@@ -1498,10 +1637,10 @@ export const ContentGenerateProvider = ({
             businessId,
             chatSessionId: Number(routeChatSessionId),
             productKnowledgeId,
-            model: form.basic.model,
-            ratio: form.basic.ratio,
-            imageSize: form.basic.imageSize,
-            productName: form.basic.productName,
+            model: restoreFormBasic.model,
+            ratio: restoreFormBasic.ratio,
+            imageSize: restoreFormBasic.imageSize,
+            productName: restoreFormBasic.productName,
             productImage: seedProductImage,
             referenceImage: seedReferenceImage,
             avatarImages: routeDraftMarker?.avatarImages || [],
@@ -1517,10 +1656,10 @@ export const ContentGenerateProvider = ({
               productImage: seedProductImage,
               referenceImage: seedReferenceImage,
               avatarImages: routeDraftMarker?.avatarImages || [],
-              model: form.basic.model,
-              ratio: form.basic.ratio,
-              imageSize: form.basic.imageSize,
-              productName: form.basic.productName,
+              model: restoreFormBasic.model,
+              ratio: restoreFormBasic.ratio,
+              imageSize: restoreFormBasic.imageSize,
+              productName: restoreFormBasic.productName,
               caption: restoredCaption,
             }),
           ];
@@ -1625,88 +1764,17 @@ export const ContentGenerateProvider = ({
       }
       lastAppliedHistoryRouteKeyRef.current = routeKey;
     }).catch(() => {
-      if (!isActive || !selectedHistoryImage) return;
-
-      const productKnowledgeId = routeBusinessProductId || "";
-      const routeDraftMarker = getSchedulerDraftMarkers(businessId).find(
-        (marker) => marker.draftId === String(routeScheduledPostId)
-      );
-      const originalProductImage =
-        (productKnowledgeId
-          ? productImageById.get(String(productKnowledgeId))
-          : "") || "";
-      const fallbackProductImage =
-        routeDraftMarker?.productImage ||
-        originalProductImage ||
-        form.basic.productImage;
-      const fallbackReferenceImage =
-        routeDraftMarker?.referenceImage || form.basic.referenceImage;
-      const restoredCaption = routeDraftMarker?.caption || form.basic.caption;
-      const restoredSeed = {
-        productImage: fallbackProductImage || null,
-        referenceImage: fallbackReferenceImage || null,
-        avatarImages: routeDraftMarker?.avatarImages || [],
-        productKnowledgeId: productKnowledgeId || null,
-      };
-      const fallbackJob = buildSchedulerFallbackChatJob({
-        scheduledPostId: routeScheduledPostId,
-        businessId,
-        chatSessionId: Number(routeChatSessionId),
-        productKnowledgeId,
-        imageUrl: selectedHistoryImage,
-        productImage: fallbackProductImage,
-        referenceImage: fallbackReferenceImage,
-        avatarImages: routeDraftMarker?.avatarImages || [],
-        model: form.basic.model,
-        ratio: form.basic.ratio,
-        imageSize: form.basic.imageSize,
-        productName: form.basic.productName,
-        caption: restoredCaption,
-      });
-
-      setHistories((prev) => upsertJobIntoHistory(prev, fallbackJob));
-      setSelectedJobId(fallbackJob.id);
-      setSelectedGeneratedImageUrl(selectedHistoryImage);
-      setSchedulerChatSeed(restoredSeed);
-      const fallbackInputImages = resolveJobInputImages({
-        avatarImages: routeDraftMarker?.avatarImages || [],
-        additionalImages: fallbackJob.input.additionalImages,
-        referenceImage: fallbackReferenceImage,
-        productImages: fallbackProductImage ? [fallbackProductImage] : [],
-      });
-      setFormBasic((prev) => ({
-        ...prev,
-        productKnowledgeId,
-        productImage: fallbackProductImage || prev.productImage,
-        referenceImage: fallbackReferenceImage || prev.referenceImage,
-        selectedAvatars: fallbackInputImages.selectedAvatars,
-        additionalImages: fallbackInputImages.additionalImages,
-        caption: restoredCaption,
-        prompt: "",
-      }));
-      lastAppliedHistoryRouteKeyRef.current = routeKey;
+      applyFallbackRestore();
     }).finally(() => {
-      if (!isActive) return;
-      setLoadingState(false);
-      setIsRestoringSchedulerChat(false);
+      // Clears the loader on every exit path (including early returns) of
+      // the restore that is still current for this route.
+      if (!isActive()) return;
+      finishRestore();
     });
-
-    return () => {
-      isActive = false;
-    };
   }, [
     businessId,
-    form.basic.caption,
-    form.basic.imageSize,
-    form.basic.model,
-    form.basic.productImage,
-    form.basic.productName,
-    form.basic.ratio,
-    form.basic.referenceImage,
     refetchRouteChat,
     routeBusinessProductId,
-    histories,
-    productImageById,
     routeChatSessionId,
     routeScheduledPostId,
     searchParams,
@@ -2310,7 +2378,60 @@ export const ContentGenerateProvider = ({
       typeof mSendImageChatMessage.mutateAsync
     >[0]["formData"]
   ) => {
+    // Sending a message starts a PAID generation, so only retry when the
+    // server explicitly said the chat isn't ready yet (404/425). A 409 or any
+    // other status is final. Without a status (network error/timeout) the
+    // request may still have reached the server: check the chat first and only
+    // resend when our user bubble isn't there.
     let lastError: unknown;
+    const sendStartedAt = Date.now();
+    const sentPrompt = (formData.prompt || "").trim();
+    // Bubbles already shown before this send can't be the one we just sent.
+    const knownJobIds = new Set(
+      histories.flatMap((group) => group.jobs.map((job) => job.id))
+    );
+
+    const findDeliveredMessage = async () => {
+      const chatRes = await imagePostChatService.getChatById(
+        businessId,
+        chatSessionId
+      );
+      const bubbles = chatRes.data?.data?.bubbles || [];
+      const userBubbles = bubbles.filter((bubble) => bubble.role === "user");
+      const latestUserBubble = userBubbles[userBubbles.length - 1];
+      if (!latestUserBubble) return null;
+
+      const createdAt = new Date(latestUserBubble.createdAt).getTime();
+      const isRecent =
+        Number.isNaN(createdAt) || createdAt >= sendStartedAt - 5 * 60 * 1000;
+      const isSamePrompt =
+        (latestUserBubble.prompt || "").trim() === sentPrompt;
+      const isSameReply =
+        !formData.bubbleChatId ||
+        latestUserBubble.replyToBubbleId == null ||
+        Number(latestUserBubble.replyToBubbleId) ===
+          Number(formData.bubbleChatId);
+      const isNewBubble = !knownJobIds.has(`chat-${latestUserBubble.id}`);
+      if (!isRecent || !isSamePrompt || !isSameReply || !isNewBubble) {
+        return null;
+      }
+
+      const systemBubble =
+        bubbles.find(
+          (bubble) =>
+            bubble.role === "system" &&
+            bubble.replyToBubbleId === latestUserBubble.id
+        ) || null;
+      return {
+        data: {
+          data: {
+            userBubble: latestUserBubble,
+            systemBubble,
+            processState: "processing",
+          },
+        },
+      } as Awaited<ReturnType<typeof mSendImageChatMessage.mutateAsync>>;
+    };
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       try {
@@ -2331,8 +2452,23 @@ export const ContentGenerateProvider = ({
           (error as { response?: { status?: number }; status?: number })
             ?.status;
 
-        if (status && status !== 404 && status !== 409 && status !== 425) {
+        if (status === 404 || status === 425) {
+          continue;
+        }
+        if (status) {
           break;
+        }
+
+        // No status: find out whether the message was actually received.
+        let delivered: Awaited<ReturnType<typeof findDeliveredMessage>>;
+        try {
+          delivered = await findDeliveredMessage();
+        } catch {
+          // Can't verify -> don't risk a second charge.
+          break;
+        }
+        if (delivered) {
+          return delivered;
         }
       }
     }
@@ -3135,9 +3271,10 @@ export const ContentGenerateProvider = ({
             imageUrl: latestImage,
             caption: persistedCaption,
             platforms: [],
-            dateTime: new Date(
-              `${scheduleDateParam}T${scheduleTimeParam || formatCurrentTimeInput()}`
-            ).toISOString(),
+            dateTime: resolveSchedulerDraftDateTime(
+              scheduleDateParam,
+              scheduleTimeParam || formatCurrentTimeInput()
+            ),
             status: "draft",
             withChatAI: true,
             shareAsReference: true,
@@ -3235,18 +3372,25 @@ export const ContentGenerateProvider = ({
       notLoadingJobStages.includes(selectedHistory.stage);
     if (isFinal) return;
 
+    // Guards async interval callbacks of this effect run: a response that
+    // arrives after the selection/deps changed must not override newer state.
+    let isActive = true;
+
     const isSchedulerChatJob = selectedHistory.id.startsWith("chat-");
     if (isSchedulerChatJob) {
-      if (isConnected && activeRealtimeChatSessionId) return;
-
       const activeSchedulerDraftPost = schedulerDraftPost;
       const activeChatSessionId =
         activeRealtimeChatSessionId || activeSchedulerDraftPost?.chatSessionId;
       if (!activeSchedulerDraftPost || activeChatSessionId == null) return;
 
+      // With a live socket the realtime events drive progress; keep a slow
+      // fallback poll anyway so a missed event can't leave the job stuck.
+      const pollIntervalMs =
+        isConnected && activeRealtimeChatSessionId ? 20000 : 5000;
+
       const intervalId = window.setInterval(async () => {
         const result = await refetchSchedulerChat().catch(() => null);
-        if (!result) return;
+        if (!isActive || !result) return;
 
         const chat = result.data?.data?.data;
         if (!chat) return;
@@ -3433,31 +3577,41 @@ export const ContentGenerateProvider = ({
             businessProductId: selectedHistory.input.productKnowledgeId || null,
             createdAt: latestJob.createdAt || new Date().toISOString(),
           });
-          await mEditScheduledPost.mutateAsync({
-            businessId,
-            idScheduler: activeSchedulerDraftPost.id,
-            formData: {
-              imageUrl: latestImage,
-              caption: persistedCaption,
-              platforms: [],
-              dateTime: new Date(
-                `${scheduleDateParam}T${scheduleTimeParam || formatCurrentTimeInput()}`
-              ).toISOString(),
-              status: "draft",
-              withChatAI: true,
-              shareAsReference: true,
-              businessProductId: selectedHistory.input.productKnowledgeId,
-              chatSessionId: activeChatSessionId,
-            },
-          });
+          await mEditScheduledPost
+            .mutateAsync({
+              businessId,
+              idScheduler: activeSchedulerDraftPost.id,
+              formData: {
+                imageUrl: latestImage,
+                caption: persistedCaption,
+                platforms: [],
+                dateTime: resolveSchedulerDraftDateTime(
+                  scheduleDateParam,
+                  scheduleTimeParam || formatCurrentTimeInput()
+                ),
+                status: "draft",
+                withChatAI: true,
+                shareAsReference: true,
+                businessProductId: selectedHistory.input.productKnowledgeId,
+                chatSessionId: activeChatSessionId,
+              },
+            })
+            .catch((error) => {
+              // Background draft sync; don't leave an unhandled rejection.
+              console.error("Failed to sync scheduler draft image:", error);
+            });
         }
-      }, 5000);
+      }, pollIntervalMs);
 
-      return () => window.clearInterval(intervalId);
+      return () => {
+        isActive = false;
+        window.clearInterval(intervalId);
+      };
     }
 
     const intervalId = window.setInterval(async () => {
-      const result = await refetchHistories();
+      const result = await refetchHistories().catch(() => null);
+      if (!isActive || !result) return;
       const refreshedGroups = result.data?.data?.data || [];
       const refreshedJob =
         refreshedGroups
@@ -3470,7 +3624,10 @@ export const ContentGenerateProvider = ({
       setSelectedGeneratedImageUrl(refreshedJob.result?.images?.[0] || null);
     }, 5000);
 
-    return () => window.clearInterval(intervalId);
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
   }, [
     activeRealtimeChatSessionId,
     contentFeaturesEnabled,

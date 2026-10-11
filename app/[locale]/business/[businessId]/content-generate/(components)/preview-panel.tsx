@@ -73,6 +73,8 @@ export function PreviewPanel() {
   const shouldAutoEnhanceOnFirstGenerateRef = useRef(false);
   const lastAutoEnhancedResultKeyRef = useRef<string | null>(null);
   const previewWatermarkRequestKeyRef = useRef<string | null>(null);
+  const isSubmittingScheduleRef = useRef(false);
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
   const previewWatermarkRequestPromiseRef = useRef<Promise<string | null> | null>(
     null
   );
@@ -677,7 +679,21 @@ export function PreviewPanel() {
     );
   };
 
+  // Guards against duplicate scheduled posts: resolving the schedule image can
+  // wait on the watermark for a long time before any mutation is pending.
   const submitSchedule = async (scheduleDate: string, scheduleTime: string) => {
+    if (isSubmittingScheduleRef.current) return;
+    isSubmittingScheduleRef.current = true;
+    setIsSubmittingSchedule(true);
+    try {
+      await submitScheduleOnce(scheduleDate, scheduleTime);
+    } finally {
+      isSubmittingScheduleRef.current = false;
+      setIsSubmittingSchedule(false);
+    }
+  };
+
+  const submitScheduleOnce = async (scheduleDate: string, scheduleTime: string) => {
     if (!selectedHistory?.result) {
       showToast("error", schedulerT("generateFirst"));
       return;
@@ -760,10 +776,7 @@ export function PreviewPanel() {
         error instanceof Error &&
         error.message === "WATERMARK_REQUIRED_FOR_FREE_USER"
       ) {
-        showToast(
-          "error",
-          "Watermark belum siap. Mohon tunggu sebentar sebelum menjadwalkan postingan."
-        );
+        showToast("error", schedulerT("watermarkNotReady"));
         return;
       }
 
@@ -793,6 +806,7 @@ export function PreviewPanel() {
   };
 
   const isScheduling =
+    isSubmittingSchedule ||
     mSchedulePost.isPending ||
     mEditSchedulePost.isPending;
 

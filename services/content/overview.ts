@@ -7,6 +7,7 @@ import {
 } from "@/models/api/content/overview";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useQuery } from "@tanstack/react-query";
+import { dateManipulation } from "@/helper/date-manipulation";
 
 type NewScheduledPost = {
   id: number;
@@ -90,7 +91,12 @@ const isWithinDateRange = (
   dateStart?: string,
   dateEnd?: string
 ) => {
-  const date = item.publishAt.slice(0, 10);
+  // Compare on the local calendar date of the instant (dateStart/dateEnd are
+  // local YYYY-MM-DD); slicing the ISO string would use the UTC date.
+  const publishAt = new Date(item.publishAt);
+  const date = Number.isNaN(publishAt.getTime())
+    ? item.publishAt.slice(0, 10)
+    : dateManipulation.ymd(publishAt);
   return (!dateStart || date >= dateStart) && (!dateEnd || date <= dateEnd);
 };
 

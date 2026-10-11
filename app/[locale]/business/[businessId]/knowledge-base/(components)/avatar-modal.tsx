@@ -21,6 +21,7 @@ interface AvatarModalProps {
   formValue: BusinessAvatarPld & { id?: string };
   onChange: (avatarData: BusinessAvatarPld & { id?: string }) => void;
   errors?: Record<string, string>;
+  isSubmitting?: boolean;
 }
 
 export function AvatarModal({
@@ -31,6 +32,7 @@ export function AvatarModal({
   formValue,
   onChange,
   errors = {},
+  isSubmitting = false,
 }: AvatarModalProps) {
   const t = useTranslations("avatarKnowledge");
 
@@ -83,6 +85,7 @@ export function AvatarModal({
         <DialogFooterWithButton
           buttonMessage={isEditMode ? t("saveButton") : t("addAvatar")}
           onClick={() => onSave(formValue)}
+          disabled={isSubmitting}
         />
       </DialogContent>
     </Dialog>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { countBusiness } from "@/services/business.api";
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/constants";
+import { ACCESS_TOKEN_KEY } from "@/constants";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
 type CheckStatus = "loading" | "error" | "auth-loop";
+
+const isLocalDevHost = (hostname: string) =>
+  hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 
 export default function Home() {
   const t = useTranslations("authCheck");
@@ -101,23 +104,29 @@ const useCheckBusiness = () => {
       if (refreshTokenFromParam) refreshTokenFromParam = refreshTokenFromParam.replace(/ /g, "+");
 
       if (tokenFromParam || refreshTokenFromParam) {
-        const accessToken =
-          tokenFromParam ?? localStorage.getItem(ACCESS_TOKEN_KEY);
+        // Token lewat URL hanya dipakai saat app berjalan di localhost (dev
+        // dengan auth staging/production yang cookie-nya tidak bisa sampai ke
+        // localhost). Di domain postmatic.id sesi selalu datang dari cookie;
+        // token di URL diabaikan agar link berisi token orang lain tidak bisa
+        // memaksa korban login ke akun tersebut (session fixation).
+        if (isLocalDevHost(window.location.hostname)) {
+          const accessToken =
+            tokenFromParam ?? localStorage.getItem(ACCESS_TOKEN_KEY);
 
-        const refreshToken =
-          refreshTokenFromParam ?? localStorage.getItem(REFRESH_TOKEN_KEY);
+          setAuthToken(accessToken, null);
+          queryClient.clear();
 
-        setAuthToken(accessToken, refreshToken);
-        queryClient.clear();
-
-        await fetch("/api/auth/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            accessToken: tokenFromParam,
-            refreshToken: refreshTokenFromParam,
-          }),
-        }).catch(() => undefined);
+          await fetch("/api/auth/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken: tokenFromParam,
+              refreshToken: refreshTokenFromParam,
+            }),
+          }).catch(() => undefined);
+        } else if (adoptCookieSession()) {
+          queryClient.clear();
+        }
 
         params.delete("postmaticAccessToken");
         params.delete("postmaticRefreshToken");

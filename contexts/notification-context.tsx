@@ -119,6 +119,9 @@ const NotificationContext = createContext<NotificationContextProps | undefined>(
 
 const TICKET_FALLBACK_REFRESH_INTERVAL_MS = 10_000;
 const NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS = 30_000;
+// Saat socket aktif tetap ada polling lambat sebagai jaring pengaman: event
+// yang terlewat saat socket reconnect/token refresh tidak di-replay server.
+const SOCKET_SAFETY_REFRESH_INTERVAL_MS = 60_000;
 const REALTIME_TICKET_REFRESH_COOLDOWN_MS = 3_000;
 const TICKET_CATEGORY_CACHE_MS = 5 * 60_000;
 
@@ -535,22 +538,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     queryKey: NOTIFICATIONS_QUERY_KEY,
     queryFn: getCommonNotifications,
     refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
-      ? false
+      ? SOCKET_SAFETY_REFRESH_INTERVAL_MS
       : NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
     refetchIntervalInBackground: false,
-    refetchOnReconnect: !NEXT_PUBLIC_ENABLE_SOCKET,
-    refetchOnWindowFocus: !NEXT_PUBLIC_ENABLE_SOCKET,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   });
 
   const notificationUnreadCountQuery = useQuery({
     queryKey: NOTIFICATION_UNREAD_COUNT_QUERY_KEY,
     queryFn: getCommonNotificationUnreadCount,
     refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
-      ? false
+      ? SOCKET_SAFETY_REFRESH_INTERVAL_MS
       : NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
     refetchIntervalInBackground: false,
-    refetchOnReconnect: !NEXT_PUBLIC_ENABLE_SOCKET,
-    refetchOnWindowFocus: !NEXT_PUBLIC_ENABLE_SOCKET,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   });
 
   const websiteTicketsQuery = useQuery({
@@ -558,11 +561,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     queryFn: () => getWebsiteTicketRooms(queryClient),
     enabled: shouldLoadWebsiteTickets,
     refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
-      ? false
+      ? SOCKET_SAFETY_REFRESH_INTERVAL_MS
       : TICKET_FALLBACK_REFRESH_INTERVAL_MS,
     refetchIntervalInBackground: false,
-    refetchOnReconnect: !NEXT_PUBLIC_ENABLE_SOCKET,
-    refetchOnWindowFocus: !NEXT_PUBLIC_ENABLE_SOCKET,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
@@ -884,6 +887,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .then(() => refreshTickets())
         .catch((error) => {
           showToast("error", error);
+          // Hapus pesan optimistik: data refetch yang identik tidak memicu
+          // ulang setTickets, sehingga pesan gagal tampak seolah terkirim.
+          setTickets((prev) =>
+            prev.map((item) =>
+              item.id === ticketId
+                ? {
+                    ...item,
+                    messages: item.messages.filter(
+                      (message) => message.id !== optimisticMessage.id
+                    ),
+                  }
+                : item
+            )
+          );
           refreshTickets();
         });
     },

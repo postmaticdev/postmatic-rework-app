@@ -77,12 +77,47 @@ const getHhMm = (date: Date) => {
     .padStart(2, "0")}`;
 };
 
+// Local calendar date (YYYY-MM-DD), consistent with getHhMm which is local time.
+// toISOString() would return the UTC date and shift early-morning times a day back.
 const getDdMmYyyy = (date: Date) => {
-  return new Date(date).toISOString().split("T")[0];
+  const d = new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+// Wall-clock date ("YYYY-MM-DD") and time ("HH:mm") of an instant in the given
+// IANA time zone (e.g. the business time zone). Falls back to the browser's
+// local time when no/an invalid time zone is given.
+const getWallDateTimeInTimeZone = (date: Date, timeZone?: string | null) => {
+  if (timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(date);
+      const get = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((part) => part.type === type)?.value || "";
+      return {
+        date: `${get("year")}-${get("month")}-${get("day")}`,
+        time: `${get("hour")}:${get("minute")}`,
+      };
+    } catch {
+      // invalid time zone -> fall back to local time
+    }
+  }
+  return { date: getDdMmYyyy(date), time: getHhMm(date) };
 };
 
 export const dateFormat = {
   indonesianDate,
   getHhMm,
   getDdMmYyyy,
+  getWallDateTimeInTimeZone,
 };

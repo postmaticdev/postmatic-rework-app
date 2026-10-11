@@ -100,7 +100,7 @@ export function ConnectedPlatformForm() {
       showToast(
         "error",
         (error as ApiError).response?.data?.responseMessage ||
-          "Failed to connect platform"
+          t("connectFailed")
       );
     } finally {
       setConnectingPlatform(null);
@@ -127,7 +127,7 @@ export function ConnectedPlatformForm() {
       showToast(
         "error",
         (error as ApiError).response?.data?.responseMessage ||
-          "Failed to connect account"
+          t("connectAccountFailed")
       );
     }
   };
@@ -141,17 +141,17 @@ export function ConnectedPlatformForm() {
       {isLoadingPlatforms && (
         <div className="flex items-center gap-2 rounded-lg border p-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading platforms...
+          {t("loadingPlatforms")}
         </div>
       )}
 
       {tempCode && isPendingOauthPlatformAllowed && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-          <h3 className="font-medium text-foreground">Complete connection</h3>
+          <h3 className="font-medium text-foreground">{t("completeConnection")}</h3>
           {pendingOauth.isLoading ? (
             <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading connected account...
+              {t("loadingConnectedAccount")}
             </div>
           ) : pendingOauth.data?.data?.data?.accounts?.length ? (
             <div className="mt-3 space-y-3">
@@ -166,7 +166,7 @@ export function ConnectedPlatformForm() {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={account.platformIconUrl}
-                          alt={account.platformUserName || "Account"}
+                          alt={account.platformUserName || t("accountAlt")}
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -193,7 +193,7 @@ export function ConnectedPlatformForm() {
                     }
                     disabled={mdConnectAccount.isPending}
                   >
-                    {mdConnectAccount.isPending ? "Connecting..." : "Connect"}
+                    {mdConnectAccount.isPending ? t("connecting") : t("connect")}
                   </Button>
                 </div>
               ))}

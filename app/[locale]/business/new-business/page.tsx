@@ -5,11 +5,19 @@ import { Card } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
 import { ArrowRight, Globe, PencilLine, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
+import { useFormNewBusiness } from "@/contexts/form-new-business-context";
 import { motion } from 'motion/react';
 import { AuroraBackground } from '@/components/ui/aurora-background';
 
 export default function NewBusinessEntryPage() {
   const t = useTranslations("newBusinessEntry");
+  const { resetForm } = useFormNewBusiness();
+
+  // Entering the new-business flow fresh: drop any data left from a previous run.
+  useEffect(() => {
+    resetForm();
+  }, [resetForm]);
 
   return (
     <AuroraBackground>

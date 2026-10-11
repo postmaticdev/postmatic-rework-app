@@ -31,6 +31,7 @@ import { dateFormat } from "@/helper/date-format";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { showToast } from "@/helper/show-toast";
+import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
 import {
   SCHEDULER_DRAFT_MARKERS_CHANGED,
   getSchedulerDraftMarkers,
@@ -189,6 +190,17 @@ function formatCurrentTimeInput() {
   const hour = now.getHours().toString().padStart(2, "0");
   const minute = now.getMinutes().toString().padStart(2, "0");
   return `${hour}:${minute}`;
+}
+
+// The backend rejects a publishAt in the past; when an edited draft's
+// date/time has already passed, move it to the next schedulable minute
+// (same adjustment used when the draft is created).
+function resolveFutureSchedule(date: string, time: string) {
+  const scheduledAt = new Date(`${date}T${time}`);
+  if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+    return getCurrentScheduleInput();
+  }
+  return { date, time };
 }
 
 export function ContentSchedulerBoard({
@@ -739,12 +751,13 @@ export function ContentSchedulerBoard({
     }
 
     if (event.sourceType === "draft" && event.draftMarker) {
-      const scheduleDate = eventIsPast
-        ? dateManipulation.ymd(today)
-        : event.draftMarker.date;
+      const { date: scheduleDate, time: scheduleTime } = resolveFutureSchedule(
+        eventIsPast ? dateManipulation.ymd(today) : event.draftMarker.date,
+        event.draftMarker.time || event.time || formatCurrentTimeInput()
+      );
       const params = new URLSearchParams({
         scheduleDate,
-        scheduleTime: event.draftMarker.time || event.time || formatCurrentTimeInput(),
+        scheduleTime,
         editSchedulerManualPostingId: event.draftMarker.draftId,
         selectedHistoryId: event.draftMarker.jobId,
         selectedHistoryImage: event.draftMarker.image,
@@ -780,12 +793,13 @@ export function ContentSchedulerBoard({
       return;
     }
 
-    const scheduleDate = eventIsPast
-      ? dateManipulation.ymd(today)
-      : dateManipulation.ymd(event.date);
+    const { date: scheduleDate, time: scheduleTime } = resolveFutureSchedule(
+      eventIsPast ? dateManipulation.ymd(today) : dateManipulation.ymd(event.date),
+      event.time
+    );
     const params = new URLSearchParams({
       scheduleDate,
-      scheduleTime: event.time,
+      scheduleTime,
       editSchedulerManualPostingId: String(event.schedulerManualPostingId),
       selectedHistoryImage: event.generatedImageContent.images[0] || event.image || "",
       platforms: event.platforms.join(","),
@@ -849,6 +863,13 @@ export function ContentSchedulerBoard({
           businessId,
           idScheduler: eventToCancel.schedulerManualPostingId,
         });
+        // A backend draft may also have a local draft marker; drop it so the
+        // deleted draft doesn't reappear from localStorage.
+        removeSchedulerDraftMarker(
+          businessId,
+          String(eventToCancel.schedulerManualPostingId)
+        );
+        setDraftMarkers(getSchedulerDraftMarkers(businessId));
         showToast("success", res.data.responseMessage);
       } else {
         const res = await mReadyToPost.mutateAsync({

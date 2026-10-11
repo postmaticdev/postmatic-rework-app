@@ -36,6 +36,7 @@ interface RSSModalProps {
   formValue: AddRssPld & { id: string; masterRssCategoryId: string };
   onChange: (rssData: AddRssPld & { id: string }) => void;
   errors?: Record<string, string>;
+  isSubmitting?: boolean;
 }
 
 export function RSSModal({
@@ -46,6 +47,7 @@ export function RSSModal({
   formValue,
   onChange,
   errors = {},
+  isSubmitting = false,
 }: RSSModalProps) {
   const [rssAction, setRssAction] = useState<"add" | "edit" | "select">(mode);
 
@@ -229,6 +231,7 @@ export function RSSModal({
         <DialogFooterWithButton
           buttonMessage={buttonText}
           onClick={handleSave}
+          disabled={isSubmitting}
         />
       </DialogContent>
     </Dialog>

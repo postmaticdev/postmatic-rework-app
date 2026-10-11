@@ -119,22 +119,15 @@ const mapBusiness = <T extends BusinessRes | BusinessDetailRes>(
     },
   } as unknown as T);
 
-const businessFingerprint = (business: BusinessRes) =>
-  `${business.name?.trim().toLowerCase() ?? ""}|${
-    business.description?.trim().toLowerCase() ?? ""
-  }`;
-
+// Dedupe only by id: different businesses may legitimately share a name/description.
 const dedupeBusinesses = (businesses: BusinessRes[]) => {
   const seenIds = new Set<string>();
-  const seenFingerprints = new Set<string>();
   const result: BusinessRes[] = [];
 
   businesses.forEach((business) => {
     const id = String(business.id);
-    const fingerprint = businessFingerprint(business);
-    if (seenIds.has(id) || seenFingerprints.has(fingerprint)) return;
+    if (seenIds.has(id)) return;
     seenIds.add(id);
-    if (fingerprint !== "|") seenFingerprints.add(fingerprint);
     result.push(business);
   });
 
@@ -235,8 +228,11 @@ export const useBusinessUpdate = () => {
       idData: string;
       formData: BussinessPld;
     }) => businessService.update(idData, formData),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["businesses"] });
+      queryClient.invalidateQueries({
+        queryKey: ["business", variables.idData],
+      });
     },
   });
 };

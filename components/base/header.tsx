@@ -11,7 +11,11 @@ import { ProfileDropdown } from "./profile-dropdown";
 import { useNotification } from "@/contexts/notification-context";
 import { MobileMenu } from "../mobile-menu";
 import Image from "next/image";
-import { useBusinessGetAll } from "@/services/business.api";
+import {
+  useBusinessGetAll,
+  useBusinessGetById,
+} from "@/services/business.api";
+import { isAxiosError } from "axios";
 import { useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { useRouter, usePathname, Link } from "@/i18n/navigation";
 import {
@@ -26,6 +30,7 @@ import { useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
 import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { BusinessRes } from "@/models/api/business/index.type";
+import { useRole } from "@/contexts/role-context";
 
 function BusinessDropdownLogo({
   business,
@@ -58,6 +63,7 @@ export function Header() {
   const queryClient = useQueryClient();
   const { businessId } = useParams() as { businessId?: string };
   const { unreadCount } = useNotification();
+  const { access } = useRole();
 
   const { data: businessesData, isLoading: isLoadingBusinesses } =
     useBusinessGetAll({
@@ -80,10 +86,27 @@ export function Header() {
     [businessesData?.data?.data]
   );
 
-  const currentBusiness = useMemo(
-    () => businesses.find((b) => b.id === businessId) ?? null,
-    [businesses, businessId]
+  // The dropdown list is limited, so validate/resolve the current business by id.
+  const { data: currentBusinessDetailData, error: currentBusinessError } =
+    useBusinessGetById(businessId ?? "");
+  const currentBusinessDetail = currentBusinessDetailData?.data?.data;
+
+  const currentBusiness = useMemo<BusinessRes | null>(
+    () =>
+      businesses.find((b) => b.id === businessId) ??
+      (currentBusinessDetail && currentBusinessDetail.id === businessId
+        ? currentBusinessDetail
+        : null),
+    [businesses, businessId, currentBusinessDetail]
   );
+
+  const currentBusinessInvalid = useMemo(() => {
+    if (!currentBusinessError || !isAxiosError(currentBusinessError)) {
+      return false;
+    }
+    const status = currentBusinessError.response?.status;
+    return status === 400 || status === 403 || status === 404;
+  }, [currentBusinessError]);
 
   const otherBusinesses = useMemo(
     () => businesses.filter((business) => business.id !== currentBusiness?.id),
@@ -150,8 +173,8 @@ export function Header() {
       return;
     }
 
-    // Jika ada businessId tapi tidak valid -> arahkan ke halaman pilih bisnis
-    if (businessId && !businesses.some((b) => b.id === businessId)) {
+    // Jika ada businessId tapi tidak valid (403/404 dari get-by-id) -> arahkan ke halaman pilih bisnis
+    if (businessId && currentBusinessInvalid) {
       redirectedRef.current = true;
       router.replace("/business");
       return;
@@ -162,6 +185,7 @@ export function Header() {
     pathname,
     businessId,
     businesses,
+    currentBusinessInvalid,
     router,
     searchParams,
   ]);
@@ -296,12 +320,14 @@ export function Header() {
                 <Zap className="w-4 h-4 text-blue-500" strokeWidth={1.5} />
               </div>
             </div>
-            <Link
-              href={`/business/${businessId}/settings?tab=billing&topUp=token`}
-              className="w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-4 h-4 text-white" />
-            </Link>
+            {access.purchase.write && (
+              <Link
+                href={`/business/${businessId}/settings?tab=billing&topUp=token`}
+                className="w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4 text-white" />
+              </Link>
+            )}
           </div>
         )}
         <div className="flex items-center gap-2">

@@ -7,7 +7,8 @@ import { Image as ImageIcon, Info, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { showToast } from "@/helper/show-toast";
-import { helperService } from "@/services/helper.api";
+import { helperService, validateUploadImageFile } from "@/services/helper.api";
+import { useTranslations } from "next-intl";
 
 interface UploadPhotoProps {
   label: string;
@@ -43,6 +44,7 @@ export function UploadPhoto({
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [previews, setPreviews] = useState<string[]>(currentImages);
   const [isUploading, setIsUploading] = useState(false);
+  const t = useTranslations();
 
   useEffect(() => {
     setPreview(currentImage || null);
@@ -61,6 +63,13 @@ export function UploadPhoto({
       const files = Array.from(event.target.files || []);
 
       if (files.length > 0) {
+        const invalidReason = files
+          .map((file) => validateUploadImageFile(file))
+          .find(Boolean);
+        if (invalidReason) {
+          showToast("error", t(`toast.content.${invalidReason}`));
+          return;
+        }
         setIsUploading(true);
         const uploadedImages = await Promise.all(
           files.map((file) => helperService.uploadSingleImage({ image: file }))

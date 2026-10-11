@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import {
@@ -85,6 +85,8 @@ export function AvatarSection() {
   const mBusinessAvatarCreate = useBusinessAvatarCreate();
   const mBusinessAvatarUpdate = useBusinessAvatarUpdate();
   const mBusinessAvatarDelete = useBusinessAvatarDelete();
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
   const avatars = data?.data.data || [];
 
@@ -109,6 +111,9 @@ export function AvatarSection() {
   const handleSaveAvatar = async (
     avatarData: BusinessAvatarPld & { id?: string }
   ) => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
       const result = avatarKnowledgeSchema.safeParse(avatarData);
       if (!result.success) {
@@ -163,6 +168,9 @@ export function AvatarSection() {
       }
 
       showToast("error", t("saveFailed"));
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -321,6 +329,7 @@ export function AvatarSection() {
         formValue={selectedAvatar}
         onChange={setSelectedAvatar}
         errors={avatarErrors}
+        isSubmitting={isSaving}
       />
 
       <DeleteConfirmationModal
