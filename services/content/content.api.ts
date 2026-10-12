@@ -240,7 +240,8 @@ const mapRepetitionToAutoGenerateSettings = (
       ratio: "1:1",
       category: "",
       additionalPrompt: item.additionalPrompt,
-      avatarImageUrl: item.avatarImageUrl || null,
+      // Backend menyimpan avatar sebagai additionalImages[0] (lihat createSchedule/updateSchedule)
+      avatarImageUrl: item.avatarImageUrl || item.additionalImages?.[0] || null,
       productKnowledgeId: String(item.businessProductId),
       rootBusinessId: String(item.businessRootId),
       advBusinessName: false,

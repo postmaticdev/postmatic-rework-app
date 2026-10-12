@@ -16,6 +16,7 @@ import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useTranslations } from "next-intl";
 import { CreateAutoGenerateScheduleRequest, AutoGenerateSchedule } from "@/models/api/content/auto-generate";
 import { showToast } from "@/helper/show-toast";
+import { isAxiosError } from "axios";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
 import type { ValidRatio } from "@/models/api/content/image.type";
 import { useContentAutoGenerateCreateSchedule, useContentAutoGenerateUpdateSchedule } from "@/services/content/content.api";
@@ -238,8 +239,14 @@ export function AutoGenerateModal({
         showToast("success", t("scheduleSavedSuccessfully"));
       }
       onSave();
-    } catch {
-      showToast("error", t("scheduleSaveFailed"));
+    } catch (error) {
+      // Tampilkan alasan dari backend bila ada (mis. platform terputus, model premium)
+      showToast(
+        "error",
+        isAxiosError(error) && error.response?.data?.responseMessage
+          ? error
+          : t("scheduleSaveFailed")
+      );
     }
   };
 

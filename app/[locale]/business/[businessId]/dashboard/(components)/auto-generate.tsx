@@ -27,6 +27,7 @@ import {
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { AutoGenerateSchedule } from "@/models/api/content/auto-generate";
 import { showToast } from "@/helper/show-toast";
+import { isAxiosError } from "axios";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { cn } from "@/lib/utils";
@@ -249,6 +250,8 @@ export function AutoGenerate({
         ratio: schedule.ratio,
         category: schedule.category,
         additionalPrompt: schedule.additionalPrompt || undefined,
+        // Tanpa ini avatar jadwal ikut terhapus setiap kali status di-toggle
+        avatarImageUrl: schedule.avatarImageUrl || undefined,
         productKnowledgeId: schedule.productKnowledgeId,
         isActive: newActiveStatus,
         advBusinessName: schedule.advBusinessName,
@@ -285,7 +288,13 @@ export function AutoGenerate({
       );
     } catch (error) {
       console.error("Error toggling schedule:", error);
-      showToast("error", t("scheduleToggleFailed"));
+      // Tampilkan alasan dari backend bila ada (mis. platform terputus, model premium)
+      showToast(
+        "error",
+        isAxiosError(error) && error.response?.data?.responseMessage
+          ? error
+          : t("scheduleToggleFailed")
+      );
     }
   };
 
