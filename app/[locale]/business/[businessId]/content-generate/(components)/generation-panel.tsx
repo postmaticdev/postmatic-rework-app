@@ -332,9 +332,8 @@ export function GenerationPanel() {
   );
   const schedulerMode = Boolean(searchParams.get("scheduleDate"));
   const selectedEditReferenceImage =
-    selectedGeneratedImageUrl &&
-      form.basic.referenceImageName === "Selected image"
-      ? selectedGeneratedImageUrl
+    form.basic.referenceImageName === "Selected image"
+      ? form.basic.referenceImage || selectedGeneratedImageUrl
       : null;
   const handleOpenScheduleSummary = () => {
     window.dispatchEvent(new Event("content-generate:open-schedule-summary"));
@@ -353,7 +352,7 @@ export function GenerationPanel() {
     return (
       <>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6 lg:pb-6 scrollbar-hidden">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:pb-6 scrollbar-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {currentThread.map((job, jobIndex) => {
               const isInitialSchedulerBubble =
                 jobIndex === 0 && job.id.startsWith("chat-");
@@ -396,7 +395,7 @@ export function GenerationPanel() {
                 <div key={job.id} className="space-y-3">
                   {job.input.prompt ||
                     promptImages.length > 0 ? (
-                    <div className="ml-auto flex max-w-[78%] flex-col items-end gap-2">
+                    <div className="ml-auto flex max-w-[78%] min-w-0 flex-col items-end gap-2">
                       {promptImages.length > 0 ? (
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           {promptImages.map((imageUrl, imageIndex) => (
@@ -422,7 +421,7 @@ export function GenerationPanel() {
                         </div>
                       ) : null}
                       {job.input.prompt ? (
-                        <div className="flex max-w-full items-end gap-2 self-end">
+                        <div className="flex max-w-full min-w-0 items-end gap-2 self-end">
                           <Button
                             type="button"
                             variant="ghost"
@@ -434,7 +433,7 @@ export function GenerationPanel() {
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </Button>
-                          <div className="rounded-3xl bg-background-secondary px-4 py-3 text-sm break-words">
+                          <div className="min-w-0 max-w-full rounded-3xl bg-background-secondary px-4 py-3 text-sm break-words break-all [overflow-wrap:anywhere] whitespace-pre-wrap">
                             {job.input.prompt}
                           </div>
                         </div>
@@ -517,6 +516,9 @@ export function GenerationPanel() {
                         const isSelected =
                           selectedHistory?.id === job.id &&
                           selectedImage === image;
+                        const isEditingThisImage =
+                          Boolean(selectedEditReferenceImage) &&
+                          (selectedEditReferenceImage === imageUrl || selectedEditReferenceImage === image);
 
                         const modelObj = aiModels.models.find(m => m.name === job.input.model || String(m.id) === String(job.input.model));
                         const modelDisplayName = modelObj ? getAiModelDisplayName(modelObj) : (getAiModelDisplayName(job.input.model) || t("generatedResult"));
@@ -539,7 +541,7 @@ export function GenerationPanel() {
                                 className="w-full cursor-zoom-in rounded-lg border object-cover"
                                 style={{ aspectRatio: job.result?.ratio ? job.result.ratio.replace(":", "/") : "1/1" }}
                               />
-                              {form.basic.referenceImage !== imageUrl && (
+                              {!isEditingThisImage && (
                                 <Button
                                   type="button"
                                   variant="secondary"

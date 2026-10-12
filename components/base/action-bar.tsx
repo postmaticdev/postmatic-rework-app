@@ -21,7 +21,7 @@ export function ActionBar() {
   return (
     <div className="p-4 sm:p-6 border-b border-border">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-        <div className="w-full sm:flex-1">
+        <div className="w-full sm:flex-1 flex items-center gap-2">
           <div className="w-full relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
@@ -34,10 +34,27 @@ export function ActionBar() {
               className="pl-10 bg-muted/50 border-muted-foreground/20 focus:border-blue-500 w-full"
             />
           </div>
+
+          {/* Mobile: satu tombol toggle grid/list di kanan search */}
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+            className="sm:hidden shrink-0 text-muted-foreground hover:text-foreground"
+            title={viewMode === "grid" ? t("listView") : t("galleryView")}
+            aria-label={viewMode === "grid" ? "List view" : "Gallery view"}
+          >
+            {viewMode === "grid" ? (
+              <LayoutGrid className="w-4 h-4" />
+            ) : (
+              <List className="w-4 h-4" />
+            )}
+          </Button>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center rounded-lg border border-border bg-muted/40 p-1">
+          <div className="hidden sm:flex items-center rounded-lg border border-border bg-muted/40 p-1">
             <Button
               type="button"
               variant={viewMode === "grid" ? "secondary" : "ghost"}

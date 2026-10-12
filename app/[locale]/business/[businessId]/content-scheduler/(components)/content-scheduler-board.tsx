@@ -1129,43 +1129,43 @@ export function ContentSchedulerBoard({
               <div className="text-xl font-bold sm:text-2xl">{t("overview")}</div>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-border px-2.5 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-2">
-                  <div className="rounded-md bg-rose-100 p-2 text-rose-500">
-                    <CalendarClock className="h-5 w-5" />
+                <div className="flex min-w-0 flex-row items-center gap-2 rounded-xl border border-border px-2 py-3 sm:gap-3 sm:px-4 sm:py-2">
+                  <div className="shrink-0 rounded-md bg-rose-100 p-1.5 text-rose-500 sm:p-2">
+                    <CalendarClock className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">
+                  <div className="flex min-w-0 flex-col-reverse sm:flex-col">
+                    <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
                       {t("totalScheduled")}
                     </div>
-                    <div className="sm:-mt-1 font-semibold">
+                    <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalFutureReadySchedules ?? 0}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-border px-2.5 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-2">
-                  <div className="rounded-md bg-amber-100 p-2 text-amber-500">
-                    <Repeat2 className="h-5 w-5" />
+                <div className="flex min-w-0 flex-row items-center gap-2 rounded-xl border border-border px-2 py-3 sm:gap-3 sm:px-4 sm:py-2">
+                  <div className="shrink-0 rounded-md bg-amber-100 p-1.5 text-amber-500 sm:p-2">
+                    <Repeat2 className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">
+                  <div className="flex min-w-0 flex-col-reverse sm:flex-col">
+                    <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
                       {t("contentRepetitionShort")}
                     </div>
-                    <div className="sm:-mt-1 font-semibold">
+                    <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalActiveRepetitions ?? 0}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-border px-2.5 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-2">
-                  <div className="rounded-md bg-blue-100 p-2 text-blue-500">
-                    <FileClock className="h-5 w-5" />
+                <div className="flex min-w-0 flex-row items-center gap-2 rounded-xl border border-border px-2 py-3 sm:gap-3 sm:px-4 sm:py-2">
+                  <div className="shrink-0 rounded-md bg-blue-100 p-1.5 text-blue-500 sm:p-2">
+                    <FileClock className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">
+                  <div className="flex min-w-0 flex-col-reverse sm:flex-col">
+                    <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
                       {t("postedThisMonth")}
                     </div>
-                    <div className="sm:-mt-1 font-semibold">
+                    <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalSuccessfulPosted ?? 0}
                     </div>
                   </div>

@@ -22,7 +22,6 @@ import { cn } from "@/lib/utils";
 import { GlowEffect } from "@/components/motion-primitives/glow-effect";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import {
-  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Globe,
@@ -441,17 +440,7 @@ export default function NewBusinessWebsitePage() {
   return (
     <AuroraBackground className="ai-glow-page !justify-start">
       <div className="relative z-10 flex min-h-dvh flex-col px-4 py-4 sm:px-6 sm:py-6">
-        {phase !== "loading" && (
-          <div className="mx-auto w-full max-w-7xl">
-            <Link
-              href="/business/new-business"
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-white/60 bg-white/80 px-4 text-sm font-medium text-foreground shadow-sm backdrop-blur-md transition-colors hover:bg-white dark:border-white/10 dark:bg-slate-900/70 dark:hover:bg-slate-900"
-            >
-              <ArrowLeft className="size-4" />
-              {t("back")}
-            </Link>
-          </div>
-        )}
+
         {phase === "input" && (
           <div className="flex flex-1 items-center justify-center py-6 sm:py-8">
             <GlowingCardShell

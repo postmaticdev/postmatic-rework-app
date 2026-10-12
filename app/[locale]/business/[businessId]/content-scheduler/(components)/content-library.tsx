@@ -4,12 +4,30 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Plus, Search, X } from "lucide-react";
+import { AlertCircle, BookOpen, Plus, RotateCw, Search, Trash2, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useDebounce } from "@/hooks/use-debounce";
 import { CreatePostModal } from "./create-post-modal";
 import { ViewPostModal } from "./view-post-modal";
 import Image from "next/image";
 import { useRouter } from "@/i18n/navigation";
+import { useContentGenerate } from "@/contexts/content-generate-context";
+import { isProblemGenerationJob } from "./failed-generation-history";
+import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { JobData } from "@/models/socket-content";
+
+function formatJobDate(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
 import {
   useContentDraftDirectPostFromDraft,
   useContentDraftGetAllDraftImage,
@@ -146,10 +164,106 @@ export function ContentLibrary({
       search: debouncedSearch,
       ...historyFilterQuery,
     });
-  const filteredPostedContent = postedContent?.data.data || [];
+
+  const { histories, onSelectHistory } = useContentGenerate();
+
+  const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
+  const [dismissedPostIds, setDismissedPostIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const storedJobs = localStorage.getItem(`postmatic:dismissed-failed-jobs:${businessId}`);
+      if (storedJobs) {
+        setDismissedJobIds(JSON.parse(storedJobs));
+      }
+      const storedPosts = localStorage.getItem(`postmatic:dismissed-failed-posts:${businessId}`);
+      if (storedPosts) {
+        setDismissedPostIds(JSON.parse(storedPosts));
+      }
+    } catch {}
+  }, [businessId]);
+
+  const failedJobs = useMemo(() => {
+    if (type !== "posted") return [];
+    return histories
+      .flatMap((group) => group.jobs)
+      .filter(isProblemGenerationJob)
+      .filter((job) => !dismissedJobIds.includes(job.id))
+      .sort(
+        (left, right) =>
+          new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+      );
+  }, [histories, dismissedJobIds, type]);
+
+  const filteredFailedJobs = useMemo(() => {
+    if (!debouncedSearch) return failedJobs;
+    const query = debouncedSearch.toLowerCase();
+    return failedJobs.filter(
+      (job) =>
+        job.product?.name?.toLowerCase().includes(query) ||
+        job.input?.prompt?.toLowerCase().includes(query) ||
+        job.error?.message?.toLowerCase().includes(query) ||
+        job.input?.model?.toLowerCase().includes(query)
+    );
+  }, [failedJobs, debouncedSearch]);
+
+  const filteredPostedContent = useMemo(() => {
+    return (postedContent?.data.data || []).filter(
+      (content) => !dismissedPostIds.includes(content.id)
+    );
+  }, [postedContent?.data.data, dismissedPostIds]);
   
   const currentContent =
     type === "draft" ? filteredContentDraft : filteredPostedContent;
+
+  const handleDeleteFailedJob = (jobId: string) => {
+    setDismissedJobIds((prev) => {
+      const next = Array.from(new Set([...prev, jobId]));
+      try {
+        localStorage.setItem(
+          `postmatic:dismissed-failed-jobs:${businessId}`,
+          JSON.stringify(next)
+        );
+      } catch {}
+      return next;
+    });
+    showToast("success", "Riwayat gagal berhasil dihapus");
+  };
+
+  const handleRetryFailedJob = (job: JobData) => {
+    onSelectHistory(job);
+    router.push(`/business/${businessId}/content-generate`);
+  };
+
+  const handleDeleteFailedPost = (postId: string) => {
+    setDismissedPostIds((prev) => {
+      const next = Array.from(new Set([...prev, postId]));
+      try {
+        localStorage.setItem(
+          `postmatic:dismissed-failed-posts:${businessId}`,
+          JSON.stringify(next)
+        );
+      } catch {}
+      return next;
+    });
+    showToast("success", "Riwayat gagal upload berhasil dihapus");
+  };
+
+  const handleRetryFailedPost = (content: PostedImageRes) => {
+    handleSetFormDataView(content);
+  };
+
+  const isUploadFailedPost = (content: PostedImageRes) => {
+    return Boolean(
+      content?.postedImageContents &&
+      content.postedImageContents.length > 0 &&
+      content.postedImageContents.some(
+        (post) =>
+          post.jobStatus?.toLowerCase() === "failed" ||
+          post.jobStatus?.toLowerCase() === "error"
+      )
+    );
+  };
     
   const backendPagination = type === "draft" ? draftContent?.data.pagination : postedContent?.data.pagination;
 
@@ -466,8 +580,190 @@ export function ContentLibrary({
             </div>
           </div>
         ));
-      case "posted":
-        return (paginatedContent as PostedImageRes[]).map((content) => {
+      case "posted": {
+        const failedJobElements = filteredFailedJobs.map((job) => {
+          const image =
+            job.input.referenceImage ||
+            job.product?.images?.[0] ||
+            DEFAULT_PLACEHOLDER_IMAGE;
+          const title = job.product?.name || "Gagal Generate";
+          const errorMessage =
+            job.error?.message ||
+            "Proses generate gambar tidak berhasil.";
+
+          return (
+            <div
+              key={`failed-job-${job.id}`}
+              className="relative flex h-full flex-col border border-red-300 bg-red-50/60 dark:border-red-900/80 dark:bg-red-950/20 shadow-sm p-4 rounded-lg group transition-all duration-300 hover:scale-[1.02]"
+            >
+              <div className="aspect-square rounded-lg overflow-hidden relative border border-red-200/60 dark:border-red-900/40">
+                <div className="relative h-full w-full">
+                  <Image
+                    src={image}
+                    alt={title}
+                    className="object-cover select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-105"
+                    fill
+                  />
+                  <div className="absolute top-2 right-2 z-10">
+                    <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-medium shadow-sm">
+                      Gagal Generate
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-1 flex-col space-y-3">
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-foreground text-sm truncate" title={title}>
+                    {title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {formatJobDate(job.updatedAt)}
+                  </p>
+                </div>
+
+                <div className="rounded-md bg-red-100/70 p-2 text-xs text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                  <div className="flex items-start gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+                    <p className="line-clamp-2 leading-relaxed" title={errorMessage}>
+                      {errorMessage}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  {job.input.model && <span>{getAiModelDisplayName(job.input.model)}</span>}
+                  {job.input.ratio && <span>• {job.input.ratio}</span>}
+                  {job.type && <span>• {job.type}</span>}
+                </div>
+
+                <div className="mt-auto flex space-x-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/40"
+                    onClick={() => handleDeleteFailedJob(job.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                    Hapus
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1 bg-red-600 text-white hover:bg-red-700 shadow-sm"
+                    onClick={() => handleRetryFailedJob(job)}
+                  >
+                    <RotateCw className="h-3.5 w-3.5 mr-1" />
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        });
+
+        const postedElements = (paginatedContent as PostedImageRes[]).map((content) => {
+          const isUploadFailed = isUploadFailedPost(content);
+          const firstFailedPost = content?.postedImageContents?.find(
+            (p) => p.jobStatus?.toLowerCase() === "failed" || p.jobStatus?.toLowerCase() === "error"
+          );
+
+          if (isUploadFailed) {
+            return (
+              <div
+                key={`failed-post-${content.id}`}
+                className="relative flex h-full flex-col border border-red-300 bg-red-50/60 dark:border-red-900/80 dark:bg-red-950/20 shadow-sm p-4 rounded-lg group transition-all duration-300 hover:scale-[1.02]"
+              >
+                <div className="aspect-square rounded-lg overflow-hidden relative border border-red-200/60 dark:border-red-900/40">
+                  <div className="relative h-full w-full">
+                    <Image
+                      src={content?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
+                      alt="image content"
+                      className="object-cover select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-105"
+                      fill
+                    />
+                    <div className="absolute top-2 right-2 z-10">
+                      <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-medium shadow-sm">
+                        Gagal Upload
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-1 flex-col space-y-3">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {content?.caption || "Konten tanpa caption"}
+                  </p>
+
+                  <div className="rounded-md bg-red-100/70 p-2 text-xs text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                    <div className="flex items-start gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+                      <p className="line-clamp-2 leading-relaxed" title={firstFailedPost?.errorMessage || "Gagal posting ke sosial media."}>
+                        {firstFailedPost?.errorMessage || "Gagal posting ke sosial media."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {t("postedTo")}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {content?.postedImageContents?.map((post) => {
+                        const isPostFailed =
+                          post.jobStatus?.toLowerCase() === "failed" ||
+                          post.jobStatus?.toLowerCase() === "error";
+                        return (
+                          <span
+                            key={post.id}
+                            className={`inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs ${
+                              isPostFailed
+                                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+                                : "border-border bg-background-secondary text-foreground"
+                            }`}
+                            title={post.errorMessage || ""}
+                          >
+                            {mapEnumPlatform.getPlatformIcon(
+                              post.platform,
+                              "h-3.5 w-3.5 shrink-0"
+                            )}
+                            <span className="truncate">
+                              {mapEnumPlatform.getPlatformLabel(post.platform)}
+                              {isPostFailed && " (Failed)"}
+                            </span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex space-x-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/40"
+                      onClick={() => handleDeleteFailedPost(content.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      Hapus
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="flex-1 bg-red-600 text-white hover:bg-red-700 shadow-sm"
+                      onClick={() => handleRetryFailedPost(content)}
+                    >
+                      <RotateCw className="h-3.5 w-3.5 mr-1" />
+                      Retry
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
               key={content?.id}
@@ -475,20 +771,15 @@ export function ContentLibrary({
               className="relative flex h-full flex-col border border-border bg-card shadow-sm p-4 rounded-lg group transition-all duration-300 hover:scale-105 cursor-pointer"
             >
               <div className="aspect-square rounded-lg overflow-hidden">
-                {/* Template content placeholder */}
                 <div className="relative h-full w-full">
                   <Image
                     src={content?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
                     alt="image content"
-                    className="object-cover select-none pointer-events-none
-             transform-gpu transition-transform duration-500 ease-out will-change-transform
-             group-hover:scale-110"
+                    className="object-cover select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
                     width={500}
                     height={500}
                   />
                 </div>
-
-                {/* Tag */}
               </div>
 
               <div className="mt-4 flex flex-1 flex-col space-y-3">
@@ -503,22 +794,20 @@ export function ContentLibrary({
                   <div className="flex flex-wrap gap-2">
                     {content?.postedImageContents && content.postedImageContents.length > 0 ? (
                       content.postedImageContents.map((post) => {
-                        const isFailed = post.jobStatus?.toLowerCase() === "failed" || post.jobStatus?.toLowerCase() === "error";
                         return (
-                        <span
-                          key={post.id}
-                          className={`inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${isFailed ? "border-red-200 bg-red-50 text-red-700" : "border-border bg-background-secondary text-foreground"}`}
-                          title={post.errorMessage || ""}
-                        >
-                          {mapEnumPlatform.getPlatformIcon(
-                            post.platform,
-                            "h-3.5 w-3.5 shrink-0"
-                          )}
-                          <span className="truncate">
-                            {mapEnumPlatform.getPlatformLabel(post.platform)}
-                            {isFailed && " (Failed)"}
+                          <span
+                            key={post.id}
+                            className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-background-secondary text-foreground px-2 py-1 text-xs"
+                            title={post.errorMessage || ""}
+                          >
+                            {mapEnumPlatform.getPlatformIcon(
+                              post.platform,
+                              "h-3.5 w-3.5 shrink-0"
+                            )}
+                            <span className="truncate">
+                              {mapEnumPlatform.getPlatformLabel(post.platform)}
+                            </span>
                           </span>
-                        </span>
                         );
                       })
                     ) : (
@@ -532,12 +821,15 @@ export function ContentLibrary({
             </div>
           );
         });
+
+        return [...failedJobElements, ...postedElements];
+      }
       default:
         return [];
     }
   };
   const renderedItems = renderItems();
-  const hasNoResults = currentContent.length === 0;
+  const hasNoResults = renderedItems.length === 0;
 
   return (
     <Card>

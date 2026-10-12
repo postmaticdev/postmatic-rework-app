@@ -335,7 +335,7 @@ export function AutoGenerate({
                 <Button
                   type="button"
                   onClick={handleAddRepetition}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  className="bg-blue-600 text-white hover:bg-blue-700 max-sm:hidden"
                 >
                   <Plus className="h-4 w-4" />
                   {t("addRepetitionDay")}
@@ -349,6 +349,15 @@ export function AutoGenerate({
                   {t("autoGenerateEnabled")}
                 </p>
 
+                {/* Mobile: tombol full-width di bawah deskripsi */}
+                <Button
+                  type="button"
+                  onClick={handleAddRepetition}
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:hidden"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("addRepetitionDay")}
+                </Button>
               </div>
 
               <div className={scheduleListClassName}>

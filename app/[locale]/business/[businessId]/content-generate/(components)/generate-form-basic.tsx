@@ -266,7 +266,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
           className="w-full min-w-0 whitespace-normal leading-tight max-sm:h-(--control-h)"
         >
           <Bot className="h-4 w-4 mr-2" />
-          {t("selectAvatar")}
+          {t("addAvatar")}
         </Button>
       </div>
       </div>

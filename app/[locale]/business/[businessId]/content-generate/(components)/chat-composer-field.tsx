@@ -120,7 +120,7 @@ export function ChatComposerField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="min-h-10 flex-1 resize-none overflow-y-auto border-0 bg-transparent dark:bg-transparent py-2 shadow-none focus-visible:ring-0 max-h-[50px] "
+          className="min-h-10 flex-1 resize-none overflow-y-auto border-0 bg-transparent dark:bg-transparent py-2 shadow-none focus-visible:ring-0 max-h-[50px] scrollbar-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         />
 
         {!isExpanded ? (

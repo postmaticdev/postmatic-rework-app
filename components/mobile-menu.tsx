@@ -11,7 +11,6 @@ import {
   Settings,
   Menu,
   X,
-  User,
   LogOut,
   Plus,
   AlertTriangle,
@@ -87,11 +86,6 @@ export function MobileMenu() {
       href: "settings",
       icon: Settings,
     },
-    {
-      name: tSideBar("profile"),
-      href: "profile",
-      icon: User,
-    },
   ];
   
   // Get subscription data
@@ -102,7 +96,8 @@ export function MobileMenu() {
   
   // Get token usage data
   const { data: tokenUsageData } = useTokenGetTokenUsage(businessId ?? "");
-  const credits = tokenUsageData?.data?.data?.availableToken ?? 0;
+  // Tampilan token minimal 0 walaupun saldo sebenarnya minus
+  const credits = Math.max(0, tokenUsageData?.data?.data?.availableToken ?? 0);
   const locale = useLocale();
   // Handle escape key to close menu
   useEffect(() => {
@@ -161,25 +156,16 @@ export function MobileMenu() {
   };
 
   // Get filtered navigation items based on context
-  const getFilteredNavigationItems = () => {
-    if (isInBusinessContext()) {
-      // Show all navigation items when in business context
-      return navigationItems;
-    } else {
-      // Show only profile when not in business context
-      return navigationItems.filter((item) => item.href === "profile");
-    }
-  };
+  // Profile diakses lewat foto profil di kartu atas, bukan item navigasi
+  const filteredNavigationItems = isInBusinessContext() ? navigationItems : [];
 
   const handleNavigation = (href: string) => {
-    // Handle profile differently - don't go through businessId
-    if (href === "profile") {
-      router.push(`/${href}`);
-    } else {
-      const fullPath = `/business/${businessId}/${href}`;
-      router.push(fullPath);
-    }
+    router.push(`/business/${businessId}/${href}`);
+    setIsOpen(false);
+  };
 
+  const handleProfileClick = () => {
+    router.push("/profile");
     setIsOpen(false);
   };
 
@@ -215,8 +201,9 @@ export function MobileMenu() {
               size="icon"
               onClick={() => setIsOpen(false)}
               aria-label="Tutup menu"
+              className="-mr-2 size-12 rounded-full"
             >
-              <X className="h-5 w-5" />
+              <X className="size-7" />
             </Button>
           </div>
 
@@ -224,7 +211,12 @@ export function MobileMenu() {
             <div className="space-y-3">
               {/* Profile Card */}
               <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
-                <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleProfileClick}
+                  className="flex min-w-0 items-center gap-3 rounded-xl text-left"
+                  aria-label={tSideBar("profile")}
+                >
                   <Avatar className="h-12 w-12 shrink-0">
                     <AvatarImage
                       src={profile?.image || DEFAULT_USER_AVATAR}
@@ -244,22 +236,43 @@ export function MobileMenu() {
                       </span>
                     )}
                   </div>
-                </div>
+                </button>
 
-                {/* Theme Toggle Button */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleThemeToggle(!isDarkMode)}
-                  className="shrink-0 rounded-full"
-                  aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-                >
-                  {isDarkMode ? (
-                    <Sun className="h-4 w-4 text-yellow-500" />
-                  ) : (
-                    <Moon className="h-4 w-4" />
-                  )}
-                </Button>
+                <div className="flex shrink-0 items-center gap-2">
+                  {/* Theme Toggle Button */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleThemeToggle(!isDarkMode)}
+                    className="shrink-0 rounded-full"
+                    aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+                  >
+                    {isDarkMode ? (
+                      <Sun className="h-4 w-4 text-yellow-500" />
+                    ) : (
+                      <Moon className="h-4 w-4" />
+                    )}
+                  </Button>
+
+                  {/* Notification Button */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleNotificationClick}
+                    className={cn(
+                      "relative shrink-0 rounded-full",
+                      isNotificationActive && "border-primary/40 bg-primary/10 text-primary"
+                    )}
+                    aria-label={tSideBar("notifications")}
+                  >
+                    <Bell className="h-4 w-4" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-card">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {/* Subscription / Token Card */}
@@ -303,71 +316,48 @@ export function MobileMenu() {
               )}
 
               {/* Navigation Menu */}
-              <nav className="pt-3">
-                <h3 className="px-1 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Navigasi
-                </h3>
-                <div className="overflow-hidden rounded-2xl border border-border bg-card p-1.5">
-                  <button
-                    onClick={handleNotificationClick}
-                    className={cn(
-                      "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors",
-                      isNotificationActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Bell
-                      className={cn(
-                        "h-5 w-5 shrink-0",
-                        isNotificationActive ? "text-primary" : "text-muted-foreground"
-                      )}
-                    />
-                    <span className={cn("flex-1 text-sm", isNotificationActive ? "font-semibold" : "font-medium")}>
-                      {tSideBar("notifications")}
-                    </span>
-                    {unreadCount > 0 && (
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white">
-                        {unreadCount}
-                      </span>
-                    )}
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
-                  </button>
-                  {getFilteredNavigationItems().map((item) => {
-                    const isActive = pathname.endsWith(`/${item.href}`);
-                    const Icon = item.icon;
+              {filteredNavigationItems.length > 0 && (
+                <nav className="pt-3">
+                  <h3 className="px-1 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Navigasi
+                  </h3>
+                  <div className="overflow-hidden rounded-2xl border border-border bg-card p-1.5">
+                    {filteredNavigationItems.map((item) => {
+                      const isActive = pathname.endsWith(`/${item.href}`);
+                      const Icon = item.icon;
 
-                    return (
-                      <button
-                        key={item.name}
-                        onClick={() => handleNavigation(item.href)}
-                        className={cn(
-                          "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors",
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-foreground hover:bg-muted"
-                        )}
-                      >
-                        <Icon
+                      return (
+                        <button
+                          key={item.name}
+                          onClick={() => handleNavigation(item.href)}
                           className={cn(
-                            "h-5 w-5 shrink-0",
-                            isActive ? "text-primary" : "text-muted-foreground"
+                            "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors",
+                            isActive
+                              ? "bg-primary/10 text-primary"
+                              : "text-foreground hover:bg-muted"
                           )}
-                        />
-                        <span className={cn("flex-1 text-sm", isActive ? "font-semibold" : "font-medium")}>
-                          {item.name}
-                        </span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </nav>
+                        >
+                          <Icon
+                            className={cn(
+                              "h-5 w-5 shrink-0",
+                              isActive ? "text-primary" : "text-muted-foreground"
+                            )}
+                          />
+                          <span className={cn("flex-1 text-sm", isActive ? "font-semibold" : "font-medium")}>
+                            {item.name}
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </nav>
+              )}
             </div>
           </div>
 
           {/* Footer Section */}
-          <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-border bg-card px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex shrink-0 flex-col gap-3 border-t border-border bg-card px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {/* Report Problem Button */}
             <Button
               variant="outline"
@@ -375,7 +365,7 @@ export function MobileMenu() {
                 setIsOpen(false);
                 setIsReportModalOpen(true);
               }}
-              className="text-orange-600 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/20"
+              className="w-full text-orange-600 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/20"
             >
               <AlertTriangle className="h-4 w-4" />
               <span className="truncate">{tSideBar("reportIssue")}</span>
@@ -385,7 +375,7 @@ export function MobileMenu() {
             <Button
               variant="outline"
               onClick={handleLogout}
-              className="text-red-600 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
+              className="w-full text-red-600 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
             >
               <LogOut className="h-4 w-4" />
               <span className="truncate">{tSideBar("logout")}</span>
