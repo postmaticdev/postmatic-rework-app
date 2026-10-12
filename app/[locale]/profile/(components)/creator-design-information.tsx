@@ -38,13 +38,13 @@ export function CreatorDesignInformation() {
   return (
     <>
       <Card>
-        <CardContent className="py-6">
-          <h2 className="text-lg font-semibold text-foreground mb-6">
+        <CardContent className="py-4 sm:py-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4 sm:mb-6">
             {t("title")}
           </h2>
 
           {/* Search and Create Section */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input

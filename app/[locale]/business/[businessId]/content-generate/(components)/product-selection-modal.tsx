@@ -92,7 +92,7 @@ export function ProductSelectionModal({
                     </div>
                   )}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 max-sm:min-w-0 max-sm:gap-3 max-sm:pr-8">
 
                       <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
                         <Image
@@ -102,8 +102,8 @@ export function ProductSelectionModal({
                           className="object-cover"
                         />
                       </div>
-                      <div className="flex flex-col sm:hidden items-start gap-2 mb-1">
-                        <h3 className="font-medium text-foreground">
+                      <div className="flex flex-col sm:hidden items-start gap-2 mb-1 max-sm:min-w-0">
+                        <h3 className="font-medium text-foreground break-words">
                           {product.name}
                         </h3>
                         <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">

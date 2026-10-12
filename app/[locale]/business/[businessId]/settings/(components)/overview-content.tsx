@@ -165,11 +165,11 @@ export function OverviewContent() {
     isLoadingCountPosted || isLoadingCountUpcoming || isLoadingTokenUsage;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <section className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-foreground">
+            <h2 className="text-lg font-bold text-foreground sm:text-xl">
               {d("overallAnalysis")}
             </h2>
             <p className="text-sm text-muted-foreground">{dateRangeLabel}</p>
@@ -185,7 +185,7 @@ export function OverviewContent() {
                 onClick={() => setPeriod(item.value)}
                 variant={period === item.value ? "default" : "outline"}
                 size="sm"
-                className="h-[36px] sm:h-9"
+                className="h-(--control-h-sm) sm:h-9"
               >
                 {item.label}
               </Button>
@@ -196,7 +196,7 @@ export function OverviewContent() {
         {isLoadingAnalytics ? (
           <AnalyticsSkeleton />
         ) : (
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
             <AnalyticsCard
               title={a("totalPosting")}
               subtitle={a("totalPostingSubtitlePeriod", {
@@ -225,7 +225,7 @@ export function OverviewContent() {
       </section>
 
       <section>
-        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 xl:grid-cols-3">
           <div className="xl:col-span-2">
             <TokenUsageAnalytics
               period={period}

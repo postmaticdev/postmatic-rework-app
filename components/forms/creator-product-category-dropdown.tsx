@@ -39,7 +39,7 @@ export function CreatorProductCategoryDropdown({
     return (
       <div className="space-y-2">
         <Label className="text-sm font-medium text-foreground">{label}</Label>
-        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full max-sm:h-(--control-h)" />
       </div>
     );
   }

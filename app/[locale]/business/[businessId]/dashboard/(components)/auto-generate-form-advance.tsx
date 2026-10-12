@@ -181,7 +181,7 @@ export const AutoGenerateFormAdvanced = () => {
           <div className="border rounded-sm bg-background-secondary">
             <button
               onClick={() => setBusinessKnowledgeExpanded((s) => !s)}
-              className="w-full px-3 py-2 flex items-center justify-between text-left"
+              className="w-full px-3 py-2 flex items-center justify-between text-left max-md:min-h-11"
             >
               <span className="text-sm">{t("businessKnowledge")}</span>
               {businessKnowledgeExpanded ? (
@@ -258,7 +258,7 @@ export const AutoGenerateFormAdvanced = () => {
           <div className="border rounded-sm bg-background-secondary">
             <button
               onClick={() => setProductKnowledgeExpanded((s) => !s)}
-              className="w-full px-3 py-2 flex items-center justify-between text-left"
+              className="w-full px-3 py-2 flex items-center justify-between text-left max-md:min-h-11"
             >
               <span className="text-sm">{t("productKnowledge")}</span>
               {productKnowledgeExpanded ? (
@@ -334,7 +334,7 @@ export const AutoGenerateFormAdvanced = () => {
           <div className="border rounded-sm bg-background-secondary">
             <button
               onClick={() => setRoleKnowledgeExpanded((s) => !s)}
-              className="w-full px-3 py-2 flex items-center justify-between text-left"
+              className="w-full px-3 py-2 flex items-center justify-between text-left max-md:min-h-11"
             >
               <span className="text-sm">{t("roleKnowledge")}</span>
               {roleKnowledgeExpanded ? (

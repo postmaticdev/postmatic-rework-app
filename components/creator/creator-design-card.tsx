@@ -49,7 +49,7 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
   return (
     <>
       <Card className="group transition-all duration-300 hover:scale-105 hover:shadow-lg">
-        <div className="p-3 space-y-3">
+        <div className="p-3 max-md:p-4 space-y-3">
           <div className="relative">
             <div className="relative aspect-square rounded-lg overflow-hidden">
               <Image
@@ -105,7 +105,7 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon-sm">
+                  <Button variant="ghost" size="icon-sm" className="max-md:size-10">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>

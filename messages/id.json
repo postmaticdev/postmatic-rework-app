@@ -683,7 +683,11 @@
     "freeModelRestrictionTitle": "Model terbatas untuk pengguna gratis",
     "freeModelRestrictionDescription": "Pengguna gratis hanya bisa menggunakan model {modelName}, Top up sekarang untuk mencoba model lainnya",
     "freeModelRestrictionTopUp": "Top up sekarang",
-    "freeModelRestrictionUseDefault": "Gunakan model biasanya"
+    "freeModelRestrictionUseDefault": "Gunakan model biasanya",
+    "mobileContinue": "Lanjutkan",
+    "mobileBackToReference": "Kembali ke Referensi",
+    "mobileReferenceSelected": "Referensi dipilih",
+    "mobileNoReferenceSelected": "Referensi opsional"
   },
   "previewPanel": {
     "enhanceCaption": "Tingkatkan Caption",

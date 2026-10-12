@@ -44,7 +44,7 @@ export function ActionBar() {
               size="icon-sm"
               onClick={() => setViewMode("grid")}
               className={cn(
-                "h-8 w-8 rounded-md transition-all",
+                "h-8 w-8 max-md:size-(--control-h-icon-sm) rounded-md transition-all",
                 viewMode === "grid"
                   ? "bg-background text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -60,7 +60,7 @@ export function ActionBar() {
               size="icon-sm"
               onClick={() => setViewMode("list")}
               className={cn(
-                "h-8 w-8 rounded-md transition-all",
+                "h-8 w-8 max-md:size-(--control-h-icon-sm) rounded-md transition-all",
                 viewMode === "list"
                   ? "bg-background text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"

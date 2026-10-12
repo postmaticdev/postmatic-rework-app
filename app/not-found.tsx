@@ -12,7 +12,7 @@ export default function NotFoundPage() {
       <div className="min-h-dvh overflow-x-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
         <div className="max-w-2xl w-full text-center">
           {/* Animated 404 Number */}
-          <div className="relative mb-8">
+          <div className="relative mb-6 sm:mb-8">
             <div className="text-9xl md:text-[12rem] font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 animate-pulse">
               404
             </div>
@@ -22,14 +22,14 @@ export default function NotFoundPage() {
           </div>
 
           {/* Error Message */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <div className="flex items-center justify-center mb-4">
               <AlertCircle className="w-8 h-8 text-red-500 mr-3 animate-pulse" />
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
                 Page Not Found
               </h1>
             </div>
-            <p className="text-lg text-gray-600 dark:text-gray-300 mb-2">
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-2">
               Oops! The page you&apos;re looking for doesn&apos;t exist.
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -38,7 +38,7 @@ export default function NotFoundPage() {
           </div>
 
           {/* Animated Illustration */}
-          <div className="mb-8 flex justify-center">
+          <div className="mb-6 sm:mb-8 flex justify-center">
             <div className="relative">
               <div className="w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 rounded-full flex items-center justify-center animate-pulse">
                 <Search className="w-16 h-16 text-blue-600 dark:text-blue-400 animate-bounce" />
@@ -55,7 +55,7 @@ export default function NotFoundPage() {
               className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               <Link href="/">
-                <Home className="w-5 h-5 mr-2" />
+                <Home className="w-5 h-5 mr-2 max-md:mr-0" />
                 Go Home
               </Link>
             </Button>
@@ -66,7 +66,7 @@ export default function NotFoundPage() {
               onClick={() => window.history.back()}
               className="w-full sm:w-auto border-2 border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 transform hover:scale-105"
             >
-              <ArrowLeft className="w-5 h-5 mr-2" />
+              <ArrowLeft className="w-5 h-5 mr-2 max-md:mr-0" />
               Go Back
             </Button>
           </div>

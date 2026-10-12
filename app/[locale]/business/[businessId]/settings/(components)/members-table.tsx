@@ -33,7 +33,7 @@ export function MembersTable() {
       <Card>
         <CardContent className="p-0">
           <div className="flex flex-col py-4 px-4 sm:px-0 sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-            <CardTitle className="text-xl sm:text-2xl font-bold">
+            <CardTitle className="text-lg sm:text-2xl font-bold">
               {t("members")}
             </CardTitle>
             {(invite || edit) && (
@@ -46,7 +46,7 @@ export function MembersTable() {
             )}
           </div>
           {/* Mobile list */}
-          <div className="block lg:hidden p-4 space-y-3">
+          <div className="block lg:hidden p-4 space-y-3 max-md:pt-0">
             {members
               ?.filter((member) => JOINED_STATUS.includes(member.status))
               .map((member) => (

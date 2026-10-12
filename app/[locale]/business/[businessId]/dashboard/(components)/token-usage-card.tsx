@@ -35,7 +35,7 @@ export function TokenUsageCard() {
   );
 
   return (
-    <div className="bg-card rounded-lg p-6 shadow-sm border border-border flex flex-col gap-2">
+    <div className="bg-card rounded-lg p-4 sm:p-6 shadow-sm border border-border flex flex-col gap-2">
       <div className="flex flex-col mb-4">
         <div className="mb-1 flex items-center gap-3">
           <span className={iconClassName}>

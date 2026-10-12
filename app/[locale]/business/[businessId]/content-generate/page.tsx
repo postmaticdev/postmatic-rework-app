@@ -4,14 +4,27 @@ import { ReferencePanel } from "@/app/[locale]/business/[businessId]/content-gen
 import { GenerationPanel } from "@/app/[locale]/business/[businessId]/content-generate/(components)/generation-panel";
 import { PreviewPanel } from "@/app/[locale]/business/[businessId]/content-generate/(components)/preview-panel";
 import { LogoLoader } from "@/components/base/logo-loader";
+import { Button } from "@/components/ui/button";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
+
+// Mobile (< lg) memecah halaman menjadi langkah terpisah:
+// 1. "reference" — pilih referensi, sticky button Lanjutkan
+// 2. "form"      — produk, AI model, aspect ratio, dll + sticky button Generate (dari PreviewPanel)
+// 3. chat AI     — otomatis saat mode berubah ke "regenerate" setelah generate
+// Desktop (lg+) tetap 3 kolom seperti sebelumnya.
+type MobileStep = "reference" | "form";
 
 export default function ContentGenerate() {
-  const { mode, isLoading, isRestoringSchedulerChat, onSelectHistory } =
+  const { mode, form, isLoading, isRestoringSchedulerChat, onSelectHistory } =
     useContentGenerate();
+  const t = useTranslations("generationPanel");
   const onSelectHistoryRef = useRef(onSelectHistory);
+  const [mobileStep, setMobileStep] = useState<MobileStep>("reference");
 
   useEffect(() => {
     onSelectHistoryRef.current = onSelectHistory;
@@ -24,6 +37,16 @@ export default function ContentGenerate() {
       onSelectHistoryRef.current(null);
     };
   }, []);
+
+  // Setelah masuk chat AI, flow berikutnya (mis. reset form) dimulai lagi dari langkah referensi.
+  useEffect(() => {
+    if (mode === "regenerate") setMobileStep("reference");
+  }, [mode]);
+
+  const goToMobileStep = (step: MobileStep) => {
+    setMobileStep(step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (isRestoringSchedulerChat) {
     return (
@@ -38,13 +61,41 @@ export default function ContentGenerate() {
     );
   }
 
+  const isChatMode = mode === "regenerate";
+  const isMobileReferenceStep = !isChatMode && mobileStep === "reference";
+  const isMobileFormStep = !isChatMode && mobileStep === "form";
+  const selectedReferenceImage = form.basic.referenceImage;
+
   return (
     <main className="relative flex min-h-0 flex-1 flex-col md:ml-0 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col lg:flex-row",
+          // ruang untuk sticky bar bawah di mobile
+          !isChatMode && "max-lg:pb-36"
+        )}
+      >
+        {isMobileFormStep && (
+          <div className="border-b bg-card px-4 py-2 lg:hidden">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-ml-2"
+              disabled={isLoading}
+              onClick={() => goToMobileStep("reference")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {t("mobileBackToReference")}
+            </Button>
+          </div>
+        )}
+
         <div
           className={cn(
             "relative w-full overflow-y-auto scrollbar-hidden border-r bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden",
-            mode === "regenerate" ? "hidden" : "w-full lg:w-1/3"
+            mode === "regenerate" ? "hidden" : "w-full lg:w-1/3",
+            isMobileFormStep && "max-lg:hidden"
           )}
         >
           <ReferencePanel />
@@ -58,7 +109,8 @@ export default function ContentGenerate() {
             "relative w-full border-r bg-card lg:min-h-0 lg:overflow-hidden",
             mode === "regenerate"
               ? "flex-1 min-h-0 w-full lg:w-2/3"
-              : "w-full lg:w-1/3"
+              : "w-full lg:w-1/3",
+            isMobileReferenceStep && "max-lg:hidden"
           )}
         >
           <GenerationPanel />
@@ -67,12 +119,45 @@ export default function ContentGenerate() {
         <div
           className={cn(
             "w-full bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden",
-            mode === "regenerate" && "hidden lg:block"
+            mode === "regenerate" && "hidden lg:block",
+            isMobileReferenceStep && "max-lg:hidden"
           )}
         >
           <PreviewPanel />
         </div>
       </div>
+
+      {/* Sticky bar langkah referensi (mobile) */}
+      {isMobileReferenceStep && (
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-border bg-card px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:left-16 lg:hidden">
+          {selectedReferenceImage ? (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border">
+              <Image
+                src={selectedReferenceImage}
+                alt={form.basic.referenceImageName || ""}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+          ) : null}
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+            {selectedReferenceImage
+              ? form.basic.referenceImageName || t("mobileReferenceSelected")
+              : t("mobileNoReferenceSelected")}
+          </span>
+          <Button
+            type="button"
+            size="lg"
+            className="shrink-0 bg-blue-500 text-white hover:bg-blue-600"
+            disabled={isLoading}
+            onClick={() => goToMobileStep("form")}
+          >
+            {t("mobileContinue")}
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+        </div>
+      )}
     </main>
   );
 }

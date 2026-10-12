@@ -21,7 +21,7 @@ export function SelectedAvatars() {
         {form.basic.selectedAvatars.map((avatar) => (
           <Card key={avatar.id} className="p-4 cursor-default">
             <div className="flex flex-row gap-2 justify-between">
-              <div className="flex flex-row gap-3">
+              <div className="flex flex-row gap-3 max-md:min-w-0">
                 <div className="aspect-square w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
                   <Image
                     src={avatar.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}

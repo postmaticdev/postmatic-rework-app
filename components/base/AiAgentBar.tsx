@@ -36,9 +36,9 @@ const aiAgents: AIAgent[] = [
 
 export function AiAgentBar() {
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* AI Employees Heading */}
-      <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-6">
+      <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 sm:mb-6">
         AI Employees
       </h2>
 

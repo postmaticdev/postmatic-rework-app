@@ -87,7 +87,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
               onClick={() => !isLoading && !disabled && setIsProductModalOpen(true)}
             >
               <div className="flex flex-row gap-2 justify-between">
-                <div className="flex flex-row gap-3">
+                <div className="flex flex-row gap-3 max-md:min-w-0">
                   <div className="aspect-square w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
                     <Image
                       src={basic.productImage || DEFAULT_PRODUCT_IMAGE}
@@ -238,7 +238,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             onClick={() => form.onRssSelect(null)}
             disabled={isLoading}
             size="lg"
-            className="w-full min-w-0 whitespace-normal leading-tight bg-red-600 text-white hover:bg-red-700"
+            className="w-full min-w-0 whitespace-normal leading-tight bg-red-600 text-white hover:bg-red-700 max-sm:h-(--control-h)"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             {t("removeSelectedTrend")}
@@ -250,7 +250,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             onClick={onOpenTrend}
             disabled={isLoading}
             size="lg"
-            className="w-full min-w-0 whitespace-normal leading-tight"
+            className="w-full min-w-0 whitespace-normal leading-tight max-sm:h-(--control-h)"
           >
             <Newspaper className="h-4 w-4 mr-2" />
             {t("addLatestTrend")}
@@ -263,7 +263,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
           onClick={() => setIsAvatarModalOpen(true)}
           disabled={isLoading || disabled}
           size="lg"
-          className="w-full min-w-0 whitespace-normal leading-tight"
+          className="w-full min-w-0 whitespace-normal leading-tight max-sm:h-(--control-h)"
         >
           <Bot className="h-4 w-4 mr-2" />
           {t("selectAvatar")}

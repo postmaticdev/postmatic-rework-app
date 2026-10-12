@@ -131,21 +131,21 @@ export function ScheduleSummaryModal({
 
       <div className="px-4 py-3">
         <div className="flex items-center justify-between border-t border-border/60 pt-3 text-muted-foreground">
-          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1">
             <ThumbsUp className="w-5 h-5" />
-            <span className="text-sm font-medium">Like</span>
+            <span className="text-sm font-medium max-sm:text-xs">Like</span>
           </div>
-          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1">
             <MessageCircle className="w-5 h-5" />
-            <span className="text-sm font-medium">Comment</span>
+            <span className="text-sm font-medium max-sm:text-xs">Comment</span>
           </div>
-          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1">
             <Repeat2 className="w-5 h-5" />
-            <span className="text-sm font-medium">Repost</span>
+            <span className="text-sm font-medium max-sm:text-xs">Repost</span>
           </div>
-          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1">
             <Send className="w-5 h-5" />
-            <span className="text-sm font-medium">Send</span>
+            <span className="text-sm font-medium max-sm:text-xs">Send</span>
           </div>
         </div>
       </div>
@@ -295,9 +295,9 @@ export function ScheduleSummaryModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 scrollbar-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full max-sm:gap-6">
             {/* Left Section */}
-            <div className="flex flex-col gap-6 sticky top-0 h-fit">
+            <div className="flex flex-col gap-6 sticky top-0 h-fit max-sm:gap-4">
               <div className="space-y-4">
                 <div className="text-sm font-medium">{t("scheduleAt")}</div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -376,7 +376,7 @@ export function ScheduleSummaryModal({
                         <span className="flex flex-col leading-tight">
                           <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
                           {!isConnected && (
-                            <span className="text-[11px] font-normal">
+                            <span className="text-[11px] font-normal max-sm:text-xs">
                               {t("notConnected")}
                             </span>
                           )}
@@ -397,7 +397,7 @@ export function ScheduleSummaryModal({
             <div className="flex flex-col gap-3">
               {/* Platform Selector for Preview */}
               {selectedPlatforms.length > 1 && (
-                <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2">
+                <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2 max-sm:flex-wrap">
                   {selectedPlatforms.map(platform => (
                     <button
                       key={platform}

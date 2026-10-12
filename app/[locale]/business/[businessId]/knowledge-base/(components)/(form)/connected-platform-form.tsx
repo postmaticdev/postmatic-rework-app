@@ -208,8 +208,8 @@ export function ConnectedPlatformForm() {
 
       {filteredPlatforms.map((platform) => (
         <div key={platform.name} className="p-4 border rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between max-sm:gap-3">
+            <div className="flex items-center gap-3 max-sm:min-w-0">
               <div className="w-8 h-8 bg-gradient-to-br from-background to-background-secondary rounded-lg flex items-center justify-center text-white text-sm flex-shrink-0 overflow-hidden">
                 {platform.status === "connected" &&
                 platform.accountDisplayImage ? (
@@ -223,8 +223,8 @@ export function ConnectedPlatformForm() {
                   mapEnumPlatform.getPlatformIcon(platform.platform)
                 )}
               </div>
-              <div>
-                <h3 className="font-medium text-foreground">
+              <div className="max-sm:min-w-0">
+                <h3 className="font-medium text-foreground max-sm:break-words">
                   {platform.status === "connected" &&
                   platform.accountDisplayName
                     ? platform.accountDisplayName

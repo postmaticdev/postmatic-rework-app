@@ -71,7 +71,7 @@ export function HistoryTransactions() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <Card className="bg-card ">
-        <CardContent className="px-4 py-8 ">
+        <CardContent className="px-4 py-4 sm:py-8 ">
           <div className="min-w-0">
             <CardTitle className="text-lg sm:text-xl font-bold text-foreground  ">
               {t("historyTransactions")}
@@ -130,7 +130,7 @@ export function HistoryTransactions() {
                           variant="outline"
                           size="sm"
                           onClick={() => onViewDetail(transaction)}
-                          className="h-[36px] bg-gray-600 hover:bg-gray-700 text-white border-gray-600"
+                          className="h-(--control-h-sm) bg-gray-600 hover:bg-gray-700 text-white border-gray-600"
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           {t("view")}

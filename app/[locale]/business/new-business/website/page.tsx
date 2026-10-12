@@ -453,17 +453,17 @@ export default function NewBusinessWebsitePage() {
           </div>
         )}
         {phase === "input" && (
-          <div className="flex flex-1 items-center justify-center py-8">
+          <div className="flex flex-1 items-center justify-center py-6 sm:py-8">
             <GlowingCardShell
               wrapperClassName="max-w-2xl"
-              cardClassName="border-white/50 bg-white/95 p-6 shadow-[0_24px_100px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
+              cardClassName="border-white/50 bg-white/95 p-4 shadow-[0_24px_100px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
             >
               <div className="mx-auto max-w-xl text-center">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
                   <WandSparkles className="size-3.5" />
                   {t("eyebrow")}
                 </div>
-                <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
                   {t("title")}
                 </h1>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
@@ -471,7 +471,7 @@ export default function NewBusinessWebsitePage() {
                 </p>
               </div>
 
-              <div className="mt-8 space-y-5">
+              <div className="mt-6 sm:mt-8 space-y-4 sm:space-y-5">
                 <div className="rounded-[1.5rem] border border-white/60 bg-black/[0.03] p-3 shadow-inner dark:border-white/10 dark:bg-black/20">
                   <div className="flex items-center gap-3">
                     <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blue-500/12 text-blue-700 dark:text-blue-200">
@@ -482,7 +482,7 @@ export default function NewBusinessWebsitePage() {
                       value={websiteInput}
                       onChange={(event) => setWebsiteInput(event.target.value)}
                       placeholder={t("inputPlaceholder")}
-                      className="h-14 border-0 bg-transparent px-1 text-lg shadow-none focus-visible:ring-0"
+                      className="h-14 max-md:h-(--control-h) border-0 bg-transparent px-1 text-lg shadow-none focus-visible:ring-0"
                     />
                   </div>
                 </div>
@@ -505,10 +505,10 @@ export default function NewBusinessWebsitePage() {
         )}
 
         {phase === "loading" && (
-          <div className="flex flex-1 items-center justify-center py-8">
+          <div className="flex flex-1 items-center justify-center py-6 sm:py-8">
             <GlowingCardShell
               wrapperClassName="max-w-2xl"
-              cardClassName="border-white/40 bg-white/95 p-6 text-center shadow-[0_24px_110px_rgba(37,99,235,0.2)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
+              cardClassName="border-white/40 bg-white/95 p-4 text-center shadow-[0_24px_110px_rgba(37,99,235,0.2)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
               radiusClassName="rounded-[2.2rem]"
             >
               <div className="mx-auto max-w-xl">
@@ -516,7 +516,7 @@ export default function NewBusinessWebsitePage() {
                   <Sparkles className="size-3.5" />
                   {t("loadingEyebrow")}
                 </div>
-                <h2 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
                   {t("loadingTitle")}
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
@@ -524,20 +524,20 @@ export default function NewBusinessWebsitePage() {
                 </p>
               </div>
 
-              <div className="mt-8 rounded-[1.8rem] border border-white/60 bg-white/70 p-5 text-left shadow-inner dark:border-white/10 dark:bg-white/5">
+              <div className="mt-6 sm:mt-8 rounded-[1.8rem] border border-white/60 bg-white/70 p-4 sm:p-5 text-left shadow-inner dark:border-white/10 dark:bg-white/5">
                 <div className="mb-5 rounded-[1.4rem] border border-blue-300/30 bg-blue-500/10 p-4 text-sm font-medium text-blue-900 dark:text-blue-100">
                   {loadingSteps[activeLoadingStep]}
                 </div>
 
-                <div className="ai-grid-panel rounded-[1.6rem] border border-white/70 p-5 dark:border-white/10">
-                  <div className="mb-4 h-44 rounded-[1.25rem] border border-blue-200/60 bg-white/80 p-6 shadow-[0_10px_35px_rgba(37,99,235,0.08)] dark:border-blue-300/10 dark:bg-slate-950/50">
+                <div className="ai-grid-panel rounded-[1.6rem] border border-white/70 p-4 sm:p-5 dark:border-white/10">
+                  <div className="mb-4 h-44 rounded-[1.25rem] border border-blue-200/60 bg-white/80 p-4 sm:p-6 shadow-[0_10px_35px_rgba(37,99,235,0.08)] dark:border-blue-300/10 dark:bg-slate-950/50">
                     <div className="flex h-full flex-col justify-between">
                       <div>
                         <div className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
                           <Link2 className="size-3.5" />
                           {t("sourceLabel")}
                         </div>
-                        <p className="text-lg font-semibold text-foreground">
+                        <p className="text-lg font-semibold text-foreground max-md:break-all">
                           {normalizeUrl(websiteInput) || t("previewFallbackUrl")}
                         </p>
                       </div>
@@ -566,15 +566,15 @@ export default function NewBusinessWebsitePage() {
 
         {phase === "result" && (
           <>
-            <div className="mx-auto flex w-full max-w-7xl flex-1 items-start justify-center py-6 pb-28 sm:pb-6">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 items-start justify-center pt-4 pb-28 sm:pt-6 sm:pb-6">
               <GlowingCardShell cardClassName="border-white/50 bg-white/95 p-4 shadow-[0_28px_120px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(15,23,42,0.94)] sm:p-6 lg:p-8">
-                <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] xl:items-end">
+                <div className="mb-4 sm:mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] xl:items-end">
                   <div className="max-w-3xl">
                     <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
                       <CheckCircle2 className="size-3.5" />
                       {t("resultEyebrow")}
                     </div>
-                    <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
                       {t("resultTitle")}
                     </h2>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
@@ -593,10 +593,10 @@ export default function NewBusinessWebsitePage() {
                   </div>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-                  <div className="grid gap-6">
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
+                  <div className="grid gap-4 sm:gap-6">
+                    <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("logoBrand")}
                         </label>
@@ -609,7 +609,7 @@ export default function NewBusinessWebsitePage() {
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("brandName")}
                         </label>
@@ -620,7 +620,7 @@ export default function NewBusinessWebsitePage() {
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("category")}
                         </label>
@@ -632,7 +632,7 @@ export default function NewBusinessWebsitePage() {
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                       <label className="mb-2 block text-sm font-medium text-muted-foreground">
                         {b("description")}
                       </label>
@@ -645,8 +645,8 @@ export default function NewBusinessWebsitePage() {
                       />
                     </div>
 
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                    <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("urlWebsite")}
                         </label>
@@ -657,7 +657,7 @@ export default function NewBusinessWebsitePage() {
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("phone")}
                         </label>
@@ -671,8 +671,8 @@ export default function NewBusinessWebsitePage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                    <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                           <Users className="size-4" />
                           {r("targetAudience")}
@@ -686,7 +686,7 @@ export default function NewBusinessWebsitePage() {
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {r("contentTone")}
                         </label>
@@ -700,8 +700,8 @@ export default function NewBusinessWebsitePage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                    <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                           <Tags className="size-4" />
                           {r("hashtags")}
@@ -715,14 +715,14 @@ export default function NewBusinessWebsitePage() {
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                           <Palette className="size-4" />
                           {b("colorTone")}
                         </label>
                         <div className="flex items-center gap-4">
                           <div
-                            className="size-16 rounded-2xl border border-white/70 shadow-inner"
+                            className="size-16 max-md:shrink-0 rounded-2xl border border-white/70 shadow-inner"
                             style={{ backgroundColor: normalizeHexColor(draft.colorTone) }}
                           />
                           <Input
@@ -737,8 +737,8 @@ export default function NewBusinessWebsitePage() {
                     </div>
                   </div>
 
-                  <div className="grid gap-6">
-                    <div className="rounded-[1.8rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                  <div className="grid gap-4 sm:gap-6">
+                    <div className="rounded-[1.8rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                       <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
                         <Sparkles className="size-3.5" />
                         {t("insightsTitle")}
@@ -755,7 +755,7 @@ export default function NewBusinessWebsitePage() {
                       </div>
                     </div>
 
-                    <div className="ai-grid-panel rounded-[1.8rem] border border-white/55 p-5 dark:border-white/10">
+                    <div className="ai-grid-panel rounded-[1.8rem] border border-white/55 p-4 sm:p-5 dark:border-white/10">
                       <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
                         <Globe className="size-3.5" />
                         {t("sourceTitle")}

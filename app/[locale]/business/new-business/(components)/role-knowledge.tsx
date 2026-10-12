@@ -173,7 +173,7 @@ export function RoleKnowledge() {
               <button
                 type="button"
                 onClick={() => removeHashtag(index)}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 max-md:-my-1 max-md:-mr-1 max-md:inline-flex max-md:size-8 max-md:items-center max-md:justify-center max-md:text-lg"
               >
                 ×
               </button>

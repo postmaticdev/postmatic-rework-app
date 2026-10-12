@@ -25,7 +25,7 @@ export default function Profile() {
 
           {/* Mobile: kolom di-"contents" agar urutan card bisa diatur via order —
               Personal, Bisnis, Desain Creator, Detail, Sesi Login */}
-          <div className="flex flex-col lg:flex-row gap-6 w-full ">
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 w-full ">
             <div className="contents lg:block w-full lg:w-3/5 ">
               <div className="order-1">
                 <PersonalInformation />

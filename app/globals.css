@@ -140,6 +140,7 @@
 :root {
   --control-h: 2.75rem;
   --control-h-lg: 3rem;
+  --control-h-sm: 2.5rem;
   --control-h-icon-sm: 2.25rem;
 }
 
@@ -147,6 +148,7 @@
   :root {
     --control-h: 2.5rem;
     --control-h-lg: 2.75rem;
+    --control-h-sm: 2.25rem;
     --control-h-icon-sm: 2rem;
   }
 }

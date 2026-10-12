@@ -219,23 +219,23 @@ export function ViewPostModal({
       </div>
       <div className="px-4 pb-3">{renderCaptionArea()}</div>
       {renderImage()}
-      <div className="px-4 py-3">
+      <div className="px-2 py-3 sm:px-4">
         <div className="flex items-center justify-between border-t border-border/60 pt-3 text-muted-foreground">
-          <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted">
-            <ThumbsUp className="h-5 w-5" />
-            <span className="text-sm font-medium">Like</span>
+          <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted max-sm:gap-1 max-sm:px-1.5">
+            <ThumbsUp className="h-5 w-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">Like</span>
           </div>
-          <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted">
-            <MessageCircle className="h-5 w-5" />
-            <span className="text-sm font-medium">Comment</span>
+          <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted max-sm:gap-1 max-sm:px-1.5">
+            <MessageCircle className="h-5 w-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">Comment</span>
           </div>
-          <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted">
-            <Repeat2 className="h-5 w-5" />
-            <span className="text-sm font-medium">Repost</span>
+          <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted max-sm:gap-1 max-sm:px-1.5">
+            <Repeat2 className="h-5 w-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">Repost</span>
           </div>
-          <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted">
-            <Send className="h-5 w-5" />
-            <span className="text-sm font-medium">Send</span>
+          <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted max-sm:gap-1 max-sm:px-1.5">
+            <Send className="h-5 w-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">Send</span>
           </div>
         </div>
       </div>
@@ -395,7 +395,7 @@ export function ViewPostModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto scrollbar-hidden px-4 py-4 sm:p-6">
-          <div className="grid h-full grid-cols-1 gap-8 lg:grid-cols-2">
+          <div className="grid h-full grid-cols-1 gap-8 lg:grid-cols-2 max-md:gap-6">
             {/* Left Section - Platforms Status */}
             <div className="flex flex-col gap-6">
               {/* Posted Platforms */}
@@ -414,7 +414,7 @@ export function ViewPostModal({
                         onClick={() => handleShowPosted(platform)}
                       >
                         {mapEnumPlatform.getPlatformIcon(platform.platform)}
-                        <span className="truncate text-xs font-medium">
+                        <span className="truncate text-xs font-medium max-sm:text-sm">
                           {mapEnumPlatform.getPlatformLabel(platform.platform)}
                         </span>
                         <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" />
@@ -450,11 +450,11 @@ export function ViewPostModal({
                         onClick={() => handleSelectUnpostedPlatform(platform.id)}
                       >
                         {mapEnumPlatform.getPlatformIcon(platform.id)}
-                        <span className="truncate text-xs font-medium">
+                        <span className="truncate text-xs font-medium max-sm:text-sm">
                           {mapEnumPlatform.getPlatformLabel(platform.id)}
                         </span>
                         {platform.hint && (
-                          <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground max-sm:text-xs">
                             {platform.hint}
                           </span>
                         )}

@@ -202,15 +202,15 @@ export function SessionLogin() {
   return (
     <>
       <Card className="h-fit">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-semibold text-foreground mb-6">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-3 max-md:mb-4 max-md:items-center">
+            <h2 className="text-lg font-semibold text-foreground mb-6 max-md:mb-0">
               {t("title")}
             </h2>
             <Button
               variant="destructive"
               size="sm"
-              className="h-[36px] shrink-0 sm:h-9"
+              className="h-(--control-h-sm) shrink-0 sm:h-9"
               onClick={() => setLogoutTarget("all")}
             >
               {t("logoutAll")}
@@ -255,7 +255,7 @@ export function SessionLogin() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    className="h-[36px] shrink-0 text-white sm:h-9"
+                    className="h-(--control-h-sm) shrink-0 text-white sm:h-9"
                     onClick={() => setLogoutTarget(group)}
                   >
                     {t("logout")}

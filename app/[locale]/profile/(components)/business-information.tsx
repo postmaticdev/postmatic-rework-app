@@ -61,7 +61,7 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
           <Button
             variant="default"
             size="sm"
-            className="h-[36px] bg-blue-600 hover:bg-blue-700 text-white sm:h-9"
+            className="h-(--control-h-sm) bg-blue-600 hover:bg-blue-700 text-white sm:h-9"
           >
             {t("view")}
           </Button>
@@ -82,8 +82,8 @@ export function BusinessInformation() {
 
   return (
     <Card className="h-fit">
-      <CardContent className="py-6">
-        <h2 className="text-lg font-semibold text-foreground mb-6">
+      <CardContent className="py-4 sm:py-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4 sm:mb-6">
           {t("title")}
         </h2>
 

@@ -5,13 +5,13 @@ export function PaymentMethodGrid() {
   const { selectedPayment, setSelectedPayment, product } = useCheckout();
   const paymentMethods = product?.pricingByMethod || [];
   return (
-    <div className="flex flex-col gap-4 mb-8">
+    <div className="flex flex-col gap-4 mb-6 sm:mb-8">
       {paymentMethods.map((method, methodIndex) => (
         <div key={methodIndex}>
           <h3 className="font-medium text-gray-900 dark:text-white text-sm lg:text-base mb-2">
             {method.type}
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {method.methods.map((m, i) => (
               <button
                 type="button"

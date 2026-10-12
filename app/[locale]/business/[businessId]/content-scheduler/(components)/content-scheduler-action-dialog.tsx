@@ -51,7 +51,7 @@ export function ContentSchedulerActionDialog({
           <button
             type="button"
             onClick={onUpload}
-            className="rounded-3xl border border-border bg-background-secondary p-6 text-left transition-colors hover:border-primary hover:bg-primary/5"
+            className="rounded-3xl border border-border bg-background-secondary p-4 sm:p-6 text-left transition-colors hover:border-primary hover:bg-primary/5"
           >
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Upload className="h-5 w-5" />
@@ -67,7 +67,7 @@ export function ContentSchedulerActionDialog({
           <button
             type="button"
             onClick={onBuildWithAi}
-            className="rounded-3xl border border-border bg-background-secondary p-6 text-left transition-colors hover:border-primary hover:bg-primary/5"
+            className="rounded-3xl border border-border bg-background-secondary p-4 sm:p-6 text-left transition-colors hover:border-primary hover:bg-primary/5"
           >
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Sparkles className="h-5 w-5" />

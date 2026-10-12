@@ -201,7 +201,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4 sm:space-y-6">
           {currentView === "profile" ? (
             <>
               {/* Profile Image */}

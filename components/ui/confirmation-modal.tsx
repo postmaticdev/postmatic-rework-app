@@ -51,7 +51,7 @@ export function ConfirmationModal({
         if (!open) onClose();
       }}
     >
-      <AlertDialogContent className="max-w-md p-6">
+      <AlertDialogContent className="max-w-md p-4 sm:p-6">
         <AlertDialogHeader className="flex flex-row items-start gap-4 text-left">
           <div
             className={cn(
@@ -105,7 +105,7 @@ export function ConfirmationModal({
               onClose();
             }}
             disabled={isLoading}
-            className="h-10 px-4"
+            className="h-10 px-4 max-md:h-(--control-h)"
           >
             {cancelText}
           </AlertDialogCancel>
@@ -116,7 +116,7 @@ export function ConfirmationModal({
             }}
             disabled={isLoading}
             className={cn(
-              "h-10 px-4 font-medium transition-colors",
+              "h-10 px-4 max-md:h-(--control-h) font-medium transition-colors",
               isDanger
                 ? "bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
                 : "bg-blue-600 text-white hover:bg-blue-700"

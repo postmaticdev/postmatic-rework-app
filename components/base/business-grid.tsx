@@ -29,7 +29,7 @@ export function BusinessGrid() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Business Grid / List */}
       {isLoading ? (
         <BusinessGridSkeleton count={8} viewMode={viewMode} />
@@ -54,7 +54,7 @@ export function BusinessGrid() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4 md:mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mt-4 md:mt-6">
           {businesses.map((business) => (
             <BusinessCard
               key={business.id}

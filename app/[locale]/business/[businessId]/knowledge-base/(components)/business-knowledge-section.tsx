@@ -45,9 +45,9 @@ export function BusinessKnowledgeSection() {
   return (
     <div className="h-full">
       <Card className="h-full">
-        <CardContent className="pb-6">
-          <div className="my-3 flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-foreground">
+        <CardContent className="pb-4 sm:pb-6">
+          <div className="my-3 flex items-center justify-between max-sm:my-4">
+            <h1 className="text-lg font-semibold text-foreground sm:text-xl">
               {b("title")}
             </h1>
             {businessKnowledge.write && (

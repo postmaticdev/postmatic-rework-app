@@ -209,7 +209,7 @@ export function ProductSection() {
 
   return (
     <Card className="h-full w-full">
-      <CardContent className="py-6">
+      <CardContent className="py-4 sm:py-6">
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">{p("title")}</h2>
 
@@ -255,8 +255,8 @@ export function ProductSection() {
               {products.map((product) => (
                 <Card key={product.id} className="bg-background-secondary">
                   <CardContent className="py-4">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
+                    <div className="flex items-center justify-between gap-1 max-sm:gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 max-sm:min-w-0 max-sm:flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="relative h-20 w-20 rounded-lg overflow-hidden flex-shrink-0">
                             <Image
@@ -266,11 +266,11 @@ export function ProductSection() {
                               className="object-cover"
                             />
                           </div>
-                          <div className="flex flex-col sm:hidden items-start mb-2">
+                          <div className="flex min-w-0 flex-col sm:hidden items-start mb-2">
                             <h3 className="font-medium text-foreground mb-1 text-sm line-clamp-1">
                               {product.name}
                             </h3>
-                            <span className="bg-pink-100 text-pink-800 text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                            <span className="bg-pink-100 text-pink-800 text-xs px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                               {product.category}
                             </span>
                           </div>

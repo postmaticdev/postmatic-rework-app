@@ -25,7 +25,7 @@ const buttonVariants = cva(
       // touch screens, 40px from `sm` up) so buttons line up with fields.
       size: {
         default: "h-(--control-h) px-4 py-2 has-[>svg]:px-3",
-        sm: "h-9 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        sm: "h-(--control-h-sm) rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
         lg: "h-(--control-h-lg) rounded-md px-6 text-base has-[>svg]:px-4",
         icon: "size-(--control-h)",
         "icon-sm": "size-(--control-h-icon-sm)",

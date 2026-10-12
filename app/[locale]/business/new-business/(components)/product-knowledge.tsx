@@ -49,7 +49,7 @@ export function ProductKnowledge() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row w-full gap-6 items-start">
+      <div className="flex flex-col md:flex-row w-full gap-4 md:gap-6 items-start">
         <UploadPhoto
           label={finalLabels.productPhoto}
           // onImageChange={(file) => updateField("images", file ? [file] : [])}
@@ -99,7 +99,7 @@ export function ProductKnowledge() {
       <Label className="text-sm font-medium text-foreground mb-1">
         {finalLabels.price}
       </Label>
-      <div className="flex w-full gap-6 items-start justify-between">
+      <div className="flex w-full gap-4 md:gap-6 items-start justify-between">
         <CurrencyDropdown
           value={step2.currency}
           onChange={(value) => updateField("currency", value)}

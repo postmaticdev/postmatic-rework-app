@@ -149,7 +149,7 @@ export function PaymentInstructionCard({
 
   return (
     <div
-      className={cn("space-y-4 rounded-lg border p-5", getPaymentCardClassName(status))}
+      className={cn("space-y-4 rounded-lg border p-4 sm:p-5", getPaymentCardClassName(status))}
     >
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="min-w-0 flex-1 space-y-2">
@@ -223,7 +223,7 @@ export function PaymentInstructionCard({
                   copyLabel={t("copy")}
                 />
               ) : (
-                <div className="grid h-24 w-24 place-items-center text-center text-[10px] text-muted-foreground sm:h-52 sm:w-52 sm:text-sm">
+                <div className="grid h-24 w-24 place-items-center text-center text-xs text-muted-foreground sm:h-52 sm:w-52 sm:text-sm">
                   {t("instructionUnavailable")}
                 </div>
               )}

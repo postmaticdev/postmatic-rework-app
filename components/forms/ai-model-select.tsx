@@ -133,7 +133,7 @@ export function AiModelSelect({
               textValue={label}
               className={cn(
                 "gap-2",
-                isSmall ? "text-xs" : "text-sm",
+                isSmall ? "text-xs max-sm:text-sm" : "text-sm",
                 selectedModel === model.name &&
                   "bg-accent text-accent-foreground"
               )}

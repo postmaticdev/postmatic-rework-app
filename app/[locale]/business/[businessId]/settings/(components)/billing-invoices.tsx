@@ -26,11 +26,11 @@ export function BillingInvoices() {
   const canPurchase = access.purchase.write;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Card>
-        <CardContent className="flex flex-col gap-6 py-8 lg:flex-row lg:items-center lg:justify-between">
+        <CardContent className="flex flex-col gap-4 py-4 sm:gap-6 sm:py-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            <CardTitle className="text-3xl font-bold">
+            <CardTitle className="text-2xl font-bold sm:text-3xl">
               {t("payAsYouGo")}
             </CardTitle>
 

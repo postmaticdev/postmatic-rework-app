@@ -19,8 +19,8 @@ export function PersonalInformation() {
 
   return (
     <Card className="h-fit">
-      <CardContent className="py-6">
-        <div className="flex items-start justify-between mb-6">
+      <CardContent className="py-4 sm:py-6">
+        <div className="flex items-start max-md:items-center justify-between mb-4 sm:mb-6">
           <h2 className="text-lg font-semibold text-foreground">
             {t("title")}
           </h2>
@@ -62,7 +62,7 @@ export function PersonalInformation() {
           </div>
         </div>
 
-        <div className=" mt-6 flex-1  flex min-w-0 flex-col md:flex-row md:items-center justify-between gap-6 max-w-full md:max-w-[92%]">
+        <div className=" mt-4 sm:mt-6 flex-1  flex min-w-0 flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 max-w-full md:max-w-[92%]">
           {/* Nama sudah tampil sebagai judul di atas — di mobile disembunyikan agar tidak dobel */}
           <div className="min-w-0 hidden md:block">
             <label className="text-sm font-medium text-muted-foreground">

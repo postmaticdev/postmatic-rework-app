@@ -985,7 +985,8 @@ export function PreviewPanel() {
         )}
       </CardNoGap>
 
-      <div className="sticky bottom-0 right-0 border border-border space-y-2 bg-card pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-4 -mt-3 rounded-b-md z-10">
+      {/* Mobile: bar Generate menempel di bawah layar untuk seluruh langkah form */}
+      <div className="sticky bottom-0 right-0 border border-border space-y-2 bg-card pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-4 -mt-3 rounded-b-md z-10 max-lg:fixed max-lg:inset-x-0 max-lg:z-30 max-lg:mt-0 max-lg:rounded-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pt-3 md:max-lg:left-16">
         {!schedulerMode && selectedHistory && (
           <div className="flex w-full gap-4">
             <Button

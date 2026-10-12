@@ -17,7 +17,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
       <div className="min-h-dvh overflow-x-hidden bg-gradient-to-br from-red-50 via-orange-50 to-yellow-100 dark:from-red-900 dark:via-orange-900 dark:to-yellow-900 flex items-center justify-center p-4">
         <div className="max-w-2xl w-full text-center">
           {/* Animated Error Icon */}
-          <div className="relative mb-8">
+          <div className="relative mb-6 sm:mb-8">
             <div className="text-9xl md:text-[12rem] font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 dark:from-red-400 dark:via-orange-400 dark:to-yellow-400 animate-pulse">
               ⚠️
             </div>
@@ -27,14 +27,14 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           </div>
 
           {/* Error Message */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <div className="flex items-center justify-center mb-4">
               <AlertTriangle className="w-8 h-8 text-red-500 mr-3 animate-pulse" />
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
                 Something Went Wrong
               </h1>
             </div>
-            <p className="text-lg text-gray-600 dark:text-gray-300 mb-2">
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-2">
               Oops! An unexpected error occurred.
             </p>
             {/* <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -43,7 +43,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           </div>
 
           {/* Animated Illustration */}
-          <div className="mb-8 flex justify-center">
+          <div className="mb-6 sm:mb-8 flex justify-center">
             <div className="relative">
               <div className="w-32 h-32 bg-gradient-to-br from-red-100 to-orange-100 dark:from-red-900 dark:to-orange-900 rounded-full flex items-center justify-center animate-pulse">
                 <Bug className="w-16 h-16 text-red-600 dark:text-red-400 animate-bounce" />
@@ -59,7 +59,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
               onClick={reset}
               className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
-              <RefreshCw className="w-5 h-5 mr-2" />
+              <RefreshCw className="w-5 h-5 mr-2 max-md:mr-0" />
               Try Again
             </Button>
             
@@ -69,7 +69,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
               className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               <Link href="/">
-                <Home className="w-5 h-5 mr-2" />
+                <Home className="w-5 h-5 mr-2 max-md:mr-0" />
                 Go Home
               </Link>
             </Button>
@@ -80,7 +80,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
               onClick={() => window.history.back()}
               className="w-full sm:w-auto border-2 border-gray-300 dark:border-gray-600 hover:border-red-500 dark:hover:border-red-400 text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-all duration-300 transform hover:scale-105"
             >
-              <ArrowLeft className="w-5 h-5 mr-2" />
+              <ArrowLeft className="w-5 h-5 mr-2 max-md:mr-0" />
               Go Back
             </Button>
           </div>
@@ -103,7 +103,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           )}
 
           {/* Additional Help */}
-          <div className="mt-12 p-6 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="mt-8 sm:mt-12 p-4 sm:p-6 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
               What can you do?
             </h3>

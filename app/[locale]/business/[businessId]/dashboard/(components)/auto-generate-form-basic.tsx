@@ -137,7 +137,7 @@ export const AutoGenerateFormBasic = () => {
   return (
     <div className="space-y-4">
       {/* Row 1: Product Name & Avatar */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1 max-sm:gap-4">
         {/* Product Name */}
         <div>
           <label className="block text-sm font-medium mb-2">{t("productName")}</label>
@@ -150,8 +150,8 @@ export const AutoGenerateFormBasic = () => {
             <span
               className={
                 basic?.productKnowledgeId
-                  ? "text-foreground"
-                  : "text-muted-foreground"
+                  ? "text-foreground max-md:truncate"
+                  : "text-muted-foreground max-md:truncate"
               }
             >
               {basic?.productKnowledgeId ? basic?.productName : t("selectProduct")}
@@ -225,7 +225,7 @@ export const AutoGenerateFormBasic = () => {
       ) : null}
 
       {/* Row 2: AI Model & Aspect Ratio */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1 max-sm:gap-4">
         {/* AI Model */}
         <div>
           <label className="block text-sm font-medium mb-2">AI Model</label>

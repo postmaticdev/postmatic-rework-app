@@ -49,7 +49,7 @@ export function BusinessKnowledge() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row w-full gap-6 items-start">
+      <div className="flex flex-col md:flex-row w-full gap-4 md:gap-6 items-start">
         <UploadPhoto
           label={finalLabels.logoBrand}
           // onImageChange={(file) => updateField("primaryLogo", file)}

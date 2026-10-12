@@ -121,7 +121,7 @@ export default function Pricing() {
 
 
             {/* Tabs */}
-            <div className="mb-8">
+            <div className="mb-6 sm:mb-8">
               <div className="flex rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 w-full max-w-md mx-auto">
                 {(isFree || !isSubscribed) && (
                   <button
@@ -152,7 +152,7 @@ export default function Pricing() {
 
             {activeTab === "extraToken" ? (
               /* Token Packages */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {tokenPackages?.map((pkg, index) => (
                   <Card
                     key={pkg?.id ?? index}
@@ -164,7 +164,7 @@ export default function Pricing() {
                       <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-300 rounded-full translate-y-12 -translate-x-12"></div>
                     </div>
 
-                    <CardContent className="relative p-6">
+                    <CardContent className="relative p-4 sm:p-6">
                       {/* Header with Icon */}
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -226,7 +226,7 @@ export default function Pricing() {
               </div>
             ) : (
               /* Subscription Plans */
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 {subscriptionPlans.map((plan) => {
                   const selectedItem = getSelectedItem(plan);
                   const showToggle =
@@ -235,9 +235,9 @@ export default function Pricing() {
                   return (
                     <Card
                       key={plan.id}
-                      className="relative rounded-2xl shadow-lg border-2 my-4 lg:my-0 transition-all duration-300 bg-card border-border hover:border-blue-500 hover:scale-105 hover:dark:border-blue-400"
+                      className="relative rounded-2xl shadow-lg border-2 my-4 max-md:my-0 lg:my-0 transition-all duration-300 bg-card border-border hover:border-blue-500 hover:scale-105 hover:dark:border-blue-400"
                     >
-                      <div className="p-6 mb-12">
+                      <div className="p-4 sm:p-6 mb-12 max-md:mb-10">
                         {/* Plan Icon and Name */}
                         <div className="flex items-center mb-4">
                           <div
@@ -333,7 +333,7 @@ export default function Pricing() {
 
                         {/* Button */}
                         <Button
-                          className={`m-12 absolute bottom-0 left-0 right-0 ${
+                          className={`m-12 max-md:m-4 absolute bottom-0 left-0 right-0 ${
                             plan.appProductSubscriptionItems?.[0]?.isClaimed
                               ? "bg-gray-400 hover:bg-gray-400 text-white cursor-not-allowed opacity-60"
                               : "bg-blue-600 hover:bg-blue-700 text-white"

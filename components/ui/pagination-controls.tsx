@@ -53,7 +53,7 @@ export function PaginationControls({
       </div>
 
       {/* Pagination Buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 max-sm:flex-wrap max-sm:justify-center max-sm:gap-y-3">
         {/* First Page Button */}
         <Button
           variant="outline"
@@ -85,7 +85,10 @@ export function PaginationControls({
         </Button>
 
         {/* Page Numbers */}
-        <div className="flex items-center gap-1">
+        {/* Mobile: 1–2 halaman muat satu baris; lebih dari itu nomor halaman pindah ke baris sendiri */}
+        <div
+          className={`flex items-center gap-1 ${totalPages > 2 ? "max-sm:order-first max-sm:w-full max-sm:justify-center" : ""}`}
+        >
           {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
             let pageNum: number;
 
@@ -111,7 +114,7 @@ export function PaginationControls({
                 onClick={() => {
                   setFilterQuery({ ...filterQuery, page: pageNum });
                 }}
-                className="text-xs"
+                className="text-xs max-md:text-sm"
                 title={`Halaman ${pageNum}`}
               >
                 {pageNum}

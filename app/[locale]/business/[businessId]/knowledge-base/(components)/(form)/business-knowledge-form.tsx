@@ -47,8 +47,8 @@ export function BusinessKnowledgeForm() {
   const finalPlaceholders = { ...defaultPlaceholders };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row w-full gap-6 items-start">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col md:flex-row w-full gap-4 sm:gap-6 items-start">
         <UploadPhoto
           label={finalLabels.logoBrand}
           onImageChange={(file: string | null) =>

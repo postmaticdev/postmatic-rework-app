@@ -299,7 +299,7 @@ export function RSSTrendSection({
   return (
     <>
       <Card className="h-full w-full">
-        <CardContent className="py-6">
+        <CardContent className="py-4 sm:py-6">
           <div className="space-y-4">
             <div className="flex flex-col gap-4">
               <h2 className="text-lg font-semibold text-foreground">
@@ -370,7 +370,7 @@ export function RSSTrendSection({
                                 className="w-full h-full object-cover"
                               />
                             </div>
-                            <div className="flex-col">
+                            <div className="flex-col max-sm:min-w-0 max-sm:flex-1">
                               <div className="flex flex-col lg:flex-row lg:gap-2">
                                 <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base line-clamp-1">
                                   {trend.title}
@@ -417,7 +417,7 @@ export function RSSTrendSection({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 self-start sm:self-auto">
+                        <div className="flex items-center gap-1 self-start sm:self-auto max-sm:gap-2">
                         {/* Status Toggle (mobile) — kanan atas card, tanpa label */}
                         <Switch
                           checked={trend.isActive}

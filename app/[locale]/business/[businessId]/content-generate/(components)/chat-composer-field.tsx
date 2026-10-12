@@ -72,7 +72,7 @@ export function ChatComposerField({
   return (
     <div className="rounded-xl">
       <div
-        className={`flex gap-2 ${isExpanded ? "flex-col" : "items-center"
+        className={`flex gap-2 ${isExpanded ? "flex-col" : "items-center max-sm:flex-wrap max-sm:[&>textarea]:order-first max-sm:[&>textarea]:basis-full"
           }`}
       >
         {!isExpanded ? (
@@ -82,7 +82,7 @@ export function ChatComposerField({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="shrink-0 border border-border bg-card hover:bg-card/80"
+                className="shrink-0 border border-border bg-card hover:bg-card/80 max-sm:size-10"
                 disabled={disabled || isUploadingAttachment}
               >
                 {isUploadingAttachment ? (
@@ -124,7 +124,7 @@ export function ChatComposerField({
         />
 
         {!isExpanded ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-sm:ml-auto">
             <AiModelSelect
               className="w-[180px] shrink-0"
               size="sm"
@@ -140,7 +140,7 @@ export function ChatComposerField({
               onClick={onSubmit}
               disabled={disabled || !canSubmit}
               size="icon-sm"
-              className="shrink-0 rounded-full"
+              className="shrink-0 rounded-full max-sm:size-10"
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -160,7 +160,7 @@ export function ChatComposerField({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="shrink-0 border border-border bg-card hover:bg-card/80"
+                className="shrink-0 border border-border bg-card hover:bg-card/80 max-sm:size-10"
                 disabled={disabled || isUploadingAttachment}
               >
                 {isUploadingAttachment ? (
@@ -207,7 +207,7 @@ export function ChatComposerField({
               onClick={onSubmit}
               disabled={disabled || !canSubmit}
               size="icon-sm"
-              className="shrink-0 rounded-full"
+              className="shrink-0 rounded-full max-sm:size-10"
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

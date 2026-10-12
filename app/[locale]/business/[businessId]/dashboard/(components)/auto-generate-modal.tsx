@@ -391,23 +391,23 @@ export function AutoGenerateModal({
       <div className="w-full bg-black/5 flex items-center justify-center relative max-h-[500px] overflow-hidden">
         {renderImagePreviewPlaceholder()}
       </div>
-      <div className="px-4 py-3">
+      <div className="px-2 py-3 sm:px-4">
         <div className="flex items-center justify-between border-t border-border/60 pt-3 text-muted-foreground">
-          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
-            <ThumbsUp className="w-5 h-5" />
-            <span className="text-sm font-medium">Like</span>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
+            <ThumbsUp className="w-5 h-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">Like</span>
           </div>
-          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-sm font-medium">Comment</span>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
+            <MessageCircle className="w-5 h-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">Comment</span>
           </div>
-          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
-            <Repeat2 className="w-5 h-5" />
-            <span className="text-sm font-medium">Repost</span>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
+            <Repeat2 className="w-5 h-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">Repost</span>
           </div>
-          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors">
-            <Send className="w-5 h-5" />
-            <span className="text-sm font-medium">Send</span>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
+            <Send className="w-5 h-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">Send</span>
           </div>
         </div>
       </div>
@@ -562,7 +562,7 @@ export function AutoGenerateModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 scrollbar-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full max-md:gap-6">
             {/* Left Section - Form (sticky hanya di desktop; di mobile ikut scroll agar tidak tertimpa preview) */}
             <div className="flex flex-col gap-6 lg:sticky lg:top-0 h-fit">
               <div className="space-y-4">
@@ -612,7 +612,7 @@ export function AutoGenerateModal({
                         onClick={() => togglePlatform(platform)}
                         disabled={!isConnected}
                         className={cn(
-                          "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
+                          "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors max-md:h-(--control-h)",
                           isSelected
                             ? "border-primary bg-primary text-white"
                             : "border-border bg-background-secondary",
@@ -631,7 +631,7 @@ export function AutoGenerateModal({
                         <span className="flex flex-col leading-tight">
                           <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
                           {!isConnected && (
-                            <span className="text-[11px] font-normal">
+                            <span className="text-[11px] font-normal max-sm:text-xs">
                               {tContentGenerate("notConnected")}
                             </span>
                           )}
@@ -661,7 +661,7 @@ export function AutoGenerateModal({
             {/* Right Section - Social Media Preview */}
             <div className="flex flex-col gap-3">
               {modalSelectedPlatforms.length > 1 && (
-                <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2">
+                <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2 max-md:flex-wrap">
                   {modalSelectedPlatforms.map(platform => (
                     <button
                       key={platform}

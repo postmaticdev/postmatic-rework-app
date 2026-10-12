@@ -938,9 +938,9 @@ export function ContentSchedulerBoard({
     <>
       {/* Mobile: urutan Overview → Kalender → Pengulangan Konten (via order);
           lg ke atas kembali ke layout 2 kolom */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card className="order-2 lg:order-none">
-          <CardContent className="p-3 sm:p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="mb-4 sm:mb-6">
               <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
                 <Button
@@ -1125,11 +1125,11 @@ export function ContentSchedulerBoard({
 
         <div className="contents lg:flex h-full flex-col gap-6">
           <Card className="order-1 lg:order-none">
-            <CardContent className="space-y-5 p-4 sm:p-6">
-              <div className="text-2xl font-bold">{t("overview")}</div>
+            <CardContent className="space-y-4 p-4 sm:space-y-5 sm:p-6">
+              <div className="text-xl font-bold sm:text-2xl">{t("overview")}</div>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="flex min-w-0 flex-col items-start gap-1.5 rounded-xl border border-border px-2 py-2 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+                <div className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-border px-2.5 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-2">
                   <div className="rounded-md bg-rose-100 p-2 text-rose-500">
                     <CalendarClock className="h-5 w-5" />
                   </div>
@@ -1143,7 +1143,7 @@ export function ContentSchedulerBoard({
                   </div>
                 </div>
 
-                <div className="flex min-w-0 flex-col items-start gap-1.5 rounded-xl border border-border px-2 py-2 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+                <div className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-border px-2.5 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-2">
                   <div className="rounded-md bg-amber-100 p-2 text-amber-500">
                     <Repeat2 className="h-5 w-5" />
                   </div>
@@ -1157,7 +1157,7 @@ export function ContentSchedulerBoard({
                   </div>
                 </div>
 
-                <div className="flex min-w-0 flex-col items-start gap-1.5 rounded-xl border border-border px-2 py-2 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
+                <div className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-border px-2.5 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-2">
                   <div className="rounded-md bg-blue-100 p-2 text-blue-500">
                     <FileClock className="h-5 w-5" />
                   </div>
@@ -1199,7 +1199,7 @@ export function ContentSchedulerBoard({
       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <div className="flex items-start justify-between gap-4 pr-8">
+            <div className="flex items-start justify-between gap-4 pr-8 max-sm:flex-col max-sm:gap-3">
               <div>
                 <DialogTitle>{formatDateTitle(selectedDate)}</DialogTitle>
                 <DialogDescription>
@@ -1356,7 +1356,7 @@ export function ContentSchedulerBoard({
           </DialogHeader>
 
           {viewEvent && (
-            <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:p-6">
+            <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:space-y-5 sm:p-6">
               {viewEvent.postedUrl && (
                 <a
                   href={viewEvent.postedUrl}

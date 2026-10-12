@@ -130,7 +130,7 @@ export function BusinessCard({
         }}
       >
         {variant === "list" ? (
-          <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-3 sm:gap-4">
+          <CardContent className="p-4 flex items-center justify-between gap-3 sm:gap-4">
             {/* Left Thumbnail + Details */}
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
               <div className="relative h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 border border-border/50">
@@ -149,7 +149,7 @@ export function BusinessCard({
                     {name}
                   </h3>
                   {role && (
-                    <span className="shrink-0 rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-blue-700 dark:text-blue-400">
+                    <span className="shrink-0 rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
                       {role}
                     </span>
                   )}

@@ -104,7 +104,7 @@ interface CustomLegendPayload {
 const CustomLegend = ({ payload }: CustomLegendProps) => {
   const t = useTranslations("periodSelector");
   return (
-    <div className="flex flex-wrap items-center justify-center gap-6 mt-4">
+    <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-4">
       {payload.map((entry, index) => (
         <div key={index} className="flex items-center gap-2">
           <div
@@ -211,7 +211,7 @@ export function AdvancedTokenChart({
     <ChartErrorBoundary>
       <div className="w-full bg-card rounded-lg p-4 border border-border">
         {/* Header with controls */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <div>
             <h3 className="text-lg font-semibold text-foreground">
               {d("tokenUsageAnalysis")}

@@ -400,7 +400,7 @@ export function ContentLibrary({
         return (paginatedContent as ImageContentRes[]).map((content) => (
           <div
             key={content.id}
-            className="relative flex h-full flex-col border border-border bg-card shadow-sm p-3 rounded-lg group transition-all duration-300 hover:scale-105 cursor-pointer"
+            className="relative flex h-full flex-col border border-border bg-card shadow-sm p-4 sm:p-3 rounded-lg group transition-all duration-300 hover:scale-105 cursor-pointer"
           >
             <div className="aspect-square rounded-lg overflow-hidden">
               {/* Template content placeholder */}
@@ -541,9 +541,9 @@ export function ContentLibrary({
 
   return (
     <Card>
-      <CardContent className="py-6 space-y-6">
+      <CardContent className="py-4 space-y-4 sm:py-6 sm:space-y-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between">
-          <h2 className="text-2xl font-bold">{t("contentLibrary")}</h2>
+          <h2 className="text-xl font-bold sm:text-2xl">{t("contentLibrary")}</h2>
           {/* <Button
             className="bg-blue-600 hover:bg-blue-700 text-white flex items-center w-full md:w-auto"
             onClick={openPersonalModal}

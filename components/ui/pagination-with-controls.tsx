@@ -101,7 +101,7 @@ export function PaginationWithControls({
                   })
                 }
               >
-                <SelectTrigger className="h-9 w-[140px] text-sm">
+                <SelectTrigger className="h-9 w-[140px] text-sm max-md:h-(--control-h) max-sm:text-base">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -124,7 +124,7 @@ export function PaginationWithControls({
                 });
               }}
             >
-              <SelectTrigger className="h-9 w-[100px] text-sm">
+              <SelectTrigger className="h-9 w-[100px] text-sm max-md:h-(--control-h) max-sm:text-base">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -153,7 +153,7 @@ export function PaginationWithControls({
               });
             }}
           >
-            <SelectTrigger className="h-9 w-[100px] text-sm">
+            <SelectTrigger className="h-9 w-[100px] text-sm max-md:h-(--control-h) max-sm:text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

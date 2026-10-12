@@ -224,9 +224,9 @@ export function MobileMenu() {
 
               {/* Profile Section */}
               <div className="p-4 border-b border-border">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar className="w-12 h-12 shrink-0">
                       <AvatarImage
                         src={profile?.image || DEFAULT_USER_AVATAR}
                         alt={profile?.name || "U"}
@@ -235,8 +235,8 @@ export function MobileMenu() {
                         {profile?.name?.[0] || "U"}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-medium">
                         {profile?.name || "Pengguna"}
                       </span>
                       {userRole && (
@@ -267,8 +267,8 @@ export function MobileMenu() {
                {/* Subscription Info Section */}
                {businessId && (
                  <div className="p-4 border-b border-border">
-                   <div className="flex items-center justify-between">
-                     <div className="flex flex-col">
+                   <div className="flex items-center justify-between gap-3">
+                     <div className="flex min-w-0 flex-col gap-1">
                        <span className="text-sm text-muted-foreground">
                          {subscription?.subscription?.productName || "Paket Gratis"}
                        </span>
@@ -308,7 +308,7 @@ export function MobileMenu() {
               {/* Navigation Menu */}
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2">
-                  <h3 className="text-sm font-medium text-muted-foreground px-2 py-2">
+                  <h3 className="text-sm font-medium text-muted-foreground px-3 py-2">
                     Navigasi
                   </h3>
                   <div className="space-y-1">
@@ -378,7 +378,7 @@ export function MobileMenu() {
                   }}
                   className="w-full justify-start text-orange-600 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors duration-200"
                 >
-                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" />
                   <span>{tSideBar("reportIssue")}</span>
                 </Button>
 
@@ -388,7 +388,7 @@ export function MobileMenu() {
                   onClick={handleLogout}
                   className="w-full justify-start text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors duration-200"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="h-4 w-4" />
                   <span>{tSideBar("logout")}</span>
                 </Button>
               </div>

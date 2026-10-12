@@ -17,14 +17,14 @@ export function PromoCodeSection() {
   const t = useTranslations("checkout");
 
   return (
-    <div className="mb-8">
+    <div className="mb-6 sm:mb-8">
       <h3 className="font-medium mb-2 text-gray-900 dark:text-white">
         {t("promoCode")}
       </h3>
       {product?.isValidCode && product?.benefitCode ? (
-        <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 flex justify-between items-center bg-gray-50 dark:bg-gray-700">
-          <span className="text-gray-900 dark:text-white">{promoCode}</span>
-          <div className="flex items-center">
+        <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 flex justify-between items-center max-md:gap-2 bg-gray-50 dark:bg-gray-700">
+          <span className="text-gray-900 dark:text-white max-md:min-w-0 max-md:truncate">{promoCode}</span>
+          <div className="flex items-center max-md:shrink-0">
             <span className="bg-blue-600 dark:bg-blue-500 text-white text-sm px-3 py-1 rounded-md mr-2">
               {product?.benefitCode}
             </span>
@@ -33,7 +33,7 @@ export function PromoCodeSection() {
               variant="ghost"
               size="icon-sm"
               onClick={onClearPromo}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 max-md:size-10"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

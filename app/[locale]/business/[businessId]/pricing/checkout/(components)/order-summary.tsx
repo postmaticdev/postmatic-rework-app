@@ -76,7 +76,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
       ${
         isDesktop
           ? "hidden lg:flex w-[516px] bg-blue-600 dark:bg-blue-700 text-white p-12 flex-col"
-          : "lg:hidden mb-6"
+          : "lg:hidden mb-4 sm:mb-6"
       }
     `}
     >
@@ -85,7 +85,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
         ${
           isDesktop
             ? "flex-1"
-            : "bg-primary border border-border rounded-lg p-6 text-white"
+            : "bg-primary border border-border rounded-lg p-4 sm:p-6 text-white"
         }
       `}
       >
@@ -102,10 +102,10 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
         )}
 
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 max-md:mb-0">
           <h2 className=" text-sm mb-4">{t("subscribeToPostmatic")}</h2>
           <div
-            className={`font-bold text-white mb-6 ${
+            className={`font-bold text-white mb-6 max-md:mb-4 ${
               isDesktop ? "text-3xl" : "text-2xl"
             }`}
           >

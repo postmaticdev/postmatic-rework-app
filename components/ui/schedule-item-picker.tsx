@@ -87,7 +87,7 @@ export function ScheduleItemPicker({
   return (
     <div className="space-y-3">
       <div className="flex items-center space-x-2">
-        <div className="flex flex-col space-x-1">
+        <div className="flex flex-col space-x-1 max-md:space-x-0">
           <div className="flex items-center space-x-1">
             <Input
               type="number"
@@ -116,8 +116,8 @@ export function ScheduleItemPicker({
             </div>
           </div>
 
-          <div className="flex flex-col space-x-1">
-            <span className="text-muted-foreground text-sm mt-2">{t("platform")}</span>
+          <div className="flex flex-col space-x-1 max-md:space-x-0 max-md:gap-2">
+            <span className="text-muted-foreground text-sm mt-2 max-md:mt-4">{t("platform")}</span>
             <div className="flex flex-wrap gap-2 w-full">
               {availablePlatforms.length > 0 ? (
                 availablePlatforms.map((platform) => {
@@ -140,7 +140,7 @@ export function ScheduleItemPicker({
                       </div>
                       <span
                         className={cn(
-                          "text-xs font-medium",
+                          "text-xs max-md:text-sm font-medium",
                           selected ? "text-white" : "text-muted-foreground"
                         )}
                       >
@@ -161,13 +161,13 @@ export function ScheduleItemPicker({
 
       <div className="block sm:hidden w-full">
         <Button onClick={handleAddTime} className="w-full">
-          <Plus className="h-4 w-4 mr-1" />
+          <Plus className="h-4 w-4" />
           {t("add")}
         </Button>
       </div>
 
       {selectedItems.length > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-1 max-md:space-y-2">
             <div className="text-sm text-muted-foreground">{t("selectedTimes")}:</div>
           {selectedItems.map((item, index) => (
             <div

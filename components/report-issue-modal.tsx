@@ -251,7 +251,7 @@ export function ReportIssueModal({
         <form
           id="report-issue-form"
           onSubmit={handleSubmit}
-          className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:p-6"
+          className="flex-1 space-y-4 sm:space-y-5 overflow-y-auto px-4 py-4 sm:p-6"
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">

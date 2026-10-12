@@ -332,7 +332,7 @@ export function Header() {
             )}
           </div>
         )}
-        <div className="flex items-center gap-1 md:gap-2">
+        <div className="flex items-center gap-2">
           {/* Mobile Language Toggle (kanan, dekat burger) */}
           <div className="md:hidden">
             <LanguageToggle />

@@ -115,25 +115,25 @@ export function CreatePostModal({
             <div className="flex bg-muted rounded-lg p-1">
               <button
                 onClick={() => setPostType("now")}
-                className={`flex-1 flex min-h-10 items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex-1 flex min-h-10 items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-sm font-medium transition-all ${
                   postType === "now"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Clock className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("postNow")}</span>
                 <span className="sm:hidden">{t("now")}</span>
               </button>
               <button
                 onClick={() => setPostType("schedule")}
-                className={`flex-1 flex min-h-10 items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex-1 flex min-h-10 items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-sm font-medium transition-all ${
                   postType === "schedule"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Calendar className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("schedule")}</span>
                 <span className="sm:hidden">{t("later")}</span>
               </button>
@@ -154,7 +154,7 @@ export function CreatePostModal({
 
           {/* Caption Section */}
           <div className="space-y-2">
-            <label className=" font-medium">{t("caption")}</label>
+            <label className=" font-medium max-sm:text-sm">{t("caption")}</label>
             <Textarea
               value={
                 (showScheduling
@@ -178,7 +178,7 @@ export function CreatePostModal({
 
           {/* Choose Platforms Section */}
           <div className="space-y-3">
-            <label className=" font-medium">{t("choosePlatforms")}</label>
+            <label className=" font-medium max-sm:text-sm">{t("choosePlatforms")}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               {mappedPlatforms.map((platform) => (
                 <Button

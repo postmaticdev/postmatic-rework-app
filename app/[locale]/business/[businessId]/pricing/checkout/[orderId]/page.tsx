@@ -63,11 +63,11 @@ export default function CheckoutOrderPage() {
     <div className="flex min-h-dvh bg-background">
       <OrderSummary variant="sidebar" />
 
-      <div className="flex-1 p-3 sm:p-4 lg:p-12 max-w-[800px] mx-auto">
+      <div className="flex-1 p-4 lg:p-12 max-w-[800px] mx-auto">
         <OrderSummary variant="mobile" />
 
         <Card className="border border-border">
-          <CardContent className="p-3 sm:p-4 lg:p-8">
+          <CardContent className="p-4 lg:p-8">
             {showPaymentSuccess ? (
               <PaymentSuccess />
             ) : (

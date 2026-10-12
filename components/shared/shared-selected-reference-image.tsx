@@ -32,7 +32,7 @@ export const SharedSelectedReferenceImage = ({
       <h3 className="font-medium text-sm">{t("selectedReferenceImage")}</h3>
       <Card className="p-4">
         <div className="flex flex-row gap-2 justify-between">
-          <div className="flex flex-row gap-3">
+          <div className="flex flex-row gap-3 max-md:min-w-0">
             <div className="aspect-square w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
               <Image
                 src={referenceImage}

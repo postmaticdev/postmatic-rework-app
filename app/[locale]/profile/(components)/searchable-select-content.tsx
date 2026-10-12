@@ -252,7 +252,7 @@ export function SearchableCountrySelect({
                   <div
                     key={`${country.code}-${country.dial_code}`}
                     className={cn(
-                      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                      "relative flex w-full cursor-default select-none items-center rounded-sm py-2.5 sm:py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
                       index === focusedIndex &&
                         "bg-accent text-accent-foreground",
                       value === country.dial_code &&

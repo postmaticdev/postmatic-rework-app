@@ -64,7 +64,7 @@ export function FailedGenerationHistory() {
 
   return (
     <Card className="border-red-200 bg-red-50/40 dark:border-red-900/60 dark:bg-red-950/20">
-      <CardContent className="space-y-4 py-6">
+      <CardContent className="space-y-4 py-4 sm:py-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-red-700 dark:text-red-300">
@@ -131,10 +131,10 @@ export function FailedGenerationHistory() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="min-h-12 sm:min-h-0"
+                    className="sm:min-h-0"
                     onClick={() => openJob(job)}
                   >
-                    <ExternalLink className="h-3.5 w-3.5" />
+                    <ExternalLink className="h-3.5 w-3.5 max-sm:size-4" />
                     Open in Generator
                   </Button>
                 </div>

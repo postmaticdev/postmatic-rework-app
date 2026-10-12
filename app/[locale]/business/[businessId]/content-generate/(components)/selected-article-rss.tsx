@@ -29,7 +29,7 @@ export const SelectedArticleRss = ({ onChangeArticle }: SelectedArticleRssProps)
               className="object-cover"
             />
           </div>
-          <div>
+          <div className="max-md:min-w-0">
           <h3 className="font-medium text-sm">{form.rss.title}</h3>
           <div className="relative">
             <p className={`text-xs text-muted-foreground mt-1 ${!expanded ? "line-clamp-1" : ""}`}>
@@ -37,7 +37,7 @@ export const SelectedArticleRss = ({ onChangeArticle }: SelectedArticleRssProps)
             </p>
             <button
               onClick={() => setExpanded(!expanded)}
-              className="text-xs  mt-1 flex items-center"
+              className="text-xs  mt-1 flex items-center max-md:relative max-md:after:absolute max-md:after:-inset-3 max-md:after:content-['']"
             >
               {expanded ? (
                 <>

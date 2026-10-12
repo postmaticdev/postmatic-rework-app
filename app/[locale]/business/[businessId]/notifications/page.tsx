@@ -587,7 +587,7 @@ export default function NotificationsPage() {
   return (
     <main className="flex-1 flex flex-col h-[calc(100vh-4.5rem)] overflow-hidden bg-background">
       {/* ── Tab Navigation Bar ─────────────────────────────────────────── */}
-      <div className="border-b border-border bg-card px-4 sm:px-6 py-3 flex items-center justify-between shrink-0">
+      <div className="border-b border-border bg-card px-4 sm:px-6 py-3 flex items-center justify-between shrink-0 max-md:flex-wrap max-md:gap-2">
         <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
@@ -668,7 +668,7 @@ export default function NotificationsPage() {
                   {notifSearch && (
                     <button
                       onClick={() => setNotifSearch("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground max-md:right-1 max-md:p-2"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -723,7 +723,7 @@ export default function NotificationsPage() {
                           <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                             {item.message}
                           </p>
-                          <span className="text-[11px] text-muted-foreground/80 block mt-2">
+                          <span className="text-[11px] text-muted-foreground/80 block mt-2 max-md:text-xs">
                             {item.time}
                           </span>
                         </div>
@@ -754,9 +754,9 @@ export default function NotificationsPage() {
               </div>
 
               {activeNotification ? (
-                <div className="min-h-full bg-muted/20 px-4 py-5 sm:px-6 lg:px-8">
+                <div className="min-h-full bg-muted/20 px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
                   <article className="mx-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-                    <header className="border-b border-border px-5 py-4 sm:px-6">
+                    <header className="border-b border-border px-4 py-4 sm:px-6">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -784,7 +784,7 @@ export default function NotificationsPage() {
                       </div>
                     </header>
 
-                    <div className="flex-1 space-y-5 px-5 py-5 sm:px-6">
+                    <div className="flex-1 space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-5">
                       <RichMessageContent
                         value={activeNotification.content || activeNotification.message}
                         className="text-sm leading-6 text-foreground/90"
@@ -795,7 +795,7 @@ export default function NotificationsPage() {
                         renderMessageAttachments(activeNotification.attachments)}
                     </div>
 
-                    <footer className="flex justify-end border-t border-border px-5 py-4 sm:px-6">
+                    <footer className="flex justify-end border-t border-border px-4 py-4 sm:px-6">
                       <Button
                         variant="outline"
                         size="sm"
@@ -841,7 +841,7 @@ export default function NotificationsPage() {
                   {ticketSearch && (
                     <button
                       onClick={() => setTicketSearch("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground max-md:right-1 max-md:p-2"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -892,7 +892,7 @@ export default function NotificationsPage() {
                             </div>
                             <span
                               className={cn(
-                                "shrink-0 text-[10px]",
+                                "shrink-0 text-[10px] max-md:text-xs",
                                 hasUnread
                                   ? "font-semibold text-blue-700"
                                   : "text-muted-foreground"
@@ -1013,7 +1013,7 @@ export default function NotificationsPage() {
                               <p className="truncate text-sm font-semibold text-foreground">
                                 {authorName}
                               </p>
-                              <p className="text-[11px] text-muted-foreground">{authorRole}</p>
+                              <p className="text-[11px] text-muted-foreground max-md:text-xs">{authorRole}</p>
                             </div>
                             <span className="shrink-0 text-xs text-muted-foreground">
                               {msg.time}
@@ -1075,7 +1075,7 @@ export default function NotificationsPage() {
                           <button
                             type="button"
                             onClick={() => removeAttachment(idx)}
-                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity max-md:-top-2 max-md:-right-2 max-md:size-6 max-md:opacity-100"
                           >
                             <X className="w-2.5 h-2.5" />
                           </button>
@@ -1279,13 +1279,13 @@ export default function NotificationsPage() {
 
                       <div className="relative rounded-b-md border border-t-0 border-border/70 bg-muted/20">
                         {editor && editor.isEmpty && (
-                          <div className="pointer-events-none absolute left-4 top-3 select-none text-sm text-muted-foreground/70">
+                          <div className="pointer-events-none absolute left-4 top-3 select-none text-sm text-muted-foreground/70 max-sm:text-base">
                             Tulis balasan laporan di sini...
                           </div>
                         )}
                         <EditorContent
                           editor={editor}
-                          className="min-h-[96px] max-h-44 overflow-y-auto px-4 py-3 text-sm outline-none focus-within:ring-1 focus-within:ring-primary [&_.ProseMirror]:min-h-[72px] [&_.ProseMirror]:outline-none [&_a]:underline [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                          className="min-h-[96px] max-h-44 overflow-y-auto px-4 py-3 text-sm max-sm:text-base outline-none focus-within:ring-1 focus-within:ring-primary [&_.ProseMirror]:min-h-[72px] [&_.ProseMirror]:outline-none [&_a]:underline [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
                         />
                       </div>
 

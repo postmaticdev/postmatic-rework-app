@@ -132,7 +132,7 @@ export function AutoAvatarSelectionModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:space-y-6 sm:p-6">
           <div className="flex overflow-x-auto rounded-lg bg-card p-1">
             {([
               { id: "knowledge", label: t("avatarTabKnowledge") },
@@ -203,7 +203,7 @@ export function AutoAvatarSelectionModal({
                       <p className="line-clamp-1 text-xs font-semibold text-foreground">
                         {item.title}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground max-sm:text-xs">
                         {item.source === "knowledge"
                           ? t("avatarSourceKnowledge")
                           : t("avatarSourceBrowse")}

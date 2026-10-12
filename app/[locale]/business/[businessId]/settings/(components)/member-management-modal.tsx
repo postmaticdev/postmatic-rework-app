@@ -183,10 +183,10 @@ export function MemberManagementModal({
           </DialogHeader>
 
           {/* Body - Scrollable */}
-          <div className="flex-1 overflow-y-auto space-y-6 px-4 py-4 sm:p-6">
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:space-y-6 sm:p-6">
             {/* Add New Member Section */}
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-end">
                   <div className="space-y-2">
                     <Label htmlFor="email">{t("email")}</Label>
@@ -280,7 +280,7 @@ export function MemberManagementModal({
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-[36px] font-normal sm:h-9 sm:w-full sm:justify-start"
+                                      className="h-(--control-h-sm) font-normal sm:h-9 sm:w-full sm:justify-start"
                                       disabled={mUpdateRole.isPending}
                                     >
                                       <Shield className="h-4 w-4 mr-1" />
@@ -305,7 +305,7 @@ export function MemberManagementModal({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-[36px] font-normal sm:h-9 sm:w-full sm:justify-start"
+                                  className="h-(--control-h-sm) font-normal sm:h-9 sm:w-full sm:justify-start"
                                 >
                                   <Shield className="h-4 w-4 mr-1" />
                                   {getMemberRoleLabel(member.role, t)}

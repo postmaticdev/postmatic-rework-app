@@ -45,9 +45,9 @@ export function RoleKnowledgeSection() {
   return (
     <div className="h-full">
       <Card className="h-full">
-        <CardContent className="flex h-full flex-col pb-6">
-          <div className="my-3 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-foreground">
+        <CardContent className="flex h-full flex-col pb-4 sm:pb-6">
+          <div className="my-3 flex items-center justify-between max-sm:my-4">
+            <h2 className="text-lg font-semibold text-foreground sm:text-xl">
               {r("title")}
             </h2>
             {roleKnowledge.write && (

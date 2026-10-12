@@ -52,12 +52,12 @@ export function DetailInformation() {
       <div className="absolute -top-2 right-3 sm:-right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
         {t("soon")}
       </div>
-      <CardContent className="py-6">
-        <h2 className="text-lg font-semibold text-foreground mb-6">
+      <CardContent className="py-4 sm:py-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4 sm:mb-6">
           {t("title")}
         </h2>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Referral Information */}
           <div className="grid grid-cols-2 items-center gap-4 sm:flex sm:flex-row sm:flex-wrap sm:gap-0 sm:space-y-2 sm:justify-between bg-background-secondary p-4 rounded-lg">
             <div className="col-span-2 flex min-w-0 items-center space-x-2 sm:col-auto">
@@ -106,7 +106,7 @@ export function DetailInformation() {
                 variant="default"
                 disabled={true}
                 size="sm"
-                className="col-span-2 h-[36px] w-full bg-blue-600 hover:bg-blue-700 text-white sm:col-auto sm:h-9 sm:w-auto"
+                className="col-span-2 h-(--control-h-sm) w-full bg-blue-600 hover:bg-blue-700 text-white sm:col-auto sm:h-9 sm:w-auto"
               >
                 {t("withdraw")}
               </Button>
@@ -145,7 +145,7 @@ export function DetailInformation() {
                 variant="default"
                 disabled={true}
                 size="sm"
-                className="col-span-3 h-[36px] w-full bg-blue-600 hover:bg-blue-700 text-white sm:col-auto sm:h-9 sm:w-auto"
+                className="col-span-3 h-(--control-h-sm) w-full bg-blue-600 hover:bg-blue-700 text-white sm:col-auto sm:h-9 sm:w-auto"
               >
                 {t("withdraw")}
               </Button>

@@ -293,7 +293,7 @@ export function PaymentConfirmation({
                   </div>
                 </button>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 max-sm:flex-wrap max-sm:justify-center">
                   <Button
                     variant="secondary"
                     onClick={() => setZoomImageIndex(index)}
@@ -377,7 +377,7 @@ export function PaymentConfirmation({
                     {item.value}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 max-sm:flex-wrap">
                   <Button
                     onClick={() => handleOpenDeeplink(item.value)}
                     className="bg-blue-600 text-white hover:bg-blue-700"
@@ -429,7 +429,7 @@ export function PaymentConfirmation({
       ))}
 
       {/* Countdown / Expired info */}
-      <div className="border-2 border-orange-500 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 bg-orange-50 dark:bg-orange-900/20 mt-8">
+      <div className="border-2 border-orange-500 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 bg-orange-50 dark:bg-orange-900/20 mt-2 sm:mt-8">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
           <span className="text-gray-900 dark:text-white font-medium text-sm sm:text-base">
             {t("checkout.payBefore")}
@@ -464,7 +464,7 @@ export function PaymentConfirmation({
 /* ---------- UI subcomponents ---------- */
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div className="mb-6 sm:mb-4">
+    <div className="mb-3 sm:mb-4">
       <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
         {title}
       </h3>

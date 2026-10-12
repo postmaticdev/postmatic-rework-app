@@ -195,7 +195,7 @@ export function AvatarSection() {
   return (
     <>
       <Card className="h-full w-full">
-        <CardContent className="py-6">
+        <CardContent className="py-4 sm:py-6">
           <div className="space-y-4">
             <div className="flex flex-col gap-4">
               <h2 className="text-lg font-semibold text-foreground">

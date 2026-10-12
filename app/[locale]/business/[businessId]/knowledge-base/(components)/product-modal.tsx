@@ -84,8 +84,8 @@ export function ProductModal({
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
 
 
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row w-full gap-6 items-start">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col md:flex-row w-full gap-4 sm:gap-6 items-start">
               <UploadPhoto
                 label={t("productPhoto")}
                 onImageChange={(file: string | null) =>
@@ -127,7 +127,7 @@ export function ProductModal({
               <Label className="text-sm font-medium text-foreground">
                 {t("price")}
               </Label>
-              <div className="flex w-full gap-6 items-start justify-between">
+              <div className="flex w-full gap-3 sm:gap-6 items-start justify-between">
                 <CurrencyDropdown
                   value={formValue.currency}
                   onChange={(value) => updateField("currency", value)}

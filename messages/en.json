@@ -683,7 +683,11 @@
     "freeModelRestrictionTitle": "Model restricted for free users",
     "freeModelRestrictionDescription": "Free users can only use the {modelName} model. Top up now to try other models.",
     "freeModelRestrictionTopUp": "Top up now",
-    "freeModelRestrictionUseDefault": "Use the default model"
+    "freeModelRestrictionUseDefault": "Use the default model",
+    "mobileContinue": "Continue",
+    "mobileBackToReference": "Back to Reference",
+    "mobileReferenceSelected": "Reference selected",
+    "mobileNoReferenceSelected": "Reference is optional"
   },
   "previewPanel": {
     "enhanceCaption": "Enhance Caption",

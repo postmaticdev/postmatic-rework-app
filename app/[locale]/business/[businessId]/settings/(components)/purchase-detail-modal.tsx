@@ -227,7 +227,7 @@ export function PurchaseDetailModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-6 px-4 py-4 sm:p-6">
+        <div className="flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:space-y-6 sm:p-6">
           <PaymentInstructionCard
             status={transaction.status}
             statusTitle={statusTitle}
@@ -246,8 +246,8 @@ export function PurchaseDetailModal({
             onCopy={handleCopy}
           />
 
-          <Card className="rounded-lg border bg-background p-5">
-            <div className="mb-5 flex items-center gap-3 border-b pb-4">
+          <Card className="rounded-lg border bg-background p-4 sm:p-5">
+            <div className="mb-4 flex items-center gap-3 border-b pb-4 sm:mb-5">
               <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
                 <ReceiptText className="h-5 w-5" />
               </div>
@@ -281,7 +281,7 @@ function DetailOrderRow({
   value: string;
 }) {
   return (
-    <div className="grid grid-cols-[120px_1fr] items-start gap-4 text-sm">
+    <div className="grid grid-cols-[120px_1fr] items-start gap-3 text-sm sm:gap-4">
       <span className="text-muted-foreground">{label}</span>
       <span className="break-words font-medium text-foreground">{value}</span>
     </div>

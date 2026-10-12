@@ -353,7 +353,7 @@ export function GenerationPanel() {
     return (
       <>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6 scrollbar-hidden">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 pb-44 sm:p-6 sm:pb-44 lg:pb-6 scrollbar-hidden">
             {currentThread.map((job, jobIndex) => {
               const isInitialSchedulerBubble =
                 jobIndex === 0 && job.id.startsWith("chat-");

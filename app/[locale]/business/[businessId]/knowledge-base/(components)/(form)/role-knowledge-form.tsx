@@ -59,7 +59,7 @@ export function RoleKnowledgeForm() {
   const finalPlaceholders = { ...defaultPlaceholders };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <TextField
         label={finalLabels.targetAudience}
         value={formKnowledge.role.targetAudience}
@@ -109,7 +109,7 @@ export function RoleKnowledgeForm() {
               <button
                 type="button"
                 onClick={() => removeHashtag(index)}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 max-sm:-my-1 max-sm:px-1.5 max-sm:py-1 max-sm:text-base max-sm:leading-none"
               >
                 ×
               </button>

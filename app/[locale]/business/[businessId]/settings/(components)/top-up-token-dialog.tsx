@@ -506,7 +506,7 @@ export function TopUpTokenDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:p-6">
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:space-y-6 sm:p-6">
           {!checkoutResult ? (
             <>
               <div className="grid gap-4">
@@ -560,7 +560,7 @@ export function TopUpTokenDialog({
                       !tokenAmount ||
                       !paymentMethod
                     }
-                    className="absolute right-1 top-1/2 h-8 -translate-y-1/2"
+                    className="absolute right-1 top-1/2 h-8 -translate-y-1/2 max-md:h-9"
                   >
                     {isCheckingPromoCode
                       ? tDialog("checking")
@@ -599,8 +599,8 @@ export function TopUpTokenDialog({
                 onCopy={handleCopy}
               />
 
-              <div className="rounded-lg border bg-background p-5">
-                <div className="mb-5 flex items-center gap-3 border-b pb-4">
+              <div className="rounded-lg border bg-background p-4 sm:p-5">
+                <div className="mb-4 flex items-center gap-3 border-b pb-4 sm:mb-5">
                   <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
                     <ReceiptText className="h-5 w-5" />
                   </div>
@@ -678,7 +678,7 @@ function DetailOrderRow({
   status?: string;
 }) {
   return (
-    <div className="grid grid-cols-[120px_1fr] items-start gap-4 text-sm">
+    <div className="grid grid-cols-[120px_1fr] items-start gap-3 text-sm sm:gap-4">
       <span className="text-muted-foreground">{label}</span>
       {status ? (
         <span

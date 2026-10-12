@@ -137,7 +137,7 @@ export function RSSModal({
           {(rssAction === "add" ||
             (rssAction === "edit" && mode === "add") ||
             mode === "edit") && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <TextField
                 label={t("feedTitle")}
                 value={formValue?.title}

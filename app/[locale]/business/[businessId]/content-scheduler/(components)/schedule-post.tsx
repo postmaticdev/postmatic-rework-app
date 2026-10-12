@@ -283,8 +283,8 @@ export function SchedulePost({
   return (
 
     <Card className={onDashboard ? "xl:h-[22.5rem]" : undefined}>
-      <CardContent className="flex h-full flex-col p-6">
-        <div className="flex min-h-0 flex-1 flex-col space-y-6">
+      <CardContent className="flex h-full flex-col p-4 sm:p-6">
+        <div className="flex min-h-0 flex-1 flex-col space-y-4 sm:space-y-6">
           <div className="flex flex-col justify-between">
             <h2
               className={
@@ -324,7 +324,7 @@ export function SchedulePost({
                         />
                       </div>
 
-                      <div className="flex-1">
+                      <div className="flex-1 max-md:min-w-0">
                         <div className="font-medium text-sm">
                           {formatDate(new Date(post.date))}
                         </div>
