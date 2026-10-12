@@ -284,7 +284,7 @@ export function SharedReferencePanel({
         >
           <SelectTrigger
             aria-label={t("filterCategory")}
-            className="h-8 w-32 rounded-l-none border-0 border-l border-border bg-transparent px-3 text-xs text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 sm:w-40"
+            className="h-[38px] w-32 rounded-l-none sm:h-8 border-0 border-l border-border bg-transparent px-3 text-xs text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 sm:w-40"
           >
             <SelectValue placeholder={t("filterCategory")} />
           </SelectTrigger>

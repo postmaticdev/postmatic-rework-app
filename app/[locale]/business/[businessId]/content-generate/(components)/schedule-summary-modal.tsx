@@ -79,7 +79,7 @@ export function ScheduleSummaryModal({
       <Button
         type="button"
         size="icon-sm"
-        className="absolute -bottom-2 -right-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute -bottom-2 -right-2 shadow-md opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
         onClick={onEnhanceCaption}
         disabled={isLoading}
       >
@@ -338,7 +338,7 @@ export function ScheduleSummaryModal({
                       date={date}
                       value={time}
                       onValueChange={onTimeChange}
-                      className="h-full w-full border-0 bg-transparent p-0 text-base outline-none shadow-none sm:text-sm focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden"
+                      className="h-full w-full border-0 bg-transparent p-0 text-base outline-none shadow-none sm:text-sm focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden!"
                     />
                   </div>
                 </div>

@@ -162,7 +162,7 @@ export default function CreatorPage() {
   ];
   return null;
   return (
-    <div className="flex min-h-screen bg-gray-50/50">
+    <div className="flex min-h-dvh bg-gray-50/50">
       {/* Main Content */}
       <div className="flex-1 p-8 space-y-8">
         {/* Header */}

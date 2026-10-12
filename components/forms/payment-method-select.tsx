@@ -62,7 +62,7 @@ function PaymentMethodLogo({ method }: { method: PaymentMethodSelectOption }) {
           className="max-h-5 w-auto object-contain"
         />
       ) : (
-        <span className="text-[10px] font-semibold text-muted-foreground">
+        <span className="text-[11px] font-semibold text-muted-foreground">
           {(method.name || method.code || "??").slice(0, 2).toUpperCase()}
         </span>
       )}

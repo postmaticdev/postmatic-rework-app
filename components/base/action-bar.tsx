@@ -28,7 +28,7 @@ export function ActionBar() {
 
 
   return (
-    <div className="p-6 border-b border-border">
+    <div className="p-4 sm:p-6 border-b border-border">
       <div className="flex flex-col sm:flex-row items-start sm:items-center  gap-4">
 
         <div className="w-full sm:flex-1">

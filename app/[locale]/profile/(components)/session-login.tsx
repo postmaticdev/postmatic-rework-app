@@ -132,11 +132,11 @@ export function SessionLogin() {
     <>
       <Card className="h-fit">
         <CardContent className="p-6">
-          <div className="flex justify-between">
+          <div className="flex items-start justify-between gap-3">
             <h2 className="text-lg font-semibold text-foreground mb-6">
               {t("title")}
             </h2>
-            <Button variant="destructive" size="sm" onClick={() => setLogoutTarget("all")}>
+            <Button variant="destructive" size="sm" className="h-[36px] shrink-0 sm:h-9" onClick={() => setLogoutTarget("all")}>
               {t("logoutAll")}
             </Button>
           </div>
@@ -149,10 +149,10 @@ export function SessionLogin() {
               return (
                 <div
                   key={session.id}
-                  className="flex items-center justify-between bg-background-secondary p-4 rounded-lg"
+                  className="flex items-center justify-between gap-3 bg-background-secondary p-4 rounded-lg"
                 >
-                  <div>
-                    <p className="font-medium text-foreground">{label}</p>
+                  <div className="min-w-0">
+                    <p className="break-words font-medium text-foreground">{label}</p>
                     {sessionDate && (
                       <p className="text-sm text-muted-foreground">
                         {formatDate(new Date(sessionDate))}
@@ -163,7 +163,7 @@ export function SessionLogin() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    className="text-white"
+                    className="h-[36px] shrink-0 text-white sm:h-9"
                     onClick={() => setLogoutTarget(session.id)}
                   >
                     {t("logout")}

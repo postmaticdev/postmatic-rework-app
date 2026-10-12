@@ -185,6 +185,7 @@ export function OverviewContent() {
                 onClick={() => setPeriod(item.value)}
                 variant={period === item.value ? "default" : "outline"}
                 size="sm"
+                className="h-[36px] sm:h-9"
               >
                 {item.label}
               </Button>

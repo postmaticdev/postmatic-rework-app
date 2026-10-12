@@ -25,7 +25,8 @@ import { businessPurchaseService } from "@/services/purchase.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatProductName } from "./product-display";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 type PaymentAction = CheckoutPaymentAction | BusinessPaymentAction;
@@ -45,6 +46,7 @@ export function PaymentConfirmation({
   const [isChecking, setIsChecking] = useState(false);
   const t = useTranslations();
   const { formatDate } = useDateFormat();
+  const locale = useLocale();
 
   usePaymentRealtime({
     businessId,
@@ -74,6 +76,12 @@ export function PaymentConfirmation({
   });
 
   if (!checkoutResult) return null;
+
+  const expiredAtLabel = checkoutResult.expiredAt
+    ? `${formatDate(new Date(checkoutResult.expiredAt))} ${dateFormat.getHhMm(
+        new Date(checkoutResult.expiredAt)
+      )}`
+    : "-";
 
   const handleCheckPaymentStatus = async () => {
     try {
@@ -411,7 +419,7 @@ export function PaymentConfirmation({
       </div>
 
             <p className="text-gray-600 dark:text-gray-300 mb-4 sm:mb-6 text-sm sm:text-base">
-        {(product?.name || checkoutResult?.productName || "")} - {t("checkout.total")} {formatIdr(detailPricing?.total)}
+        {formatProductName(product?.name || checkoutResult?.productName || "", locale)} - {t("checkout.total")} {formatIdr(detailPricing?.total)}
       </p>
 
       {checkoutResult?.paymentActions.map((action, index) => (
@@ -427,7 +435,7 @@ export function PaymentConfirmation({
             {t("checkout.payBefore")}
           </span>
           <span className="text-orange-600 dark:text-orange-400 font-bold text-base sm:text-lg">
-            {checkoutResult?.expiredAt ? `${formatDate(new Date(checkoutResult?.expiredAt))} ${dateFormat.getHhMm(new Date(checkoutResult?.expiredAt))}` : "-"}
+            {expiredAtLabel}
           </span>
         </div>
       </div>
@@ -447,7 +455,7 @@ export function PaymentConfirmation({
       </Button>
 
       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 break-words">
-        {t("checkout.paymentExpiredAt")}: {checkoutResult?.expiredAt ?? "-"}
+        {t("checkout.paymentExpiredAt")}: {expiredAtLabel}
       </p>
     </div>
   );

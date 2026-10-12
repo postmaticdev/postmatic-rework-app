@@ -191,8 +191,8 @@ export function MobileMenu() {
           />
 
           {/* Menu Panel */}
-          <div className="fixed right-0 top-0 h-full w-80 max-w-[85vw] bg-card border-l border-border shadow-xl animate-in slide-in-from-right duration-300">
-            <div className="flex flex-col h-full">
+          <div className="fixed right-0 top-0 h-dvh w-80 max-w-[85vw] bg-card border-l border-border shadow-xl animate-in slide-in-from-right duration-300">
+            <div className="flex flex-col h-full overflow-y-auto overscroll-contain">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-border">
                 <h2 className="text-lg font-semibold">Menu</h2>
@@ -327,7 +327,7 @@ export function MobileMenu() {
               </div>
 
               {/* Footer Section */}
-              <div className="p-4 border-t border-border space-y-3">
+              <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border space-y-3">
                 {/* Report Problem Button */}
                 <Button
                   variant="ghost"

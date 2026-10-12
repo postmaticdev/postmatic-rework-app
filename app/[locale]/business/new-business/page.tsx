@@ -21,7 +21,7 @@ export default function NewBusinessEntryPage() {
 
   return (
     <AuroraBackground>
-      <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-4 py-10">
+      <div className="relative z-10 flex min-h-dvh w-full items-center justify-center px-4 py-10">
         <div className="relative w-full max-w-2xl">
           <Card className="relative z-10 rounded-[2rem] border-white/60 bg-white/95 p-6 shadow-[0_24px_90px_rgba(37,99,235,0.16)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] dark:shadow-[0_24px_120px_rgba(37,99,235,0.2)] sm:p-8">
             <div className="mb-8 flex flex-col items-center text-center">

@@ -16,7 +16,8 @@ import {
   ProductSubscription,
 } from "@/models/api/app-product";
 import { showToast } from "@/helper/show-toast";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatProductType } from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 import { useCheckoutPayBank } from "@/services/purchase.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
@@ -35,6 +36,7 @@ export default function Pricing() {
 
   const tokenPackages = tokenData?.data?.data.products || [];
   const t = useTranslations("pricing");
+  const locale = useLocale();
 
   // Expecting products as SubscriptionPlan[] with items: SubscriptionItem[]
   const subscriptionPlans = subscriptionData?.data?.data.products || [];
@@ -105,13 +107,13 @@ export default function Pricing() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-dvh bg-background flex">
       <div className="flex-1 flex flex-col">
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 sm:p-6">
           <div className="max-w-6xl mx-auto">
             {/* Header */}
             <div className="text-center mb-6">
-              <h1 className="text-3xl font-bold mb-2">{t("choosePackage")}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">{t("choosePackage")}</h1>
               <p className="text-muted-foreground">
                 {t("choosePackageDescription")}
               </p>
@@ -169,14 +171,14 @@ export default function Pricing() {
                           <Zap className="w-6 h-6 text-white" />
                         </div>
                         <div className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-3 py-1 rounded-full">
-                          {pkg.tokenType}
+                          {formatProductType(pkg.tokenType)}
                         </div>
                       </div>
 
                       {/* Token Amount */}
                       <div className="mb-4">
                         <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-                          {pkg.token}
+                          {Number(pkg.token).toLocaleString(locale)}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {t("token")}
@@ -306,7 +308,7 @@ export default function Pricing() {
                             {formatIdr(selectedItem?.price || 0)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {selectedItem?.tokenImage} token • {t("validFor")} {" "}
+                            {Number(selectedItem?.tokenImage ?? 0).toLocaleString(locale)} token • {t("validFor")} {" "}
                             {selectedItem?.subscriptionValidFor} {t("days")}
                           </div>
                         </div>

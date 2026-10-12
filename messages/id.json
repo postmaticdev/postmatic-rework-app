@@ -17,7 +17,8 @@
       "selectPaymentMethod": "Harap pilih metode pembayaran untuk melanjutkan",
       "invalidPromoCode": "Kode promo tidak valid",
       "processing": "Memproses...",
-      "continue": "Lanjut"
+      "continue": "Lanjut",
+      "selectProduct": "Silakan pilih produk"
     },
     "auth": {
       "logoutSuccess": "Berhasil logout dari sesi ini",
@@ -38,7 +39,9 @@
       "imageUploadFailed": "Gagal mengupload gambar",
       "imageUploadFailedTryAgain": "Gagal mengupload gambar. Silahkan coba lagi.",
       "scheduleEditError": "Terjadi kesalahan saat mengedit jadwal",
-      "openAIMaskFailed": "Gagal membuat mask untuk OpenAI"
+      "openAIMaskFailed": "Gagal membuat mask untuk OpenAI",
+      "imageInvalidType": "Hanya gambar JPG, PNG, atau WEBP yang didukung.",
+      "imageTooLarge": "Ukuran gambar maksimal 10MB."
     },
     "payment": {
       "paymentStatusCheckFailed": "Gagal memeriksa status pembayaran",
@@ -142,7 +145,9 @@
         "note": "QR akan kedaluwarsa sesuai waktu yang tertera. Jika gagal scan, unduh QR lalu scan dari galeri.",
         "clickToZoom": "Klik untuk memperbesar",
         "downloadQR": "Unduh QR",
-        "zoom": "Perbesar"
+        "zoom": "Perbesar",
+        "zoomTitle": "QRIS Pembayaran",
+        "imageAlt": "QRIS untuk pembayaran"
       },
       "redirect": {
         "title": "Cara Melanjutkan Pembayaran:",
@@ -155,7 +160,12 @@
         "copyLink": "Salin Link",
         "openApplication": "Buka Aplikasi"
       }
-    }
+    },
+    "orderLoadFailed": "Gagal memuat detail pesanan",
+    "paymentWith": "Pembayaran dengan {method}",
+    "subscribeToPostmatic": "Berlangganan Postmatic",
+    "perPeriod": "per {period}",
+    "billedPeriod": "Ditagih {period}"
   },
   "productCategory": {
     "foodAndDrink": "Makanan & Minuman",
@@ -338,7 +348,8 @@
     "scheduleSaveFailed": "Gagal menyimpan jadwal",
     "recentHistory": "Riwayat Terbaru",
     "clickToView": "Klik untuk melihat",
-    "more": "lagi"
+    "more": "lagi",
+    "scheduleNotFound": "Jadwal tidak ditemukan"
   },
   "connectedPlatformForm": {
     "disconnectPlatform": "Putuskan Platform",
@@ -347,7 +358,14 @@
     "disconnect": "Putuskan",
     "notConnected": "Belum terhubung",
     "notAvailable": "Belum tersedia",
-    "notAvailableDescription": "Platform ini tidak tersedia"
+    "notAvailableDescription": "Platform ini tidak tersedia",
+    "loadingPlatforms": "Memuat platform...",
+    "completeConnection": "Selesaikan koneksi",
+    "connectFailed": "Gagal menghubungkan platform",
+    "connectAccountFailed": "Gagal menghubungkan akun",
+    "loadingConnectedAccount": "Memuat akun yang terhubung...",
+    "connecting": "Menghubungkan...",
+    "accountAlt": "Akun"
   },
   "settings": {
     "timezone": "Zona Waktu",
@@ -569,7 +587,8 @@
     "uploadManualCardTitle": "Upload File",
     "uploadManualCardDescription": "Upload materi yang sudah ada lalu jadwalkan di tanggal yang dipilih.",
     "buildWithAiCardTitle": "Build with AI",
-    "buildWithAiCardDescription": "Buka AI planner dengan tanggal ini sudah terpasang untuk penjadwalan."
+    "buildWithAiCardDescription": "Buka AI planner dengan tanggal ini sudah terpasang untuk penjadwalan.",
+    "viewOnPlatform": "Lihat di platform"
   },
   "generationPanel": {
     "basicGenerate": "Generate Dasar",
@@ -701,7 +720,8 @@
     "selectedPublishTime": "Waktu publikasi yang dipilih",
     "selectPlatform": "Silakan pilih minimal satu platform",
     "generateFirst": "Generate konten terlebih dahulu sebelum dijadwalkan",
-    "shareReference": "Bagikan referensi konten ini kepada komunitas Postmatic untuk membantu pengembangan model AI yang lebih baik."
+    "shareReference": "Bagikan referensi konten ini kepada komunitas Postmatic untuk membantu pengembangan model AI yang lebih baik.",
+    "watermarkNotReady": "Watermark belum siap. Mohon tunggu sebentar sebelum menjadwalkan postingan."
   },
   "templateCard": {
     "detail": "Detail Referensi",
@@ -890,7 +910,9 @@
     "defaultSubject": "Laporan dari website",
     "cancel": "Batal",
     "submit": "Kirim Laporan",
-    "submitting": "Mengirim..."
+    "submitting": "Mengirim...",
+    "subject": "Judul Laporan",
+    "subjectPlaceholder": "Masukkan judul laporan Anda..."
   },
   "newBusiness": {
     "title1": "Pengetahuan Bisnis",
@@ -1226,6 +1248,20 @@
     "auto": "Penjadwalan Otomatis",
     "manual": "Penjadwalan Manual",
     "cancelQueue": "Batal Jadwal",
-    "deleteDraft": "Hapus Draft"
+    "deleteDraft": "Hapus Draft",
+    "captionEditPastSchedule": "Waktu jadwal postingan ini sudah lewat, sehingga caption tidak dapat diubah sebelum diposting."
+  },
+  "businessCard": {
+    "imageAlt": "Gambar Bisnis",
+    "invite": "Undang",
+    "leave": "Keluar",
+    "leaveTitle": "Keluar Bisnis",
+    "leaveDescription": "Apakah Anda yakin ingin keluar bisnis ini? Tindakan ini tidak dapat dibatalkan.",
+    "deleteTitle": "Hapus Bisnis",
+    "deleteDescription": "Apakah Anda yakin ingin menghapus bisnis ini? Tindakan ini tidak dapat dibatalkan."
+  },
+  "businessGrid": {
+    "emptyTitle": "Tidak ada bisnis yang ditemukan",
+    "emptyDescription": "Tambahkan bisnis baru"
   }
 }

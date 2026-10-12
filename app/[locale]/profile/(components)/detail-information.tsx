@@ -49,7 +49,7 @@ export function DetailInformation() {
 
   return (
     <Card className="h-fit relative">
-      <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+      <div className="absolute -top-2 right-3 sm:-right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
         {t("soon")}
       </div>
       <CardContent className="py-6">
@@ -59,13 +59,13 @@ export function DetailInformation() {
 
         <div className="space-y-6">
           {/* Referral Information */}
-          <div className="flex flex-row flex-wrap space-y-2 items-center justify-between bg-background-secondary p-4 rounded-lg">
-            <div className="flex items-center space-x-2">
+          <div className="grid grid-cols-2 items-center gap-4 sm:flex sm:flex-row sm:flex-wrap sm:gap-0 sm:space-y-2 sm:justify-between bg-background-secondary p-4 rounded-lg">
+            <div className="col-span-2 flex min-w-0 items-center space-x-2 sm:col-auto">
               <div>
                 <p className="text-xs font-medium text-muted-foreground ">
                   {t("referralCode")}
                 </p>
-                <p className="font-semibold text-foreground">
+                <p className="break-all font-semibold text-foreground">
                   {isLoading ? "..." : referralCode || t("noReferralCode")}
                 </p>
               </div>
@@ -106,7 +106,7 @@ export function DetailInformation() {
                 variant="default"
                 disabled={true}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="col-span-2 h-[36px] w-full bg-blue-600 hover:bg-blue-700 text-white sm:col-auto sm:h-9 sm:w-auto"
               >
                 {t("withdraw")}
               </Button>
@@ -114,7 +114,7 @@ export function DetailInformation() {
           </div>
 
           {/* Content and Sales Information */}
-          <div className="flex flex-row flex-wrap space-y-2 items-center justify-between bg-background-secondary p-4 rounded-lg">
+          <div className="grid grid-cols-3 items-center gap-4 sm:flex sm:flex-row sm:flex-wrap sm:gap-0 sm:space-y-2 sm:justify-between bg-background-secondary p-4 rounded-lg">
             <div className="">
               <p className="text-xs font-medium text-muted-foreground ">
                 {t("totalContent")}
@@ -145,7 +145,7 @@ export function DetailInformation() {
                 variant="default"
                 disabled={true}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="col-span-3 h-[36px] w-full bg-blue-600 hover:bg-blue-700 text-white sm:col-auto sm:h-9 sm:w-auto"
               >
                 {t("withdraw")}
               </Button>

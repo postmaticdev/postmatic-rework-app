@@ -57,7 +57,7 @@ export const SharedTemplateCard = ({
       
       <button
         type="button"
-        className="absolute top-2 left-2 z-10 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 backdrop-blur-sm transition-colors"
+        className="absolute top-2 left-2 z-10 inline-flex size-10 items-center justify-center rounded-full sm:size-auto sm:p-1.5 bg-black/40 text-white hover:bg-black/60 backdrop-blur-sm transition-colors"
         onClick={(e) => {
           e.stopPropagation();
           onDetail(item);

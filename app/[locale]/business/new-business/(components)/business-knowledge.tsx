@@ -74,14 +74,17 @@ export function BusinessKnowledge() {
             onFocus={() => clearFieldError(0, "name")}
           />
 
-          <BusinessCategoryDropdown
-            value={step1.category}
-            onChange={(value) => updateField("category", value)}
-            placeholder={finalPlaceholders.category}
-            label="Kategori Bisnis"
-            error={errors.step1.category}
-            onFocus={() => clearFieldError(0, "category")}
-          />
+          {/* Placeholder (empty value) renders muted like the other fields' placeholders */}
+          <div className="[&_option]:text-foreground [&_select:has(option[value='']:checked)]:text-muted-foreground">
+            <BusinessCategoryDropdown
+              value={step1.category}
+              onChange={(value) => updateField("category", value)}
+              placeholder={finalPlaceholders.category}
+              label="Kategori Bisnis"
+              error={errors.step1.category}
+              onFocus={() => clearFieldError(0, "category")}
+            />
+          </div>
         </div>
       </div>
 

@@ -35,11 +35,11 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
             className="w-full h-full object-contain"
           />
         </div>
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-col">
           <span className="text-xs font-medium text-muted-foreground">
             {t("name")}
           </span>
-          <span className="font-medium text-foreground">{business.name}</span>
+          <span className="break-words font-medium text-foreground">{business.name}</span>
         </div>
       </div>
 
@@ -61,7 +61,7 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
           <Button
             variant="default"
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="h-[36px] bg-blue-600 hover:bg-blue-700 text-white sm:h-9"
           >
             {t("view")}
           </Button>

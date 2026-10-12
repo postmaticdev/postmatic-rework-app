@@ -19,7 +19,7 @@ export default function Profile() {
   
   return (
     <CreatorDesignProvider>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-dvh bg-background">
         <main className="py-4 sm:py-6 px-4 sm:px-6">
           <WelcomeSection message={t("profile")} title={greeting} />
 

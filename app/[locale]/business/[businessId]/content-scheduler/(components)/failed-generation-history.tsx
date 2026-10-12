@@ -75,7 +75,7 @@ export function FailedGenerationHistory() {
               Image generation attempts that did not finish successfully.
             </p>
           </div>
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="self-start text-white sm:self-auto">
             {failedJobs.length} issues
           </Badge>
         </div>
@@ -109,7 +109,7 @@ export function FailedGenerationHistory() {
                         {formatJobDate(job.updatedAt)}
                       </p>
                     </div>
-                    <Badge variant="destructive">Failed</Badge>
+                    <Badge variant="destructive" className="shrink-0 text-white">Failed</Badge>
                   </div>
 
                   <p className="line-clamp-2 text-sm text-red-700 dark:text-red-300">
@@ -131,6 +131,7 @@ export function FailedGenerationHistory() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="min-h-12 sm:min-h-0"
                     onClick={() => openJob(job)}
                   >
                     <ExternalLink className="h-3.5 w-3.5" />

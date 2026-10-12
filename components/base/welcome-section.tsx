@@ -23,9 +23,9 @@ export function WelcomeSection({
   return (
     <div className="bg-card rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm border border-border">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-row mb-4 items-center gap-4 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+            <h1 className="min-w-0 break-words text-xl sm:text-2xl font-bold text-foreground mb-2">
               {title}
             </h1>
             {showSubscription && (

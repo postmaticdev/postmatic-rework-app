@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export function UpcomingPostsSkeleton() {
   return (
-    <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
+    <div className="space-y-3 max-h-[calc(100dvh-300px)] overflow-y-auto">
       {Array.from({ length: 5 }).map((_, index) => (
         <Card key={index} className="bg-card">
           <CardContent className="p-4">

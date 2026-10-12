@@ -332,7 +332,7 @@ export function ContentSchedulerUploadDialog({
       <Button
         type="button"
         size="icon"
-        className="absolute -bottom-2 -right-2 rounded-xl h-8 w-8 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute -bottom-2 -right-2 rounded-xl h-10 w-10 sm:h-8 sm:w-8 shadow-md opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
         onClick={handleEnhanceCaption}
         disabled={enhanceCaptionMutation.isPending || isSubmitting}
       >
@@ -587,7 +587,7 @@ export function ContentSchedulerUploadDialog({
                       date={date}
                       value={time}
                       onValueChange={setTime}
-                      className="h-full w-full border-0 bg-transparent p-0 outline-none shadow-none focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden"
+                      className="h-full w-full border-0 bg-transparent p-0 outline-none shadow-none focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden!"
                     />
                   </div>
                 </div>

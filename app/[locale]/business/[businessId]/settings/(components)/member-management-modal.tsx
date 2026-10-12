@@ -248,8 +248,8 @@ export function MemberManagementModal({
                         <div className="flex flex-col gap-4 sm:grid sm:grid-cols-[minmax(0,1fr)_7.25rem_9.5rem_2.25rem_2.25rem] sm:items-center sm:gap-3">
                           <div className="flex min-w-0 items-center space-x-3">
                             <Avatar className="h-10 w-10 shrink-0">
-                              <AvatarFallback>
-                                {member.profile.name.charAt(0)}
+                              <AvatarFallback className="bg-blue-100 font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                {member.profile.name.charAt(0).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
@@ -278,7 +278,7 @@ export function MemberManagementModal({
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="font-normal sm:w-full sm:justify-start"
+                                      className="h-[36px] font-normal sm:h-9 sm:w-full sm:justify-start"
                                       disabled={mUpdateRole.isPending}
                                     >
                                       <Shield className="h-4 w-4 mr-1" />
@@ -303,7 +303,7 @@ export function MemberManagementModal({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="font-normal sm:w-full sm:justify-start"
+                                  className="h-[36px] font-normal sm:h-9 sm:w-full sm:justify-start"
                                 >
                                   <Shield className="h-4 w-4 mr-1" />
                                   {getMemberRoleLabel(member.role, t)}
@@ -311,7 +311,11 @@ export function MemberManagementModal({
                               )}
                             </div>
 
-                            <div className="flex h-9 w-9 items-center justify-center">
+                            <div
+                              className={`${
+                                member.status === "Pending" ? "flex" : "hidden sm:flex"
+                              } h-9 w-9 items-center justify-center`}
+                            >
                               {member.status === "Pending" && (
                                 <Button
                                   variant="ghost"

@@ -52,8 +52,8 @@ export function PersonalInformation() {
               className="w-full h-full object-cover"
             />
           </div>
-          <div className=" md:max-w-[70%]">
-            <h3 className="font-semibold text-lg mb-2">
+          <div className="min-w-0 md:max-w-[70%]">
+            <h3 className="font-semibold text-lg mb-2 break-words">
               {profile?.name || "-"}
             </h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -62,21 +62,21 @@ export function PersonalInformation() {
           </div>
         </div>
 
-        <div className=" mt-6 flex-1  flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-[92%]">
-          <div>
+        <div className=" mt-6 flex-1  flex min-w-0 flex-col md:flex-row md:items-center justify-between gap-6 max-w-full md:max-w-[92%]">
+          <div className="min-w-0">
             <label className="text-sm font-medium text-muted-foreground">
               {t("name")}
             </label>
-            <p className="text-foreground font-medium">
+            <p className="text-foreground font-medium break-words">
               {profile?.name || "-"}
             </p>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label className="text-sm font-medium text-muted-foreground">
               {t("email")}
             </label>
-            <p className="text-foreground font-medium">
+            <p className="text-foreground font-medium break-all">
               {profile?.email || "-"}
             </p>
           </div>

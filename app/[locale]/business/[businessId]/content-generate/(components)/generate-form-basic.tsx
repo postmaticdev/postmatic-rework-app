@@ -229,7 +229,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
         <label className="block text-sm font-medium">
           Trend & Avatar <span className="text-muted-foreground font-normal text-xs">(Opsional)</span>
         </label>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           {/* Trend Button */}
         {form.rss ? (
           <Button
@@ -238,7 +238,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             onClick={() => form.onRssSelect(null)}
             disabled={isLoading}
             size="lg"
-            className="w-full bg-red-600 text-white hover:bg-red-700"
+            className="w-full min-w-0 whitespace-normal leading-tight bg-red-600 text-white hover:bg-red-700"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             {t("removeSelectedTrend")}
@@ -250,7 +250,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             onClick={onOpenTrend}
             disabled={isLoading}
             size="lg"
-            className="w-full"
+            className="w-full min-w-0 whitespace-normal leading-tight"
           >
             <Newspaper className="h-4 w-4 mr-2" />
             {t("addLatestTrend")}
@@ -263,7 +263,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
           onClick={() => setIsAvatarModalOpen(true)}
           disabled={isLoading || disabled}
           size="lg"
-          className="w-full"
+          className="w-full min-w-0 whitespace-normal leading-tight"
         >
           <Bot className="h-4 w-4 mr-2" />
           {t("selectAvatar")}

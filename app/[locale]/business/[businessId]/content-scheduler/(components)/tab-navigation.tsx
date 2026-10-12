@@ -43,7 +43,7 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
           {tab.id === "history" && failedJobCount > 0 ? (
             <Badge
               variant="destructive"
-              className="ml-2 min-w-5 justify-center px-1.5"
+              className="ml-2 min-w-5 justify-center px-1.5 text-white"
             >
               {failedJobCount}
             </Badge>

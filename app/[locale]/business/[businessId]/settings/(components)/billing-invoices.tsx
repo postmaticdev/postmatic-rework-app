@@ -41,11 +41,11 @@ export function BillingInvoices() {
                   <button
                     type="button"
                     aria-label={t("tokenBalanceTooltip")}
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                    className="-m-[10px] inline-flex h-[36px] w-[36px] items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 sm:m-0 sm:h-4 sm:w-4"
                   >
                     <Info className="h-4 w-4" />
                   </button>
-                  <span className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 w-64 -translate-y-1/2 rounded-md bg-foreground px-3 py-2 text-xs font-normal leading-relaxed text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md sm:left-full sm:top-1/2 sm:mt-0 sm:ml-2 sm:max-w-none sm:translate-x-0 sm:-translate-y-1/2 bg-foreground px-3 py-2 text-xs font-normal leading-relaxed text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                     {t("tokenBalanceTooltip")}
                   </span>
                 </span>

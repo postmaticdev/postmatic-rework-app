@@ -195,8 +195,8 @@ export function Header() {
   return (
     <header className="flex items-center justify-between w-full px-4 sm:px-6 py-2 bg-card border-b border-border fixed top-0 left-0 right-0 z-50">
       {/* Logo Section */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        <Link href="/" className="cursor-pointer">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <Link href="/" className="shrink-0 cursor-pointer">
           <Image
             src="/logoblue.png"
             alt="logol"
@@ -205,15 +205,15 @@ export function Header() {
             className="w-12 h-12"
           />
         </Link>
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 items-center gap-1">
           {currentBusiness && businesses.length > 0 ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-auto p-0 text-base sm:text-lg font-bold text-foreground hover:text-foreground"
+                  className="h-auto min-h-10 md:min-h-0 min-w-0 max-w-full shrink justify-start p-0 text-base sm:text-lg font-bold text-foreground hover:text-foreground"
                 >
-                  {currentBusiness.name}
+                  <span className="truncate">{currentBusiness.name}</span>
                   <ChevronDown className="ml-1 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -302,7 +302,7 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <span className="text-base sm:text-lg font-bold text-foreground">
+            <span className="truncate text-base sm:text-lg font-bold text-foreground">
               Postmatic
             </span>
           )}
@@ -311,7 +311,7 @@ export function Header() {
       </div>
 
       {/* User Section */}
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         {businessId && (
           <div className="hidden md:flex items-center gap-2">
             <div className="flex flex-col items-end">
@@ -348,7 +348,7 @@ export function Header() {
           >
             <Bell className="size-5 transition-transform duration-300 group-hover:rotate-12" />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-background animate-in zoom-in-50 duration-200">
+              <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] px-1 md:h-4 md:min-w-4 md:px-0 shrink-0 items-center justify-center rounded-full bg-red-500 text-[11px] md:text-[10px] leading-none font-bold text-white ring-2 ring-background animate-in zoom-in-50 duration-200">
                 {unreadCount}
               </span>
             )}

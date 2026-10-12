@@ -14,7 +14,7 @@ interface ErrorPageProps {
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   return (
     <Suspense fallback={<div className="p-6">Loading…</div>}>
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-100 dark:from-red-900 dark:via-orange-900 dark:to-yellow-900 flex items-center justify-center p-4">
+      <div className="min-h-dvh overflow-x-hidden bg-gradient-to-br from-red-50 via-orange-50 to-yellow-100 dark:from-red-900 dark:via-orange-900 dark:to-yellow-900 flex items-center justify-center p-4">
         <div className="max-w-2xl w-full text-center">
           {/* Animated Error Icon */}
           <div className="relative mb-8">

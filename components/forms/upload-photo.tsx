@@ -25,6 +25,8 @@ interface UploadPhotoProps {
   onFocus?: () => void;
   emptyText?: string;
   uploadingText?: string;
+  /** Notified with true when an upload starts and false when it finishes. */
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
 const EMPTY_ARRAY: string[] = [];
@@ -40,6 +42,7 @@ export function UploadPhoto({
   onFocus,
   emptyText = "Upload Photo",
   uploadingText = "Uploading...",
+  onUploadingChange,
 }: UploadPhotoProps) {
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [previews, setPreviews] = useState<string[]>(currentImages);
@@ -59,6 +62,7 @@ export function UploadPhoto({
   const inputId = `upload-${autoId}`;
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    let didStartUpload = false;
     try {
       const files = Array.from(event.target.files || []);
 
@@ -71,6 +75,8 @@ export function UploadPhoto({
           return;
         }
         setIsUploading(true);
+        didStartUpload = true;
+        onUploadingChange?.(true);
         const uploadedImages = await Promise.all(
           files.map((file) => helperService.uploadSingleImage({ image: file }))
         );
@@ -99,6 +105,7 @@ export function UploadPhoto({
       showToast("error", error);
     } finally {
       setIsUploading(false);
+      if (didStartUpload) onUploadingChange?.(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };

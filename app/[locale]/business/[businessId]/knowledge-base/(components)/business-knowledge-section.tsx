@@ -61,8 +61,8 @@ export function BusinessKnowledgeSection() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="relative aspect-square w-full max-w-[280px] overflow-hidden rounded-lg md:max-w-full xl:w-5/6">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 md:grid-cols-3 md:gap-6">
+            <div className="relative aspect-square size-28 overflow-hidden rounded-lg sm:size-36 md:h-auto md:w-full md:max-w-full xl:w-5/6">
               <Image
                 src={
                   businessKnowledgeDetail?.primaryLogo ||
@@ -76,8 +76,8 @@ export function BusinessKnowledgeSection() {
               />
             </div>
 
-            <div>
-              <h3 className="mb-2 font-semibold text-foreground">
+            <div className="min-w-0">
+              <h3 className="mb-2 break-words font-semibold text-foreground">
                 {businessKnowledgeDetail?.name || b("notAvailable")}
               </h3>
               <p className="mb-3 text-sm text-muted-foreground">
@@ -88,7 +88,7 @@ export function BusinessKnowledgeSection() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-6 max-w-[200px] px-2 text-xs"
+                  className="h-10 max-w-full px-3 text-xs sm:h-6 sm:max-w-[200px] sm:px-2"
                 >
                   <Phone className="mr-1 h-3 w-3 flex-shrink-0" />
                   <span className="truncate">{phoneNumber}</span>
@@ -96,7 +96,7 @@ export function BusinessKnowledgeSection() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-6 max-w-[200px] px-2 text-xs"
+                  className="h-10 max-w-full px-3 text-xs sm:h-6 sm:max-w-[200px] sm:px-2"
                 >
                   <Globe className="mr-1 h-3 w-3 flex-shrink-0" />
                   <span className="truncate">{website}</span>

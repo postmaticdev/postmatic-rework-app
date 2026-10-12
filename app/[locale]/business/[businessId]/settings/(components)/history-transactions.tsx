@@ -25,9 +25,14 @@ import {
   initialPagination,
 } from "@/models/api/base-response.type";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  formatProductName,
+  formatProductType,
+} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 
 export function HistoryTransactions() {
+  const locale = useLocale();
   const { businessId } = useParams() as { businessId: string };
   const [filterQuery, setFilterQuery] = useState<Partial<FilterQuery>>({
     page: 1,
@@ -67,7 +72,7 @@ export function HistoryTransactions() {
     <div className="space-y-4 sm:space-y-6">
       <Card className="bg-card ">
         <CardContent className="px-4 py-8 ">
-          <div className="overflow-x-auto max-w-screen">
+          <div className="min-w-0">
             <CardTitle className="text-lg sm:text-xl font-bold text-foreground  ">
               {t("historyTransactions")}
             </CardTitle>
@@ -80,6 +85,63 @@ export function HistoryTransactions() {
             /> */}
             {transactions.length > 0 ? (
               <div>
+                {/* Mobile: stacked cards */}
+                <ul className="mt-4 space-y-3 md:hidden">
+                  {transactions.map((transaction) => (
+                    <li
+                      key={transaction.id}
+                      className="rounded-lg border border-border bg-background p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="break-words font-medium text-foreground">
+                            {formatProductName(transaction.productName, locale)}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {formatDate(new Date(transaction.createdAt))}{" "}
+                            {dateFormat.getHhMm(new Date(transaction.createdAt))}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className={`${mapEnumPaymentStatus.getStatusColor(
+                            transaction.status
+                          )} shrink-0 border-0`}
+                        >
+                          {mapEnumPaymentStatus.getStatusLabel(transaction.status, tStatus)}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge
+                          variant="secondary"
+                          className="border-0 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                        >
+                          {formatProductType(transaction.productType)}
+                        </Badge>
+                        {transaction.method && (
+                          <span>{transaction.method.toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <span className="font-semibold text-foreground">
+                          {formatIdr(transaction.totalAmount)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onViewDetail(transaction)}
+                          className="h-[36px] bg-gray-600 hover:bg-gray-700 text-white border-gray-600"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          {t("view")}
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Desktop: table */}
+                <div className="hidden overflow-x-auto md:block">
                 <table className="w-full ">
                   <thead className="border-b border-border">
                     <tr className="text-left">
@@ -115,10 +177,10 @@ export function HistoryTransactions() {
                           {dateFormat.getHhMm(new Date(transaction.createdAt))}
                         </td>
                         <td className="p-4 text-foreground">
-                          {transaction.productName}
+                          {formatProductName(transaction.productName, locale)}
                         </td>
                         <td className="p-4 text-foreground">
-                          {transaction.productType?.toUpperCase()}
+                          {formatProductType(transaction.productType)}
                         </td>
                         <td className="p-4 text-foreground">
                           {transaction?.method?.toUpperCase()}
@@ -151,6 +213,7 @@ export function HistoryTransactions() {
                     ))}
                   </tbody>
                 </table>
+                </div>
                 <PaginationControls
                   pagination={pagination}
                   filterQuery={filterQuery}

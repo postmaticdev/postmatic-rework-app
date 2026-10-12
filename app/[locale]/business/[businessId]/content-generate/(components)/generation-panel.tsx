@@ -12,6 +12,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { cn } from "@/lib/utils";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { helperService, validateUploadImageFile } from "@/services/helper.api";
+import { useRole } from "@/contexts/role-context";
 import { useAppAvatarGetAll } from "@/services/app-avatar.api";
 import { useBusinessGetById } from "@/services/business.api";
 import {
@@ -73,6 +74,8 @@ export function GenerationPanel() {
   const t = useTranslations("generationPanel");
   const schedulerT = useTranslations("contentGenerateScheduler");
   const tRoot = useTranslations();
+  // Top-up links are only offered to members allowed to purchase.
+  const canPurchase = useRole().access.purchase.write;
   const [isTrendDialogOpen, setIsTrendDialogOpen] = useState(false);
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
   const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
@@ -446,7 +449,7 @@ export function GenerationPanel() {
                           job.error?.message ||
                           "The generated image could not be completed.";
                         const shouldShowTopUpButton =
-                          isInsufficientTokenError(errorMessage);
+                          canPurchase && isInsufficientTokenError(errorMessage);
 
                         return (
                           <div className="w-full max-w-[360px] rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
@@ -607,7 +610,7 @@ export function GenerationPanel() {
             })}
           </div>
 
-          <div className="sticky bottom-0 right-0 z-20 border-t border-border bg-card px-4 py-3 sm:px-6 lg:z-10">
+          <div className="sticky bottom-0 right-0 z-20 border-t border-border bg-card px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 lg:z-10">
             <div className="space-y-3">
               <div className="flex h-full">
                 <div id="chat-composer-container" className="min-w-0 flex-1 rounded-2xl border border-input bg-background-secondary p-3">
@@ -629,7 +632,7 @@ export function GenerationPanel() {
                             type="button"
                             variant="secondary"
                             size="icon"
-                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full"
+                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full after:absolute after:-inset-2 after:content-[''] sm:after:hidden"
                             onClick={() =>
                               form.setBasic({
                                 ...form.basic,
@@ -657,7 +660,7 @@ export function GenerationPanel() {
                             type="button"
                             variant="secondary"
                             size="icon"
-                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full"
+                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full after:absolute after:-inset-2 after:content-[''] sm:after:hidden"
                             onClick={() =>
                               setAttachedImages((current) =>
                                 current.filter((_, itemIndex) => itemIndex !== index)
@@ -732,7 +735,7 @@ export function GenerationPanel() {
           <DialogContent className="max-w-max p-0 bg-transparent border-none shadow-none [&>button]:hidden">
             <DialogTitle className="sr-only">Image Preview</DialogTitle>
             {previewPromptImage && (
-              <div className="relative h-[95vh] w-[95vw]">
+              <div className="relative h-[95dvh] w-[95vw]">
                 <Image 
                   src={previewPromptImage} 
                   alt="Prompt preview" 
@@ -777,19 +780,21 @@ export function GenerationPanel() {
       <ConfirmationModal
         isOpen={isRestrictedModelModalOpen}
         onClose={() => setIsRestrictedModelModalOpen(false)}
-        onCancel={handleUseFreeUserAllowedModel}
-        onConfirm={handleTopUpNow}
+        onCancel={canPurchase ? handleUseFreeUserAllowedModel : undefined}
+        onConfirm={canPurchase ? handleTopUpNow : handleUseFreeUserAllowedModel}
         title={modelRestrictionCopy.title}
         description={modelRestrictionCopy.description}
-        confirmText={modelRestrictionCopy.topUp}
-        cancelText={modelRestrictionCopy.useDefault}
+        confirmText={
+          canPurchase ? modelRestrictionCopy.topUp : modelRestrictionCopy.useDefault
+        }
+        cancelText={canPurchase ? modelRestrictionCopy.useDefault : t("cancel")}
       />
 
       <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
         <DialogContent className="max-w-max p-0 bg-transparent border-none shadow-none [&>button]:hidden">
           <DialogTitle className="sr-only">Image Preview</DialogTitle>
           {previewPromptImage && (
-            <div className="relative h-[95vh] w-[95vw]">
+            <div className="relative h-[95dvh] w-[95vw]">
               <Image 
                 src={previewPromptImage} 
                 alt="Prompt preview" 

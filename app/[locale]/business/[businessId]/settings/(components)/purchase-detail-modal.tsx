@@ -25,7 +25,11 @@ import { useParams } from "next/navigation";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  formatProductName,
+  formatProductType,
+} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 import { PaymentInstructionCard } from "./payment-instruction-card";
 
 interface PurchaseDetailModalProps {
@@ -50,6 +54,7 @@ export function PurchaseDetailModal({
   const tStatus = useTranslations("checkout.paymentStatusLabel");
   const tToast = useTranslations();
   const { formatDate } = useDateFormat();
+  const locale = useLocale();
 
   const paymentDetails = transaction?.paymentDetails ?? [];
 
@@ -202,8 +207,8 @@ export function PurchaseDetailModal({
     },
     { label: "Tgl Dibuat", value: formatDateTime(transaction.createdAt) },
     { label: "Tgl Diubah", value: formatDateTime(transaction.updatedAt) },
-    { label: "Produk", value: transaction.productName },
-    { label: "Tipe", value: transaction.productType?.toUpperCase() || "-" },
+    { label: "Produk", value: formatProductName(transaction.productName, locale) },
+    { label: "Tipe", value: formatProductType(transaction.productType) },
     { label: "Metode", value: transaction.method?.toUpperCase() || "-" },
     ...paymentDetails.map((detail) => ({
       label: detail.name,

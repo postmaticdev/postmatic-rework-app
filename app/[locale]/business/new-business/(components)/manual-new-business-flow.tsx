@@ -164,7 +164,7 @@ export function ManualNewBusinessFlow() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden rounded bg-transparent md:flex">
+    <div className="min-h-dvh overflow-hidden rounded bg-transparent md:flex">
       <div className="mx-auto mb-22 mt-18 flex w-full flex-col md:mt-18 md:w-2/3 lg:w-2/5">
         <div className="fixed top-0 right-0 left-0 z-50 w-full border-b border-border bg-background p-2 md:w-2/3 md:p-4 dark:bg-card lg:w-2/5">
           <div className="mb-2 flex items-center gap-3">
@@ -185,7 +185,7 @@ export function ManualNewBusinessFlow() {
           <CurrentComponent />
         </div>
 
-        <div className="fixed right-0 bottom-0 left-0 z-50 w-full rounded-b-lg border-t border-border bg-background p-6 dark:bg-card md:w-2/3 lg:w-2/5">
+        <div className="fixed right-0 bottom-0 left-0 z-50 w-full rounded-b-lg border-t border-border bg-background p-6 pb-[max(1.2rem,env(safe-area-inset-bottom))] dark:bg-card md:w-2/3 lg:w-2/5">
           <div className="mt-2 flex items-center justify-between gap-4">
             <Progress value={currentStep * 50} />
             <div className="flex flex-row gap-4">

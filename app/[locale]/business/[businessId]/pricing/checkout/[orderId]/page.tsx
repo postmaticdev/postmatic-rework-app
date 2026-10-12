@@ -45,7 +45,7 @@ export default function CheckoutOrderPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-[calc(100vh-64px)]">
+      <div className="flex justify-center items-center h-[calc(100dvh-64px)]">
       <LogoLoader />
     </div>
     );
@@ -53,14 +53,14 @@ export default function CheckoutOrderPage() {
 
   if (isError) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+      <div className="flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground">
         {t("checkout.orderLoadFailed")}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       <OrderSummary variant="sidebar" />
 
       <div className="flex-1 p-3 sm:p-4 lg:p-12 max-w-[800px] mx-auto">

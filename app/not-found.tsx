@@ -9,7 +9,7 @@ import { Home, ArrowLeft, Search, AlertCircle } from "lucide-react";
 export default function NotFoundPage() {
   return (
     <Suspense fallback={<div className="p-6">Loading…</div>}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-dvh overflow-x-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
         <div className="max-w-2xl w-full text-center">
           {/* Animated 404 Number */}
           <div className="relative mb-8">

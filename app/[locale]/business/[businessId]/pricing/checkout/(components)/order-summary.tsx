@@ -1,8 +1,13 @@
 import { useCheckout } from "@/contexts/checkout-context";
-import { formatIdr } from "@/helper/formatter";
 import { Link } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
+import {
+  formatIdrStable,
+  formatProductName,
+  formatProductType,
+  isOneTimeProduct,
+} from "./product-display";
 
 interface OrderSummaryProps {
   variant: "sidebar" | "mobile";
@@ -12,14 +17,38 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
   const isDesktop = variant === "sidebar";
   const { product, detailPricing, checkoutResult } = useCheckout();
   const t = useTranslations("checkout");
+  const tPricing = useTranslations("pricing");
+  const locale = useLocale();
 
   const price =
     product?.defaultPrice ??
     detailPricing?.item ??
     checkoutResult?.totalAmount ??
     0;
-  const productName = product?.name ?? checkoutResult?.productName ?? "-";
-  const billedInfo = product?.validForInfo ?? checkoutResult?.productType;
+  const productName = formatProductName(
+    product?.name ?? checkoutResult?.productName ?? "-",
+    locale
+  );
+  const validForInfo = product?.validForInfo;
+  const isOneTime = isOneTimeProduct(validForInfo, checkoutResult?.productType);
+  // Human label for the billing period (never the raw enum, e.g. "unlimited" / "image_token")
+  const periodKey = `period.${validForInfo}`;
+  const periodLabel =
+    validForInfo && validForInfo !== "unlimited" && t.has(periodKey)
+      ? t(periodKey)
+      : validForInfo && validForInfo !== "unlimited"
+        ? formatProductType(validForInfo).toLowerCase()
+        : "";
+  const perPeriodText = isOneTime
+    ? tPricing("purchaseOnce")
+    : periodLabel
+      ? t("perPeriod", { period: periodLabel })
+      : "";
+  const billedText = isOneTime
+    ? tPricing("purchaseOnce")
+    : periodLabel
+      ? t("billedPeriod", { period: periodLabel })
+      : "";
 
   const detailItems = [
     {
@@ -80,11 +109,11 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
               isDesktop ? "text-3xl" : "text-2xl"
             }`}
           >
-            {formatIdr(price)}{" "}
+            {formatIdrStable(price)}{" "}
             <span
               className={` font-normal ${isDesktop ? "text-lg" : "text-base"}`}
             >
-              {t("perPeriod", { period: billedInfo ?? "" })}
+              {perPeriodText}
             </span>
           </div>
 
@@ -109,7 +138,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                       isDesktop ? "text-lg" : "text-base"
                     }`}
                   >
-                    {product?.name}
+                    {productName}
                   </h3>
                   <p
                     className={`text-white mt-1 ${
@@ -118,13 +147,15 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                   >
                     {product?.description}
                   </p>
-                  <p
-                    className={`text-white mt-2 ${
-                      isDesktop ? "text-xs" : "text-xs"
-                    }`}
-                  >
-                    {t("billedPeriod", { period: product?.validForInfo ?? "" })}
-                  </p>
+                  {billedText && (
+                    <p
+                      className={`text-white mt-2 ${
+                        isDesktop ? "text-xs" : "text-xs"
+                      }`}
+                    >
+                      {billedText}
+                    </p>
+                  )}
                 </div>
               </div>
               <div
@@ -132,7 +163,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                   isDesktop ? "text-base" : "text-sm"
                 }`}
               >
-                {formatIdr(price)}
+                {formatIdrStable(price)}
               </div>
             </div>
           </div>
@@ -153,7 +184,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                     isDesktop ? "text-base" : "text-sm"
                   }`}
                 >
-                  {formatIdr(item.value || 0)}
+                  {formatIdrStable(item.value || 0)}
                 </span>
               </div>
             ))}
@@ -174,7 +205,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                     isDesktop ? "text-lg" : "text-base"
                   }`}
                 >
-                  {formatIdr(detailPricing?.total || 0)}
+                  {formatIdrStable(detailPricing?.total || 0)}
                 </span>
               </div>
             </div>

@@ -18,14 +18,16 @@ export function SettingsTabNavigation({ activeTab, onTabChange }: TabNavigationP
     { id: "billing", label: t("billingInvoices") }
   ]
   return (
-    <div className="flex flex-row bg-card p-1 rounded-lg justify-between overflow-x-auto">
+    <div className="grid grid-cols-3 gap-1 sm:gap-0 bg-card p-1 rounded-lg">
         {tabs.map((tab) => (
           <Button
           key={tab.id}
           variant={activeTab === tab.id ? "default" : "ghost"}
           onClick={() => onTabChange(tab.id)}
+          aria-pressed={activeTab === tab.id}
           className={cn(
-              "flex-1",
+              // Equal-width cells that always fit; labels wrap on narrow screens
+              "h-auto min-h-(--control-h) min-w-0 whitespace-normal px-2 py-1.5 text-center text-[13px] leading-tight sm:whitespace-nowrap sm:px-4 sm:text-sm",
               activeTab === tab.id
                 ? "bg-primary text-white"
                 : "text-muted-foreground hover:text-foreground"

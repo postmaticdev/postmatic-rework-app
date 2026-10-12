@@ -120,12 +120,12 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
       >
         <CardContent className="py-4 md:py-6">
           {/* Image Section */}
-          <div className="relative aspect-square bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg overflow-hidden">
+          <div className="relative aspect-video md:aspect-square bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg overflow-hidden">
             <Image
               src={businessImage}
               alt={t("imageAlt")}
               fill
-              className="object-cover rounded-xl select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
+              className="object-contain p-3 md:object-cover md:p-0 rounded-xl select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
               priority
             />
 
@@ -197,7 +197,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
 
           {/* Content Section */}
           <div className="p-3 sm:p-4">
-            <h3 className="font-bold text-foreground mb-1 text-sm sm:text-base">
+            <h3 className="font-bold text-foreground mb-1 text-sm sm:text-base break-words">
               {name}
             </h3>
             <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-3">
@@ -211,7 +211,7 @@ export function BusinessCard({ business, onClickInvite }: BusinessCardProps) {
                   {owner?.name?.charAt(0) || ""}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-muted-foreground">
+              <span className="min-w-0 truncate text-xs text-muted-foreground">
                 {owner?.name}
               </span>
             </div>

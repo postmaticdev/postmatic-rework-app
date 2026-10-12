@@ -14,7 +14,7 @@ export default function BusinessPage() {
   const t = useTranslations("welcomeSection");
   const greeting = userName ? `${t("welcome")} ${userName}` : "Loading...";
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <Suspense fallback={<div>Loading...</div>}>
         <main className="py-4 sm:py-6 px-4 sm:px-6">
           <WelcomeSection

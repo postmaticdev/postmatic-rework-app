@@ -1009,7 +1009,7 @@ export function ContentSchedulerBoard({
                   {weekdayLabels.map((label) => (
                     <div
                       key={label}
-                      className="min-w-0 px-0.5 py-2 text-center text-[10px] font-medium uppercase text-muted-foreground sm:p-2 sm:text-sm sm:tracking-[0.24em]"
+                      className="min-w-0 truncate px-0.5 py-2 text-center text-[11px] font-medium uppercase text-muted-foreground sm:p-2 sm:text-sm sm:tracking-[0.24em]"
                     >
                       {label}
                     </div>
@@ -1076,7 +1076,7 @@ export function ContentSchedulerBoard({
                                 }
                               />
                               <div
-                                className={`px-1 py-0.5 text-[9px] leading-tight sm:px-2 sm:py-1 sm:text-xs ${showCalendarEventDetails ? "block" : "hidden sm:block"
+                                className={`px-1 py-0.5 text-[11px] leading-tight sm:px-2 sm:py-1 sm:text-xs ${showCalendarEventDetails ? "block" : "hidden sm:block"
                                   }`}
                               >
                                 <div className="truncate font-medium">
@@ -1091,7 +1091,7 @@ export function ContentSchedulerBoard({
                               className={`min-w-0 overflow-hidden rounded-full bg-background-secondary text-muted-foreground sm:rounded-lg ${showCalendarEventDetails ? "rounded-md" : ""
                                 }`}
                             >
-                              <div className="px-1 py-0.5 text-center text-[9px] font-semibold leading-tight sm:px-2 sm:py-1 sm:text-xs">
+                              <div className="truncate px-0.5 py-0.5 text-center text-[11px] font-semibold leading-tight sm:px-2 sm:py-1 sm:text-xs">
                                 + {hiddenEventCount} {t("more")}
                               </div>
                             </div>
@@ -1157,7 +1157,7 @@ export function ContentSchedulerBoard({
               <div className="text-2xl font-bold">{t("overview")}</div>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
+                <div className="flex min-w-0 flex-col items-start gap-1.5 rounded-xl border border-border px-2 py-2 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
                   <div className="rounded-md bg-rose-100 p-2 text-rose-500">
                     <CalendarClock className="h-5 w-5" />
                   </div>
@@ -1171,7 +1171,7 @@ export function ContentSchedulerBoard({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
+                <div className="flex min-w-0 flex-col items-start gap-1.5 rounded-xl border border-border px-2 py-2 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
                   <div className="rounded-md bg-amber-100 p-2 text-amber-500">
                     <Repeat2 className="h-5 w-5" />
                   </div>
@@ -1185,7 +1185,7 @@ export function ContentSchedulerBoard({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
+                <div className="flex min-w-0 flex-col items-start gap-1.5 rounded-xl border border-border px-2 py-2 sm:flex-row sm:items-center sm:gap-3 sm:px-4">
                   <div className="rounded-md bg-blue-100 p-2 text-blue-500">
                     <FileClock className="h-5 w-5" />
                   </div>
@@ -1205,7 +1205,7 @@ export function ContentSchedulerBoard({
 
 
 
-              <Link href={`/business/${businessId}/knowledge-base`}>
+              <Link href={`/business/${businessId}/knowledge-base`} className="block">
                 <Button className="w-full">
                   <Sparkles className="h-4 w-4" />
                   {t("goToBusinessKnowledge")}

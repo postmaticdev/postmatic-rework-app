@@ -89,7 +89,7 @@ export default function BusinessClientLayout({
       : "mt-18";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-dvh bg-background flex flex-col">
       {headerNode}
       <div
         className={cn(
@@ -99,7 +99,7 @@ export default function BusinessClientLayout({
         )}
       >
         {!isSkipSidebar && <Sidebar />}
-        <div className="flex-1">{children}</div>
+        <div className="min-w-0 flex-1">{children}</div>
       </div>
     </div>
   );

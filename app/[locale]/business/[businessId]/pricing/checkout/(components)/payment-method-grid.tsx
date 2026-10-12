@@ -26,16 +26,16 @@ export function PaymentMethodGrid() {
                     : "border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600"
                 }`}
               >
-                <span className="bg-gray-200 dark:bg-gray-500 rounded-full w-10 h-10 lg:w-12 lg:h-12 mr-3 lg:mr-4 overflow-hidden">
+                <span className="flex shrink-0 items-center justify-center bg-white ring-1 ring-black/5 rounded-full w-11 h-11 lg:w-12 lg:h-12 mr-3 lg:mr-4 p-1.5 overflow-hidden">
                   <Image
                     src={m.issued.image}
                     alt={m.issued.name}
                     width={200}
                     height={200}
-                    className="object-cover w-full h-full"
+                    className="object-contain w-full h-full"
                   />
                 </span>
-                <span className="flex-1">
+                <span className="min-w-0 flex-1">
                   <span className="block font-medium text-gray-900 dark:text-white text-sm lg:text-base">
                     {m.issued.name}
                   </span>

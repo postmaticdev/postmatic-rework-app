@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormNewBusiness } from "@/contexts/form-new-business-context";
 import { showToast } from "@/helper/show-toast";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import countryCodes from "@/lib/country-code.json";
 import {
   WebsiteScrapperBusinessProduct,
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { GlowEffect } from "@/components/motion-primitives/glow-effect";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 import {
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Globe,
@@ -439,7 +440,18 @@ export default function NewBusinessWebsitePage() {
 
   return (
     <AuroraBackground className="ai-glow-page !justify-start">
-      <div className="relative z-10 flex min-h-screen flex-col px-4 py-4 sm:px-6 sm:py-6">
+      <div className="relative z-10 flex min-h-dvh flex-col px-4 py-4 sm:px-6 sm:py-6">
+        {phase !== "loading" && (
+          <div className="mx-auto w-full max-w-7xl">
+            <Link
+              href="/business/new-business"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-white/60 bg-white/80 px-4 text-sm font-medium text-foreground shadow-sm backdrop-blur-md transition-colors hover:bg-white dark:border-white/10 dark:bg-slate-900/70 dark:hover:bg-slate-900"
+            >
+              <ArrowLeft className="size-4" />
+              {t("back")}
+            </Link>
+          </div>
+        )}
         {phase === "input" && (
           <div className="flex flex-1 items-center justify-center py-8">
             <GlowingCardShell
@@ -780,7 +792,7 @@ export default function NewBusinessWebsitePage() {
                 </div>
               </GlowingCardShell>
             </div>
-            <div className="fixed right-0 bottom-0 left-0 z-50 border-t border-white/20 bg-background/95 p-4 shadow-[0_-16px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-slate-950/95 sm:hidden">
+            <div className="fixed right-0 bottom-0 left-0 z-50 border-t border-white/20 bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-16px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-slate-950/95 sm:hidden">
               <Button
                 size="lg"
                 className="w-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"

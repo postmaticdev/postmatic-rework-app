@@ -45,6 +45,7 @@ export function LanguageToggle() {
         <Button
           variant="ghost"
           size="sm"
+          className="h-10 md:h-9"
           aria-label="Choose language"
         >
           <span className={`fi ${triggerFlag}`}></span>

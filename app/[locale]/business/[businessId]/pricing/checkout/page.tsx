@@ -94,7 +94,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       {/* Left sidebar - Hidden on mobile */}
       <OrderSummary variant="sidebar" />
 

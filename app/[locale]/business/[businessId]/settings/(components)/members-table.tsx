@@ -56,21 +56,21 @@ export function MembersTable() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-9 w-9 flex-shrink-0">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarImage src={member.profile.image} />
-                        <AvatarFallback className="text-xs bg-muted">
-                          {member.profile.name.charAt(0)}
+                        <AvatarFallback className="bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                          {member.profile.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium truncate max-w-[200px]">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="min-w-0 truncate font-medium">
                             {member.profile.name}
                           </span>
                           {member.isYourself && (
                             <Badge
                               variant="secondary"
-                              className="text-xs bg-blue-100 text-blue-800"
+                              className="shrink-0 text-xs bg-blue-100 text-blue-800"
                             >
                               {t("you")}
                             </Badge>
@@ -132,8 +132,8 @@ export function MembersTable() {
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={member.profile.image} />
-                            <AvatarFallback className="text-xs bg-muted">
-                              {member.profile.name.charAt(0)}
+                            <AvatarFallback className="bg-blue-100 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                              {member.profile.name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex items-center space-x-2">

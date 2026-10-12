@@ -40,6 +40,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { showToast } from "@/helper/show-toast";
+import { useRole } from "@/contexts/role-context";
 import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
 import { ImageWatermarkRes } from "@/models/api/content/image.type";
 
@@ -101,6 +102,9 @@ export function PreviewPanel() {
   const businessLogo = businessData?.data?.data?.logo;
   const t = useTranslations("previewPanel");
   const schedulerT = useTranslations("contentGenerateScheduler");
+  const tModal = useTranslations("modal");
+  // Top-up links are only offered to members allowed to purchase.
+  const canPurchase = useRole().access.purchase.write;
   const mEnhanceCaption = useContentCaptionEnhance();
   const mSchedulePost = useContentSchedulerManualAddToQueue();
   const mEditSchedulePost = useContentSchedulerManualEditQueue();
@@ -835,17 +839,17 @@ export function PreviewPanel() {
   return (
     <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6 overflow-y-auto scrollbar-hidden">
       <CardNoGap className="flex-1 overflow-auto scrollbar-hidden">
-        <div className="sticky top-0 z-20 bg-card p-4 border-b flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="sticky top-0 z-20 bg-card p-4 border-b flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center space-x-3">
             <Image
               src={businessLogo || "/logoblue.png"}
               alt="logo"
               width={200}
               height={200}
-              className="w-8 h-8 rounded-full"
+              className="w-8 h-8 shrink-0 rounded-full"
               unoptimized
             />
-            <span className="font-medium text-sm">{businessName}</span>
+            <span className="truncate font-medium text-sm">{businessName}</span>
           </div>
           {!schedulerMode && selectedHistory && (
             <Button
@@ -981,7 +985,7 @@ export function PreviewPanel() {
         )}
       </CardNoGap>
 
-      <div className="sticky bottom-0 right-0 border border-border space-y-2 bg-card py-2 px-4 -mt-3 rounded-b-md">
+      <div className="sticky bottom-0 right-0 border border-border space-y-2 bg-card pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-4 -mt-3 rounded-b-md z-10">
         {!schedulerMode && selectedHistory && (
           <div className="flex w-full gap-4">
             <Button
@@ -1052,12 +1056,14 @@ export function PreviewPanel() {
       <ConfirmationModal
         isOpen={isRestrictedModelModalOpen}
         onClose={() => setIsRestrictedModelModalOpen(false)}
-        onCancel={handleUseFreeUserAllowedModel}
-        onConfirm={handleTopUpNow}
+        onCancel={canPurchase ? handleUseFreeUserAllowedModel : undefined}
+        onConfirm={canPurchase ? handleTopUpNow : handleUseFreeUserAllowedModel}
         title={modelRestrictionCopy.title}
         description={modelRestrictionCopy.description}
-        confirmText={modelRestrictionCopy.topUp}
-        cancelText={modelRestrictionCopy.useDefault}
+        confirmText={
+          canPurchase ? modelRestrictionCopy.topUp : modelRestrictionCopy.useDefault
+        }
+        cancelText={canPurchase ? modelRestrictionCopy.useDefault : tModal("cancel")}
       />
     </div>
   );
