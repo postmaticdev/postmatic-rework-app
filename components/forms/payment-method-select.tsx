@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,8 @@ type PaymentMethodSelectProps = {
 const PAYMENT_LOGO_BY_METHOD: Record<string, string> = {
   bca: "/bca.png",
   bni: "/bni.png",
+  bri: "/bri.svg",
+  bankbri: "/bri.svg",
   mandiri: "/mandiri.png",
   permata: "/permata.png",
   cimb: "/cimbniaga.png",
@@ -39,20 +42,31 @@ const PAYMENT_LOGO_BY_METHOD: Record<string, string> = {
 const normalizePaymentMethod = (method?: string) =>
   (method || "").toLowerCase().replace(/[\s_-]/g, "");
 
-const getPaymentLogo = (method: PaymentMethodSelectOption) =>
-  method.image ||
-  PAYMENT_LOGO_BY_METHOD[normalizePaymentMethod(method.code)] ||
-  PAYMENT_LOGO_BY_METHOD[normalizePaymentMethod(method.name)];
+const getPaymentLogo = (method: PaymentMethodSelectOption) => {
+  const localLogo =
+    PAYMENT_LOGO_BY_METHOD[normalizePaymentMethod(method.code)] ||
+    PAYMENT_LOGO_BY_METHOD[normalizePaymentMethod(method.name)];
+  if (localLogo) return localLogo;
+  if (
+    method.image &&
+    method.image !== "/placeholder.png" &&
+    !method.image.includes("placeholder.png")
+  ) {
+    return method.image;
+  }
+  return "";
+};
 
 const getPaymentMethodLabel = (method: PaymentMethodSelectOption) =>
   `${method.name || method.code} - ${method.type}`;
 
 function PaymentMethodLogo({ method }: { method: PaymentMethodSelectOption }) {
+  const [hasError, setHasError] = useState(false);
   const logoSrc = getPaymentLogo(method);
 
   return (
     <span className="flex h-7 w-10 shrink-0 items-center justify-center rounded-md bg-white p-1 shadow-sm ring-1 ring-black/5">
-      {logoSrc ? (
+      {logoSrc && !hasError ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={logoSrc}
@@ -60,10 +74,14 @@ function PaymentMethodLogo({ method }: { method: PaymentMethodSelectOption }) {
           width={36}
           height={24}
           className="max-h-5 w-auto object-contain"
+          onError={() => setHasError(true)}
         />
       ) : (
         <span className="text-[11px] font-semibold text-muted-foreground">
-          {(method.name || method.code || "??").slice(0, 2).toUpperCase()}
+          {(method.name || method.code || "??")
+            .replace(/[^a-zA-Z0-9]/g, "")
+            .slice(0, 3)
+            .toUpperCase()}
         </span>
       )}
     </span>

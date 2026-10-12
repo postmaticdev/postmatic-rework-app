@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useTranslations } from "next-intl";
@@ -76,6 +77,7 @@ export function AutoGenerateModal({
   const [modalHour, setModalHour] = useState<string>("");
   const [modalMinute, setModalMinute] = useState<string>("");
   const [modalDay, setModalDay] = useState<number | null>(selectedDay);
+  const [isActive, setIsActive] = useState<boolean>(true);
   const prevBasicRef = useRef<typeof basic | null>(null);
   const prevAdvanceRef = useRef<typeof advance | null>(null);
 
@@ -190,7 +192,7 @@ export function AutoGenerateModal({
     const mm = m.toString().padStart(2, "0");
     const timeString = `${hh}:${mm}`;
 
-    const isActiveStatus = editingSchedule ? editingSchedule.isActive : true;
+    const isActiveStatus = editingSchedule ? isActive : true;
     
     const scheduleData: CreateAutoGenerateScheduleRequest = {
       day: modalDay,
@@ -251,6 +253,7 @@ export function AutoGenerateModal({
       prevBasicRef.current = null;
       prevAdvanceRef.current = null;
       setAdditionalPrompt("");
+      setIsActive(true);
     }
   }, [isOpen]);
 
@@ -272,6 +275,7 @@ export function AutoGenerateModal({
   useEffect(() => {
     if (!isOpen) return;
     if (editingSchedule) {
+      setIsActive(editingSchedule.isActive);
       setModalSelectedPlatforms(editingSchedule.platforms);
       if (editingSchedule.time) {
         const [hour, minute] = editingSchedule.time.split(':');
@@ -534,17 +538,33 @@ export function AutoGenerateModal({
         size="xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>{t("configureAutoGenerate")}</DialogTitle>
-          <DialogDescription>
-            {t("scheduleConfiguration")}
-          </DialogDescription>
+        <DialogHeader className={cn(editingSchedule && "pr-12 sm:pr-14")}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <DialogTitle>{t("configureAutoGenerate")}</DialogTitle>
+              <DialogDescription>
+                {t("scheduleConfiguration")}
+              </DialogDescription>
+            </div>
+            {editingSchedule && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {isActive ? t("active") : t("inactive")}
+                </span>
+                <Switch
+                  checked={isActive}
+                  onCheckedChange={setIsActive}
+                  aria-label={t("scheduleStatus")}
+                />
+              </div>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 scrollbar-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-            {/* Left Section - Form */}
-            <div className="flex flex-col gap-6 sticky top-0 h-fit">
+            {/* Left Section - Form (sticky hanya di desktop; di mobile ikut scroll agar tidak tertimpa preview) */}
+            <div className="flex flex-col gap-6 lg:sticky lg:top-0 h-fit">
               <div className="space-y-4">
                 <div className="text-sm font-medium">{tContentGenerate("scheduleAt")}</div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

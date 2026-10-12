@@ -27,7 +27,7 @@ import {
   useRssKnowledgeGetById,
   useRssKnowledgeUpdate,
 } from "@/services/knowledge.api";
-import { useLibraryRSSData } from "@/services/library.api";
+import { useAllLibraryRSSData } from "@/services/library.api";
 import { useRouter } from "@/i18n/navigation";
 import { useParams, useSearchParams } from "next/navigation";
 import { AddRssPld, RssRes } from "@/models/api/knowledge/rss.type";
@@ -85,11 +85,7 @@ export function RSSTrendSection({
     sortBy: "title",
     sort: "asc",
   });
-  const { data: rssFeedLibraryData } = useLibraryRSSData({
-    limit: 1000,
-    sortBy: "title",
-    sort: "asc",
-  });
+  const { data: rssFeedLibraryData } = useAllLibraryRSSData();
 
   const rss = rssData?.data.data || [];
   const rssFeedMap = useMemo(
@@ -258,19 +254,46 @@ export function RSSTrendSection({
 
   const getSourceName = (trend: RssRes) => {
     const sourceFeed = getSourceFeed(trend);
+    if (sourceFeed) {
+      if (
+        sourceFeed.publisher &&
+        !sourceFeed.title.toLowerCase().includes(sourceFeed.publisher.toLowerCase())
+      ) {
+        return `${sourceFeed.title} (${sourceFeed.publisher.toUpperCase()})`;
+      }
+      return sourceFeed.title;
+    }
 
-    return (
-      sourceFeed?.title ||
-      trend?.masterRss?.title ||
-      trend?.masterRss?.publisher?.toUpperCase() ||
-      "-"
-    );
+    if (trend?.masterRss?.title) {
+      if (
+        trend.masterRss.publisher &&
+        !trend.masterRss.title.toLowerCase().includes(trend.masterRss.publisher.toLowerCase())
+      ) {
+        return `${trend.masterRss.title} (${trend.masterRss.publisher.toUpperCase()})`;
+      }
+      return trend.masterRss.title;
+    }
+
+    return trend?.masterRss?.publisher?.toUpperCase() || trend?.title || "-";
   };
 
   const getSourcePublisher = (trend: RssRes) => {
     const sourceFeed = getSourceFeed(trend);
 
     return sourceFeed?.publisher || trend?.masterRss?.publisher || "";
+  };
+
+  const getTrendLogo = (trend: RssRes) => {
+    const sourceFeed = getSourceFeed(trend);
+    return getRssSourceImage(
+      sourceFeed?.publisher,
+      trend?.masterRss?.publisher,
+      sourceFeed?.title,
+      trend?.masterRss?.title,
+      trend.title,
+      sourceFeed?.url,
+      trend?.masterRss?.url
+    );
   };
 
   return (
@@ -284,8 +307,8 @@ export function RSSTrendSection({
               </h2>
 
               {/* Search and Add Button */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
+              <div className="flex flex-row gap-3">
+                <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
                     type="text"
@@ -328,7 +351,7 @@ export function RSSTrendSection({
                       <div className="flex items-center gap-4">
                         <div className="hidden sm:block w-10 h-10  lg:w-16 lg:h-16 rounded-lg overflow-hidden flex-shrink-0">
                           <Image
-                            src={getRssSourceImage(getSourcePublisher(trend))}
+                            src={getTrendLogo(trend)}
                             alt={trend.title}
                             width={40}
                             height={40}
@@ -340,7 +363,7 @@ export function RSSTrendSection({
                           <div className="flex gap-2">
                             <div className="block sm:hidden w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
                               <Image
-                                src={getRssSourceImage(getSourcePublisher(trend))}
+                                src={getTrendLogo(trend)}
                                 alt={trend.title}
                                 width={40}
                                 height={40}
@@ -363,12 +386,12 @@ export function RSSTrendSection({
 
                             </div>
                           </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground mb-3">
+                          <p className="text-xs sm:text-sm text-muted-foreground sm:mb-3">
                             {r("source")}:{" "}
                             {getSourceName(trend)}
                           </p>
-                          {/* Status Toggle */}
-                          <div className="flex items-center gap-3">
+                          {/* Status Toggle (desktop) — di mobile toggle pindah ke kanan atas card */}
+                          <div className="hidden sm:flex items-center gap-3">
                             {rssKnowledge.write && (
                               <Switch
                                 checked={trend.isActive}
@@ -394,6 +417,17 @@ export function RSSTrendSection({
                           </div>
                         </div>
 
+                        <div className="flex items-center gap-1 self-start sm:self-auto">
+                        {/* Status Toggle (mobile) — kanan atas card, tanpa label */}
+                        <Switch
+                          checked={trend.isActive}
+                          onCheckedChange={(checked) =>
+                            handleToggleStatus(trend.id, checked)
+                          }
+                          disabled={!rssKnowledge.write || updatingStatusId === trend.id}
+                          aria-label={r("status")}
+                          className="sm:hidden data-[state=checked]:bg-primary"
+                        />
                         {rssKnowledge.write && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -426,6 +460,7 @@ export function RSSTrendSection({
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

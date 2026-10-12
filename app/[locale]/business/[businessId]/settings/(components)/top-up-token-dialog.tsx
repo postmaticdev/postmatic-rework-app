@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ReceiptText, RefreshCw } from "lucide-react";
+import { ReceiptText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -581,41 +581,6 @@ export function TopUpTokenDialog({
                 ) : null}
               </div>
 
-              <div className="rounded-lg border bg-muted/20 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="font-semibold">
-                    {tDialog("paymentDetails")}
-                  </h3>
-                  {priceQuery.isFetching ? (
-                    <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : null}
-                </div>
-                <SummaryRow
-                  label={tDialog("token")}
-                  value={tokenAmount ? tokenAmount.toLocaleString(locale) : "-"}
-                />
-                <SummaryRow
-                  label={tDialog("subtotal")}
-                  value={formatIdr(price?.calculation.itemPrice ?? 0)}
-                />
-                <SummaryRow
-                  label={tDialog("discount")}
-                  value={formatIdr(price?.calculation.discountAmount ?? 0)}
-                />
-                <SummaryRow
-                  label={tDialog("admin")}
-                  value={formatIdr(price?.calculation.adminFeeAmount ?? 0)}
-                />
-                <SummaryRow
-                  label={tDialog("tax")}
-                  value={formatIdr(price?.calculation.taxAmount ?? 0)}
-                />
-                <SummaryRow
-                  label={tDialog("total")}
-                  value={formatIdr(price?.calculation.totalAmount ?? 0)}
-                  strong
-                />
-              </div>
             </>
           ) : (
             <>
@@ -702,24 +667,6 @@ function mergeCheckoutWithPurchaseDetail(
   };
 }
 
-function SummaryRow({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={cn("text-right", strong && "font-semibold")}>
-        {value}
-      </span>
-    </div>
-  );
-}
 
 function DetailOrderRow({
   label,

@@ -1,13 +1,12 @@
 "use client";
 
-import { Plus, Search } from "lucide-react";
+import { LayoutGrid, List, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "@/i18n/navigation";
-import { useState } from "react";
-import { useDebounce } from "@/hooks/use-debounce";
 import { useBusinessGridFilter } from "@/contexts/business-grid-context";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 export function ActionBar() {
   const router = useRouter();
@@ -16,40 +15,71 @@ export function ActionBar() {
     router.push("/business/new-business");
   };
 
-  // useDebounce(
-  //   () => {
-  //     callbackSearch(searchState);
-  //   },
-  //   500,
-  //   [searchState]
-  // );
-
-  const { filterQuery, setFilterQuery } = useBusinessGridFilter();
-
+  const { filterQuery, setFilterQuery, viewMode, setViewMode } =
+    useBusinessGridFilter();
 
   return (
     <div className="p-4 sm:p-6 border-b border-border">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center  gap-4">
-
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
         <div className="w-full sm:flex-1">
           <div className="w-full relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               type="text"
               placeholder={t("searchBusiness")}
-              value={filterQuery.search}
-              onChange={(e) => setFilterQuery({ ...filterQuery, search: e.target.value })}
+              value={filterQuery.search || ""}
+              onChange={(e) =>
+                setFilterQuery({ ...filterQuery, search: e.target.value })
+              }
               className="pl-10 bg-muted/50 border-muted-foreground/20 focus:border-blue-500 w-full"
             />
           </div>
         </div>
-        <Button
-          onClick={handleNewBusiness}
-          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 w-full sm:w-auto"
-        >
-          <Plus className="w-4 h-4" />
-          {t("createBusiness")}
-        </Button>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center rounded-lg border border-border bg-muted/40 p-1">
+            <Button
+              type="button"
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="icon-sm"
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "h-8 w-8 rounded-md transition-all",
+                viewMode === "grid"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title={t("galleryView")}
+              aria-label="Gallery view"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="icon-sm"
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "h-8 w-8 rounded-md transition-all",
+                viewMode === "list"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title={t("listView")}
+              aria-label="List view"
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <Button
+            onClick={handleNewBusiness}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 flex-1 sm:flex-initial"
+          >
+            <Plus className="w-4 h-4" />
+            {t("createBusiness")}
+          </Button>
+        </div>
       </div>
     </div>
   );

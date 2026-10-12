@@ -41,6 +41,40 @@ const getPaymentMethods = async () => {
 const mapMethodType = (type: PaymentMethodApiRes["type"]) =>
   type === "bank" ? "Virtual Account" : "E-Wallet";
 
+const PAYMENT_LOGO_BY_METHOD: Record<string, string> = {
+  bca: "/bca.png",
+  bni: "/bni.png",
+  bri: "/bri.svg",
+  bankbri: "/bri.svg",
+  mandiri: "/mandiri.png",
+  permata: "/permata.png",
+  cimb: "/cimbniaga.png",
+  cimbniaga: "/cimbniaga.png",
+  gopay: "/gopay-logo.png",
+  qris: "/qrislogo.png",
+};
+
+const resolvePaymentMethodLogo = (
+  code: string,
+  name: string,
+  image?: string | null
+) => {
+  if (
+    image &&
+    image !== DEFAULT_PLACEHOLDER_IMAGE &&
+    image !== "/placeholder.png"
+  ) {
+    return image;
+  }
+  const cleanCode = code.toLowerCase().replace(/[\s_-]/g, "");
+  const cleanName = name.toLowerCase().replace(/[\s_-]/g, "");
+  return (
+    PAYMENT_LOGO_BY_METHOD[cleanCode] ||
+    PAYMENT_LOGO_BY_METHOD[cleanName] ||
+    DEFAULT_PLACEHOLDER_IMAGE
+  );
+};
+
 const appProductService = {
   getSubscription: async () => {
     return {
@@ -137,7 +171,11 @@ const appProductService = {
                   issued: {
                     name: method.name,
                     code: method.code,
-                    image: method.image || DEFAULT_PLACEHOLDER_IMAGE,
+                    image: resolvePaymentMethodLogo(
+                      method.code,
+                      method.name,
+                      method.image
+                    ),
                   },
                   subtotal: {
                     item: product.priceAmount,

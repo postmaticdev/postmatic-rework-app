@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cnnBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E50914" />
+      <stop offset="100%" stop-color="#B20710" />
+    </linearGradient>
+    <filter id="cnnShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#cnnBg)" />
+  
+  <!-- CNN Double Line Logo -->
+  <g transform="translate(68, 140)" filter="url(#cnnShadow)">
+    <!-- Base White Ribbon -->
+    <!-- C -->
+    <path d="M 120 20 C 60 20 20 65 20 120 C 20 175 60 220 120 220 L 140 220 L 140 180 L 120 180 C 80 180 60 150 60 120 C 60 90 80 60 120 60 L 140 60 L 140 20 Z" fill="#FFFFFF"/>
+    
+    <!-- First N -->
+    <path d="M 140 20 L 140 220 L 180 220 L 180 90 L 250 220 L 290 220 L 290 20 L 250 20 L 250 150 L 180 20 Z" fill="#FFFFFF"/>
+    
+    <!-- Second N -->
+    <path d="M 290 20 L 290 220 L 330 220 L 330 90 L 400 220 L 440 220 L 440 20 L 400 20 L 400 150 L 330 20 Z" fill="#FFFFFF"/>
+
+    <!-- Inner Red Cut to form the signature ribbon look -->
+    <path d="M 115 40 C 70 40 40 75 40 120 C 40 165 70 200 115 200 L 130 200 L 130 185 L 115 185 C 80 185 55 155 55 120 C 55 85 80 55 115 55 L 130 55 L 130 40 Z" fill="url(#cnnBg)" />
+    <path d="M 155 40 L 155 200 L 165 200 L 165 95 L 245 235 L 275 235 L 275 40 L 265 40 L 265 145 L 185 5 Z" fill="url(#cnnBg)" opacity="0.3"/>
+  </g>
+
+  <!-- "INDONESIA" text -->
+  <text x="256" y="415" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="34" font-weight="900" letter-spacing="8" fill="#FFFFFF" text-anchor="middle">INDONESIA</text>
+</svg>

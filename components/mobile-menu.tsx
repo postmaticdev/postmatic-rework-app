@@ -18,7 +18,9 @@ import {
   Sun,
   Moon,
   Zap,
+  Bell,
 } from "lucide-react";
+import { useNotification } from "@/contexts/notification-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -56,6 +58,18 @@ export function MobileMenu() {
   businesses.find((business) => business.id === businessId) || null;
   const userRole = currentBusiness?.userPosition?.role;
   const tSideBar = useTranslations("sideBar");
+  const { unreadCount } = useNotification();
+  const notificationBusinessId = businessId || businesses[0]?.id;
+  const isNotificationActive = pathname.endsWith("/notifications");
+
+  const handleNotificationClick = () => {
+    router.push(
+      notificationBusinessId
+        ? `/business/${notificationBusinessId}/notifications`
+        : "/notifications"
+    );
+    setIsOpen(false);
+  };
   const navigationItems = [
     {
       name: tSideBar("basicKnowledge"),
@@ -175,10 +189,13 @@ export function MobileMenu() {
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(true)}
-        className="md:hidden hover:bg-muted"
+        className="relative md:hidden hover:bg-muted"
         aria-label="Buka menu"
       >
         <Menu className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-card" />
+        )}
       </Button>
 
       {/* Mobile Menu Overlay */}
@@ -295,6 +312,30 @@ export function MobileMenu() {
                     Navigasi
                   </h3>
                   <div className="space-y-1">
+                    <button
+                      onClick={handleNotificationClick}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 group",
+                        isNotificationActive
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted hover:shadow-sm"
+                      )}
+                    >
+                      <Bell
+                        className={cn(
+                          "w-5 h-5 transition-transform duration-200",
+                          isNotificationActive ? "" : "group-hover:scale-110"
+                        )}
+                      />
+                      <span className="flex-1 text-sm font-medium">
+                        {tSideBar("notifications")}
+                      </span>
+                      {unreadCount > 0 && (
+                        <span className="flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-red-500 text-[11px] leading-none font-bold text-white">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
                     {getFilteredNavigationItems().map((item) => {
                       const isActive = pathname.endsWith(`/${item.href}`);
                       const Icon = item.icon;

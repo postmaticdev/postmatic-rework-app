@@ -10,11 +10,11 @@ import {
 import { BaseResponse } from "@/models/api/base-response.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-const AUTH_PROFILE_QUERY_KEY = ["authProfile"] as const;
-const AUTH_CURRENT_SESSION_QUERY_KEY = ["authCurrentSession"] as const;
-const AUTH_SESSIONS_QUERY_KEY = ["authSessions"] as const;
+export const AUTH_PROFILE_QUERY_KEY = ["authProfile"] as const;
+export const AUTH_CURRENT_SESSION_QUERY_KEY = ["authCurrentSession"] as const;
+export const AUTH_SESSIONS_QUERY_KEY = ["authSessions"] as const;
 
-const authProfileService = {
+export const authProfileService = {
   getProfile: () => {
     return api.get<BaseResponse<ProfileRes>>(`/account/profile`).then((res) => {
       const profile = res.data.data as ProfileRes & { imageUrl?: string | null };

@@ -63,7 +63,8 @@ export function PersonalInformation() {
         </div>
 
         <div className=" mt-6 flex-1  flex min-w-0 flex-col md:flex-row md:items-center justify-between gap-6 max-w-full md:max-w-[92%]">
-          <div className="min-w-0">
+          {/* Nama sudah tampil sebagai judul di atas — di mobile disembunyikan agar tidak dobel */}
+          <div className="min-w-0 hidden md:block">
             <label className="text-sm font-medium text-muted-foreground">
               {t("name")}
             </label>

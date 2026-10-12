@@ -211,7 +211,9 @@ export function MemberManagementModal({
                           <ChevronDown className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent>
+                      <DropdownMenuContent
+                        className="max-md:w-(--radix-dropdown-menu-trigger-width)"
+                      >
                         {ROLE_OPTIONS.map((role) => (
                           <DropdownMenuItem
                             key={role.value}

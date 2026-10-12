@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Edit, X, ClipboardClock } from "lucide-react";
+import { MoreVertical, Edit, Trash2, ClipboardClock } from "lucide-react";
 import { CreatePostModal } from "./create-post-modal";
 import { useContentOverviewGetUpcoming } from "@/services/content/overview";
 import { useParams } from "next/navigation";
@@ -368,7 +368,7 @@ export function SchedulePost({
                             }
                             className="text-red-600 focus:text-red-600"
                           >
-                            <X className="h-4 w-4 mr-2" />
+                            <Trash2 className="h-4 w-4 mr-2" />
                             {post.status?.toLowerCase() === "draft"
                               ? t("deleteDraft")
                               : t("cancelQueue")}

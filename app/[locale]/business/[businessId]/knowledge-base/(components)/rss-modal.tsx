@@ -26,6 +26,8 @@ import {
   useLibraryRSSCategory,
   useLibraryRSSData,
 } from "@/services/library.api";
+import Image from "next/image";
+import { getRssSourceImage } from "@/helper/rss-image-helper";
 import { useTranslations } from "next-intl";
 
 interface RSSModalProps {
@@ -186,7 +188,20 @@ export function RSSModal({
                   <SelectContent>
                     {dataLib.map((data) => (
                       <SelectItem key={data.id} value={String(data.id)}>
-                        {data.title} ({data.publisher?.toUpperCase()})
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded overflow-hidden flex-shrink-0 relative">
+                            <Image
+                              src={getRssSourceImage(data.publisher, data.title, data.url)}
+                              alt={data.publisher || data.title}
+                              width={20}
+                              height={20}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span>
+                            {data.title} ({data.publisher?.toUpperCase()})
+                          </span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -213,8 +213,8 @@ export function ProductSection() {
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">{p("title")}</h2>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-row gap-3">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 type="text"

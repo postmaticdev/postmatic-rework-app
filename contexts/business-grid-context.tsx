@@ -2,9 +2,13 @@
 import { FilterQuery } from "@/models/api/base-response.type";
 import { createContext, useContext, useState } from "react";
 
+export type BusinessViewMode = "grid" | "list";
+
 interface BusinessGridFilterContext {
   filterQuery: Partial<FilterQuery>;
   setFilterQuery: (filterQuery: Partial<FilterQuery>) => void;
+  viewMode: BusinessViewMode;
+  setViewMode: (viewMode: BusinessViewMode) => void;
 }
 
 const BusinessGridFilterContext = createContext<BusinessGridFilterContext | undefined>(undefined);
@@ -18,8 +22,12 @@ export function BusinessGridFilterProvider({
     limit: 8,
     page: 1,
   });
+  const [viewMode, setViewMode] = useState<BusinessViewMode>("grid");
+
   return (
-    <BusinessGridFilterContext.Provider value={{ filterQuery, setFilterQuery }}>
+    <BusinessGridFilterContext.Provider
+      value={{ filterQuery, setFilterQuery, viewMode, setViewMode }}
+    >
       {children}
     </BusinessGridFilterContext.Provider>
   );

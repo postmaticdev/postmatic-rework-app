@@ -15,7 +15,7 @@ import { useBusinessGridFilter } from "@/contexts/business-grid-context";
 import { useTranslations } from "next-intl";
 
 export function BusinessGrid() {
-  const { filterQuery, setFilterQuery } = useBusinessGridFilter();
+  const { filterQuery, setFilterQuery, viewMode } = useBusinessGridFilter();
 
   const { data, isLoading } = useBusinessGetAll(filterQuery);
   const businesses = data?.data?.data || [];
@@ -30,23 +30,36 @@ export function BusinessGrid() {
 
   return (
     <div className="space-y-6">
-      {/* Business Grid */}
+      {/* Business Grid / List */}
       {isLoading ? (
-        <BusinessGridSkeleton count={8} />
+        <BusinessGridSkeleton count={8} viewMode={viewMode} />
       ) : businesses.length === 0 ? (
         <NoContent
           icon={ChartNoAxesCombined}
           title={t("emptyTitle")}
           titleDescription={t("emptyDescription")}
-        // buttonText="Tambah Bisnis"
-        // onButtonClick={() => router.push("/business/new-business")}
         />
+      ) : viewMode === "list" ? (
+        <div className="flex flex-col gap-3 mt-4 md:mt-6">
+          {businesses.map((business) => (
+            <BusinessCard
+              key={business.id}
+              business={business}
+              variant="list"
+              onClickInvite={() => {
+                setSelectedBusinessId(business.id);
+                setIsMemberModalOpen(true);
+              }}
+            />
+          ))}
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4 md:mt-6">
           {businesses.map((business) => (
             <BusinessCard
               key={business.id}
               business={business}
+              variant="grid"
               onClickInvite={() => {
                 setSelectedBusinessId(business.id);
                 setIsMemberModalOpen(true);

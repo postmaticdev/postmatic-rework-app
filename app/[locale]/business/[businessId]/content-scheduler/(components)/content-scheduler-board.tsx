@@ -78,9 +78,11 @@ import {
   Eye,
   FileClock,
   MoreVertical,
+  Plus,
   Repeat2,
   Sparkles,
   PencilLine,
+  Trash2,
   WandSparkles,
   X,
   ExternalLink,
@@ -227,7 +229,6 @@ export function ContentSchedulerBoard({
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [eventToCancel, setEventToCancel] = useState<SchedulerEvent | null>(null);
   const [draftMarkers, setDraftMarkers] = useState<SchedulerDraftMarker[]>([]);
-  const [showCalendarEventDetails, setShowCalendarEventDetails] = useState(false);
   const [showDateActionCard, setShowDateActionCard] = useState(false);
   const [dateActionMenuPosition, setDateActionMenuPosition] = useState<{
     top: number;
@@ -935,8 +936,10 @@ export function ContentSchedulerBoard({
 
   return (
     <>
+      {/* Mobile: urutan Overview → Kalender → Pengulangan Konten (via order);
+          lg ke atas kembali ke layout 2 kolom */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Card>
+        <Card className="order-2 lg:order-none">
           <CardContent className="p-3 sm:p-6">
             <div className="mb-4 sm:mb-6">
               <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
@@ -984,20 +987,6 @@ export function ContentSchedulerBoard({
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="mt-2 sm:mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full sm:hidden"
-                  onClick={() =>
-                    setShowCalendarEventDetails((current) => !current)
-                  }
-                >
-                  {showCalendarEventDetails
-                    ? t("hideCalendarEvents")
-                    : t("showCalendarEvents")}
-                </Button>
-              </div>
             </div>
 
             <div className="w-full overflow-visible">
@@ -1032,10 +1021,7 @@ export function ContentSchedulerBoard({
                         key={day.toISOString()}
                         type="button"
                         onClick={(event) => openDateAction(day, event)}
-                        className={`flex min-w-0 flex-col justify-start border-b border-r px-1 py-1.5 text-right align-top transition-colors sm:min-h-[116px] sm:px-2 sm:py-2 xl:min-h-[85px] ${showCalendarEventDetails
-                          ? "min-h-[104px]"
-                          : "min-h-[76px]"
-                          } ${isToday
+                        className={`flex min-w-0 flex-col justify-start border-b border-r px-1 py-1.5 text-right align-top transition-colors min-h-[104px] sm:min-h-[116px] sm:px-2 sm:py-2 xl:min-h-[85px] ${isToday
                             ? "bg-blue-50 dark:bg-blue-950/60"
                             : isCurrentMonth
                               ? "bg-card"
@@ -1056,10 +1042,7 @@ export function ContentSchedulerBoard({
                           {visibleEvents.map((event) => (
                             <div
                               key={event.id}
-                              className={`min-w-0 overflow-hidden ${showCalendarEventDetails
-                                ? "rounded-md"
-                                : "rounded-full sm:rounded-lg"
-                                } ${event.status === "posted"
+                              className={`min-w-0 overflow-hidden rounded-md sm:rounded-lg ${event.status === "posted"
                                   ? "bg-blue-100 text-blue-600"
                                   : event.type === "manual"
                                   ? "bg-rose-100 text-rose-600"
@@ -1068,17 +1051,7 @@ export function ContentSchedulerBoard({
                                     : "bg-violet-100 text-violet-600"
                                 }`}
                             >
-                              <div
-                                className={
-                                  showCalendarEventDetails
-                                    ? "hidden"
-                                    : "h-1.5 sm:hidden"
-                                }
-                              />
-                              <div
-                                className={`px-1 py-0.5 text-[11px] leading-tight sm:px-2 sm:py-1 sm:text-xs ${showCalendarEventDetails ? "block" : "hidden sm:block"
-                                  }`}
-                              >
+                              <div className="px-1 py-0.5 text-[11px] leading-tight sm:px-2 sm:py-1 sm:text-xs">
                                 <div className="truncate font-medium">
                                   {event.title}
                                 </div>
@@ -1088,8 +1061,7 @@ export function ContentSchedulerBoard({
                           ))}
                           {hiddenEventCount > 0 && (
                             <div
-                              className={`min-w-0 overflow-hidden rounded-full bg-background-secondary text-muted-foreground sm:rounded-lg ${showCalendarEventDetails ? "rounded-md" : ""
-                                }`}
+                              className="min-w-0 overflow-hidden rounded-md bg-background-secondary text-muted-foreground sm:rounded-lg"
                             >
                               <div className="truncate px-0.5 py-0.5 text-center text-[11px] font-semibold leading-tight sm:px-2 sm:py-1 sm:text-xs">
                                 + {hiddenEventCount} {t("more")}
@@ -1151,8 +1123,8 @@ export function ContentSchedulerBoard({
           </CardContent>
         </Card>
 
-        <div className="flex h-full flex-col gap-6">
-          <Card>
+        <div className="contents lg:flex h-full flex-col gap-6">
+          <Card className="order-1 lg:order-none">
             <CardContent className="space-y-5 p-4 sm:p-6">
               <div className="text-2xl font-bold">{t("overview")}</div>
 
@@ -1214,11 +1186,13 @@ export function ContentSchedulerBoard({
             </CardContent>
           </Card>
 
-          <AutoGenerate
-            handleIfNoPlatformConnected={handleIfNoPlatformConnected}
-            cardClassName="flex-1 xl:max-h-[calc(100vh-8.5rem)] xl:overflow-hidden"
-            scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(80vh-19rem)] xl:overflow-y-auto scrollbar-hidden xl:pr-1"
-          />
+          <div className="order-3 lg:contents">
+            <AutoGenerate
+              handleIfNoPlatformConnected={handleIfNoPlatformConnected}
+              cardClassName="flex-1 xl:max-h-[calc(100vh-8.5rem)] xl:overflow-hidden"
+              scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(80vh-19rem)] xl:overflow-y-auto scrollbar-hidden xl:pr-1"
+            />
+          </div>
         </div>
       </div>
 
@@ -1235,7 +1209,10 @@ export function ContentSchedulerBoard({
               {canCreateNewOnSelectedDate && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button type="button">{t("createNew")}</Button>
+                    <Button type="button" className="gap-1.5">
+                      <Plus className="h-4 w-4" />
+                      {t("createNew")}
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem
@@ -1350,7 +1327,7 @@ export function ContentSchedulerBoard({
                               onClick={() => handleAskCancelEvent(event)}
                               className="text-red-600 focus:text-red-600"
                             >
-                              <X className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                               {event.type === "draft"
                                 ? t("deleteDraft")
                                 : t("cancelQueue")}

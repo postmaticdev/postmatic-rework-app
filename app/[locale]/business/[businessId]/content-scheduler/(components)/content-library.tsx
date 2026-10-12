@@ -471,6 +471,7 @@ export function ContentLibrary({
           return (
             <div
               key={content?.id}
+              onClick={() => handleSetFormDataView(content)}
               className="relative flex h-full flex-col border border-border bg-card shadow-sm p-4 rounded-lg group transition-all duration-300 hover:scale-105 cursor-pointer"
             >
               <div className="aspect-square rounded-lg overflow-hidden">
@@ -526,15 +527,6 @@ export function ContentLibrary({
                       </span>
                     )}
                   </div>
-                </div>
-
-                <div className="mt-auto flex space-x-2 pt-1">
-                  <Button
-                    className="flex-1 text-white"
-                    onClick={() => handleSetFormDataView(content)}
-                  >
-                    {t("viewPost")}
-                  </Button>
                 </div>
               </div>
             </div>

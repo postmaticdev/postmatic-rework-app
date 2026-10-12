@@ -10,7 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertTriangle, Check, Clock, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Clock, Laptop, Loader2, LogOut } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ interface ConfirmationModalProps {
   isLoading?: boolean;
   detailLabel?: string;
   detailValue?: string;
+  variant?: "primary" | "danger" | "warning" | "default";
 }
 
 export function ConfirmationModal({
@@ -38,7 +40,10 @@ export function ConfirmationModal({
   isLoading = false,
   detailLabel,
   detailValue,
+  variant = "primary",
 }: ConfirmationModalProps) {
+  const isDanger = variant === "danger";
+
   return (
     <AlertDialog
       open={isOpen}
@@ -46,36 +51,51 @@ export function ConfirmationModal({
         if (!open) onClose();
       }}
     >
-      <AlertDialogContent>
-        <AlertDialogHeader className="flex flex-row items-center gap-4 text-left sm:gap-6">
-          <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
-            <AlertTriangle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+      <AlertDialogContent className="max-w-md p-6">
+        <AlertDialogHeader className="flex flex-row items-start gap-4 text-left">
+          <div
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
+              isDanger
+                ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                : "bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+            )}
+          >
+            <AlertTriangle className="h-5 w-5" />
           </div>
-          <div className="flex flex-col gap-2">
-            <AlertDialogTitle>{title}</AlertDialogTitle>
-            <AlertDialogDescription>{description}</AlertDialogDescription>
+          <div className="flex flex-col gap-1 min-w-0 flex-1 pt-0.5">
+            <AlertDialogTitle className="text-base font-semibold text-foreground">
+              {title}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
+              {description}
+            </AlertDialogDescription>
           </div>
         </AlertDialogHeader>
 
         {detailLabel && detailValue && (
-          <div className="space-y-4">
-            <div className="rounded-lg bg-muted/50 p-4">
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">
-                    {detailLabel}
-                  </p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {detailValue}
-                  </p>
-                </div>
+          <div className="rounded-lg border border-border/60 bg-muted/40 p-3.5 my-1">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground border border-border/50">
+                {isDanger ? (
+                  <Laptop className="h-4 w-4" />
+                ) : (
+                  <Clock className="h-4 w-4" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {detailLabel}
+                </p>
+                <p className="truncate text-sm font-semibold text-foreground mt-0.5">
+                  {detailValue}
+                </p>
               </div>
             </div>
           </div>
         )}
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="mt-2 gap-2 sm:gap-2">
           <AlertDialogCancel
             onClick={() => {
               if (onCancel) {
@@ -85,23 +105,36 @@ export function ConfirmationModal({
               onClose();
             }}
             disabled={isLoading}
+            className="h-10 px-4"
           >
             {cancelText}
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={(e) => {
+              e.preventDefault();
+              onConfirm();
+            }}
             disabled={isLoading}
-            className="bg-blue-500 text-white hover:bg-blue-600"
+            className={cn(
+              "h-10 px-4 font-medium transition-colors",
+              isDanger
+                ? "bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            )}
           >
             {isLoading ? (
               <div className="flex items-center gap-2 text-white">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {confirmText}
+                <span>{confirmText}</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-white">
-                <Check className="h-4 w-4" />
-                {confirmText}
+                {isDanger ? (
+                  <LogOut className="h-4 w-4" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                <span>{confirmText}</span>
               </div>
             )}
           </AlertDialogAction>
@@ -110,3 +143,4 @@ export function ConfirmationModal({
     </AlertDialog>
   );
 }
+

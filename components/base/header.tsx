@@ -307,7 +307,9 @@ export function Header() {
             </span>
           )}
         </div>
-        <LanguageToggle />
+        <div className="hidden md:block">
+          <LanguageToggle />
+        </div>
       </div>
 
       {/* User Section */}
@@ -330,7 +332,13 @@ export function Header() {
             )}
           </div>
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2">
+          {/* Mobile Language Toggle (kanan, dekat burger) */}
+          <div className="md:hidden">
+            <LanguageToggle />
+          </div>
+
+          {/* Notifikasi desktop — di mobile dipindah ke dalam sidebar */}
           <Button
             type="button"
             variant="ghost"
@@ -343,7 +351,7 @@ export function Header() {
                   : "/notifications"
               );
             }}
-            className="relative text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 hover:scale-105 active:scale-95 group"
+            className="relative hidden md:inline-flex text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 hover:scale-105 active:scale-95 group"
             aria-label="System Notifications"
           >
             <Bell className="size-5 transition-transform duration-300 group-hover:rotate-12" />

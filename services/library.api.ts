@@ -251,23 +251,82 @@ const libraryService = {
       typeof api.get<BaseResponseFiltered<RssArticleRes[]>>
     >;
   },
-  RSSData: (filterQuery?: Partial<FilterQuery>) => {
-    const { category, ...rest } = filterQuery || {};
+  RSSData: async (filterQuery?: Partial<FilterQuery>) => {
+    const { category, limit, page = 1, ...rest } = filterQuery || {};
+    const requestedLimit = limit ? Number(limit) : 10;
 
-    return api.get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
+    if (requestedLimit <= 50) {
+      return api
+        .get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
+          params: {
+            ...rest,
+            page,
+            limit: requestedLimit,
+            category: category || undefined,
+          },
+        })
+        .then((res) => ({
+          ...res,
+          data: {
+            ...res.data,
+            data: getArrayData<RssLibraryRes>(res.data.data).map(
+              mapRssLibrary
+            ),
+          },
+        }));
+    }
+
+    // Backend caps limit at 50 per page. If requested limit > 50, fetch multiple pages to satisfy request
+    const firstRes = await api.get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
       params: {
         ...rest,
+        page: 1,
+        limit: 50,
         category: category || undefined,
       },
-    }).then((res) => ({
-      ...res,
+    });
+
+    const allData = [
+      ...getArrayData<RssLibraryRes>(firstRes.data.data).map(mapRssLibrary),
+    ];
+    const totalPages = firstRes.data.pagination?.totalPages || 1;
+    const pagesToFetch = Math.min(
+      totalPages,
+      Math.ceil(requestedLimit / 50)
+    );
+
+    if (pagesToFetch > 1) {
+      const remainingPages = Array.from(
+        { length: pagesToFetch - 1 },
+        (_, i) => i + 2
+      );
+      const remainingRes = await Promise.all(
+        remainingPages.map((p) =>
+          api.get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
+            params: {
+              ...rest,
+              page: p,
+              limit: 50,
+              category: category || undefined,
+            },
+          })
+        )
+      );
+
+      for (const r of remainingRes) {
+        allData.push(
+          ...getArrayData<RssLibraryRes>(r.data.data).map(mapRssLibrary)
+        );
+      }
+    }
+
+    return {
+      ...firstRes,
       data: {
-        ...res.data,
-        data: getArrayData<RssLibraryRes>(res.data.data).map(
-          mapRssLibrary
-        ),
+        ...firstRes.data,
+        data: allData.slice(0, requestedLimit),
       },
-    }));
+    };
   },
   RSSCategory: (filterQuery?: Partial<FilterQuery>) => {
     return api.get<BaseResponseFiltered<RssCategoryRes[]>>(`/app/rss/category`, {
@@ -305,6 +364,14 @@ export const useLibraryRSSData = (filterQuery?: Partial<FilterQuery>) => {
   return useQuery({
     queryKey: ["libraryRSSData", filterQuery],
     queryFn: () => libraryService.RSSData(filterQuery),
+  });
+};
+
+export const useAllLibraryRSSData = () => {
+  return useQuery({
+    queryKey: ["allLibraryRSSData"],
+    queryFn: () => libraryService.RSSData({ limit: 1000 }),
+    staleTime: 5 * 60 * 1000,
   });
 };
 

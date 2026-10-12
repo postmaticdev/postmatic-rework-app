@@ -61,7 +61,7 @@ export function BusinessKnowledgeSection() {
             )}
           </div>
 
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 md:grid-cols-3 md:gap-6">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 md:grid-cols-3 md:gap-6">
             <div className="relative aspect-square size-28 overflow-hidden rounded-lg sm:size-36 md:h-auto md:w-full md:max-w-full xl:w-5/6">
               <Image
                 src={
@@ -76,7 +76,7 @@ export function BusinessKnowledgeSection() {
               />
             </div>
 
-            <div className="min-w-0">
+            <div className="min-w-0 md:col-span-2">
               <h3 className="mb-2 break-words font-semibold text-foreground">
                 {businessKnowledgeDetail?.name || b("notAvailable")}
               </h3>
@@ -102,30 +102,30 @@ export function BusinessKnowledgeSection() {
                   <span className="truncate">{website}</span>
                 </Button>
               </div>
-            </div>
-          </div>
 
-          <p className="mb-3 text-sm text-muted-foreground line-clamp-4">
-            {businessKnowledgeDetail?.description || b("notAvailable")}
-          </p>
+              <p className="mb-3 text-sm text-muted-foreground line-clamp-4">
+                {businessKnowledgeDetail?.description || b("notAvailable")}
+              </p>
 
-          <div className="space-y-4">
-            <div>
-              <h3 className="mb-2 font-semibold text-foreground">
-                {b("colorTone")}
-              </h3>
-              <div className="flex h-10 w-40 items-center overflow-hidden rounded-md border border-border bg-background">
-                <div className="flex h-10 items-center justify-center border-r border-border px-1">
-                  <span
-                    className="size-8 rounded-md border border-black/5 shadow-sm"
-                    style={{ backgroundColor: `#${normalizedColorToneHex}` }}
-                    title={`#${normalizedColorToneHex}`}
-                  />
-                </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="mb-2 font-semibold text-foreground">
+                    {b("colorTone")}
+                  </h3>
+                  <div className="flex h-10 w-40 items-center overflow-hidden rounded-md border border-border bg-background">
+                    <div className="flex h-10 items-center justify-center border-r border-border px-1">
+                      <span
+                        className="size-8 rounded-md border border-black/5 shadow-sm"
+                        style={{ backgroundColor: `#${normalizedColorToneHex}` }}
+                        title={`#${normalizedColorToneHex}`}
+                      />
+                    </div>
 
-                <div className="flex min-w-0 flex-1 items-center px-4 font-mono text-sm uppercase text-foreground">
-                  <span className="mr-2 text-muted-foreground">#</span>
-                  <span>{normalizedColorToneHex}</span>
+                    <div className="flex min-w-0 flex-1 items-center px-4 font-mono text-sm uppercase text-foreground">
+                      <span className="mr-2 text-muted-foreground">#</span>
+                      <span>{normalizedColorToneHex}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
