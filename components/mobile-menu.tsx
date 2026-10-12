@@ -19,6 +19,7 @@ import {
   Moon,
   Zap,
   Bell,
+  ChevronRight,
 } from "lucide-react";
 import { useNotification } from "@/contexts/notification-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -198,201 +199,197 @@ export function MobileMenu() {
         )}
       </Button>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu — layar penuh */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsOpen(false)}
-          />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+          className="fixed inset-0 z-50 flex h-dvh flex-col bg-background md:hidden animate-in fade-in slide-in-from-right-8 duration-200"
+        >
+          {/* Header */}
+          <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4">
+            <h2 className="text-lg font-semibold">Menu</h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsOpen(false)}
+              aria-label="Tutup menu"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
 
-          {/* Menu Panel */}
-          <div className="fixed right-0 top-0 h-dvh w-80 max-w-[85vw] bg-card border-l border-border shadow-xl animate-in slide-in-from-right duration-300">
-            <div className="flex flex-col h-full overflow-y-auto overscroll-contain">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-border">
-                <h2 className="text-lg font-semibold">Menu</h2>
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+            <div className="space-y-3">
+              {/* Profile Card */}
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar className="h-12 w-12 shrink-0">
+                    <AvatarImage
+                      src={profile?.image || DEFAULT_USER_AVATAR}
+                      alt={profile?.name || "U"}
+                    />
+                    <AvatarFallback className="bg-muted text-muted-foreground">
+                      {profile?.name?.[0] || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-base font-semibold">
+                      {profile?.name || "Pengguna"}
+                    </span>
+                    {userRole && (
+                      <span className="text-xs text-muted-foreground">
+                        {userRole || "Pengguna"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Theme Toggle Button */}
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => handleThemeToggle(!isDarkMode)}
+                  className="shrink-0 rounded-full"
+                  aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
                 >
-                  <X className="h-5 w-5" />
+                  {isDarkMode ? (
+                    <Sun className="h-4 w-4 text-yellow-500" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
 
-              {/* Profile Section */}
-              <div className="p-4 border-b border-border">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Avatar className="w-12 h-12 shrink-0">
-                      <AvatarImage
-                        src={profile?.image || DEFAULT_USER_AVATAR}
-                        alt={profile?.name || "U"}
-                      />
-                      <AvatarFallback className="bg-muted text-muted-foreground">
-                        {profile?.name?.[0] || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-medium">
-                        {profile?.name || "Pengguna"}
+              {/* Subscription / Token Card */}
+              {businessId && (
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-4">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="truncate text-xs font-medium text-muted-foreground">
+                      {subscription?.subscription?.productName || "Paket Gratis"}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xl font-bold text-primary">
+                        {credits.toLocaleString(locale)}
                       </span>
-                      {userRole && (
-                        <span className="text-xs text-muted-foreground">
-                          {userRole || "Pengguna"}
-                        </span>
-                      )}
+                      <Zap className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                      <span className="text-xs text-muted-foreground">{tSideBar("token")}</span>
                     </div>
-                  </div>
-                  
-                  {/* Theme Toggle Button */}
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    onClick={() => handleThemeToggle(!isDarkMode)}
-                    className="border-border hover:bg-muted transition-all duration-200"
-                    aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-                  >
-                    {isDarkMode ? (
-                      <Sun className="h-4 w-4 text-yellow-500" />
-                    ) : (
-                      <Moon className="h-4 w-4 text-slate-600" />
+                    {subscription?.expiredAt && (
+                      <span className="text-xs text-muted-foreground">
+                        {tSideBar("validUntil")}{" "}
+                        {formatDate(new Date(subscription.expiredAt))}
+                      </span>
                     )}
-                  </Button>
+                  </div>
+                  {access.purchase.write && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      onClick={() => {
+                        router.push(
+                          `/business/${businessId}/settings?tab=billing&topUp=token`
+                        );
+                        setIsOpen(false);
+                      }}
+                      className="shrink-0 rounded-full"
+                      aria-label="Top up token"
+                    >
+                      <Plus className="h-5 w-5 text-white" />
+                    </Button>
+                  )}
                 </div>
-              </div>
-
-               {/* Subscription Info Section */}
-               {businessId && (
-                 <div className="p-4 border-b border-border">
-                   <div className="flex items-center justify-between gap-3">
-                     <div className="flex min-w-0 flex-col gap-1">
-                       <span className="text-sm text-muted-foreground">
-                         {subscription?.subscription?.productName || "Paket Gratis"}
-                       </span>
-                       {subscription?.expiredAt && (
-                         <span className="text-xs text-muted-foreground">
-                           {tSideBar("validUntil")}{" "}
-                           {formatDate(new Date(subscription.expiredAt))}
-                         </span>
-                       )}
-                       <div className="flex items-center gap-2">
-                         <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{credits.toLocaleString(locale)}</span>
-                         <Zap className="w-4 h-4 text-blue-600 dark:text-blue-400" strokeWidth={1.5} />
-                         <span className="text-xs text-muted-foreground">{tSideBar("token")}</span>
-                       </div>
-                     </div>
-                     {access.purchase.write && (
-                     <Button
-                       type="button"
-                       size="icon-sm"
-                       onClick={() => {
-                         router.push(
-                           `/business/${businessId}/settings?tab=billing&topUp=token`
-                         );
-                         setIsOpen(false);
-                       }}
-                       className="bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
-                     >
-                       <Plus className="w-4 h-4 text-white" />
-                     </Button>
-                     )}
-                   </div>
-                 </div>
-               )}
-
-              
+              )}
 
               {/* Navigation Menu */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-2">
-                  <h3 className="text-sm font-medium text-muted-foreground px-3 py-2">
-                    Navigasi
-                  </h3>
-                  <div className="space-y-1">
-                    <button
-                      onClick={handleNotificationClick}
+              <nav className="pt-3">
+                <h3 className="px-1 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Navigasi
+                </h3>
+                <div className="overflow-hidden rounded-2xl border border-border bg-card p-1.5">
+                  <button
+                    onClick={handleNotificationClick}
+                    className={cn(
+                      "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors",
+                      isNotificationActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Bell
                       className={cn(
-                        "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 group",
-                        isNotificationActive
-                          ? "bg-blue-600 text-white shadow-md"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted hover:shadow-sm"
+                        "h-5 w-5 shrink-0",
+                        isNotificationActive ? "text-primary" : "text-muted-foreground"
                       )}
-                    >
-                      <Bell
-                        className={cn(
-                          "w-5 h-5 transition-transform duration-200",
-                          isNotificationActive ? "" : "group-hover:scale-110"
-                        )}
-                      />
-                      <span className="flex-1 text-sm font-medium">
-                        {tSideBar("notifications")}
+                    />
+                    <span className={cn("flex-1 text-sm", isNotificationActive ? "font-semibold" : "font-medium")}>
+                      {tSideBar("notifications")}
+                    </span>
+                    {unreadCount > 0 && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white">
+                        {unreadCount}
                       </span>
-                      {unreadCount > 0 && (
-                        <span className="flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-red-500 text-[11px] leading-none font-bold text-white">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </button>
-                    {getFilteredNavigationItems().map((item) => {
-                      const isActive = pathname.endsWith(`/${item.href}`);
-                      const Icon = item.icon;
+                    )}
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                  </button>
+                  {getFilteredNavigationItems().map((item) => {
+                    const isActive = pathname.endsWith(`/${item.href}`);
+                    const Icon = item.icon;
 
-                      return (
-                        <button
-                          key={item.name}
-                          onClick={() => handleNavigation(item.href)}
+                    return (
+                      <button
+                        key={item.name}
+                        onClick={() => handleNavigation(item.href)}
+                        className={cn(
+                          "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <Icon
                           className={cn(
-                            "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all duration-200 group",
-                            isActive
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted hover:shadow-sm"
+                            "h-5 w-5 shrink-0",
+                            isActive ? "text-primary" : "text-muted-foreground"
                           )}
-                        >
-                          <Icon
-                            className={cn(
-                              "w-5 h-5 transition-transform duration-200",
-                              isActive ? "" : "group-hover:scale-110"
-                            )}
-                          />
-                          <span className="text-sm font-medium">
-                            {item.name}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        />
+                        <span className={cn("flex-1 text-sm", isActive ? "font-semibold" : "font-medium")}>
+                          {item.name}
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-
-              {/* Footer Section */}
-              <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border space-y-3">
-                {/* Report Problem Button */}
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setIsReportModalOpen(true);
-                  }}
-                  className="w-full justify-start text-orange-600 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors duration-200"
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                  <span>{tSideBar("reportIssue")}</span>
-                </Button>
-
-                {/* Logout Button */}
-                <Button
-                  variant="ghost"
-                  onClick={handleLogout}
-                  className="w-full justify-start text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors duration-200"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>{tSideBar("logout")}</span>
-                </Button>
-              </div>
+              </nav>
             </div>
+          </div>
+
+          {/* Footer Section */}
+          <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-border bg-card px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {/* Report Problem Button */}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsOpen(false);
+                setIsReportModalOpen(true);
+              }}
+              className="text-orange-600 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/20"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              <span className="truncate">{tSideBar("reportIssue")}</span>
+            </Button>
+
+            {/* Logout Button */}
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="text-red-600 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="truncate">{tSideBar("logout")}</span>
+            </Button>
           </div>
         </div>
       )}

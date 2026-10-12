@@ -837,9 +837,11 @@ export function PreviewPanel() {
   }, [mode, schedulerMode, selectedHistory, schedulerT]);
 
   return (
-    <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6 overflow-y-auto scrollbar-hidden">
-      <CardNoGap className="flex-1 overflow-auto scrollbar-hidden">
-        <div className="sticky top-0 z-20 bg-card p-4 border-b flex items-center justify-between gap-2">
+    // Mobile: card preview (header, gambar, caption) disembunyikan; yang tersisa hanya
+    // optimize prompt (non-scheduler) dan bar Generate yang fixed di bawah.
+    <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6 overflow-y-auto scrollbar-hidden max-lg:p-0">
+      <CardNoGap className="flex-1 overflow-auto scrollbar-hidden max-lg:contents">
+        <div className="sticky top-0 z-20 bg-card p-4 border-b flex items-center justify-between gap-2 max-lg:hidden">
           <div className="flex min-w-0 items-center space-x-3">
             <Image
               src={businessLogo || "/logoblue.png"}
@@ -865,7 +867,7 @@ export function PreviewPanel() {
         </div>
 
         <div 
-          className="relative w-full transition-all duration-300 overflow-hidden" 
+          className="relative w-full transition-all duration-300 overflow-hidden max-lg:hidden"
           style={{ paddingBottom: getPaddingBottomStyle(form.basic.ratio) }}
         >
           <div className="absolute inset-0 w-full h-full">
@@ -912,13 +914,13 @@ export function PreviewPanel() {
         {isLoading &&
           typeof selectedHistory?.progress === "number" &&
           selectedHistory?.progress < 100 && (
-            <div className="p-4 flex flex-row items-center gap-4 border-b">
+            <div className="p-4 flex flex-row items-center gap-4 border-b max-lg:hidden">
               <Progress value={selectedHistory?.progress ?? 0} />
               <span className="text-sm">{selectedHistory?.progress}%</span>
             </div>
           )}
 
-        <div className="p-4 border-b">
+        <div className="p-4 border-b max-lg:hidden">
           <div className="flex items-start gap-3">
             <Image
               src={businessLogo || "/logoblue.png"}

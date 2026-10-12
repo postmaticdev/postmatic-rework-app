@@ -585,7 +585,9 @@ export default function NotificationsPage() {
     );
 
   return (
-    <main className="flex-1 flex flex-col h-[calc(100vh-4.5rem)] overflow-hidden bg-background">
+    // Mobile: 100dvh (bukan 100vh) agar halaman tidak ikut ter-scroll di balik toolbar browser —
+    // header + search tetap menempel, hanya list yang di-scroll.
+    <main className="flex-1 flex flex-col h-[calc(100vh-4.5rem)] max-md:h-[calc(100dvh-4.5rem)] overflow-hidden bg-background">
       {/* ── Tab Navigation Bar ─────────────────────────────────────────── */}
       <div className="border-b border-border bg-card px-4 sm:px-6 py-3 flex items-center justify-between shrink-0 max-md:flex-wrap max-md:gap-2">
         <div className="flex items-center gap-4 sm:gap-6 flex-wrap">

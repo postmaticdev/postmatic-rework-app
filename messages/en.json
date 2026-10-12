@@ -685,9 +685,7 @@
     "freeModelRestrictionTopUp": "Top up now",
     "freeModelRestrictionUseDefault": "Use the default model",
     "mobileContinue": "Continue",
-    "mobileBackToReference": "Back to Reference",
-    "mobileReferenceSelected": "Reference selected",
-    "mobileNoReferenceSelected": "Reference is optional"
+    "mobileBackToReference": "Back to Reference"
   },
   "previewPanel": {
     "enhanceCaption": "Enhance Caption",

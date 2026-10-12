@@ -76,7 +76,10 @@ export function BusinessKnowledgeSection() {
               />
             </div>
 
-            <div className="min-w-0 md:col-span-2">
+            {/* Mobile: kolom ini di-"contents" — nama/kategori/kontak di samping logo,
+                deskripsi & warna tone selebar card mulai dari kiri (bawah logo) */}
+            <div className="min-w-0 md:col-span-2 max-md:contents">
+              <div className="min-w-0">
               <h3 className="mb-2 break-words font-semibold text-foreground">
                 {businessKnowledgeDetail?.name || b("notAvailable")}
               </h3>
@@ -84,7 +87,7 @@ export function BusinessKnowledgeSection() {
                 {businessKnowledgeDetail?.category}
               </p>
 
-              <div className="mb-3 flex flex-wrap gap-2">
+              <div className="mb-3 flex flex-wrap gap-2 max-md:mb-0">
                 <Button
                   variant="outline"
                   size="sm"
@@ -102,12 +105,13 @@ export function BusinessKnowledgeSection() {
                   <span className="truncate">{website}</span>
                 </Button>
               </div>
+              </div>
 
-              <p className="mb-3 text-sm text-muted-foreground line-clamp-4">
+              <p className="mb-3 text-sm text-muted-foreground line-clamp-4 max-md:col-span-2 max-md:mb-0 max-md:text-justify">
                 {businessKnowledgeDetail?.description || b("notAvailable")}
               </p>
 
-              <div className="space-y-4">
+              <div className="space-y-4 max-md:col-span-2">
                 <div>
                   <h3 className="mb-2 font-semibold text-foreground">
                     {b("colorTone")}

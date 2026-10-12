@@ -348,7 +348,79 @@ export function RSSTrendSection({
                 {rss.map((trend) => (
                   <Card key={trend.id} className="bg-background-secondary">
                     <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
+                      {/* Mobile: layout mengikuti card Avatar Bisnis; toggle status di kanan atas tanpa label */}
+                      <div className="flex items-center gap-4 sm:hidden">
+                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                          <Image
+                            src={getTrendLogo(trend)}
+                            alt={trend.title}
+                            fill
+                            sizes="80px"
+                            className="object-cover"
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="line-clamp-2 min-w-0 text-sm font-medium text-foreground">
+                              {trend.title}
+                            </h3>
+                            <div className="-mt-1.5 -mr-2 flex shrink-0 items-center gap-1">
+                              <Switch
+                                checked={trend.isActive}
+                                onCheckedChange={(checked) =>
+                                  handleToggleStatus(trend.id, checked)
+                                }
+                                disabled={!rssKnowledge.write || updatingStatusId === trend.id}
+                                aria-label={r("status")}
+                                className="data-[state=checked]:bg-primary"
+                              />
+                              {rssKnowledge.write && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
+                                    >
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleEditRSS({
+                                          ...trend,
+                                          id: trend.id,
+                                        })
+                                      }
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      {r("editRSS")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleOpenDeleteModal(trend)}
+                                      className="text-red-600"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      {r("deleteRSS")}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
+                          </div>
+                          {trend?.masterRss?.masterRssCategory?.name && (
+                            <span className="inline-block max-w-full truncate rounded-full bg-pink-100 px-2 py-0.5 text-xs text-pink-800">
+                              {trend.masterRss.masterRssCategory.name}
+                            </span>
+                          )}
+                          <p className="truncate text-xs text-muted-foreground">
+                            {r("source")}: {getSourceName(trend)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 max-sm:hidden">
                         <div className="hidden sm:block w-10 h-10  lg:w-16 lg:h-16 rounded-lg overflow-hidden flex-shrink-0">
                           <Image
                             src={getTrendLogo(trend)}
@@ -361,15 +433,6 @@ export function RSSTrendSection({
 
                         <div className="flex-1 min-w-0">
                           <div className="flex gap-2">
-                            <div className="block sm:hidden w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                              <Image
-                                src={getTrendLogo(trend)}
-                                alt={trend.title}
-                                width={40}
-                                height={40}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
                             <div className="flex-col max-sm:min-w-0 max-sm:flex-1">
                               <div className="flex flex-col lg:flex-row lg:gap-2">
                                 <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base line-clamp-1">
@@ -418,16 +481,6 @@ export function RSSTrendSection({
                         </div>
 
                         <div className="flex items-center gap-1 self-start sm:self-auto max-sm:gap-2">
-                        {/* Status Toggle (mobile) — kanan atas card, tanpa label */}
-                        <Switch
-                          checked={trend.isActive}
-                          onCheckedChange={(checked) =>
-                            handleToggleStatus(trend.id, checked)
-                          }
-                          disabled={!rssKnowledge.write || updatingStatusId === trend.id}
-                          aria-label={r("status")}
-                          className="sm:hidden data-[state=checked]:bg-primary"
-                        />
                         {rssKnowledge.write && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

@@ -303,6 +303,8 @@ export function SharedReferencePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {/* Mobile: tab + search menempel di bawah header saat halaman di-scroll */}
+      <div className="shrink-0 max-lg:sticky max-lg:top-16 max-lg:z-20 max-lg:border-b max-lg:border-border max-lg:bg-card">
       {/* Tab Bar */}
       <div className="shrink-0 p-4 pb-0 sm:p-6 sm:pb-0">
         <div className="flex justify-center">
@@ -334,6 +336,7 @@ export function SharedReferencePanel({
         {activeTab === "reference" 
           ? renderSearchControls(t("searchPlaceholder"), publishedTemplates)
           : renderSearchControls(t("searchPlaceholderSaved"), savedTemplates)}
+      </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden px-4 pb-4 sm:px-6">

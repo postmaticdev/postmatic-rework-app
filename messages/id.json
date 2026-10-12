@@ -685,9 +685,7 @@
     "freeModelRestrictionTopUp": "Top up sekarang",
     "freeModelRestrictionUseDefault": "Gunakan model biasanya",
     "mobileContinue": "Lanjutkan",
-    "mobileBackToReference": "Kembali ke Referensi",
-    "mobileReferenceSelected": "Referensi dipilih",
-    "mobileNoReferenceSelected": "Referensi opsional"
+    "mobileBackToReference": "Kembali ke Referensi"
   },
   "previewPanel": {
     "enhanceCaption": "Tingkatkan Caption",

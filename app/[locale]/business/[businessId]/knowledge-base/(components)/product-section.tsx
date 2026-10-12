@@ -255,7 +255,67 @@ export function ProductSection() {
               {products.map((product) => (
                 <Card key={product.id} className="bg-background-secondary">
                   <CardContent className="py-4">
-                    <div className="flex items-center justify-between gap-1 max-sm:gap-2">
+                    {/* Mobile: layout mengikuti card Avatar Bisnis */}
+                    <div className="flex items-center gap-4 sm:hidden">
+                      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                        <Image
+                          src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
+                          alt={product.name}
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="line-clamp-2 min-w-0 text-sm font-medium text-foreground">
+                            {product.name}
+                          </h3>
+                          {productKnowledge.write && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="-mr-2 -mt-1.5 shrink-0"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleEditProduct(product)}
+                                >
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  {p("edit")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteProduct(product)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  {p("delete")}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                        {product.category && (
+                          <span className="inline-block max-w-full truncate rounded-full bg-pink-100 px-2 py-0.5 text-xs text-pink-800">
+                            {product.category}
+                          </span>
+                        )}
+                        <p className="text-sm font-medium text-foreground">
+                          {formatPriceWithCurrency(
+                            product.price,
+                            product.currency
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-1 max-sm:hidden">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 max-sm:min-w-0 max-sm:flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="relative h-20 w-20 rounded-lg overflow-hidden flex-shrink-0">
@@ -265,14 +325,6 @@ export function ProductSection() {
                               fill
                               className="object-cover"
                             />
-                          </div>
-                          <div className="flex min-w-0 flex-col sm:hidden items-start mb-2">
-                            <h3 className="font-medium text-foreground mb-1 text-sm line-clamp-1">
-                              {product.name}
-                            </h3>
-                            <span className="bg-pink-100 text-pink-800 text-xs px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
-                              {product.category}
-                            </span>
                           </div>
                         </div>
 

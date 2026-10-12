@@ -67,7 +67,14 @@ export default function ContentGenerate() {
   const selectedReferenceImage = form.basic.referenceImage;
 
   return (
-    <main className="relative flex min-h-0 flex-1 flex-col md:ml-0 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
+    <main
+      className={cn(
+        "relative flex min-h-0 flex-1 flex-col md:ml-0 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden",
+        // Mobile chat AI: setinggi layar (dikurangi header) agar thread scroll sendiri
+        // dan composer + tombol jadwalkan selalu menempel di bawah
+        isChatMode && "max-lg:h-[calc(100dvh-4.5rem)] max-lg:overflow-hidden"
+      )}
+    >
       <div
         className={cn(
           "flex min-h-0 flex-1 flex-col lg:flex-row",
@@ -76,7 +83,7 @@ export default function ContentGenerate() {
         )}
       >
         {isMobileFormStep && (
-          <div className="border-b bg-card px-4 py-2 lg:hidden">
+          <div className="sticky top-16 z-20 border-b bg-card px-4 py-2 lg:hidden">
             <Button
               type="button"
               variant="ghost"
@@ -93,7 +100,8 @@ export default function ContentGenerate() {
 
         <div
           className={cn(
-            "relative w-full overflow-y-auto scrollbar-hidden border-r bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden",
+            // tanpa overflow di mobile agar tab + search referensi bisa sticky terhadap halaman
+            "relative w-full border-r bg-card lg:min-h-0 lg:w-1/3 lg:overflow-hidden",
             mode === "regenerate" ? "hidden" : "w-full lg:w-1/3",
             isMobileFormStep && "max-lg:hidden"
           )}
@@ -141,15 +149,10 @@ export default function ContentGenerate() {
               />
             </div>
           ) : null}
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-            {selectedReferenceImage
-              ? form.basic.referenceImageName || t("mobileReferenceSelected")
-              : t("mobileNoReferenceSelected")}
-          </span>
           <Button
             type="button"
             size="lg"
-            className="shrink-0 bg-blue-500 text-white hover:bg-blue-600"
+            className="flex-1 bg-blue-500 text-white hover:bg-blue-600"
             disabled={isLoading}
             onClick={() => goToMobileStep("form")}
           >

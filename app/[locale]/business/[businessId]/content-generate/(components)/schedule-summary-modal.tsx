@@ -296,8 +296,8 @@ export function ScheduleSummaryModal({
 
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 scrollbar-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full max-sm:gap-6">
-            {/* Left Section */}
-            <div className="flex flex-col gap-6 sticky top-0 h-fit max-sm:gap-4">
+            {/* Left Section (sticky hanya di desktop; di mobile ikut scroll agar tidak tertimpa preview) */}
+            <div className="flex flex-col gap-6 lg:sticky lg:top-0 h-fit max-sm:gap-4">
               <div className="space-y-4">
                 <div className="text-sm font-medium">{t("scheduleAt")}</div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -397,7 +397,7 @@ export function ScheduleSummaryModal({
             <div className="flex flex-col gap-3">
               {/* Platform Selector for Preview */}
               {selectedPlatforms.length > 1 && (
-                <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2 max-sm:flex-wrap">
+                <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2 max-sm:flex-wrap max-lg:static max-lg:mt-0">
                   {selectedPlatforms.map(platform => (
                     <button
                       key={platform}
