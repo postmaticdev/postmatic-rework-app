@@ -546,15 +546,19 @@ export function ContentSchedulerUploadDialog({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full max-md:gap-6">
             {/* Left Section */}
             <div className="flex flex-col gap-6 sticky top-0 h-fit max-md:static">
+              {/* Mobile: upload di kiri, jadwal (tanggal + jam) di kanan atas */}
+              <div className="flex flex-col gap-6 max-md:flex-row max-md:items-start max-md:gap-3">
+              <div className="max-md:min-w-0 max-md:flex-1">
               <UploadPhoto
                 label={t("fileUpload")}
                 onImageChange={handleImageChange}
                 currentImage={image}
               />
-              
-              <div className="space-y-4">
+              </div>
+
+              <div className="space-y-4 max-md:w-[46%] max-md:shrink-0 max-md:space-y-2">
                 <div className="text-sm font-medium">{tContentGenerate("scheduleAt")}</div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 max-md:gap-2">
                   <div
                     className="flex h-(--control-h) cursor-pointer items-center gap-2 rounded-md border border-input bg-background-secondary px-3"
                     onClick={(e) => {
@@ -591,6 +595,7 @@ export function ContentSchedulerUploadDialog({
                     />
                   </div>
                 </div>
+              </div>
               </div>
 
               <div className="space-y-4">

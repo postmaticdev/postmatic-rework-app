@@ -300,7 +300,7 @@ export function ScheduleSummaryModal({
             <div className="flex flex-col gap-6 lg:sticky lg:top-0 h-fit max-sm:gap-4">
               <div className="space-y-4">
                 <div className="text-sm font-medium">{t("scheduleAt")}</div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div
                     className="flex h-(--control-h) cursor-pointer items-center gap-2 rounded-md border border-input bg-background-secondary px-3"
                     onClick={(e) => {

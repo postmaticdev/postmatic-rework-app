@@ -2280,6 +2280,18 @@ export const ContentGenerateProvider = ({
     imageName: string | null,
     template?: Template
   ) => {
+    // Klik referensi yang sudah terpilih = unselect
+    if (form.basic.referenceImage === imageUrl) {
+      form.setBasic({
+        ...form.basic,
+        referenceImage: null,
+        referenceImageName: null,
+        referenceImagePublisher: null,
+      });
+      setSelectedTemplate(null);
+      return;
+    }
+
     form.setBasic({
       ...form.basic,
       referenceImage: imageUrl,

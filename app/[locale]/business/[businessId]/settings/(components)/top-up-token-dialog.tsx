@@ -519,9 +519,24 @@ export function TopUpTokenDialog({
                     onChange={(event) => handleAmountChange(event.target.value)}
                     placeholder={defaultTokenAmountDisplay}
                   />
-                  {/* <p className="text-xs text-muted-foreground">
-                    Enter the token amount you want to buy. Max 1,000,000,000.
-                  </p> */}
+                  {/* Preview harga (Rp) mengikuti jumlah token yang diinput */}
+                  {tokenAmount > 0 && (
+                    <div className="flex items-center justify-between rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-sm">
+                      <span className="text-muted-foreground">
+                        {tDialog("pricePreview")}
+                      </span>
+                      <span className="font-semibold text-primary">
+                        {price && tokenAmount === debouncedTokenAmount
+                          ? tDialog("pricePreviewHint", {
+                              tokens: tokenAmount.toLocaleString(locale),
+                              price: formatIdr(price.calculation.itemPrice),
+                            })
+                          : priceQuery.isFetching || tokenAmount !== debouncedTokenAmount
+                            ? "..."
+                            : "-"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

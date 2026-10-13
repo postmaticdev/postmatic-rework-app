@@ -5,7 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooterWithButton,
-  DialogFooterWithTwoButtons,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -574,8 +574,8 @@ export function AutoGenerateModal({
             <div className="flex flex-col gap-6 lg:sticky lg:top-0 h-fit">
               <div className="space-y-4">
                 <div className="text-sm font-medium">{tContentGenerate("scheduleAt")}</div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex min-w-0 flex-col gap-2">
                     <NativeSelect
                       value={modalDay !== null ? modalDay.toString() : ""}
                       onChange={(e) => setModalDay(Number(e.target.value))}
@@ -695,22 +695,28 @@ export function AutoGenerateModal({
         </div>
 
         {editingSchedule ? (
-          <DialogFooterWithTwoButtons
-            primaryButton={{
-              message: t("updateSchedule"),
-              onClick: handleSave,
-              variant: "default",
-              icon: <Save className="h-4 w-4" />,
-              className: "bg-primary hover:bg-blue-700 text-white"
-            }}
-            secondaryButton={{
-              message: t("deleteSchedule"),
-              onClick: () => editingSchedule && onDelete?.(editingSchedule),
-              variant: "destructive",
-              icon: <Trash2 className="h-4 w-4" />,
-              className: "bg-red-600 hover:bg-red-700 text-white"
-            }}
-          />
+          <DialogFooter className="flex-row items-center gap-3">
+            {/* Hapus: icon saja, persegi (1:1), di kiri tombol update */}
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              onClick={() => editingSchedule && onDelete?.(editingSchedule)}
+              className="shrink-0 bg-red-600 text-white hover:bg-red-700"
+              aria-label={t("deleteSchedule")}
+              title={t("deleteSchedule")}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSave}
+              className="flex-1 bg-primary text-white hover:bg-blue-700"
+            >
+              <Save className="h-4 w-4" />
+              {t("updateSchedule")}
+            </Button>
+          </DialogFooter>
         ) : (
           <DialogFooterWithButton
             buttonMessage={t("saveSchedule")}

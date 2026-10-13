@@ -2,6 +2,7 @@
 
 import { Header } from "@/components/base/header";
 import { Sidebar } from "@/components/sidebar";
+import { EnterToNextField } from "@/components/enter-to-next-field";
 import { cn } from "@/lib/utils";
 import { useParams } from "next/navigation";
 import { usePathname } from "@/i18n/navigation";
@@ -90,6 +91,7 @@ export default function BusinessClientLayout({
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
+      <EnterToNextField />
       {headerNode}
       <div
         className={cn(

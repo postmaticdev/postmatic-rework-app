@@ -196,7 +196,7 @@ export function OverviewContent() {
         {isLoadingAnalytics ? (
           <AnalyticsSkeleton />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 xl:grid-cols-3 [&>*:nth-child(3)]:col-span-2 xl:[&>*:nth-child(3)]:col-span-1">
             <AnalyticsCard
               title={a("totalPosting")}
               subtitle={a("totalPostingSubtitlePeriod", {

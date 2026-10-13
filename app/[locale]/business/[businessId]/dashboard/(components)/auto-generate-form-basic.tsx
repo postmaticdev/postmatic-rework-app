@@ -1,9 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
-import { ChevronDown as ChevronDownIcon, Trash2 } from "lucide-react";
+import { Bot, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { AutoProductSelectionModal } from "./auto-product-selection-modal";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -11,10 +10,48 @@ import { ValidRatio } from "@/models/api/content/image.type";
 import { useTranslations } from "next-intl";
 import { AutoAvatarSelectionModal } from "./auto-avatar-selection-modal";
 import Image from "next/image";
-import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
+import { DEFAULT_PLACEHOLDER_IMAGE, DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { Card } from "@/components/ui/card";
 import { AiModelSelect } from "@/components/forms/ai-model-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
+// Sama dengan RatioIcon di content-generate/generate-form-basic.tsx
+const RatioIcon = ({ ratio }: { ratio: string }) => {
+  let width = "w-[16px]";
+  let height = "h-[16px]";
+
+  if (ratio === "16:9") {
+    width = "w-[18px]";
+    height = "h-[10px]";
+  } else if (ratio === "9:16") {
+    width = "w-[10px]";
+    height = "h-[18px]";
+  } else if (ratio === "4:3") {
+    width = "w-[16px]";
+    height = "h-[12px]";
+  } else if (ratio === "3:4" || ratio === "4:5") {
+    width = "w-[12px]";
+    height = "h-[16px]";
+  } else if (ratio === "2:3") {
+    width = "w-[12px]";
+    height = "h-[18px]";
+  }
+
+  return (
+    <div className={`border-2 border-current rounded-[2px] ${width} ${height} opacity-70`} />
+  );
+};
+
+/**
+ * Form dasar untuk pengulangan konten. Tampilannya mengikuti section tengah
+ * content-generate (GenerateFormBasic) tanpa bagian trend.
+ */
 export const AutoGenerateFormBasic = () => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -24,340 +61,187 @@ export const AutoGenerateFormBasic = () => {
   const disabled = false; // Auto generate doesn't have selectedHistory
   const t = useTranslations("generationPanel");
 
-  const CATEGORY_OPTIONS = [
-    {
-      label: "Default ⭐️",
-      value: "Default",
-    },
-    {
-      label: t("promosiDiskon"),
-      value: t("promosiDiskon"),
-    },
-    {
-      label: t("productShowcase"),
-      value: t("productShowcase"),
-    },
-    {
-      label: t("testimoniReviewPelanggan"),
-      value: t("testimoniReviewPelanggan"),
-    },
-    {
-      label: t("behindTheScenes"),
-      value: t("behindTheScenes"),
-    },
-    {
-      label: t("edukasiTips"),
-      value: t("edukasiTips"),
-    },
-    {
-      label: t("eventAktivitas"),
-      value: t("eventAktivitas"),
-    },
-    {
-      label: t("brandingStory"),
-      value: t("brandingStory"),
-    },
-    {
-      label: t("tutorialCaraPakai"),
-      value: t("tutorialCaraPakai"),
-    },
-    {
-      label: t("entertainmentKontenViral"),
-      value: t("entertainmentKontenViral"),
-    },
-    {
-      label: t("pengumumanPembaruan"),
-      value: t("pengumumanPembaruan"),
-    },
-  ];
-  
-  const DESIGN_STYLE_OPTIONS = [
-    {
-      label: "Default ⭐️",
-      value: "Default",
-    },
-    {
-      label: "Minimalist",
-      value: "Minimalist",
-    },
-    {
-      label: "Flat Design",
-      value: "Flat Design",
-    },
-    {
-      label: "3D Design",
-      value: "3D Design",
-    },
-    {
-      label: "Futuristic",
-      value: "Futuristic",
-    },
-    {
-      label: "Retro / Vintage",
-      value: "Retro / Vintage",
-    },
-    {
-      label: "Cartoon / Character",
-      value: "Cartoon / Character",
-    },
-    {
-      label: "Realistic / Photorealism",
-      value: "Realistic / Photorealism",
-    },
-    {
-      label: "Abstract",
-      value: "Abstract",
-    },
-    {
-      label: "Typography-based",
-      value: "Typography-based",
-    },
-    {
-      label: "Gradient / Colorful",
-      value: "Gradient / Colorful",
-    },
-    {
-      label: "Cyberpunk",
-      value: "Cyberpunk",
-    },
-    {
-      label: "Line Art",
-      value: "Line Art",
-    },
-    {
-      label: "Geometric",
-      value: "Geometric",
-    },
-    {
-      label: "Hand-drawn / Sketch",
-      value: "Hand-drawn / Sketch",
-    },
-  ];
-  
+  const ratioOptions =
+    basic?.ratio && !aiModels.validRatios.includes(basic.ratio)
+      ? [...aiModels.validRatios, basic.ratio] // ratio lama saat edit jadwal
+      : aiModels.validRatios;
+
   return (
     <div className="space-y-4">
-      {/* Row 1: Product Name & Avatar */}
-      <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1 max-sm:gap-4">
-        {/* Product Name */}
-        <div>
-          <label className="block text-sm font-medium mb-2">{t("productName")}</label>
+      {basic.productKnowledgeId ? (
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm">{t("productName")}</h3>
+          <Card
+            className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => !isLoading && !disabled && setIsProductModalOpen(true)}
+          >
+            <div className="flex flex-row gap-2 justify-between">
+              <div className="flex flex-row gap-3 max-md:min-w-0">
+                <div className="aspect-square w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
+                  <Image
+                    src={basic.productImage || DEFAULT_PRODUCT_IMAGE}
+                    alt={basic.productName || ""}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    unoptimized
+                  />
+                </div>
+                <div className="flex-1 min-w-0 flex items-center">
+                  <p className="line-clamp-2 text-sm font-medium">{basic.productName}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 items-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setBasic({ ...basic, productKnowledgeId: "", productName: "", productImage: "" });
+                  }}
+                  disabled={isLoading || disabled}
+                >
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">
+            {t("productName")}
+          </label>
           <Button
             variant="outline"
             className="w-full justify-between text-left font-normal"
             onClick={() => setIsProductModalOpen(true)}
             disabled={isLoading || disabled}
           >
-            <span
-              className={
-                basic?.productKnowledgeId
-                  ? "text-foreground max-md:truncate"
-                  : "text-muted-foreground max-md:truncate"
-              }
-            >
-              {basic?.productKnowledgeId ? basic?.productName : t("selectProduct")}
+            <span className="text-muted-foreground">
+              {t("selectProduct")}
             </span>
-            <ChevronDownIcon className="h-4 w-4 shrink-0" />
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+      )}
 
-        {/* Avatar */}
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="block text-sm font-medium">{t("avatarLabel")}</label>
-            <span className="text-xs text-muted-foreground">{t("optional")}</span>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full justify-between text-left font-normal"
-            onClick={() => setIsAvatarModalOpen(true)}
-            disabled={isLoading || disabled}
-          >
-            <span
-              className={
-                basic.selectedAvatar ? "text-foreground truncate" : "text-muted-foreground"
-              }
-            >
-              {basic.selectedAvatar
-                ? t("selectedAvatarCount", { count: 1 })
-                : t("selectAvatar")}
-            </span>
-            <ChevronDownIcon className="h-4 w-4 shrink-0" />
-          </Button>
-        </div>
-      </div>
-
+      {/* Avatar Card */}
       {basic.selectedAvatar ? (
-        <Card className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted">
-                <Image
-                  src={basic.selectedAvatar.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                  alt={basic.selectedAvatar.title}
-                  fill
-                  className="object-cover"
-                  sizes="64px"
-                />
-              </div>
-              <div className="min-w-0">
-                <p className="line-clamp-1 text-sm font-medium text-foreground">
-                  {basic.selectedAvatar.title}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {basic.selectedAvatar.source === "knowledge"
-                    ? t("avatarSourceKnowledge")
-                    : t("avatarSourceBrowse")}
-                </p>
-              </div>
+        <>
+          {/* Plus separator */}
+          <div className="flex justify-center -my-2 relative z-10">
+            <div className="bg-background rounded-full p-1 border shadow-sm">
+              <Plus className="w-4 h-4 text-muted-foreground" />
             </div>
-            <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="shrink-0"
-              disabled={isLoading}
-              onClick={() => onSelectAvatar(null)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
           </div>
-        </Card>
+          <Card className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted">
+                  <Image
+                    src={basic.selectedAvatar.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                    alt={basic.selectedAvatar.title}
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="line-clamp-1 text-sm font-medium text-foreground">
+                    {basic.selectedAvatar.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {basic.selectedAvatar.source === "knowledge"
+                      ? t("avatarSourceKnowledge")
+                      : t("avatarSourceBrowse")}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                disabled={isLoading}
+                onClick={() => onSelectAvatar(null)}
+              >
+                <Trash2 className="w-5 h-5" />
+              </Button>
+            </div>
+          </Card>
+        </>
       ) : null}
 
-      {/* Row 2: AI Model & Aspect Ratio */}
-      <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1 max-sm:gap-4">
-        {/* AI Model */}
-        <div>
-          <label className="block text-sm font-medium mb-2">AI Model</label>
-          <AiModelSelect
-            disabled={isLoading || disabled || aiModels.isLoading}
-            isLoading={aiModels.isLoading}
-            models={aiModels.models}
-            selectedModel={basic?.model || ""}
-            onSelectModel={(modelName) => {
-              if (disabled) return;
-              const selectedModel = aiModels.models.find(
-                (model) => model.name === modelName
-              );
-              if (selectedModel) {
-                onSelectAiModel(selectedModel);
-              }
-            }}
-          />
-        </div>
-
-        {/* Aspect Ratio */}
-        <div>
-          <label className="block text-sm font-medium mb-2">{t("aspectRatio")}</label>
-          <NativeSelect
-            className={cn(
-              "bg-background-secondary",
-              isLoading ||
-                (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-            )}
-            disabled={isLoading || disabled}
-            value={basic?.ratio || ""}
-            onChange={(e) => {
-              if (disabled) return;
-              setBasic({ ...basic, ratio: e.target.value as ValidRatio });
-            }}
-          >
-            {aiModels.validRatios.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-            {/* Show current ratio if it's not in validRatios (for editing existing schedules) */}
-            {basic?.ratio && !aiModels.validRatios.includes(basic.ratio) && (
-              <option key={basic.ratio} value={basic.ratio}>
-                {basic.ratio}
-              </option>
-            )}
-          </NativeSelect>
-        </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">AI Model</label>
+        <AiModelSelect
+          disabled={isLoading || disabled || aiModels.isLoading}
+          isLoading={aiModels.isLoading}
+          models={aiModels.models}
+          selectedModel={basic?.model || ""}
+          onSelectModel={(modelName) => {
+            if (disabled) return;
+            const selectedModel = aiModels.models.find(
+              (model) => model.name === modelName
+            );
+            if (selectedModel) {
+              onSelectAiModel(selectedModel);
+            }
+          }}
+        />
       </div>
 
-      {/* Category */}
-      {/* <div>
-        <label className="block text-sm font-medium mb-2">{t("category")}</label>
-        <select
-          value={basic?.category}
-          disabled={isLoading || disabled}
-          onChange={(e) => {
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
+          {t("aspectRatio")}
+        </label>
+        <Select
+          disabled={isLoading || disabled || ratioOptions.length === 0}
+          value={basic?.ratio || ""}
+          onValueChange={(value) => {
             if (disabled) return;
-            setBasic({ ...basic, category: e.target.value });
+            setBasic({ ...basic, ratio: value as ValidRatio });
           }}
-          className={cn(
-            "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-            isLoading ||
-              (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-          )}
         >
-          {CATEGORY_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-          <option value="other">{t("other")}</option>
-        </select>
-        {basic.category === "other" && (
-          <input
-            type="text"
-            value={basic.customCategory}
-            disabled={isLoading || disabled}
-            onChange={(e) =>
-              setBasic({ ...basic, customCategory: e.target.value })
-            }
-            placeholder={t("enterCustomCategory")}
-            className={cn(
-              "w-full p-2 mt-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-              isLoading ||
-                (disabled &&
-                  "opacity-50 cursor-not-allowed hover:bg-transparent")
-            )}
-          />
-        )}
-      </div> */}
+          <SelectTrigger className={cn("w-full bg-background-secondary", isLoading && "opacity-50 cursor-not-allowed")}>
+            <SelectValue placeholder="Select ratio" />
+          </SelectTrigger>
+          <SelectContent>
+            {ratioOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    <RatioIcon ratio={option} />
+                  </div>
+                  <span>{option}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      {/* Design Style */}
-      {/* <div>
-        <label className="block text-sm font-medium mb-2">{t("designStyle")}</label>
-        <select
-          value={basic.designStyle || ""}
-          onChange={(e) => setBasic({ ...basic, designStyle: e.target.value })}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
+          {t("avatarLabel")}{" "}
+          <span className="text-muted-foreground font-normal text-xs">({t("optional")})</span>
+        </label>
+        <Button
+          type="button"
+          variant={basic.selectedAvatar ? "outline" : "default"}
+          onClick={() => setIsAvatarModalOpen(true)}
           disabled={isLoading || disabled}
-          className={cn(
-            "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-            isLoading ||
-              (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-          )}
+          size="lg"
+          className="w-full min-w-0 whitespace-normal leading-tight max-sm:h-(--control-h)"
         >
-          {DESIGN_STYLE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
+          <Bot className="h-4 w-4 mr-2" />
+          {t("addAvatar")}
+        </Button>
+      </div>
 
-          <option value="other">{t("other")}</option>
-        </select>
-        {basic.designStyle === "other" && (
-          <input
-            type="text"
-            value={basic.customDesignStyle}
-            disabled={isLoading || disabled}
-            onChange={(e) =>
-              setBasic({ ...basic, customDesignStyle: e.target.value })
-            }
-            placeholder={t("enterCustomDesignStyle")}
-            className={cn(
-              "w-full p-2 mt-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-              isLoading ||
-                (disabled &&
-                  "opacity-50 cursor-not-allowed hover:bg-transparent")
-            )}
-          />
-        )}
-      </div> */}
       <AutoProductSelectionModal
         isOpen={isProductModalOpen}
         onClose={() => {
@@ -376,5 +260,3 @@ export const AutoGenerateFormBasic = () => {
     </div>
   );
 };
-
-

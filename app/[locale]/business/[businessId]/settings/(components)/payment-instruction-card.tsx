@@ -3,9 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { formatIdr } from "@/helper/formatter";
 import { cn } from "@/lib/utils";
-import { Copy, RefreshCw } from "lucide-react";
+import { ChevronDown, Copy, Info, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 
 type PaymentAction = {
   action: string;
@@ -241,20 +242,24 @@ export function PaymentInstructionCard({
       </div>
 
       {isPending && virtualAccountAction ? (
-        <div className="mt-2 flex flex-col gap-2 rounded-lg border bg-white/80 p-2 dark:border-zinc-700 dark:bg-zinc-900/70 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1 rounded-md border bg-background px-3 py-2 font-mono text-base font-semibold tracking-wide dark:border-zinc-700">
-            {virtualAccountAction.value}
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onCopy(virtualAccountAction.value)}
-            className="w-full sm:w-auto"
-          >
-            <Copy className="h-4 w-4" />
-            {t("copy")}
-          </Button>
-        </div>
+        <CopyableCodeField
+          value={virtualAccountAction.value}
+          onCopy={onCopy}
+          copyLabel={t("copy")}
+        />
+      ) : null}
+
+      {/* Langkah-langkah pembayaran (collapsible) sesuai metode */}
+      {isPending && hasPaymentInstruction ? (
+        <PaymentStepsCollapsible
+          kind={
+            qrCodeAction || isQrisMethod(method)
+              ? "qris"
+              : virtualAccountAction
+                ? "virtualAccount"
+                : "redirect"
+          }
+        />
       ) : null}
 
       {isPending && onRefresh ? (
@@ -335,20 +340,117 @@ function PaymentTextInstruction({
   return (
     <div className="flex h-full w-full flex-col justify-center gap-2 text-center sm:gap-3">
       <p className="text-xs font-medium text-muted-foreground sm:text-sm">{label}</p>
-      <div className="rounded-lg border bg-muted/20 px-2 py-2 sm:px-4 sm:py-3">
-        <p className="break-all font-mono text-sm font-semibold text-foreground sm:text-lg">
-          {value}
-        </p>
-      </div>
+      <CopyableCodeField
+        value={value}
+        onCopy={onCopy}
+        copyLabel={copyLabel}
+        className="mt-0"
+        valueClassName="text-sm sm:text-lg"
+      />
+    </div>
+  );
+}
+
+/** Kolom kode (VA / kode bayar) dengan tombol salin berbentuk icon di dalam kolom. */
+function CopyableCodeField({
+  value,
+  onCopy,
+  copyLabel,
+  className,
+  valueClassName,
+}: {
+  value: string;
+  onCopy: (value: string) => void;
+  copyLabel: string;
+  className?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "mt-2 flex items-center gap-2 rounded-md border bg-background py-1.5 pl-3 pr-1.5 dark:border-zinc-700",
+        className
+      )}
+    >
+      <span
+        className={cn(
+          "min-w-0 flex-1 break-all text-left font-mono text-base font-semibold tracking-wide",
+          valueClassName
+        )}
+      >
+        {value}
+      </span>
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
+        size="icon-sm"
         onClick={() => onCopy(value)}
-        className="w-full"
+        className="shrink-0 text-muted-foreground hover:text-foreground"
+        aria-label={copyLabel}
+        title={copyLabel}
       >
         <Copy className="h-4 w-4" />
-        {copyLabel}
       </Button>
+    </div>
+  );
+}
+
+const PAYMENT_STEP_COUNT: Record<"virtualAccount" | "qris" | "redirect", number> = {
+  virtualAccount: 6,
+  qris: 6,
+  redirect: 4,
+};
+
+/** Langkah-langkah pembayaran yang bisa dibuka/tutup, memakai teks checkout.Instructions.* */
+function PaymentStepsCollapsible({
+  kind,
+}: {
+  kind: "virtualAccount" | "qris" | "redirect";
+}) {
+  const t = useTranslations("checkout.Instructions");
+  const [isOpen, setIsOpen] = useState(false);
+  const steps = Array.from({ length: PAYMENT_STEP_COUNT[kind] }, (_, i) => i + 1);
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-blue-100/60 dark:hover:bg-blue-900/40"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
+          <Info className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+          {t("title")}
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-blue-700 transition-transform duration-200 dark:text-blue-300",
+            isOpen && "rotate-180"
+          )}
+        />
+      </button>
+
+      {isOpen ? (
+        <div className="space-y-3 border-t border-blue-200 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:text-blue-200">
+          <p className="font-semibold text-blue-900 dark:text-blue-100">
+            {t(`${kind}.title`)}
+          </p>
+          <ol className="space-y-2">
+            {steps.map((n) => (
+              <li key={n} className="flex gap-3">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold leading-none text-white">
+                  {n}
+                </span>
+                <span className="leading-relaxed">{t(`${kind}.step${n}`)}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="rounded-md bg-blue-100/70 px-3 py-2 text-xs text-blue-900 dark:bg-blue-900/40 dark:text-blue-100">
+            {t(`${kind}.note`)}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
