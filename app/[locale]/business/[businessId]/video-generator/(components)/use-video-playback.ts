@@ -9,6 +9,9 @@ export function useVideoPlayback(scenes: VideoScene[], resetKey?: string | null)
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(true);
+  // Set by the stage while the active clip can't play yet. It holds the clock
+  // so the timeline never runs ahead of a clip that is still loading.
+  const [isBuffering, setIsBuffering] = useState(false);
   const lastFrameRef = useRef<number | null>(null);
 
   const sceneStarts = useMemo(() => {
@@ -28,7 +31,7 @@ export function useVideoPlayback(scenes: VideoScene[], resetKey?: string | null)
   }, [resetKey]);
 
   useEffect(() => {
-    if (!isPlaying || totalDuration <= 0) {
+    if (!isPlaying || isBuffering || totalDuration <= 0) {
       lastFrameRef.current = null;
       return;
     }
@@ -54,7 +57,7 @@ export function useVideoPlayback(scenes: VideoScene[], resetKey?: string | null)
       cancelAnimationFrame(frameId);
       lastFrameRef.current = null;
     };
-  }, [isLooping, isPlaying, totalDuration]);
+  }, [isBuffering, isLooping, isPlaying, totalDuration]);
 
   const activeSceneIndex = useMemo(() => {
     if (!scenes.length) return -1;
@@ -101,6 +104,8 @@ export function useVideoPlayback(scenes: VideoScene[], resetKey?: string | null)
     currentTime,
     totalDuration,
     isPlaying,
+    isBuffering,
+    setIsBuffering,
     isLooping,
     setIsLooping,
     activeSceneIndex,

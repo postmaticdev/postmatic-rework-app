@@ -220,6 +220,11 @@ export function VideoPlayerPanel({
     project && playback.activeSceneIndex >= 0
       ? project.scenes[playback.activeSceneIndex]
       : null;
+  // Wraps to the first scene, which is what plays next while looping.
+  const nextScene =
+    project && project.scenes.length > 1 && playback.activeSceneIndex >= 0
+      ? project.scenes[(playback.activeSceneIndex + 1) % project.scenes.length]
+      : null;
   const isActiveSceneUpdating =
     updatingSceneId === null ||
     (updatingSceneId !== undefined && updatingSceneId === activeScene?.id);
@@ -330,10 +335,13 @@ export function VideoPlayerPanel({
           <VideoStage
             ratio={project.ratio}
             scene={activeScene}
+            nextScene={nextScene}
             sceneIndex={playback.activeSceneIndex}
             sceneProgress={playback.sceneProgress}
             sceneElapsed={playback.sceneElapsed}
             isPlaying={playback.isPlaying}
+            isBuffering={playback.isBuffering}
+            onBufferingChange={playback.setIsBuffering}
             isMuted={
               isSilent || Boolean(project.isVideoMuted) || Boolean(activeScene?.isMuted)
             }
@@ -503,7 +511,7 @@ export function VideoPlayerPanel({
           <AudioTrackPlayer
             clips={project.audioClips}
             currentTime={playback.currentTime}
-            isPlaying={playback.isPlaying}
+            isPlaying={playback.isPlaying && !playback.isBuffering}
             volume={volume}
             isMuted={isSilent || Boolean(project.isAudioMuted)}
           />

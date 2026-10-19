@@ -25,10 +25,15 @@ export const getSceneGradient = (index: number) =>
 type VideoStageProps = {
   ratio: VideoRatio;
   scene: VideoScene | null;
+  // Its clip is loaded in the background so the cut to it doesn't stall.
+  nextScene?: VideoScene | null;
   sceneIndex: number;
   sceneProgress: number;
   sceneElapsed: number;
   isPlaying: boolean;
+  // The active clip is still loading; the timeline waits for it.
+  isBuffering?: boolean;
+  onBufferingChange?: (isBuffering: boolean) => void;
   isMuted: boolean;
   // 0..1, applied to rendered scene clips.
   volume: number;
@@ -44,10 +49,13 @@ type VideoStageProps = {
 export function VideoStage({
   ratio,
   scene,
+  nextScene,
   sceneIndex,
   sceneProgress,
   sceneElapsed,
   isPlaying,
+  isBuffering = false,
+  onBufferingChange,
   isMuted,
   volume,
   isUpdating,
@@ -57,6 +65,12 @@ export function VideoStage({
 }: VideoStageProps) {
   const t = useTranslations("videoGenerator");
   const [ratioWidth, ratioHeight] = ratio.split(":").map(Number);
+  // Keyed by scene, so the preloaded clip becomes the active one as is.
+  const clipScenes = [scene, nextScene].filter(
+    (clipScene, index, list): clipScene is VideoScene =>
+      Boolean(clipScene?.videoUrl) &&
+      list.findIndex((other) => other?.id === clipScene?.id) === index
+  );
 
   return (
     <div className="relative h-full w-full" style={{ containerType: "size" }}>
@@ -71,24 +85,37 @@ export function VideoStage({
           containerType: "inline-size",
         }}
       >
-        {scene ? (
-          scene.videoUrl ? (
+        {clipScenes.map((clipScene) => {
+          const isActive = clipScene.id === scene?.id;
+          return (
             <SceneClip
-              src={scene.videoUrl}
-              elapsed={(scene.trimStartSec ?? 0) + sceneElapsed}
-              isPlaying={isPlaying}
-              isMuted={isMuted}
+              key={clipScene.id}
+              src={clipScene.videoUrl!}
+              poster={clipScene.thumbnailUrl ?? undefined}
+              elapsed={(clipScene.trimStartSec ?? 0) + (isActive ? sceneElapsed : 0)}
+              isActive={isActive}
+              isPlaying={isActive && isPlaying}
+              isMuted={!isActive || isMuted}
               volume={volume}
+              onBufferingChange={onBufferingChange}
             />
-          ) : (
-            <StoryboardFrame
-              key={`${scene.id}-${scene.version}`}
-              scene={scene}
-              sceneIndex={sceneIndex}
-              progress={sceneProgress}
-            />
-          )
-        ) : null}
+          );
+        })}
+
+        {scene && !scene.videoUrl && (
+          <StoryboardFrame
+            key={`${scene.id}-${scene.version}`}
+            scene={scene}
+            sceneIndex={sceneIndex}
+            progress={sceneProgress}
+          />
+        )}
+
+        {isPlaying && isBuffering && !isUpdating && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 text-white animate-in fade-in duration-300">
+            <Loader2 className="h-7 w-7 animate-spin" />
+          </div>
+        )}
 
         {scene && (
           <div className="pointer-events-none absolute left-[4cqw] top-[4cqw] rounded-full bg-black/45 px-[2.5cqw] py-[1cqw] text-[clamp(10px,3cqw,14px)] font-medium text-white backdrop-blur-sm">
@@ -176,20 +203,56 @@ function StoryboardFrame({
   );
 }
 
+const CLIP_STATE_EVENTS = [
+  "loadeddata",
+  "canplay",
+  "playing",
+  "waiting",
+  "seeking",
+  "seeked",
+  "ended",
+  "error",
+] as const;
+
 function SceneClip({
   src,
+  poster,
   elapsed,
+  isActive,
   isPlaying,
   isMuted,
   volume,
+  onBufferingChange,
 }: {
   src: string;
+  poster?: string;
   elapsed: number;
+  isActive: boolean;
   isPlaying: boolean;
   isMuted: boolean;
   volume: number;
+  onBufferingChange?: (isBuffering: boolean) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Only the visible clip can hold the timeline. An ended or broken clip never
+  // does, so playback can't get stuck on it.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!isActive || !video || !onBufferingChange) return;
+    const report = () =>
+      onBufferingChange(
+        !video.ended &&
+          !video.error &&
+          video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA
+      );
+    report();
+    CLIP_STATE_EVENTS.forEach((type) => video.addEventListener(type, report));
+    return () => {
+      CLIP_STATE_EVENTS.forEach((type) => video.removeEventListener(type, report));
+      onBufferingChange(false);
+    };
+  }, [isActive, onBufferingChange, src]);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.volume = volume;
@@ -214,9 +277,15 @@ function SceneClip({
     <video
       ref={videoRef}
       src={src}
+      poster={poster}
+      preload="auto"
       muted={isMuted}
       playsInline
-      className="absolute inset-0 h-full w-full object-cover"
+      aria-hidden={!isActive}
+      className={cn(
+        "absolute inset-0 h-full w-full object-cover",
+        !isActive && "pointer-events-none opacity-0"
+      )}
     />
   );
 }

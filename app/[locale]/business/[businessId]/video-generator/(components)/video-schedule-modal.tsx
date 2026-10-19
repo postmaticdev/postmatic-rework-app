@@ -162,10 +162,17 @@ function VideoPostPreview({
       <VideoStage
         ratio={project.ratio}
         scene={project.scenes[playback.activeSceneIndex] ?? null}
+        nextScene={
+          project.scenes.length > 1
+            ? project.scenes[(playback.activeSceneIndex + 1) % project.scenes.length]
+            : null
+        }
         sceneIndex={playback.activeSceneIndex}
         sceneProgress={playback.sceneProgress}
         sceneElapsed={playback.sceneElapsed}
         isPlaying={playback.isPlaying}
+        isBuffering={playback.isBuffering}
+        onBufferingChange={playback.setIsBuffering}
         isMuted
         volume={0}
         isUpdating={false}
