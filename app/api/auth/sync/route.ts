@@ -21,15 +21,13 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const response = NextResponse.json({ ok: true });
-  const cookieOptions = getAuthCookieOptions(request);
-
   if (typeof body?.accessToken === "string" && body.accessToken) {
-    response.cookies.set(ACCESS_TOKEN_KEY, body.accessToken, cookieOptions);
+    response.cookies.set(ACCESS_TOKEN_KEY, body.accessToken, getAuthCookieOptions(request, body.accessToken));
   }
 
   if (typeof body?.refreshToken === "string" && body.refreshToken) {
     response.cookies.set(REFRESH_TOKEN_KEY, body.refreshToken, {
-      ...cookieOptions,
+      ...getAuthCookieOptions(request, body.refreshToken),
       httpOnly: true,
     });
   }

@@ -5,10 +5,12 @@ import {
   REFRESH_TOKEN_KEY,
 } from "@/constants";
 import { NextRequest, NextResponse } from "next/server";
+import { getJwtMaxAge } from "@/lib/jwt";
 
 export const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
 export const REFRESH_TOKEN_HEADER = "X-Postmatic-RefreshToken";
 
+// Fallback only, for a token without a readable `exp`.
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 const FORWARDED_AUTH_HEADERS = [
@@ -39,7 +41,13 @@ export function getBackendApiOrigin() {
   return (API_ORIGIN || NEXT_PUBLIC_API_ORIGIN).replace(/\/$/, "");
 }
 
-export function getAuthCookieOptions(request: NextRequest): AuthCookieOptions {
+/**
+ * Cookie options for an auth cookie. Pass the token being stored so the cookie
+ * expires together with it (JWT `exp`), like the cookies written by
+ * postmatic-auth and the landing page — otherwise a cookie could outlive its
+ * token, or vanish while the token is still valid.
+ */
+export function getAuthCookieOptions(request: NextRequest, token?: string): AuthCookieOptions {
   const hostname = request.nextUrl.hostname.toLowerCase();
   const protocol = request.nextUrl.protocol;
   const domain = isPostmaticHostname(hostname) ? ".postmatic.id" : undefined;
@@ -48,7 +56,7 @@ export function getAuthCookieOptions(request: NextRequest): AuthCookieOptions {
     path: "/",
     sameSite: "lax",
     secure: protocol === "https:" || process.env.NODE_ENV === "production",
-    maxAge: COOKIE_MAX_AGE,
+    maxAge: (token ? getJwtMaxAge(token) : undefined) ?? COOKIE_MAX_AGE,
     ...(domain ? { domain } : {}),
   };
 }

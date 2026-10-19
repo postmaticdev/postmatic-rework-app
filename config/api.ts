@@ -12,6 +12,7 @@ import {
 } from "@/constants";
 import { BaseResponse } from "@/models/api/base-response.type";
 import { destroySocket } from "@/lib/socket";
+import { getJwtMaxAge } from "@/lib/jwt";
 
 const MINUTE = 60_000;
 const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
@@ -148,10 +149,12 @@ function setClientCookie(name: string, value: string | null) {
     return;
   }
 
+  // Expire together with the token (JWT `exp`), like the server-set cookies.
+  const maxAge = getJwtMaxAge(value) ?? 604800;
   document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
   document.cookie = `${name}=${encodeURIComponent(
     value
-  )}; Path=/; Max-Age=604800; SameSite=Lax${secure}${domain}`;
+  )}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}${domain}`;
 }
 
 export function setAuthToken(

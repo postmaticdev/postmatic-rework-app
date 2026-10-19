@@ -101,15 +101,16 @@ export async function POST(request: NextRequest) {
 
   const accessToken = payload?.data?.accessToken;
   const nextRefreshToken = payload?.data?.refreshToken;
-  const cookieOptions = getAuthCookieOptions(request);
-
   if (upstream.ok && accessToken) {
-    response.cookies.set(ACCESS_TOKEN_KEY, accessToken, cookieOptions);
+    response.cookies.set(ACCESS_TOKEN_KEY, accessToken, getAuthCookieOptions(request, accessToken));
   }
 
-  if (upstream.ok && nextRefreshToken) {
+  // The API returns the same refresh token until it rotates it near expiry.
+  // Only write it when it changed: rewriting an unchanged token would only
+  // re-extend a cookie whose lifetime should follow the token's own `exp`.
+  if (upstream.ok && nextRefreshToken && nextRefreshToken !== refreshToken) {
     response.cookies.set(REFRESH_TOKEN_KEY, nextRefreshToken, {
-      ...cookieOptions,
+      ...getAuthCookieOptions(request, nextRefreshToken),
       httpOnly: true,
     });
   }
