@@ -17,7 +17,7 @@ import {
 } from "@/services/knowledge.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
@@ -69,7 +69,13 @@ export function ConnectedPlatformForm() {
 
   const handleConnect = async (platform: PlatformRes) => {
     try {
-      switch (platform.status) {
+      // A connection whose token expired or was revoked is renewed through
+      // the normal OAuth flow; the backend replaces the broken connection.
+      const status =
+        platform.status === "connected" && platform.requiresReconnect
+          ? "unconnected"
+          : platform.status;
+      switch (status) {
         case "connected":
           setPlatformToDisconnect(platform);
           setIsDisconnectDialogOpen(true);
@@ -247,12 +253,46 @@ export function ConnectedPlatformForm() {
                       <div className="text-xs text-muted-foreground">
                         {t("accountId", { id: platform.accountId ?? "" })}
                       </div>
+                      {platform.requiresReconnect && (
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                            <AlertTriangle className="h-3 w-3" />
+                            {t("needsReconnect")}
+                          </span>
+                          <span className="text-xs text-amber-700 dark:text-amber-400">
+                            {t("needsReconnectDescription")}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </p>
               </div>
             </div>
-            {mapEnumPlatform.getPlatformCtaLabel(platform.status, t) && (
+            {platform.status === "connected" && platform.requiresReconnect ? (
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                <Button
+                  size="sm"
+                  onClick={() => handleConnect(platform)}
+                  disabled={connectingPlatform === platform.platform}
+                  className="bg-amber-500 text-white hover:bg-amber-600"
+                >
+                  {connectingPlatform === platform.platform
+                    ? t("connecting")
+                    : t("reconnect")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPlatformToDisconnect(platform);
+                    setIsDisconnectDialogOpen(true);
+                  }}
+                >
+                  {t("disconnect")}
+                </Button>
+              </div>
+            ) : mapEnumPlatform.getPlatformCtaLabel(platform.status, t) && (
               <Button
                 variant="outline"
                 size="sm"

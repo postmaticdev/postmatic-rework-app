@@ -3,7 +3,7 @@ import { BaseResponse, BaseResponseFiltered, FilterQuery } from "@/models/api/ba
 import {
   DeleteContentRes,
   DirectPostContentPld,
-  DirectPostContentRes,
+  DirectPostResultRes,
   EditContentPld,
   GenerateContentBasicPld as GenerateContentKnowledgePld,
   GenerateContentMaskPld,
@@ -47,6 +47,10 @@ import {
   AutoGenerateHistoriesQuery,
 } from "@/models/api/content/auto-generate";
 import { GetAllJob, JobRes } from "@/models/socket-content";
+import {
+  PUBLISH_POLL_INTERVAL_MS,
+  hasProcessingPublishJob,
+} from "@/helper/publish-status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 type NewRepetitionItem = {
@@ -410,8 +414,17 @@ const mapUploadHistoryToPostedContent = (
   item: NewImagePostUploadHistory,
   businessId: string
 ): PostedImageRes => {
-  const allPlatforms = item.platforms || [];
-
+  // upload-history returns every attempt; keep only the latest job per
+  // platform so a failed attempt that was re-sent successfully is not shown
+  // as failed (and a successful one is not offered again).
+  const latestByPlatform = new Map<PlatformEnum, NewImagePostUploadHistoryPlatform>();
+  (item.platforms || []).forEach((platform) => {
+    const current = latestByPlatform.get(platform.platformCode);
+    if (!current || platform.id > current.id) {
+      latestByPlatform.set(platform.platformCode, platform);
+    }
+  });
+  const allPlatforms = Array.from(latestByPlatform.values());
 
   return {
     id: String(item.imagePostScheduleId),
@@ -623,7 +636,7 @@ const draftService = {
         platforms: formData.platforms,
       }
     ) as unknown as ReturnType<
-      typeof api.post<BaseResponse<DirectPostContentRes[]>>
+      typeof api.post<BaseResponse<DirectPostResultRes>>
     >;
   },
   deleteDraft: (businessId: string, generatedImageContentId: string) => {
@@ -635,11 +648,13 @@ const draftService = {
 
 export const useContentDraftGetAllDraftImage = (
   idData: string,
-  filterQuery?: Partial<FilterQuery>
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["contentDraftGetAllDraftImage", idData, filterQuery],
     queryFn: () => draftService.getAllDraftImage(idData, filterQuery),
+    enabled,
   });
 };
 
@@ -723,7 +738,11 @@ export const useContentDraftDirectPostFromDraft = () => {
       businessId: string;
       formData: DirectPostContentPld;
     }) => draftService.directPostFromDraft(businessId, formData),
-    onSuccess: () => {
+    // Errors (all platforms failed, publish in progress) are reported by the
+    // caller through usePublishFeedback instead of the generic error toast.
+    onError: () => undefined,
+    // A failed post still creates publishing jobs, so refresh on errors too.
+    onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: ["contentDraftGetAllDraftImage"],
       });
@@ -735,6 +754,9 @@ export const useContentDraftDirectPostFromDraft = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ["contentPostedGetAllPostedImage"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["contentPostCommonOverview"],
       });
     },
   });
@@ -974,25 +996,13 @@ const postedService = {
     >;
   },
   repost: (businessId: string, formData: RepostContentPld) => {
-    return api
-      .post<BaseResponse<NewImagePostUploadHistory>>(
-        `/generative-content/image-post-common/${businessId}/direct-post`,
-        {
-          imagePostScheduleId: formData.imagePostScheduleId,
-          platforms: formData.platforms,
-        }
-      )
-      .then((res) => ({
-        ...res,
-        data: {
-          ...res.data,
-          data: res.data.data
-            ? mapUploadHistoryToPostedContent(res.data.data, businessId)
-            : null,
-        },
-      })) as unknown as ReturnType<
-      typeof api.post<BaseResponse<PostedImageRes>>
-    >;
+    return api.post<BaseResponse<DirectPostResultRes>>(
+      `/generative-content/image-post-common/${businessId}/direct-post`,
+      {
+        imagePostScheduleId: formData.imagePostScheduleId,
+        platforms: formData.platforms,
+      }
+    );
   },
 };
 
@@ -1004,7 +1014,15 @@ export const useContentPostedGetAllPostedImage = (
     queryKey: ["contentPostedGetAllPostedImage", businessId, filterQuery],
     queryFn: () => postedService.getAllPostedImage(businessId, filterQuery),
     enabled: !!businessId,
-    refetchInterval: 10000,
+    // Poll only while a publish is still running; react-query skips the
+    // interval while the tab is hidden (refetchIntervalInBackground: false).
+    refetchInterval: (query) =>
+      (query.state.data?.data.data || []).some((item) =>
+        hasProcessingPublishJob(item.postedImageContents || [])
+      )
+        ? PUBLISH_POLL_INTERVAL_MS
+        : false,
+    refetchIntervalInBackground: false,
   });
 };
 
@@ -1013,7 +1031,9 @@ export const useContentPostedRepost = (businessId: string) => {
   return useMutation({
     mutationFn: (formData: RepostContentPld) =>
       postedService.repost(businessId, formData),
-    onSuccess: () => {
+    // Errors are reported by the caller through usePublishFeedback.
+    onError: () => undefined,
+    onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: ["contentPostedGetAllPostedImage", businessId],
       });
@@ -1022,6 +1042,9 @@ export const useContentPostedRepost = (businessId: string) => {
       });
       queryClient.invalidateQueries({
         queryKey: ["contentOverviewUpcoming"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["contentPostCommonOverview", businessId],
       });
     },
   });
@@ -1470,11 +1493,25 @@ export const jobContentService = {
   },
 };
 
-export const useContentJobGetAllJob = (businessId: string, enabled = true) => {
+export const useContentJobGetAllJob = (
+  businessId: string,
+  enabled = true,
+  pollWhileProcessing = false
+) => {
   return useQuery({
     queryKey: ["contentJobGetAllJob", businessId],
     queryFn: () => jobContentService.getAllJob(businessId),
     enabled: enabled && !!businessId,
+    refetchInterval: (query) =>
+      pollWhileProcessing &&
+      (query.state.data?.data.data || []).some((group) =>
+        group.jobs.some(
+          (job) => job.status === "processing" || job.status === "queued"
+        )
+      )
+        ? PUBLISH_POLL_INTERVAL_MS
+        : false,
+    refetchIntervalInBackground: false,
   });
 };
 

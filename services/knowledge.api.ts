@@ -788,6 +788,10 @@ const mapConnectedPlatform = (
       : null,
     accountId: connectedPlatform?.platformUserId ?? null,
     id: connectedPlatform?.id ?? null,
+    requiresReconnect: isConnected
+      ? connectedPlatform.requiresReconnect ??
+        connectedPlatform.platformMetadata?.requiresReconnect === true
+      : false,
   };
 };
 

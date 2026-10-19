@@ -392,7 +392,10 @@
     "connecting": "Connecting...",
     "accountAlt": "Account",
     "noPendingAccount": "No pending platform account found.",
-    "accountId": "Account ID: {id}"
+    "accountId": "Account ID: {id}",
+    "needsReconnect": "Needs reconnecting",
+    "needsReconnectDescription": "Access to this account expired or was revoked. Reconnect it so posts can be published.",
+    "reconnect": "Reconnect"
   },
   "settings": {
     "overview": "Overview",
@@ -658,7 +661,23 @@
     "photoLabel": "Photo",
     "selectTimezone": "Select timezone",
     "searchTimezone": "Search timezone...",
-    "timezoneNotFound": "Timezone not found"
+    "timezoneNotFound": "Timezone not found",
+    "publishStatusFailed": "Failed",
+    "publishStatusPartial": "Partial",
+    "publishStatusProcessing": "Processing",
+    "postingInProgress": "Posting…",
+    "failedToPost": "Failed to post",
+    "failedPlatformSelectHint": "Select the failed platforms to send the post again.",
+    "needsReconnect": "Needs reconnecting",
+    "reconnectAction": "Reconnect",
+    "publishSuccess": "Posted successfully.",
+    "publishAllSuccess": "Posted to {platforms}.",
+    "publishPartial": "Posted to {succeeded}, but failed on {failed}.",
+    "publishAllFailed": "Failed to post to {platforms}.",
+    "publishRetryHint": "Open the History tab and press Retry to send it again.",
+    "publishReconnectHint": "{platforms} needs to be reconnected before posts can be published.",
+    "publishReconnectOwnerHint": "Ask the business owner to reconnect {platforms}.",
+    "publishInProgress": "This post is already being published. Wait a moment, then check the History tab."
   },
   "generationPanel": {
     "basicGenerate": "Basic Generation",
@@ -1222,6 +1241,7 @@
   "businessKnowledge": {
     "notAvailable": "Not Available",
     "notConnected": "Not Connected",
+    "needsReconnect": "Needs reconnecting",
     "socialMedia": "Social Media",
     "title": "Business Knowledge",
     "logoBrand": "Business Logo",

@@ -9,6 +9,7 @@ import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useQuery } from "@tanstack/react-query";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { getToastLocale } from "@/helper/api-response-message";
+import { PUBLISH_POLL_INTERVAL_MS } from "@/helper/publish-status";
 
 type NewScheduledPost = {
   id: number;
@@ -84,6 +85,36 @@ const isVisibleScheduledPost = (
       (Boolean(item.imageUrl) ||
         Boolean(item.withChatAI) ||
         Boolean(item.chatSessionId)))
+  );
+};
+
+// A READY post whose publish time has passed is being published by the worker.
+// Older ones are treated as stuck so they don't keep the page polling.
+const DUE_POST_WINDOW_MS = 30 * 60 * 1000;
+const MAX_UPCOMING_REFETCH_MS = 10 * 60 * 1000;
+
+// Poll every 30 s while a scheduled post is being published; otherwise wake
+// up around the next publish time (at most every 10 min) so the calendar
+// picks up the result. No READY post means no polling at all.
+const getUpcomingRefetchInterval = (items: UpcomingPostRes[]) => {
+  const now = Date.now();
+  let nextPublishAt = Number.POSITIVE_INFINITY;
+
+  for (const item of items) {
+    if (item.status?.toLowerCase() !== "ready") continue;
+    const publishAt = new Date(item.date).getTime();
+    if (Number.isNaN(publishAt)) continue;
+    if (publishAt <= now) {
+      if (now - publishAt <= DUE_POST_WINDOW_MS) return PUBLISH_POLL_INTERVAL_MS;
+      continue;
+    }
+    nextPublishAt = Math.min(nextPublishAt, publishAt);
+  }
+
+  if (!Number.isFinite(nextPublishAt)) return false;
+  return Math.min(
+    Math.max(nextPublishAt - now, PUBLISH_POLL_INTERVAL_MS),
+    MAX_UPCOMING_REFETCH_MS
   );
 };
 
@@ -253,6 +284,8 @@ export const useContentOverviewGetUpcoming = (
     queryKey: ["contentOverviewUpcoming", businessId, filterQuery],
     queryFn: () => overviewService.getUpcoming(businessId, filterQuery),
     enabled: !!businessId,
-    refetchInterval: 10000,
+    refetchInterval: (query) =>
+      getUpcomingRefetchInterval(query.state.data?.data.data || []),
+    refetchIntervalInBackground: false,
   });
 };

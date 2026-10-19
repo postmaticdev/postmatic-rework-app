@@ -392,7 +392,10 @@
     "connecting": "Menghubungkan...",
     "accountAlt": "Akun",
     "noPendingAccount": "Tidak ada akun platform yang menunggu untuk dihubungkan.",
-    "accountId": "ID Akun: {id}"
+    "accountId": "ID Akun: {id}",
+    "needsReconnect": "Perlu dihubungkan ulang",
+    "needsReconnectDescription": "Akses ke akun ini sudah kedaluwarsa atau dicabut. Hubungkan ulang agar postingan bisa terbit.",
+    "reconnect": "Hubungkan ulang"
   },
   "settings": {
     "timezone": "Zona Waktu",
@@ -658,7 +661,23 @@
     "photoLabel": "Foto",
     "selectTimezone": "Pilih zona waktu",
     "searchTimezone": "Cari zona waktu...",
-    "timezoneNotFound": "Zona waktu tidak ditemukan"
+    "timezoneNotFound": "Zona waktu tidak ditemukan",
+    "publishStatusFailed": "Gagal",
+    "publishStatusPartial": "Sebagian",
+    "publishStatusProcessing": "Sedang diproses",
+    "postingInProgress": "Sedang memposting…",
+    "failedToPost": "Gagal diposting",
+    "failedPlatformSelectHint": "Pilih platform yang gagal untuk mengirim ulang postingan.",
+    "needsReconnect": "Perlu dihubungkan ulang",
+    "reconnectAction": "Hubungkan ulang",
+    "publishSuccess": "Berhasil diposting.",
+    "publishAllSuccess": "Berhasil diposting ke {platforms}.",
+    "publishPartial": "Berhasil diposting ke {succeeded}, tetapi gagal ke {failed}.",
+    "publishAllFailed": "Gagal memposting ke {platforms}.",
+    "publishRetryHint": "Buka tab Riwayat lalu tekan Coba Lagi untuk mengirim ulang.",
+    "publishReconnectHint": "Akun {platforms} perlu dihubungkan ulang sebelum bisa memposting.",
+    "publishReconnectOwnerHint": "Minta pemilik bisnis menghubungkan ulang akun {platforms}.",
+    "publishInProgress": "Postingan ini sedang diproses. Tunggu sebentar, lalu cek tab Riwayat."
   },
   "generationPanel": {
     "basicGenerate": "Pembuatan Dasar",
@@ -1222,6 +1241,7 @@
   "businessKnowledge": {
     "notAvailable": "Tidak tersedia",
     "notConnected": "Belum terhubung",
+    "needsReconnect": "Perlu dihubungkan ulang",
     "socialMedia": "Media Sosial",
     "title": "Pengetahuan Bisnis",
     "logoBrand": "Logo Bisnis",

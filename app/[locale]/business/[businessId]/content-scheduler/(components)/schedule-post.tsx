@@ -33,6 +33,7 @@ import {
 } from "@/services/content/content.api";
 import { getNextSchedulableDate } from "@/lib/schedule-date-time";
 import { showToast } from "@/helper/show-toast";
+import { usePublishFeedback } from "@/hooks/use-publish-feedback";
 import { removeSchedulerDraftMarker } from "@/lib/scheduler-draft-markers";
 import { NoContent } from "@/components/base/no-content";
 import { UpcomingPostsSkeleton } from "@/components/grid-skeleton/upcoming-posts-skeleton";
@@ -140,6 +141,7 @@ export function SchedulePost({
   };
 
   const mDirectPostFromDraft = useContentDraftDirectPostFromDraft();
+  const { notifyPublishResult, notifyPublishError } = usePublishFeedback();
   const mSchedulerEdit = useContentSchedulerManualEditQueue();
   const mRemove = useContentSchedulerManualRemove();
   const mReadyToPost = useContentDraftSetReadyToPost();
@@ -241,17 +243,28 @@ export function SchedulePost({
   };
 
   const handleSubmit = async () => {
+    if (postType === "now") {
+      // Ignore repeated clicks while the publish request is still running.
+      if (mDirectPostFromDraft.isPending || mSchedulerEdit.isPending) return;
+      try {
+        if (!(await persistEditedCaptionBeforeDirectPost())) return;
+        const resDirect = await mDirectPostFromDraft.mutateAsync({
+          businessId,
+          formData: formDataDraft.direct,
+        });
+        notifyPublishResult(resDirect.data);
+        onCloseModal();
+      } catch (error) {
+        // Every platform failed: the failed post is listed in the history.
+        if (notifyPublishError(error) === "failed") {
+          onCloseModal();
+        }
+      }
+      return;
+    }
+
     try {
       switch (postType) {
-        case "now":
-          if (!(await persistEditedCaptionBeforeDirectPost())) return;
-          const resDirect = await mDirectPostFromDraft.mutateAsync({
-            businessId,
-            formData: formDataDraft.direct,
-          });
-          showToast("success", resDirect.data.responseMessage);
-          onCloseModal();
-          break;
         case "schedule":
           if (!schedulerManualPostingId) {
             showToast("error", tToast("toast.content.scheduleEditError"));

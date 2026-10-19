@@ -53,10 +53,12 @@ export function CreatePostModal({
   const mappedPlatforms = platforms.map((platform) => ({
     id: platform.platform,
     name: platform.name,
-    isActive: platform.status === "connected",
+    isActive: platform.status === "connected" && !platform.requiresReconnect,
     hint:
       platform.status === "connected"
-        ? null
+        ? platform.requiresReconnect
+          ? t("needsReconnect")
+          : null
         : platform.status === "unconnected"
         ? t("unconnected")
         : t("notAvailable"),
@@ -261,7 +263,9 @@ export function CreatePostModal({
         <DialogFooterWithButton
           buttonMessage={
             isLoading
-              ? t("loading")
+              ? postType === "now"
+                ? t("postingInProgress")
+                : t("loading")
               : showScheduling && postType === "schedule"
               ? t("scheduleButton")
               : t("postNowButton")

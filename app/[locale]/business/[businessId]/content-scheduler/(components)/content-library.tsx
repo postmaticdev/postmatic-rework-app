@@ -58,6 +58,11 @@ import { PersonalContentForm, PersonalPostModal } from "./personal-post-modal";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import {
+  getPublishJobState,
+  isReconnectRequiredError,
+} from "@/helper/publish-status";
+import { usePublishFeedback } from "@/hooks/use-publish-feedback";
 
 export interface FormDataDraft {
   direct: DirectPostContentPld;
@@ -153,11 +158,15 @@ export function ContentLibrary({
   });
 
   const { data: draftContent, isLoading: isLoadingDraft } =
-    useContentDraftGetAllDraftImage(businessId, {
-      search: debouncedSearch,
-      category: "drafts",
-      ...historyFilterQuery,
-    });
+    useContentDraftGetAllDraftImage(
+      businessId,
+      {
+        search: debouncedSearch,
+        category: "drafts",
+        ...historyFilterQuery,
+      },
+      type === "draft"
+    );
   const filteredContentDraft = draftContent?.data.data || [];
 
   const { data: postedContent, isLoading: isLoadingPosted } =
@@ -251,7 +260,7 @@ export function ContentLibrary({
   };
 
   const handleRetryFailedPost = (content: PostedImageRes) => {
-    handleSetFormDataView(content);
+    handleSetFormDataView(content, true);
   };
 
   const isUploadFailedPost = (content: PostedImageRes) => {
@@ -299,7 +308,7 @@ export function ContentLibrary({
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const platforms = platformData?.data.data || [];
   const availablePlatforms = platforms.filter(
-    (platform) => platform.status === "connected"
+    (platform) => platform.status === "connected" && !platform.requiresReconnect
   );
 
   const mDirectPostFromDraft = useContentDraftDirectPostFromDraft();
@@ -307,6 +316,7 @@ export function ContentLibrary({
   const mAddToQueue = useContentDraftSetReadyToPost();
   const mRepostPostedContent = useContentPostedRepost(businessId);
   const mCreatePersonal = useContentPersonalCreate();
+  const { notifyPublishResult, notifyPublishError } = usePublishFeedback();
 
   const [modalPost, setModalPost] = useState(false);
   const [modalView, setModalView] = useState(false);
@@ -378,22 +388,44 @@ export function ContentLibrary({
   };
 
   const handleRepostNow = async () => {
-    try {
-      const imagePostScheduleId = Number(formDataView.data.id);
-      if (!Number.isFinite(imagePostScheduleId)) {
-        return;
-      }
+    // Ignore repeated clicks while the publish request is still running.
+    if (mRepostPostedContent.isPending) return;
 
+    const imagePostScheduleId = Number(formDataView.data.id);
+    if (!Number.isFinite(imagePostScheduleId)) {
+      return;
+    }
+
+    try {
       const res = await mRepostPostedContent.mutateAsync({
         imagePostScheduleId,
         platforms: formDataView.selectedPlatforms,
       });
-      showToast("success", res.data.responseMessage);
+      notifyPublishResult(res.data);
       onCloseModalView();
-    } catch { }
+    } catch (error) {
+      // Every platform failed: the result is reported and visible in the history.
+      if (notifyPublishError(error) === "failed") {
+        onCloseModalView();
+      }
+    }
   };
 
-  const handleSetFormDataView = (item: PostedImageRes) => {
+  const handleSetFormDataView = (
+    item: PostedImageRes,
+    preselectFailed = false
+  ) => {
+    const latestJobs = item?.postedImageContents || [];
+    // Platforms whose latest job succeeded or is still running cannot be
+    // sent again; failed ones can.
+    const lockedPlatforms = latestJobs
+      .filter((post) => getPublishJobState(post.jobStatus) !== "failed")
+      .map((post) => post.platform);
+    const failedPlatforms = latestJobs
+      .filter((post) => getPublishJobState(post.jobStatus) === "failed")
+      .map((post) => post.platform);
+    const availablePlatformCodes = availablePlatforms.map((p) => p.platform);
+
     setFormDataView({
       data: {
         caption: item?.caption,
@@ -411,10 +443,16 @@ export function ContentLibrary({
         updatedAt: item?.updatedAt || "",
         deletedAt: item?.deletedAt || "",
       },
-      unPostedPlatforms: availablePlatforms
-        .filter((p) => !item?.platforms?.includes(p.platform))
-        .map((p) => p.platform),
-      selectedPlatforms: [],
+      unPostedPlatforms: availablePlatformCodes.filter(
+        (platform) => !lockedPlatforms.includes(platform)
+      ),
+      // "Coba Lagi" opens with the failed platforms that can be posted to
+      // already selected.
+      selectedPlatforms: preselectFailed
+        ? failedPlatforms.filter((platform) =>
+            availablePlatformCodes.includes(platform)
+          )
+        : [],
     });
     setModalView(true);
   };
@@ -427,17 +465,29 @@ export function ContentLibrary({
   };
 
   const handleSave = async () => {
-    try {
-      switch (initialPostType) {
-        case "now":
-          const resDirect = await mDirectPostFromDraft.mutateAsync({
-            businessId,
-            formData: formDataDraft.direct,
-          });
-          showToast("success", resDirect.data.responseMessage);
+    if (initialPostType === "now") {
+      // Ignore repeated clicks while the publish request is still running.
+      if (mDirectPostFromDraft.isPending) return;
+      try {
+        const resDirect = await mDirectPostFromDraft.mutateAsync({
+          businessId,
+          formData: formDataDraft.direct,
+        });
+        notifyPublishResult(resDirect.data);
+        onCloseModalPost();
+        setActiveTab("history");
+      } catch (error) {
+        // Every platform failed: the failed post is listed in the history.
+        if (notifyPublishError(error) === "failed") {
           onCloseModalPost();
           setActiveTab("history");
-          break;
+        }
+      }
+      return;
+    }
+
+    try {
+      switch (initialPostType) {
         case "schedule":
           const resSchedule = await mSchedulePost.mutateAsync({
             businessId,
@@ -669,6 +719,14 @@ export function ContentLibrary({
           const firstFailedPost = content?.postedImageContents?.find(
             (p) => p.jobStatus?.toLowerCase() === "failed" || p.jobStatus?.toLowerCase() === "error"
           );
+          // Raw provider codes such as FACEBOOK_PAGE_RECONNECT_REQUIRED are
+          // replaced by a readable message.
+          const failedPostMessage =
+            firstFailedPost && isReconnectRequiredError(firstFailedPost.errorMessage)
+              ? t("publishReconnectHint", {
+                  platforms: mapEnumPlatform.getPlatformLabel(firstFailedPost.platform),
+                })
+              : firstFailedPost?.errorMessage || t("postToSocialFailed");
 
           if (isUploadFailed) {
             return (
@@ -701,7 +759,7 @@ export function ContentLibrary({
                     <div className="flex items-start gap-1.5">
                       <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
                       <p className="line-clamp-2 leading-relaxed" title={firstFailedPost?.errorMessage || t("postToSocialFailed")}>
-                        {firstFailedPost?.errorMessage || t("postToSocialFailed")}
+                        {failedPostMessage}
                       </p>
                     </div>
                   </div>
@@ -811,6 +869,11 @@ export function ContentLibrary({
                             <span className="truncate">
                               {mapEnumPlatform.getPlatformLabel(post.platform)}
                             </span>
+                            {getPublishJobState(post.jobStatus) === "processing" && (
+                              <span className="shrink-0 text-muted-foreground">
+                                · {t("publishStatusProcessing")}
+                              </span>
+                            )}
                           </span>
                         );
                       })
@@ -923,6 +986,7 @@ export function ContentLibrary({
           formData={formDataView}
           setFormData={setFormDataView}
           onPostNow={handleRepostNow}
+          isPosting={mRepostPostedContent.isPending}
         />
       </CardContent>
     </Card>

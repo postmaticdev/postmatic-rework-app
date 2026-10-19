@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Edit } from "lucide-react";
+import { AlertTriangle, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
@@ -20,6 +20,8 @@ export function MediaSocialSection() {
     searchParams.has("platformTempCode") ||
     searchParams.has("tempCode") ||
     searchParams.has("connectedPlatformTempCode");
+  // Set by the scheduler's "Reconnect" action.
+  const wantsReconnect = searchParams.has("reconnectPlatform");
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const platforms = platformData?.data.data ?? [];
   const [isPlatformModalOpen, setIsPlatformModalOpen] =
@@ -33,6 +35,12 @@ export function MediaSocialSection() {
       setIsPlatformModalOpen(true);
     }
   }, [hasPendingPlatform]);
+
+  useEffect(() => {
+    if (wantsReconnect && platformKnowledge.write) {
+      setIsPlatformModalOpen(true);
+    }
+  }, [platformKnowledge.write, wantsReconnect]);
 
   return (
     <div className="h-full">
@@ -59,13 +67,16 @@ export function MediaSocialSection() {
                 (item) => item.platform === platformId
               );
               const isConnected = platform?.status === "connected";
+              const needsReconnect = isConnected && Boolean(platform?.requiresReconnect);
 
               return (
                 <div
                   key={platformId}
                   className={cn(
                     "flex items-center gap-4 rounded-md border p-3 text-sm font-medium shadow-sm",
-                    !isConnected && "border-dashed bg-muted/30 text-muted-foreground"
+                    !isConnected && "border-dashed bg-muted/30 text-muted-foreground",
+                    needsReconnect &&
+                      "border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/20"
                   )}
                 >
                   <div
@@ -93,6 +104,12 @@ export function MediaSocialSection() {
                         ? platform?.accountDisplayName || platform?.name
                         : b("notConnected")}
                     </p>
+                    {needsReconnect && (
+                      <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        {b("needsReconnect")}
+                      </p>
+                    )}
                   </div>
                 </div>
               );

@@ -209,6 +209,35 @@ export interface DirectPostContentRes {
   generatedImageContentId: string;
 }
 
+/* Outcome of one requested platform of a direct post / repost */
+export interface DirectPostPlatformResult {
+  platformCode: PlatformEnum;
+  businessConnectedPlatformId: number;
+  publishingJobId: number | null;
+  jobStatus: string;
+  postUrl: string | null;
+  errorMessage: string | null;
+  requiresReconnect: boolean;
+}
+
+export interface DirectPostSummary {
+  requested: number;
+  succeeded: number;
+  failed: number;
+}
+
+/*
+  Response of the direct-post endpoint (also returned as error data with
+  DIRECT_POST_ALL_PLATFORMS_FAILED when every platform failed)
+*/
+export interface DirectPostResultRes {
+  id: number;
+  status: string;
+  platforms: PlatformEnum[];
+  publishResults?: DirectPostPlatformResult[];
+  publishSummary?: DirectPostSummary;
+}
+
 /*
   Payload for Personal Content (manual upload)
 */

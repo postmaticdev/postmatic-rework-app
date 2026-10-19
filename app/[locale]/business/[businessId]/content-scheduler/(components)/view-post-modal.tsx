@@ -11,7 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
+  AlertTriangle,
+  CheckCircle2,
   ExternalLink,
+  Loader2,
   MoreHorizontal,
   X,
   ThumbsUp,
@@ -29,12 +32,15 @@ import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { PostedImageContent } from "@/models/api/content/image.type";
 import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import { getPublishJobState } from "@/helper/publish-status";
 import {
   usePlatformKnowledgeGetAll,
   useBusinessKnowledgeGetById,
 } from "@/services/knowledge.api";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { useRole } from "@/contexts/role-context";
 import { cn } from "@/lib/utils";
 
 interface ViewPostModalProps {
@@ -43,6 +49,7 @@ interface ViewPostModalProps {
   formData: FormDataView;
   setFormData: (formData: FormDataView) => void;
   onPostNow: () => void;
+  isPosting?: boolean;
 }
 
 export function ViewPostModal({
@@ -51,12 +58,14 @@ export function ViewPostModal({
   onPostNow,
   formData,
   setFormData,
+  isPosting = false,
 }: ViewPostModalProps) {
   const { businessId } = useParams() as { businessId: string };
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(businessId);
   const platforms = platformData?.data.data || [];
   const t = useTranslations("contentScheduler");
+  const { access } = useRole();
   const tPreview = useTranslations("mockPostPreview");
 
   const businessName =
@@ -71,15 +80,19 @@ export function ViewPostModal({
   const mappedPlatforms = socialPlatforms.map((platformCode) => {
     const platform = platforms.find((item) => item.platform === platformCode);
     const status = platform?.status ?? "unconnected";
+    const requiresReconnect = Boolean(platform?.requiresReconnect);
 
     return {
       id: platformCode,
       name: platform?.name ?? mapEnumPlatform.getPlatformLabel(platformCode),
-      isActive: status === "connected",
+      isActive: status === "connected" && !requiresReconnect,
       status,
+      requiresReconnect,
       hint:
         status === "connected"
-          ? null
+          ? requiresReconnect
+            ? t("needsReconnect")
+            : null
           : status === "unconnected"
             ? t("unconnected")
             : t("notAvailable"),
@@ -90,18 +103,48 @@ export function ViewPostModal({
     (platform) => !platform.isActive
   );
 
+  // postedImageContents holds the latest job of each platform.
   const postedImageContents =
     formData?.data?.postedImageContents?.filter((platform) =>
       socialPlatforms.includes(platform.platform)
     ) || [];
 
-  const postedPlatforms = new Set<PlatformEnum>([
-    ...(formData?.data?.platforms || []),
-    ...postedImageContents.map((item) => item.platform),
-  ]);
+  // Succeeded or still running: not offered again. Failed: can be resent.
+  const postedPlatforms = new Set<PlatformEnum>(
+    postedImageContents
+      .filter((item) => getPublishJobState(item.jobStatus) !== "failed")
+      .map((item) => item.platform)
+  );
+  const failedImageContents = postedImageContents.filter(
+    (item) => getPublishJobState(item.jobStatus) === "failed"
+  );
+  const failedPlatforms = new Set<PlatformEnum>(
+    failedImageContents.map((item) => item.platform)
+  );
+  const publishedImageContents = postedImageContents.filter(
+    (item) => !failedPlatforms.has(item.platform)
+  );
+
+  const failedPlatformOptions = mappedPlatforms
+    .filter((platform) => failedPlatforms.has(platform.id))
+    .map((platform) => {
+      const failedJob = failedImageContents.find(
+        (item) => item.platform === platform.id
+      );
+      // The connection state is current; the job error may predate a reconnect.
+      return {
+        ...platform,
+        errorMessage: failedJob?.errorMessage || null,
+      };
+    });
+  const reconnectPlatformLabels = failedPlatformOptions
+    .filter((platform) => platform.requiresReconnect)
+    .map((platform) => mapEnumPlatform.getPlatformLabel(platform.id))
+    .join(", ");
 
   const unPostedPlatforms = mappedPlatforms.filter(
-    (platform) => !postedPlatforms.has(platform.id)
+    (platform) =>
+      !postedPlatforms.has(platform.id) && !failedPlatforms.has(platform.id)
   );
 
   const previewPlatforms = useMemo(() => {
@@ -128,15 +171,17 @@ export function ViewPostModal({
   }, [isOpen, formData?.data?.id]);
 
   const handleShowPosted = (item: PostedImageContent) => {
-    window.open(item.url, "_blank");
+    if (!item.url) return;
+    window.open(item.url, "_blank", "noopener,noreferrer");
   };
 
   const handlePostNow = () => {
+    if (isPosting) return;
     onPostNow();
   };
 
   const handleSelectUnpostedPlatform = (platform: PlatformEnum) => {
-    if (isDisabledPlatform(platform)) return;
+    if (isPosting || isDisabledPlatform(platform)) return;
     const isExist = isSelectedPlatform(platform);
     setFormData({
       ...formData,
@@ -404,23 +449,50 @@ export function ViewPostModal({
                 <h3 className="text-sm font-semibold text-foreground">
                   {t("postedTo")}
                 </h3>
-                {postedImageContents.length > 0 ? (
+                {publishedImageContents.length > 0 ? (
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {postedImageContents.map((platform) => (
-                      <Button
-                        key={platform.id}
-                        type="button"
-                        variant="outline"
-                        className="justify-start space-x-2 border-green-600/40 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20"
-                        onClick={() => handleShowPosted(platform)}
-                      >
-                        {mapEnumPlatform.getPlatformIcon(platform.platform)}
-                        <span className="truncate text-xs font-medium max-sm:text-sm">
-                          {mapEnumPlatform.getPlatformLabel(platform.platform)}
-                        </span>
-                        <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" />
-                      </Button>
-                    ))}
+                    {publishedImageContents.map((platform) =>
+                      getPublishJobState(platform.jobStatus) === "processing" ? (
+                        <div
+                          key={platform.id}
+                          className="flex h-9 items-center gap-2 rounded-md border border-border px-3 text-muted-foreground"
+                        >
+                          {mapEnumPlatform.getPlatformIcon(platform.platform)}
+                          <span className="truncate text-xs font-medium max-sm:text-sm">
+                            {mapEnumPlatform.getPlatformLabel(platform.platform)}
+                          </span>
+                          <span className="ml-auto flex shrink-0 items-center gap-1 text-[10px] max-sm:text-xs">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            {t("publishStatusProcessing")}
+                          </span>
+                        </div>
+                      ) : platform.url ? (
+                        <Button
+                          key={platform.id}
+                          type="button"
+                          variant="outline"
+                          className="justify-start space-x-2 border-green-600/40 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20"
+                          onClick={() => handleShowPosted(platform)}
+                        >
+                          {mapEnumPlatform.getPlatformIcon(platform.platform)}
+                          <span className="truncate text-xs font-medium max-sm:text-sm">
+                            {mapEnumPlatform.getPlatformLabel(platform.platform)}
+                          </span>
+                          <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0" />
+                        </Button>
+                      ) : (
+                        <div
+                          key={platform.id}
+                          className="flex h-9 items-center gap-2 rounded-md border border-green-600/40 px-3 text-green-600"
+                        >
+                          {mapEnumPlatform.getPlatformIcon(platform.platform)}
+                          <span className="truncate text-xs font-medium max-sm:text-sm">
+                            {mapEnumPlatform.getPlatformLabel(platform.platform)}
+                          </span>
+                          <CheckCircle2 className="ml-auto h-3.5 w-3.5 shrink-0" />
+                        </div>
+                      )
+                    )}
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
@@ -428,6 +500,63 @@ export function ViewPostModal({
                   </p>
                 )}
               </div>
+
+              {/* Failed Platforms: can be selected to resend */}
+              {failedPlatformOptions.length > 0 && (
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {t("failedToPost")}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {t("failedPlatformSelectHint")}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {failedPlatformOptions.map((platform) => (
+                      <Button
+                        key={platform.id}
+                        type="button"
+                        variant="outline"
+                        title={platform.errorMessage || undefined}
+                        className={cn(
+                          "justify-start space-x-2 transition-colors",
+                          isSelectedPlatform(platform.id)
+                            ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
+                            : "border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/30"
+                        )}
+                        disabled={isPosting || isDisabledPlatform(platform.id)}
+                        onClick={() => handleSelectUnpostedPlatform(platform.id)}
+                      >
+                        {mapEnumPlatform.getPlatformIcon(platform.id)}
+                        <span className="truncate text-xs font-medium max-sm:text-sm">
+                          {mapEnumPlatform.getPlatformLabel(platform.id)}
+                        </span>
+                        <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground max-sm:text-xs">
+                          {platform.hint || t("publishStatusFailed")}
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                  {reconnectPlatformLabels && (
+                    <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1">
+                        {access.platformKnowledge.write
+                          ? t("publishReconnectHint", { platforms: reconnectPlatformLabels })
+                          : t("publishReconnectOwnerHint", { platforms: reconnectPlatformLabels })}
+                      </span>
+                      {access.platformKnowledge.write && (
+                        <Button asChild size="sm" variant="outline" className="h-7">
+                          <Link href={`/business/${businessId}/knowledge-base?reconnectPlatform=1`}>
+                            {t("reconnectAction")}
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Available to Post */}
               {unPostedPlatforms.length > 0 && (
@@ -447,7 +576,7 @@ export function ViewPostModal({
                             ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
                             : "hover:bg-muted"
                         )}
-                        disabled={isDisabledPlatform(platform.id)}
+                        disabled={isPosting || isDisabledPlatform(platform.id)}
                         onClick={() => handleSelectUnpostedPlatform(platform.id)}
                       >
                         {mapEnumPlatform.getPlatformIcon(platform.id)}
@@ -504,11 +633,21 @@ export function ViewPostModal({
           <Button
             type="button"
             onClick={handlePostNow}
-            disabled={formData?.selectedPlatforms?.length === 0}
+            disabled={isPosting || formData?.selectedPlatforms?.length === 0}
+            aria-busy={isPosting}
           >
-            {t("repostNow")}{" "}
-            {formData?.selectedPlatforms?.length > 0 &&
-              `(${formData?.selectedPlatforms?.length})`}
+            {isPosting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("postingInProgress")}
+              </>
+            ) : (
+              <>
+                {t("repostNow")}{" "}
+                {formData?.selectedPlatforms?.length > 0 &&
+                  `(${formData?.selectedPlatforms?.length})`}
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
