@@ -8,7 +8,13 @@ export interface AiModelRes {
   isActive?: boolean;
   validRatios: string[];
   imageSizes?: string[] | null;
+  /** Tiles per side of one generation: 1 = single image, 2 = 2x2, 3 = 3x3. */
+  gridSize?: number;
 }
+
+/** Grid models return gridSize x gridSize variations per generation and are not allowed for repetition. */
+export const isGridAiModel = (model?: Pick<AiModelRes, "gridSize"> | null) =>
+  (model?.gridSize ?? 1) > 1;
 
 export const GPT_IMAGE_1_MODEL_NAME = "gpt-image-1";
 

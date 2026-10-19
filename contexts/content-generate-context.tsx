@@ -34,6 +34,7 @@ import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { RssArticleRes } from "@/models/api/library/rss.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
 import {
+  isGridAiModel,
   pickGptImageOneModel,
 } from "@/models/api/content/ai-model";
 import {
@@ -41,6 +42,7 @@ import {
   JobData,
   JobStage,
   JobStatus,
+  Result,
 } from "@/models/socket-content";
 import {
   imagePostChatService,
@@ -462,7 +464,98 @@ type RealtimeGenerativeChatProgressData = {
   systemBubbleId: number | null;
   updatedAt: string;
   userBubbleId: number;
+  /** Item IDs parallel to imageUrls, sent once the result is saved. */
+  imageItemIds?: number[] | null;
 };
+
+type RealtimeImageUpscaleData = {
+  chatSessionId: number;
+  generatedImagePostItemId: number;
+  upscaleStatus: string;
+  upscaledImageUrl: string | null;
+};
+
+const IMAGE_UPSCALE_EVENT_TYPE = "generative_content.chat.image_upscale";
+
+const isGridResult = (result?: Result | null) => (result?.gridSize ?? 1) > 1;
+
+/** Item ID of a result image, matched on the original or the upscaled URL. */
+function findResultImageItemId(result: Result | null | undefined, imageUrl?: string | null) {
+  if (!result || !imageUrl) return undefined;
+  let index = result.images.indexOf(imageUrl);
+  if (index < 0) index = result.upscaledImages?.indexOf(imageUrl) ?? -1;
+  return index >= 0 ? result.imageItemIds?.[index] : undefined;
+}
+
+/** Latest finished result of a chat session: the bubble the backend replies to when none is picked. */
+function findLatestChatResult(groups: GetAllJob[], chatSessionId: number) {
+  const jobs = groups
+    .flatMap((group) => group.jobs)
+    .filter(
+      (job) =>
+        job.input.chatSessionId === chatSessionId &&
+        job.status === "done" &&
+        Boolean(job.result?.images?.length)
+    )
+    .sort(
+      (left, right) =>
+        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+    );
+  return jobs[0]?.result || null;
+}
+
+const isFinalUpscaleStatus = (status?: string | null) =>
+  status === "success" || status === "failed";
+
+/** Merges a refetched result into the current one without undoing upscale events received meanwhile. */
+function mergeHydratedResult(current: Result, hydrated: Result): Result {
+  const sameImages = hydrated.images.length === current.images.length;
+  return {
+    ...current,
+    imageItemIds: hydrated.imageItemIds,
+    gridSize: hydrated.gridSize ?? current.gridSize,
+    upscaledImages: sameImages
+      ? current.images.map(
+          (_, index) =>
+            current.upscaledImages?.[index] || hydrated.upscaledImages?.[index] || null
+        )
+      : current.upscaledImages,
+    upscaleStatuses: sameImages
+      ? current.images.map((_, index) => {
+          const currentStatus = current.upscaleStatuses?.[index] ?? null;
+          return isFinalUpscaleStatus(currentStatus)
+            ? currentStatus
+            : hydrated.upscaleStatuses?.[index] ?? currentStatus;
+        })
+      : current.upscaleStatuses,
+  };
+}
+
+/** Applies a tile upscale event to the job holding that item. Original URLs stay the image identity. */
+function applyImageUpscaleToHistories(groups: GetAllJob[], payload: RealtimeImageUpscaleData) {
+  let changed = false;
+  const nextGroups = groups.map((group) => {
+    let groupChanged = false;
+    const jobs = group.jobs.map((job) => {
+      const result = job.result;
+      const index = result?.imageItemIds?.indexOf(payload.generatedImagePostItemId) ?? -1;
+      if (!result || index < 0) return job;
+
+      const upscaledImages = result.images.map((_, i) => result.upscaledImages?.[i] ?? null);
+      const upscaleStatuses = result.images.map((_, i) => result.upscaleStatuses?.[i] ?? null);
+      upscaleStatuses[index] = payload.upscaleStatus;
+      if (payload.upscaledImageUrl) {
+        upscaledImages[index] = payload.upscaledImageUrl;
+      }
+      groupChanged = true;
+      return { ...job, result: { ...result, upscaledImages, upscaleStatuses } };
+    });
+    if (!groupChanged) return group;
+    changed = true;
+    return { ...group, jobs };
+  });
+  return changed ? nextGroups : groups;
+}
 
 function mapRealtimeProcessStateToJobStatus(processState: string): JobStatus {
   switch (processState) {
@@ -570,6 +663,17 @@ function getBubbleImageUrls(
   bubble?: ImagePostChatRes["bubbles"][number] | null
 ) {
   return bubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
+}
+
+/** Tiles per side of a grid bubble, derived from the highest tile position (a failed tile upload may be missing). */
+function getBubbleGridSize(
+  bubble?: ImagePostChatRes["bubbles"][number] | null
+) {
+  const positions = (bubble?.images || [])
+    .map((item) => item.gridPosition)
+    .filter((position): position is number => typeof position === "number");
+  if (!positions.length) return undefined;
+  return Math.max(2, Math.ceil(Math.sqrt(Math.max(...positions) + 1)));
 }
 
 function uniqueImageUrls(images: Array<string | null | undefined>) {
@@ -693,8 +797,17 @@ function buildSchedulerChatJobs({
         : replyReferenceImages[0] || userImages[0] || userAdditionalImages[0] || null;
     const firstPromptImages = productImage ? [productImage] : [];
     const firstPromptAdditionalImages = productImage ? [] : userPromptImages;
-    const resultImages =
-      systemBubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
+    const resultBubbleImages = (systemBubble?.images || []).filter((item) =>
+      Boolean(item.imageUrl)
+    );
+    const resultImages = resultBubbleImages.map((item) => item.imageUrl);
+    const resultUpscaledImages = resultBubbleImages.map(
+      (item) => item.upscaledImageUrl || null
+    );
+    const resultUpscaleStatuses = resultBubbleImages.map(
+      (item) => item.upscaleStatus || null
+    );
+    const resultGridSize = getBubbleGridSize(systemBubble);
     const resultImageItemIds = (systemBubble?.images || [])
       .map((item) => item.id)
       .filter((itemId): itemId is number => Number.isFinite(itemId));
@@ -746,6 +859,9 @@ function buildSchedulerChatJobs({
             imageItemIds: resultImageItemIds.length
               ? resultImageItemIds
               : undefined,
+            gridSize: resultGridSize,
+            upscaledImages: resultUpscaledImages,
+            upscaleStatuses: resultUpscaleStatuses,
             ratio: effectiveRatio,
             category: "",
             designStyle: "",
@@ -915,6 +1031,17 @@ export const ContentGenerateProvider = ({
   );
   const { data: aiModelsRes, isLoading: isLoadingAiModels } =
     useContentAiModelGetAiModels(contentGenerateFormDataEnabled);
+  // Realtime handlers read the model list through a ref so they stay stable.
+  const aiModelsListRef = useRef<AiModelRes[]>([]);
+  useEffect(() => {
+    aiModelsListRef.current = aiModelsRes?.data?.data || [];
+  }, [aiModelsRes]);
+  const getModelGridSize = useCallback((modelName?: string | null) => {
+    const model = aiModelsListRef.current.find(
+      (item) => item.name === modelName || String(item.id) === String(modelName)
+    );
+    return isGridAiModel(model) ? model?.gridSize : undefined;
+  }, []);
   const billingHistoryFilterQuery = useMemo<Partial<FilterQuery>>(
     () => ({
       page: 1,
@@ -2653,6 +2780,20 @@ export const ContentGenerateProvider = ({
       replyBubbleChatId && form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
         ? selectedGeneratedImageUrl || form.basic.referenceImage || null
         : null;
+    const replyImageItemId = replyBubbleChatId
+      ? findResultImageItemId(selectedHistory?.result, selectedReplyReferenceImage)
+      : undefined;
+    // A follow-up to a grid result must name the tile to iterate on. Without an explicit reply the
+    // backend answers the latest result, so that one is checked too.
+    if (!isFirstSchedulerBubble) {
+      const replyResult = replyBubbleChatId
+        ? selectedHistory?.result
+        : findLatestChatResult(histories, chatSessionId);
+      if (isGridResult(replyResult) && !replyImageItemId) {
+        showToast("error", t("contentGenerateScheduler.gridTileRequired"));
+        return true;
+      }
+    }
     const selectedAvatarImages = form.basic.selectedAvatars.map(
       (avatar) => avatar.imageUrl
     );
@@ -2790,6 +2931,7 @@ export const ContentGenerateProvider = ({
       prompt: firstPrompt,
       ratio: effectiveRatio,
       bubbleChatId: replyBubbleChatId,
+      generatedImagePostItemId: replyImageItemId,
       rss:
         isFirstSchedulerBubble && effMode === "rss"
           ? form.rss || undefined
@@ -3141,7 +3283,16 @@ export const ContentGenerateProvider = ({
           result: resultImages.length
             ? {
                 images: resultImages,
-                imageItemIds: fallbackJob.result?.imageItemIds,
+                imageItemIds: payload.imageItemIds?.length
+                  ? payload.imageItemIds
+                  : fallbackJob.result?.imageItemIds,
+                gridSize:
+                  fallbackJob.result?.gridSize ??
+                  (resultImages.length > 1
+                    ? getModelGridSize(fallbackJob.input.model)
+                    : undefined),
+                upscaledImages: fallbackJob.result?.upscaledImages,
+                upscaleStatuses: fallbackJob.result?.upscaleStatuses,
                 ratio: fallbackJob.result?.ratio || fallbackJob.input.ratio,
                 category: fallbackJob.result?.category || "",
                 designStyle: fallbackJob.result?.designStyle || "",
@@ -3177,10 +3328,12 @@ export const ContentGenerateProvider = ({
         setSelectedGeneratedImageUrl(latestImage);
       }
 
+      // Grid results are refetched too, to load the tile upscale statuses.
       const needsImageItemIdHydration = Boolean(
         nextResolvedJob.status === "done" &&
           latestImage &&
-          !nextResolvedJob.result?.imageItemIds?.length
+          (!nextResolvedJob.result?.imageItemIds?.length ||
+            isGridResult(nextResolvedJob.result))
       );
 
       if (needsImageItemIdHydration) {
@@ -3253,24 +3406,27 @@ export const ContentGenerateProvider = ({
                     hydratedJob?.input.systemBubbleId ?? null;
 
                   if (hydratedResult?.imageItemIds?.length) {
-                    setHistories((prev) =>
-                      upsertJobIntoHistory(prev, {
-                        ...nextResolvedJob,
+                    setHistories((prev) => {
+                      // Upscale events may have updated the job since this refetch started.
+                      const currentJob =
+                        prev
+                          .flatMap((group) => group.jobs)
+                          .find((job) => job.id === nextResolvedJob.id) ||
+                        nextResolvedJob;
+                      return upsertJobIntoHistory(prev, {
+                        ...currentJob,
                         input: {
-                          ...nextResolvedJob.input,
+                          ...currentJob.input,
                           systemBubbleId:
                             hydratedSystemBubbleId ??
-                            nextResolvedJob.input.systemBubbleId ??
+                            currentJob.input.systemBubbleId ??
                             null,
                         },
-                        result: nextResolvedJob.result
-                          ? {
-                              ...nextResolvedJob.result,
-                              imageItemIds: hydratedResult.imageItemIds,
-                            }
+                        result: currentJob.result
+                          ? mergeHydratedResult(currentJob.result, hydratedResult)
                           : hydratedResult,
-                      })
-                    );
+                      });
+                    });
                     return;
                   }
                 }
@@ -3370,6 +3526,7 @@ export const ContentGenerateProvider = ({
     },
     [
       businessId,
+      getModelGridSize,
       productImageById,
       mEditScheduledPost,
       refetchSchedulerChat,
@@ -3407,6 +3564,13 @@ export const ContentGenerateProvider = ({
       setIsConnected(false);
     };
     const handleMessage = (message: RealtimeEnvelope) => {
+      if (message.type === IMAGE_UPSCALE_EVENT_TYPE) {
+        const upscale = message.data as RealtimeImageUpscaleData | undefined;
+        if (upscale && Number.isFinite(upscale.generatedImagePostItemId)) {
+          setHistories((prev) => applyImageUpscaleToHistories(prev, upscale));
+        }
+        return;
+      }
       if (message.type !== "generative_content.chat.progress") return;
 
       const payload = message.data as

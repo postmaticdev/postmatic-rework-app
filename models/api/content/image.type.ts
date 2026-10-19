@@ -283,10 +283,18 @@ export interface ImagePostChatSessionRes {
   updatedAt: string;
 }
 
+export type ImageUpscaleStatus = "pending" | "processing" | "success" | "failed";
+
 export interface ImagePostChatBubbleImageRes {
   id: number;
   source: string;
   imageUrl: string;
+  /** 0-based row-major tile index; null when the image is not a grid tile. */
+  gridPosition?: number | null;
+  /** Set once the tile upscale succeeded. */
+  upscaledImageUrl?: string | null;
+  /** null when no upscale applies. */
+  upscaleStatus?: ImageUpscaleStatus | null;
 }
 
 export interface ImagePostChatBubbleRes {
@@ -317,6 +325,8 @@ export interface SendImageChatMessagePld {
   prompt: string;
   ratio?: string;
   bubbleChatId?: string | number;
+  /** Image of the replied bubble to iterate on; required when that bubble holds grid tiles. */
+  generatedImagePostItemId?: number;
   rss?: GenerateContentRssBase;
 }
 

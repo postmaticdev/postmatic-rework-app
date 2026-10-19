@@ -37,7 +37,7 @@ import {
   normalizeValidRatios,
 } from "@/models/api/content/image.type";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
-import { AiModelRes } from "@/models/api/content/ai-model";
+import { AiModelRes, isGridAiModel } from "@/models/api/content/ai-model";
 import {
   useProductKnowledgeGetAll,
   useProductKnowledgeGetStatus,
@@ -254,11 +254,16 @@ export function AutoGenerateProvider({
   const { data: aiModelsRes, isLoading: isLoadingAiModels } =
     useContentAiModelGetAiModels(autoGenerateFormDataEnabled);
   const [selectedAiModel, setSelectedAiModel] = useState<AiModelRes | null>(null);
+  // Repetition publishes a single image, so the backend rejects grid models here.
+  const repetitionAiModels = useMemo(
+    () => (aiModelsRes?.data?.data || []).filter((model) => !isGridAiModel(model)),
+    [aiModelsRes?.data?.data]
+  );
 
   // Set default AI model when models are loaded
   useEffect(() => {
-    if (aiModelsRes?.data?.data && aiModelsRes.data.data.length > 0 && !selectedAiModel) {
-      const defaultModel = aiModelsRes.data.data[0];
+    if (repetitionAiModels.length > 0 && !selectedAiModel) {
+      const defaultModel = repetitionAiModels[0];
       const defaultModelRatios = normalizeValidRatios(defaultModel.validRatios);
       setSelectedAiModel(defaultModel);
       setFormBasic(prev => ({
@@ -268,7 +273,7 @@ export function AutoGenerateProvider({
         imageSize: defaultModel.imageSizes?.[0] || null,
       }));
     }
-  }, [aiModelsRes, selectedAiModel]);
+  }, [repetitionAiModels, selectedAiModel]);
 
   // Get valid ratios from selected model
   const validRatios = useMemo(() => {
@@ -377,11 +382,11 @@ export function AutoGenerateProvider({
   }), [products, productPagination, productQuery]);
 
   const aiModels = useMemo(() => ({
-    models: aiModelsRes?.data?.data || [],
+    models: repetitionAiModels,
     selectedModel: selectedAiModel,
     validRatios,
     isLoading: isLoadingAiModels,
-  }), [aiModelsRes?.data?.data, selectedAiModel, validRatios, isLoadingAiModels]);
+  }), [repetitionAiModels, selectedAiModel, validRatios, isLoadingAiModels]);
 
   // --- INIT AWAL (kosong aman) ---
   const baseRef = useRef<{ enabled: boolean; schedules: AutoGenerateSettings }>({

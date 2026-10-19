@@ -815,7 +815,8 @@
     "fullscreenAlt": "{alt} fullscreen",
     "selectedImageLabel": "Selected image",
     "referencePublisher": "Publisher: {name}",
-    "removeSelectedReference": "Remove selected reference"
+    "removeSelectedReference": "Remove selected reference",
+    "gridVariationHint": "Pick a variation: ✓ to use it (select several for a carousel), ✎ to keep editing from it."
   },
   "previewPanel": {
     "enhanceCaption": "Enhance Caption",
@@ -881,7 +882,8 @@
     },
     "firstGeneratePrompt": "Create an engaging product promotion image for social media based on the selected product.",
     "chatSessionUnavailable": "The chat session for this scheduled post is not available yet.",
-    "imageChatNotReady": "The image chat is not ready yet. Please regenerate."
+    "imageChatNotReady": "The image chat is not ready yet. Please regenerate.",
+    "gridTileRequired": "Pick one image from the grid result with Edit to continue."
   },
   "templateCard": {
     "detail": "Reference Detail",

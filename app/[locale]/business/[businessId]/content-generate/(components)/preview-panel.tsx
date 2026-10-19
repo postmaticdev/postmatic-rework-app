@@ -102,6 +102,7 @@ export function PreviewPanel() {
     selectedHistory,
     selectedGeneratedImageUrl,
     selectedContentImages,
+    histories,
     schedulerDraftPost,
     onSelectHistory,
     isLoading,
@@ -158,12 +159,34 @@ export function PreviewPanel() {
     string | null
   >(null);
   // ProtectedImage swaps generated images for their watermark for free users.
+  // Grid tiles show their upscaled version once ready; selectedImageUrl stays the original tile,
+  // which the backend swaps for the upscale when publishing.
+  const selectedDisplayImageUrl =
+    selectedHistory?.result?.upscaledImages?.[selectedImageIndex] ||
+    selectedImageUrl;
   const displayedPreviewImageUrl =
     watermarkedPreviewUrl ||
-    selectedImageUrl ||
+    selectedDisplayImageUrl ||
     form.basic.productImage ||
     DEFAULT_PLACEHOLDER_IMAGE;
-  const carouselPreviewImages = selectedContentImages;
+  // Display only: selected images stay the original tile URLs, shown upscaled once ready.
+  const upscaledImageByOriginal = useMemo(() => {
+    const upscaled = new Map<string, string>();
+    for (const job of histories.flatMap((group) => group.jobs)) {
+      job.result?.images.forEach((image, index) => {
+        const upscaledImage = job.result?.upscaledImages?.[index];
+        if (upscaledImage) upscaled.set(image, upscaledImage);
+      });
+    }
+    return upscaled;
+  }, [histories]);
+  const carouselPreviewImages = useMemo(
+    () =>
+      selectedContentImages.map(
+        (image) => upscaledImageByOriginal.get(image) || image
+      ),
+    [selectedContentImages, upscaledImageByOriginal]
+  );
   const isCarouselPreview = carouselPreviewImages.length > 1;
 
   const [date, setDate] = useState(() => getCurrentScheduleInput().date);

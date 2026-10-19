@@ -49,6 +49,7 @@ import { GeneratedImageViewer } from "./generated-image-viewer";
 import { ProtectedImage } from "./protected-image";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 import { AiModelLogo } from "@/components/forms/ai-model-select";
+import { GridResultTiles } from "./grid-result-tiles";
 
 export function GenerationPanel() {
   const { businessId } = useParams() as { businessId: string };
@@ -511,6 +512,65 @@ export function GenerationPanel() {
                                 {modelRestrictionCopy.topUp}
                               </Button>
                             ) : null}
+                          </div>
+                        );
+                      })()
+                    ) : job.result && (job.result.gridSize ?? 1) > 1 ? (
+                      (() => {
+                        const result = job.result;
+                        const gridSize = result.gridSize ?? 1;
+                        const modelObj = aiModels.models.find(m => m.name === job.input.model || String(m.id) === String(job.input.model));
+                        const modelDisplayName = modelObj ? getAiModelDisplayName(modelObj) : (getAiModelDisplayName(job.input.model) || t("generatedResult"));
+
+                        return (
+                          <div className="w-full max-w-[82%] space-y-2 sm:max-w-[420px]">
+                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                              <AiModelLogo size="sm" imageUrl={modelObj?.image} />
+                              {modelDisplayName}
+                              <span className="rounded-full border px-1.5 py-0.5 text-[10px] leading-none">
+                                {gridSize}x{gridSize}
+                              </span>
+                            </div>
+                            <GridResultTiles
+                              jobId={job.id}
+                              gridSize={gridSize}
+                              images={result.images}
+                              upscaledImages={result.upscaledImages}
+                              upscaleStatuses={result.upscaleStatuses}
+                              imageItemIds={result.imageItemIds}
+                              ratio={result.ratio}
+                              selectionIndex={(image) => selectedContentImages.indexOf(image)}
+                              showSelectionOrder={isCarouselSelection}
+                              isEditing={(image) => Boolean(selectedEditReferenceImage) && selectedEditReferenceImage === image}
+                              onUse={(image) => {
+                                if (
+                                  !selectedContentImages.includes(image) &&
+                                  selectedContentImages.length >= MAX_CAROUSEL_IMAGES
+                                ) {
+                                  showToast(
+                                    "error",
+                                    t("carouselLimitReached", { max: MAX_CAROUSEL_IMAGES })
+                                  );
+                                  return;
+                                }
+                                onToggleContentImage(job, image);
+                              }}
+                              labels={{
+                                edit: t("edit"),
+                                useContent: t("useContent"),
+                                contentUsed: t("contentUsed"),
+                                imageAlt: (index) => t("generatedImageAlt", { index }),
+                              }}
+                              onEdit={(image, displayUrl, targetRect) => {
+                                if (targetRect) {
+                                  triggerFlyAnimation(displayUrl, targetRect);
+                                }
+                                onSelectGeneratedImage(job, image, { attachForEdit: true });
+                              }}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {t("gridVariationHint")}
+                            </p>
                           </div>
                         );
                       })()

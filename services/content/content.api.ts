@@ -156,6 +156,7 @@ type NewGenerativeImageModel = {
   isActive: boolean;
   validRatios: string[];
   imageSizes: string[] | null;
+  gridSize?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -470,9 +471,14 @@ const toBusinessImagePayload = (
   readyToPost: formData.readyToPost ?? false,
 });
 
+// The UI identifies models by name. Grid models share a source model with a single-image model, so
+// they are named by their label to stay distinct; single-image models keep the source model name.
+const toAiModelName = (model: NewGenerativeImageModel) =>
+  (model.gridSize ?? 1) > 1 ? model.label : model.model;
+
 const mapAiModel = (model: NewGenerativeImageModel): AiModelRes => ({
   id: String(model.id),
-  name: model.model,
+  name: toAiModelName(model),
   label: model.label,
   description: model.label,
   provider: model.provider,
@@ -480,6 +486,7 @@ const mapAiModel = (model: NewGenerativeImageModel): AiModelRes => ({
   isActive: model.isActive,
   validRatios: Array.isArray(model.validRatios) ? model.validRatios : [],
   imageSizes: Array.isArray(model.imageSizes) ? model.imageSizes : [],
+  gridSize: model.gridSize ?? 1,
 });
 
 const mapImagePostCreateToJob = (post: NewImagePostCreateRes): JobRes => ({
@@ -509,9 +516,9 @@ const resolveImageModelId = async (model: string) => {
 
   const models = await getGenerativeImageModels();
   const activeModels = models.filter((item) => item.isActive);
-  const found = activeModels.find(
-    (item) => item.model === model || item.label === model
-  );
+  const found =
+    activeModels.find((item) => toAiModelName(item) === model) ||
+    activeModels.find((item) => item.model === model || item.label === model);
 
   if (!found) {
     throw new Error(
@@ -891,6 +898,7 @@ export const imagePostChatService = {
         prompt: formData.prompt,
         imageRatio: formData.ratio || undefined,
         bubbleChatId: formData.bubbleChatId || undefined,
+        generatedImagePostItemId: formData.generatedImagePostItemId || undefined,
         rss: formData.rss || undefined,
       }
     );

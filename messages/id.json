@@ -815,7 +815,8 @@
     "fullscreenAlt": "{alt} layar penuh",
     "selectedImageLabel": "Gambar terpilih",
     "referencePublisher": "Penerbit: {name}",
-    "removeSelectedReference": "Hapus referensi terpilih"
+    "removeSelectedReference": "Hapus referensi terpilih",
+    "gridVariationHint": "Pilih variasi: ✓ untuk dipakai (pilih beberapa untuk carousel), ✎ untuk lanjut mengedit dari variasi itu."
   },
   "previewPanel": {
     "enhanceCaption": "Tingkatkan Caption",
@@ -881,7 +882,8 @@
     },
     "firstGeneratePrompt": "Buat gambar konten promosi produk yang menarik untuk media sosial berdasarkan produk yang dipilih.",
     "chatSessionUnavailable": "Sesi chat untuk postingan terjadwal ini belum tersedia.",
-    "imageChatNotReady": "Chat gambar belum siap. Silakan buat ulang."
+    "imageChatNotReady": "Chat gambar belum siap. Silakan buat ulang.",
+    "gridTileRequired": "Pilih satu gambar dari hasil grid dengan tombol Edit untuk melanjutkan."
   },
   "templateCard": {
     "detail": "Detail Referensi",

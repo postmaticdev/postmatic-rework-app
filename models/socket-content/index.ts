@@ -130,6 +130,12 @@ export interface Product {
 export interface Result {
   images: string[];
   imageItemIds?: number[];
+  /** Tiles per side when the result is a grid (2 or 3); absent or 1 for single images. */
+  gridSize?: number;
+  /** Upscaled URL per image, parallel to images; used for display only, images stay the identity. */
+  upscaledImages?: (string | null)[];
+  /** Upscale status per image, parallel to images; null when no upscale applies. */
+  upscaleStatuses?: (string | null)[];
   ratio: ValidRatio;
   category: string;
   designStyle: string;
