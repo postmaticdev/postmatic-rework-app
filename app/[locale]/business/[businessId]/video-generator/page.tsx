@@ -13,7 +13,12 @@ import { useVideoDownloadUrl } from "@/services/content/video-generator.api";
 import { VideoChatPanel } from "./(components)/video-chat-panel";
 import { VideoPlayerPanel } from "./(components)/video-player-panel";
 import { VideoScheduleModal } from "./(components)/video-schedule-modal";
-import { AttachedVideo, useVideoGenerator } from "./(components)/use-video-generator";
+import { VideoSetupPanel } from "./(components)/video-setup-panel";
+import {
+  AttachedVideo,
+  getGenerateStepKey,
+  useVideoGenerator,
+} from "./(components)/use-video-generator";
 import { useMediaImport } from "./(components)/use-media-import";
 import { useVideoPlayback } from "./(components)/use-video-playback";
 
@@ -60,6 +65,10 @@ export default function VideoGeneratorPage() {
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isWatermarkConfirmOpen, setIsWatermarkConfirmOpen] = useState(false);
   const isFreeUser = aiModels.isFreeUser;
+  // The chat opens once a product is picked; the setup can be reopened until
+  // the first video exists.
+  const [isEditingSetup, setIsEditingSetup] = useState(false);
+  const showSetup = !generator.setup || isEditingSetup;
 
   // Play a freshly generated video right away (muted, so autoplay is allowed).
   const { restart, pause } = playback;
@@ -131,10 +140,21 @@ export default function VideoGeneratorPage() {
     pendingAssistant?.kind === "edit"
       ? (pendingAssistant.scene?.sceneId ?? null)
       : undefined;
-  const generatingProgress =
-    !project && pendingAssistant?.kind === "generate"
-      ? pendingAssistant.progress
-      : null;
+  // Drafting the first storyboard or rendering the approved one takes over the
+  // preview; a revision keeps the storyboard on screen behind a spinner.
+  const generating =
+    project || !pendingAssistant
+      ? null
+      : pendingAssistant.kind === "generate"
+        ? {
+            progress: pendingAssistant.progress,
+            label: t(getGenerateStepKey(pendingAssistant.progress)),
+          }
+        : pendingAssistant.kind === "storyboard" && !pendingAssistant.isRevision
+          ? { progress: pendingAssistant.progress, label: t("stepStoryboard") }
+          : null;
+  const isStoryboardRevising =
+    pendingAssistant?.kind === "storyboard" && Boolean(pendingAssistant.isRevision);
 
   // Selecting a scene jumps to it and targets the next prompt at it; picking
   // it again goes back to editing the whole video.
@@ -188,7 +208,21 @@ export default function VideoGeneratorPage() {
   return (
     <main className="relative flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-4rem)] lg:flex-row lg:overflow-hidden">
       <div className="order-2 border-t lg:order-1 lg:min-h-0 lg:w-[380px] lg:shrink-0 lg:border-t-0 lg:border-r xl:w-[420px]">
-        <VideoChatPanel generator={generator} onSelectScene={handleSelectScene} />
+        {showSetup ? (
+          <VideoSetupPanel
+            initialSetup={generator.setup}
+            onConfirm={(setup) => {
+              generator.setSetup(setup);
+              setIsEditingSetup(false);
+            }}
+          />
+        ) : (
+          <VideoChatPanel
+            generator={generator}
+            onSelectScene={handleSelectScene}
+            onEditSetup={() => setIsEditingSetup(true)}
+          />
+        )}
       </div>
 
       <div className="order-1 min-w-0 flex-1 lg:order-2 lg:min-h-0">
@@ -197,7 +231,11 @@ export default function VideoGeneratorPage() {
           playback={playback}
           selectedSceneId={selectedSceneId}
           updatingSceneId={updatingSceneId}
-          generatingProgress={generatingProgress}
+          generating={generating}
+          storyboard={generator.storyboard}
+          isStoryboardRevising={isStoryboardRevising}
+          onChangeStoryboard={generator.updateStoryboard}
+          onApproveStoryboard={generator.approveStoryboard}
           isBusy={isBusy}
           isDownloading={mDownloadUrl.isPending}
           isAccessLoading={aiModels.isLoading}

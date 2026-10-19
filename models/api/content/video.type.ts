@@ -65,15 +65,58 @@ export interface VideoProject {
   createdAt: string;
 }
 
+// One beat of the story, agreed on before any video is rendered.
+export interface StoryboardScene {
+  id: string;
+  title: string;
+  // What is on screen; the scene is rendered from this.
+  description: string;
+  caption: string | null;
+  durationSec: number;
+}
+
+// The plan the user reviews (and can edit) before the video is generated.
+export interface VideoStoryboard {
+  id: string;
+  title: string;
+  ratio: VideoRatio;
+  scenes: StoryboardScene[];
+}
+
 /*
-  Payload for Generate Video
+  Payload for generating the storyboard of a new video
 */
 export interface GenerateVideoPld {
   businessId: string;
+  // Product the video promotes, picked before the chat opens.
+  productKnowledgeId: string;
+  // Optional person to feature in the video.
+  avatarImageUrl?: string | null;
   prompt: string;
   ratio: VideoRatio;
   durationSec: VideoDuration;
   referenceImages: string[];
+  scheduleDate?: string | null;
+}
+
+/*
+  Payload for revising a storyboard from a chat prompt
+*/
+export interface ReviseStoryboardPld {
+  businessId: string;
+  prompt: string;
+  referenceImages: string[];
+}
+
+/*
+  Payload for rendering the video from an approved storyboard
+*/
+export interface RenderVideoPld {
+  businessId: string;
+  productKnowledgeId: string;
+  avatarImageUrl?: string | null;
+  referenceImages: string[];
+  storyboard: VideoStoryboard;
   scheduleDate?: string | null;
 }
 

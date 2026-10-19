@@ -15,17 +15,24 @@ import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { formatPriceWithCurrency } from "@/helper/price-formatter";
 import { useLocale, useTranslations } from "next-intl";
+import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 
 interface ProductSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Pass both to pick a product for something other than the content form.
+  selectedProductId?: string | null;
+  onSelect?: (product: ProductKnowledgeRes) => void;
 }
 
 export function ProductSelectionModal({
   isOpen,
   onClose,
+  selectedProductId,
+  onSelect,
 }: ProductSelectionModalProps) {
   const { productKnowledges, onSelectProduct, form } = useContentGenerate();
+  const currentProductId = onSelect ? selectedProductId : form.basic.productKnowledgeId;
 
   const m = useTranslations("modal");
   const locale = useLocale();
@@ -61,7 +68,7 @@ export function ProductSelectionModal({
           {/* Product List */}
           <div className="space-y-3 ">
             {productKnowledges.contents.map((product) => {
-              const isSelected = form.basic.productKnowledgeId === product.id;
+              const isSelected = currentProductId === product.id;
 
               return (
                 <Card
@@ -72,7 +79,8 @@ export function ProductSelectionModal({
                       : "hover:bg-card/50"
                   }`}
                   onClick={() => {
-                    onSelectProduct(product);
+                    if (onSelect) onSelect(product);
+                    else onSelectProduct(product);
                     onClose();
                   }}
                 >

@@ -35,7 +35,8 @@ import {
 } from "./sequence-editor";
 import { VideoStage } from "./video-stage";
 import { formatVideoTime, VideoPlaybackState } from "./use-video-playback";
-import { getGenerateStepKey } from "./use-video-generator";
+import { StoryboardEditor } from "./storyboard-editor";
+import { VideoStoryboard } from "@/models/api/content/video.type";
 import { getDragKind, readDraggedVideo } from "./use-media-import";
 import type { AttachedVideo } from "./use-video-generator";
 
@@ -53,7 +54,14 @@ type VideoPlayerPanelProps = {
   // undefined = nothing pending, null = whole video, string = that scene.
   updatingSceneId: string | null | undefined;
   // Progress of the first generation, while there is no project yet.
-  generatingProgress: number | null;
+  // Drafting the storyboard or rendering the video, while there is no
+  // project yet.
+  generating: { progress: number; label: string } | null;
+  // Shown for review until it is approved and rendered.
+  storyboard: VideoStoryboard | null;
+  isStoryboardRevising: boolean;
+  onChangeStoryboard: (updater: (current: VideoStoryboard) => VideoStoryboard) => void;
+  onApproveStoryboard: () => void;
   isBusy: boolean;
   isDownloading: boolean;
   // Blocks downloading until we know whether the watermark applies.
@@ -78,7 +86,11 @@ export function VideoPlayerPanel({
   playback,
   selectedSceneId,
   updatingSceneId,
-  generatingProgress,
+  generating,
+  storyboard,
+  isStoryboardRevising,
+  onChangeStoryboard,
+  onApproveStoryboard,
   isBusy,
   isDownloading,
   isAccessLoading,
@@ -97,7 +109,7 @@ export function VideoPlayerPanel({
   const panelRef = useRef<HTMLElement>(null);
   const [isStageDragOver, setIsStageDragOver] = useState(false);
   const canDropOnStage =
-    !project && generatingProgress === null && !isBusy && !isImportingVideos;
+    !project && !storyboard && generating === null && !isBusy && !isImportingVideos;
   // Starts muted so the autoplay after generating is allowed by browsers.
   const [isMuted, setIsMuted] = useState(true);
   const [volume, setVolume] = useState(0.8);
@@ -350,16 +362,22 @@ export function VideoPlayerPanel({
             updatingLabel={updatingLabel}
             showWatermark={showWatermark}
           />
-        ) : generatingProgress !== null ? (
+        ) : generating !== null ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
             <LogoLoader hideContentBackground={false} />
             <div className="w-full max-w-xs space-y-2">
-              <p className="text-sm font-medium">
-                {t(getGenerateStepKey(generatingProgress))}
-              </p>
-              <Progress value={generatingProgress} />
+              <p className="text-sm font-medium">{generating.label}</p>
+              <Progress value={generating.progress} />
             </div>
           </div>
+        ) : storyboard ? (
+          <StoryboardEditor
+            storyboard={storyboard}
+            disabled={isBusy}
+            isRevising={isStoryboardRevising}
+            onChange={onChangeStoryboard}
+            onApprove={onApproveStoryboard}
+          />
         ) : (
           <div
             className={cn(

@@ -6,11 +6,15 @@ import {
   VideoProject,
   VideoRatio,
   VideoScene,
+  VideoStoryboard,
 } from "@/models/api/content/video.type";
 import {
   useVideoEdit,
-  useVideoGenerate,
+  useVideoRender,
+  useVideoStoryboardGenerate,
+  useVideoStoryboardRevise,
 } from "@/services/content/video-generator.api";
+import { SelectedAvatarOption } from "@/contexts/content-generate-context";
 
 export type VideoRequest = {
   prompt: string;
@@ -25,6 +29,14 @@ export type AttachedVideo = {
   url: string;
   durationSec: number;
   thumbnailUrl: string | null;
+};
+
+// Picked before the chat opens: the product is required, the avatar and the
+// style reference are optional.
+export type VideoSetup = {
+  product: { id: string; name: string; imageUrl: string | null };
+  avatar: SelectedAvatarOption | null;
+  reference: { imageUrl: string; name: string | null } | null;
 };
 
 type SceneRef = { sceneId: string; sceneIndex: number; sceneTitle: string };
@@ -42,8 +54,11 @@ export type VideoChatMessage =
   | {
       id: string;
       role: "assistant";
+      // "storyboard" = the plan was drafted (or revised, see isRevision);
+      // "generate" = the approved storyboard was rendered into the video;
       // "upload" = attached videos were added to the timeline as scenes.
-      kind: "generate" | "edit" | "upload";
+      kind: "storyboard" | "generate" | "edit" | "upload";
+      isRevision?: boolean;
       status: "pending" | "done" | "error";
       progress: number;
       scene: SceneRef | null;
@@ -51,11 +66,11 @@ export type VideoChatMessage =
       request: VideoRequest;
     };
 
-// Translation key for the stage a first generation is in, by progress.
+// Translation key for the stage a render is in, by progress.
 export const getGenerateStepKey = (progress: number) =>
-  progress < 35 ? "stepStoryboard" : progress < 75 ? "stepScenes" : "stepRender";
+  progress < 50 ? "stepScenes" : "stepRender";
 
-const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+export const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const MAX_HISTORY = 50;
 
@@ -80,7 +95,9 @@ export function useVideoGenerator({
   businessId: string;
   scheduleDate: string | null;
 }) {
-  const mGenerate = useVideoGenerate();
+  const mStoryboard = useVideoStoryboardGenerate();
+  const mReviseStoryboard = useVideoStoryboardRevise();
+  const mRender = useVideoRender();
   const mEdit = useVideoEdit();
   const [project, setProjectState] = useState<VideoProject | null>(null);
   const [messages, setMessages] = useState<VideoChatMessage[]>([]);
@@ -88,8 +105,14 @@ export function useVideoGenerator({
   const [ratio, setRatio] = useState<VideoRatio>("9:16");
   const [duration, setDuration] = useState<VideoDuration>(30);
   const [isBusy, setIsBusy] = useState(false);
+  const [setup, setSetup] = useState<VideoSetup | null>(null);
   // Read inside async handlers so they always see the latest project.
   const projectRef = useRef<VideoProject | null>(null);
+  // Drafted from the first prompt and approved before anything is rendered.
+  const [storyboard, setStoryboardState] = useState<VideoStoryboard | null>(null);
+  const storyboardRef = useRef<VideoStoryboard | null>(null);
+  // Images sent with the storyboard prompts, reused for the render.
+  const storyboardImagesRef = useRef<string[]>([]);
 
   // Undo / redo stacks of whole-project snapshots. Kept in a ref so pushes are
   // synchronous; historyVersion re-renders the undo / redo buttons.
@@ -111,6 +134,19 @@ export function useVideoGenerator({
         : null
     );
   }, []);
+
+  const setStoryboard = useCallback((nextStoryboard: VideoStoryboard | null) => {
+    storyboardRef.current = nextStoryboard;
+    setStoryboardState(nextStoryboard);
+  }, []);
+
+  // Manual edits from the storyboard review.
+  const updateStoryboard = useCallback(
+    (updater: (current: VideoStoryboard) => VideoStoryboard) => {
+      if (storyboardRef.current) setStoryboard(updater(storyboardRef.current));
+    },
+    [setStoryboard]
+  );
 
   const pushHistory = useCallback((snapshot: VideoProject) => {
     const { past } = historyRef.current;
@@ -209,6 +245,7 @@ export function useVideoGenerator({
   const runRequest = useCallback(
     async (request: VideoRequest, assistantMessageId: string) => {
       const currentProject = projectRef.current;
+      const currentStoryboard = storyboardRef.current;
       const onProgress = (progress: number) => {
         // Keep the bar short of 100 until the result is actually in.
         updateAssistantMessage(assistantMessageId, {
@@ -218,33 +255,107 @@ export function useVideoGenerator({
 
       setIsBusy(true);
       try {
-        const nextProject = currentProject
-          ? await mEdit.mutateAsync({
-              project: currentProject,
-              payload: {
-                businessId,
-                projectId: currentProject.id,
-                sceneId: request.sceneId,
-                prompt: request.prompt,
-                referenceImages: request.images,
-              },
-              onProgress,
-            })
-          : await mGenerate.mutateAsync({
-              payload: {
-                businessId,
-                prompt: request.prompt,
-                ratio,
-                durationSec: duration,
-                referenceImages: request.images,
-                scheduleDate,
-              },
-              onProgress,
-            });
+        let sceneCount: number;
+        if (currentProject) {
+          const nextProject = await mEdit.mutateAsync({
+            project: currentProject,
+            payload: {
+              businessId,
+              projectId: currentProject.id,
+              sceneId: request.sceneId,
+              prompt: request.prompt,
+              referenceImages: request.images,
+            },
+            onProgress,
+          });
+          pushHistory(currentProject);
+          setProject(nextProject);
+          sceneCount = nextProject.scenes.length;
+        } else {
+          // Before the video exists, prompts draft and then revise the storyboard.
+          const nextStoryboard = currentStoryboard
+            ? await mReviseStoryboard.mutateAsync({
+                storyboard: currentStoryboard,
+                payload: { businessId, prompt: request.prompt, referenceImages: request.images },
+                onProgress,
+              })
+            : await mStoryboard.mutateAsync({
+                payload: {
+                  businessId,
+                  productKnowledgeId: setup?.product.id ?? "",
+                  avatarImageUrl: setup?.avatar?.imageUrl ?? null,
+                  prompt: request.prompt,
+                  ratio,
+                  durationSec: duration,
+                  referenceImages: setup?.reference
+                    ? [setup.reference.imageUrl, ...request.images]
+                    : request.images,
+                  scheduleDate,
+                },
+                onProgress,
+              });
+          storyboardImagesRef.current = Array.from(
+            new Set([...(currentStoryboard ? storyboardImagesRef.current : []), ...request.images])
+          );
+          setStoryboard(nextStoryboard);
+          sceneCount = nextStoryboard.scenes.length;
+        }
 
-        // An AI edit can be undone; there is nothing before the first video.
-        if (currentProject) pushHistory(currentProject);
+        updateAssistantMessage(assistantMessageId, {
+          status: "done",
+          progress: 100,
+          sceneCount,
+        });
+      } catch {
+        updateAssistantMessage(assistantMessageId, { status: "error" });
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [
+      businessId,
+      duration,
+      mEdit,
+      mReviseStoryboard,
+      mStoryboard,
+      pushHistory,
+      ratio,
+      scheduleDate,
+      setProject,
+      setStoryboard,
+      setup,
+    ]
+  );
+
+  // Renders the approved storyboard into the video.
+  const runRender = useCallback(
+    async (assistantMessageId: string) => {
+      const approvedStoryboard = storyboardRef.current;
+      if (!approvedStoryboard) return;
+      const onProgress = (progress: number) => {
+        updateAssistantMessage(assistantMessageId, {
+          progress: Math.min(progress, 95),
+        });
+      };
+
+      setIsBusy(true);
+      try {
+        const nextProject = await mRender.mutateAsync({
+          payload: {
+            businessId,
+            productKnowledgeId: setup?.product.id ?? "",
+            avatarImageUrl: setup?.avatar?.imageUrl ?? null,
+            referenceImages: [
+              ...(setup?.reference ? [setup.reference.imageUrl] : []),
+              ...storyboardImagesRef.current,
+            ],
+            storyboard: approvedStoryboard,
+            scheduleDate,
+          },
+          onProgress,
+        });
         setProject(nextProject);
+        setStoryboard(null);
         updateAssistantMessage(assistantMessageId, {
           status: "done",
           progress: 100,
@@ -256,12 +367,31 @@ export function useVideoGenerator({
         setIsBusy(false);
       }
     },
-    [businessId, duration, mEdit, mGenerate, pushHistory, ratio, scheduleDate, setProject]
+    [businessId, mRender, scheduleDate, setProject, setStoryboard, setup]
   );
 
+  const approveStoryboard = useCallback(() => {
+    if (isBusy || !storyboardRef.current?.scenes.length || projectRef.current) return;
+    const assistantMessageId = createId();
+    setMessages((current) => [
+      ...current,
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        kind: "generate",
+        status: "pending",
+        progress: 0,
+        scene: null,
+        request: { prompt: "", images: [], sceneId: null },
+      },
+    ]);
+    void runRender(assistantMessageId);
+  }, [isBusy, runRender]);
+
   // Attached videos go straight onto the timeline as scenes; a prompt sent
-  // with them is then applied as an edit. A prompt alone generates (first
-  // time) or edits the video / the selected scene.
+  // with them is then applied as an edit. A prompt alone drafts or revises
+  // the storyboard until the video exists, then edits the video / the
+  // selected scene.
   const submitPrompt = useCallback(
     (prompt: string, images: string[], videos: AttachedVideo[] = []) => {
       const trimmedPrompt = prompt.trim();
@@ -330,7 +460,8 @@ export function useVideoGenerator({
         nextMessages.push({
           id: assistantMessageId,
           role: "assistant",
-          kind: currentProject ? "edit" : "generate",
+          kind: currentProject ? "edit" : "storyboard",
+          isRevision: !currentProject && Boolean(storyboardRef.current),
           status: "pending",
           progress: 0,
           scene,
@@ -349,9 +480,10 @@ export function useVideoGenerator({
       const message = messages.find((item) => item.id === messageId);
       if (!message || message.role !== "assistant" || isBusy) return;
       updateAssistantMessage(messageId, { status: "pending", progress: 0 });
-      void runRequest(message.request, messageId);
+      if (message.kind === "generate") void runRender(messageId);
+      else void runRequest(message.request, messageId);
     },
-    [isBusy, messages, runRequest]
+    [isBusy, messages, runRender, runRequest]
   );
 
   return {
@@ -372,6 +504,11 @@ export function useVideoGenerator({
     duration,
     setDuration,
     isBusy,
+    setup,
+    setSetup,
+    storyboard,
+    updateStoryboard,
+    approveStoryboard,
     submitPrompt,
     retry,
   };

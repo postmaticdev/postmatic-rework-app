@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
+import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -54,9 +55,11 @@ const SUGGESTION_KEYS = [
 type VideoChatPanelProps = {
   generator: VideoGeneratorState;
   onSelectScene: (index: number) => void;
+  // Reopens the product / avatar / reference step.
+  onEditSetup: () => void;
 };
 
-export function VideoChatPanel({ generator, onSelectScene }: VideoChatPanelProps) {
+export function VideoChatPanel({ generator, onSelectScene, onEditSetup }: VideoChatPanelProps) {
   const t = useTranslations("videoGenerator");
   const tRoot = useTranslations();
   const {
@@ -69,6 +72,8 @@ export function VideoChatPanel({ generator, onSelectScene }: VideoChatPanelProps
     duration,
     setDuration,
     isBusy,
+    setup,
+    storyboard,
     submitPrompt,
     retry,
   } = generator;
@@ -90,7 +95,9 @@ export function VideoChatPanel({ generator, onSelectScene }: VideoChatPanelProps
     ? `${t("sceneLabel", { index: selectedSceneIndex + 1 })} · ${selectedScene.title}`
     : "";
   const placeholder = !project
-    ? t("promptPlaceholder")
+    ? storyboard
+      ? t("reviseStoryboardPlaceholder")
+      : t("promptPlaceholder")
     : selectedScene
       ? t("editScenePlaceholder", {
           scene: t("sceneLabel", { index: selectedSceneIndex + 1 }),
@@ -164,6 +171,50 @@ export function VideoChatPanel({ generator, onSelectScene }: VideoChatPanelProps
 
   return (
     <div className="flex min-h-0 flex-col bg-card lg:h-full">
+      {setup && (
+        <div className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
+          <div className="flex shrink-0 -space-x-2">
+            {[setup.product.imageUrl || DEFAULT_PRODUCT_IMAGE, setup.avatar?.imageUrl, setup.reference?.imageUrl]
+              .filter((imageUrl): imageUrl is string => Boolean(imageUrl))
+              .map((imageUrl, index) => (
+                <Image
+                  key={`${imageUrl}-${index}`}
+                  src={imageUrl}
+                  alt=""
+                  width={72}
+                  height={72}
+                  className="h-9 w-9 rounded-lg border-2 border-card object-cover"
+                  unoptimized
+                />
+              ))}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{setup.product.name}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {[
+                t("setupProduct"),
+                setup.avatar && t("setupAvatar"),
+                setup.reference && t("setupReference"),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          {!project && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 shrink-0 px-2.5 text-xs"
+              disabled={isBusy}
+              onClick={onEditSetup}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {t("setupEdit")}
+            </Button>
+          )}
+        </div>
+      )}
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5 scrollbar-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {messages.length === 0 ? (
           <div className="flex flex-col gap-5 py-4">
@@ -330,7 +381,7 @@ export function VideoChatPanel({ generator, onSelectScene }: VideoChatPanelProps
               <Paperclip className="h-4 w-4" />
             </Button>
 
-            {!project && (
+            {!project && !storyboard && (
               <>
                 <OptionDropdown
                   label={t("ratio")}
@@ -579,13 +630,19 @@ function AssistantBubble({
   }
 
   const pendingLabel =
-    message.kind === "generate"
+    message.kind === "storyboard"
+      ? t(message.isRevision ? "revisingStoryboard" : "stepStoryboard")
+      : message.kind === "generate"
       ? t(getGenerateStepKey(message.progress))
       : message.scene
         ? t("updatingScene", { scene: sceneName })
         : t("updatingVideo");
   const doneLabel =
-    message.kind === "upload"
+    message.kind === "storyboard"
+      ? message.isRevision
+        ? t("storyboardUpdated")
+        : t("storyboardReady", { count: message.sceneCount ?? 0 })
+      : message.kind === "upload"
       ? t("videosAdded", { count: message.sceneCount ?? 0 })
       : message.kind === "generate"
       ? t("videoReady", { count: message.sceneCount ?? project?.scenes.length ?? 0 })

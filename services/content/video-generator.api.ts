@@ -3,9 +3,12 @@ import {
   DownloadVideoPld,
   EditVideoPld,
   GenerateVideoPld,
+  RenderVideoPld,
+  ReviseStoryboardPld,
   ScheduleVideoPld,
+  StoryboardScene,
   VideoProject,
-  VideoScene,
+  VideoStoryboard,
 } from "@/models/api/content/video.type";
 import { getToastLocale } from "@/helper/api-response-message";
 
@@ -65,7 +68,7 @@ const simulateJob = async (durationMs: number, onProgress?: ProgressCallback) =>
   }
 };
 
-const buildMockScenes = (payload: GenerateVideoPld): VideoScene[] => {
+const buildMockStoryboardScenes = (payload: GenerateVideoPld): StoryboardScene[] => {
   const sceneCount = MOCK_SCENE_COUNT_BY_DURATION[payload.durationSec] ?? 6;
   const baseDuration = Math.floor((payload.durationSec / sceneCount) * 10) / 10;
 
@@ -79,32 +82,69 @@ const buildMockScenes = (payload: GenerateVideoPld): VideoScene[] => {
     return {
       id: createId(),
       title: beat.title,
-      prompt: `${beat.title}: ${payload.prompt}`,
-      durationSec,
+      description: `${beat.title}: ${payload.prompt}`,
       caption: beat.caption,
-      thumbnailUrl: payload.referenceImages.length
-        ? payload.referenceImages[index % payload.referenceImages.length]
-        : null,
-      videoUrl: null,
-      version: 1,
-      source: "ai" as const,
+      durationSec,
     };
   });
 };
 
 const videoGeneratorService = {
-  generate: async (
+  // Plans the video; nothing is rendered until the storyboard is approved.
+  generateStoryboard: async (
     payload: GenerateVideoPld,
     onProgress?: ProgressCallback
-  ): Promise<VideoProject> => {
-    await simulateJob(6000, onProgress);
-    const title = payload.prompt.trim().split("\n")[0].slice(0, 60);
+  ): Promise<VideoStoryboard> => {
+    await simulateJob(3000, onProgress);
 
     return {
       id: createId(),
-      title,
+      title: payload.prompt.trim().split("\n")[0].slice(0, 60),
       ratio: payload.ratio,
-      scenes: buildMockScenes(payload),
+      scenes: buildMockStoryboardScenes(payload),
+    };
+  },
+
+  reviseStoryboard: async (
+    storyboard: VideoStoryboard,
+    payload: ReviseStoryboardPld,
+    onProgress?: ProgressCallback
+  ): Promise<VideoStoryboard> => {
+    await simulateJob(2500, onProgress);
+
+    return {
+      ...storyboard,
+      scenes: storyboard.scenes.map((scene) => ({
+        ...scene,
+        description: `${scene.title}: ${payload.prompt}`,
+      })),
+    };
+  },
+
+  render: async (
+    payload: RenderVideoPld,
+    onProgress?: ProgressCallback
+  ): Promise<VideoProject> => {
+    await simulateJob(6000, onProgress);
+    const { storyboard, referenceImages } = payload;
+
+    return {
+      id: createId(),
+      title: storyboard.title,
+      ratio: storyboard.ratio,
+      scenes: storyboard.scenes.map((scene, index) => ({
+        id: scene.id,
+        title: scene.title,
+        prompt: scene.description,
+        durationSec: scene.durationSec,
+        caption: scene.caption,
+        thumbnailUrl: referenceImages.length
+          ? referenceImages[index % referenceImages.length]
+          : null,
+        videoUrl: null,
+        version: 1,
+        source: "ai" as const,
+      })),
       audioClips: [],
       videoUrl: null,
       createdAt: new Date().toISOString(),
@@ -160,7 +200,7 @@ const videoGeneratorService = {
   },
 };
 
-export const useVideoGenerate = () => {
+export const useVideoStoryboardGenerate = () => {
   return useMutation({
     mutationFn: ({
       payload,
@@ -168,7 +208,33 @@ export const useVideoGenerate = () => {
     }: {
       payload: GenerateVideoPld;
       onProgress?: ProgressCallback;
-    }) => videoGeneratorService.generate(payload, onProgress),
+    }) => videoGeneratorService.generateStoryboard(payload, onProgress),
+  });
+};
+
+export const useVideoStoryboardRevise = () => {
+  return useMutation({
+    mutationFn: ({
+      storyboard,
+      payload,
+      onProgress,
+    }: {
+      storyboard: VideoStoryboard;
+      payload: ReviseStoryboardPld;
+      onProgress?: ProgressCallback;
+    }) => videoGeneratorService.reviseStoryboard(storyboard, payload, onProgress),
+  });
+};
+
+export const useVideoRender = () => {
+  return useMutation({
+    mutationFn: ({
+      payload,
+      onProgress,
+    }: {
+      payload: RenderVideoPld;
+      onProgress?: ProgressCallback;
+    }) => videoGeneratorService.render(payload, onProgress),
   });
 };
 
