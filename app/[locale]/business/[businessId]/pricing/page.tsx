@@ -10,14 +10,16 @@ import {
 } from "@/services/app-product.api";
 import { useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
-import { formatIdr } from "@/helper/formatter";
 import {
   AppProductSubscriptionItem,
   ProductSubscription,
 } from "@/models/api/app-product";
 import { showToast } from "@/helper/show-toast";
 import { useLocale, useTranslations } from "next-intl";
-import { formatProductType } from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
+import {
+  formatIdrStable,
+  formatProductType,
+} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 import { useCheckoutPayBank } from "@/services/purchase.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
@@ -37,6 +39,7 @@ export default function Pricing() {
   const tokenPackages = tokenData?.data?.data.products || [];
   const t = useTranslations("pricing");
   const locale = useLocale();
+  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
 
   // Expecting products as SubscriptionPlan[] with items: SubscriptionItem[]
   const subscriptionPlans = subscriptionData?.data?.data.products || [];
@@ -308,8 +311,12 @@ export default function Pricing() {
                             {formatIdr(selectedItem?.price || 0)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {Number(selectedItem?.tokenImage ?? 0).toLocaleString(locale)} token • {t("validFor")} {" "}
-                            {selectedItem?.subscriptionValidFor} {t("days")}
+                            {t("tokenValidFor", {
+                              tokens: Number(
+                                selectedItem?.tokenImage ?? 0
+                              ).toLocaleString(locale),
+                              days: Number(selectedItem?.subscriptionValidFor ?? 0),
+                            })}
                           </div>
                         </div>
 

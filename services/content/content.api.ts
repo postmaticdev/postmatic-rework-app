@@ -25,6 +25,7 @@ import {
   SendImageChatMessageRes,
 } from "@/models/api/content/image.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
+import { getToastLocale } from "@/helper/api-response-message";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import {
   AutoSchedulerPld,
@@ -500,7 +501,11 @@ const resolveImageModelId = async (model: string) => {
   );
 
   if (!found) {
-    throw new Error(`Generative image model not found: ${model}`);
+    throw new Error(
+      getToastLocale() === "en"
+        ? `AI image model not found: ${model}`
+        : `Model gambar AI tidak ditemukan: ${model}`
+    );
   }
 
   return found.id;

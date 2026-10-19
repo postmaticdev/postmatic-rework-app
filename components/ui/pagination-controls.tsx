@@ -49,7 +49,7 @@ export function PaginationControls({
     >
       {/* Page Info */}
       <div className="text-xs text-muted-foreground">
-        {t("page")} {page} {t("of")} {totalPages}
+        {t("pageOf", { page, total: totalPages })}
       </div>
 
       {/* Pagination Buttons */}
@@ -62,7 +62,8 @@ export function PaginationControls({
             setFilterQuery({ ...filterQuery, page: 1 });
           }}
           disabled={!hasPrevPage}
-          title="Halaman Pertama"
+          title={t("firstPage")}
+          aria-label={t("firstPage")}
         >
           <ChevronLeft className="h-3 w-3 -mr-2" />
           <ChevronLeft className="h-3 w-3 -ml-2" />
@@ -79,7 +80,8 @@ export function PaginationControls({
             });
           }}
           disabled={!hasPrevPage}
-          title="Halaman Sebelumnya"
+          title={t("previousPage")}
+          aria-label={t("previousPage")}
         >
           <ChevronLeft className="h-3 w-3" />
         </Button>
@@ -115,7 +117,9 @@ export function PaginationControls({
                   setFilterQuery({ ...filterQuery, page: pageNum });
                 }}
                 className="text-xs max-md:text-sm"
-                title={`Halaman ${pageNum}`}
+                title={t("pageNumber", { page: pageNum })}
+                aria-label={t("pageNumber", { page: pageNum })}
+                aria-current={page === pageNum ? "page" : undefined}
               >
                 {pageNum}
               </Button>
@@ -134,7 +138,8 @@ export function PaginationControls({
             });
           }}
           disabled={!hasNextPage}
-          title="Halaman Selanjutnya"
+          title={t("nextPage")}
+          aria-label={t("nextPage")}
         >
           <ChevronRight className="h-3 w-3" />
         </Button>
@@ -150,7 +155,8 @@ export function PaginationControls({
             });
           }}
           disabled={!hasNextPage}
-          title="Halaman Terakhir"
+          title={t("lastPage")}
+          aria-label={t("lastPage")}
         >
           <ChevronRight className="h-3 w-3 -mr-2" />
           <ChevronRight className="h-3 w-3 -ml-2" />

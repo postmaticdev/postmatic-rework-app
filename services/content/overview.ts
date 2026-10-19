@@ -8,6 +8,7 @@ import {
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useQuery } from "@tanstack/react-query";
 import { dateManipulation } from "@/helper/date-manipulation";
+import { getToastLocale } from "@/helper/api-response-message";
 
 type NewScheduledPost = {
   id: number;
@@ -54,7 +55,7 @@ const mapScheduledPost = (item: NewScheduledPost): UpcomingPostRes => ({
   images: item.imageUrl ? [item.imageUrl] : [],
   platforms: item.platforms || [],
   type: "manual",
-  title: item.caption || "Scheduled post",
+  title: item.caption || (getToastLocale() === "en" ? "Scheduled post" : "Postingan terjadwal"),
   schedulerManualPostingId: item.id,
   generatedImageContent: {
     id: String(item.id),

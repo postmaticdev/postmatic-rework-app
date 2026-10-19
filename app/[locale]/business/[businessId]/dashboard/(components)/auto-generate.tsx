@@ -389,7 +389,7 @@ export function AutoGenerate({
                                 variant="ghost"
                                 size="icon-sm"
                                 onClick={() => handleRemoveRepeatDay(day.value)}
-                                aria-label={`Hapus ${day.label}`}
+                                aria-label={t("removeDayAria", { day: day.label })}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -528,13 +528,13 @@ export function AutoGenerate({
               <div key={index} className="space-y-2">
                 <Image
                   src={image}
-                  alt={`Generated ${index + 1}`}
+                  alt={t("generatedImageNumber", { number: index + 1 })}
                   width={400}
                   height={400}
                   className="w-full h-auto rounded-lg border"
                 />
                 <p className="text-sm text-muted-foreground text-center">
-                  {t("generatedImage")} {index + 1}
+                  {t("generatedImageNumber", { number: index + 1 })}
                 </p>
               </div>
             ))}

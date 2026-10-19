@@ -15,7 +15,9 @@ export default function Profile() {
   const t = useTranslations("welcomeSection");
   const { data: profile } = useAuthProfileGetProfile();
   const userName = profile?.data?.data?.name;
-  const greeting = `${t("welcome")} ${userName}`;
+  const greeting = userName
+    ? t("welcomeUser", { name: userName })
+    : t("loading");
   
   return (
     <CreatorDesignProvider>

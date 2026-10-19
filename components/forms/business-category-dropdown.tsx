@@ -17,12 +17,14 @@ interface BusinessCategoryDropdownProps {
 export function BusinessCategoryDropdown({
   value,
   onChange,
-  placeholder = "Pilih kategori bisnis",
-  label = "Kategori Bisnis",
+  placeholder: placeholderProp,
+  label: labelProp,
   error,
   onFocus,
 }: BusinessCategoryDropdownProps) {
   const t = useTranslations("businessCategory");
+  const placeholder = placeholderProp ?? t("selectPlaceholder");
+  const label = labelProp ?? t("label");
   const BUSINESS_CATEGORIES = [
     t("foodAndDrink"),
     t("retailAndEcommerce"),

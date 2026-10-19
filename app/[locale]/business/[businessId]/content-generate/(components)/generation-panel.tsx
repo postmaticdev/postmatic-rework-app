@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { showToast } from "@/helper/show-toast";
-import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
+import { DEFAULT_PLACEHOLDER_IMAGE, MAX_CAROUSEL_IMAGES, SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
 import { cn } from "@/lib/utils";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { helperService, validateUploadImageFile } from "@/services/helper.api";
@@ -26,8 +26,7 @@ import {
 import { RssTrendModal } from "./rss-trend-modal";
 import { SelectedArticleRss } from "./selected-article-rss";
 import { SelectedReferenceImage } from "./selected-reference-image";
-import { getModelRestrictionCopy } from "./model-restriction-copy";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -47,6 +46,7 @@ import {
 import { GenerateFormBasic } from "./generate-form-basic";
 import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
+import { ProtectedImage } from "./protected-image";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 import { AiModelLogo } from "@/components/forms/ai-model-select";
 
@@ -54,7 +54,6 @@ export function GenerationPanel() {
   const { businessId } = useParams() as { businessId: string };
   const searchParams = useSearchParams();
   const router = useRouter();
-  const locale = useLocale();
   const {
     mode,
     form,
@@ -62,12 +61,14 @@ export function GenerationPanel() {
     aiModels,
     selectedHistory,
     selectedGeneratedImageUrl,
+    selectedContentImages,
     schedulerDraftPost,
     schedulerChatSeed,
     histories,
     rss,
     onSelectAiModel,
     onSelectGeneratedImage,
+    onToggleContentImage,
     onSelectHistory,
     onSubmitGenerate,
   } = useContentGenerate();
@@ -322,17 +323,21 @@ export function GenerationPanel() {
     setIsKnowledgeDialogOpen(false);
   };
 
-  const selectedImage =
-    selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
-  const modelRestrictionCopy = getModelRestrictionCopy(
-    locale,
-    aiModels.freeUserAllowedModel
-      ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
-      : getAiModelDisplayName("gpt-image-1")
-  );
+  const isCarouselSelection = selectedContentImages.length > 1;
+  const restrictedModelName = aiModels.freeUserAllowedModel
+    ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
+    : getAiModelDisplayName("gpt-image-1");
+  const modelRestrictionCopy = {
+    title: t("freeModelRestrictionTitle"),
+    description: t("freeModelRestrictionDescription", {
+      modelName: restrictedModelName,
+    }),
+    topUp: t("freeModelRestrictionTopUp"),
+    useDefault: t("freeModelRestrictionUseDefault"),
+  };
   const schedulerMode = Boolean(searchParams.get("scheduleDate"));
   const selectedEditReferenceImage =
-    form.basic.referenceImageName === "Selected image"
+    form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
       ? form.basic.referenceImage || selectedGeneratedImageUrl
       : null;
   const handleOpenScheduleSummary = () => {
@@ -408,12 +413,10 @@ export function GenerationPanel() {
                                   <Plus className="h-4 w-4 text-muted-foreground" />
                                 </div>
                               ) : null}
-                              <Image
+                              <ProtectedImage
                                 src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                                alt={`prompt image ${imageIndex + 1}`}
-                                width={160}
-                                height={160}
-                                className="h-20 w-20 rounded-lg border object-cover sm:h-24 sm:w-24 cursor-pointer hover:opacity-80 transition-opacity"
+                                alt={t("promptImageAlt", { index: imageIndex + 1 })}
+                                className="h-20 w-20 rounded-lg border sm:h-24 sm:w-24 cursor-pointer hover:opacity-80 transition-opacity"
                                 onClick={() => setPreviewPromptImage(imageUrl)}
                               />
                             </div>
@@ -446,7 +449,7 @@ export function GenerationPanel() {
                       (() => {
                         const errorMessage =
                           job.error?.message ||
-                          "The generated image could not be completed.";
+                          t("imageGenerationIncomplete");
                         const shouldShowTopUpButton =
                           canPurchase && isInsufficientTokenError(errorMessage);
 
@@ -456,7 +459,7 @@ export function GenerationPanel() {
                               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                               <div className="min-w-0 flex-1">
                                 <p className="font-medium">
-                                  Image generation failed
+                                  {t("imageGenerationFailed")}
                                 </p>
                                 <p className="mt-1 text-xs break-words">
                                   {errorMessage}
@@ -491,7 +494,8 @@ export function GenerationPanel() {
                                     }
                                   }, 100);
                                 }}
-                                title="Retry Generation"
+                                title={t("retryGeneration")}
+                                aria-label={t("retryGeneration")}
                               >
                                 <RefreshCw className="h-4 w-4" />
                               </Button>
@@ -513,9 +517,8 @@ export function GenerationPanel() {
                     ) : job.result?.images?.length ? (
                       job.result.images.map((image, index) => {
                         const imageUrl = image || DEFAULT_PLACEHOLDER_IMAGE;
-                        const isSelected =
-                          selectedHistory?.id === job.id &&
-                          selectedImage === image;
+                        const selectionIndex = selectedContentImages.indexOf(image);
+                        const isSelected = selectionIndex >= 0;
                         const isEditingThisImage =
                           Boolean(selectedEditReferenceImage) &&
                           (selectedEditReferenceImage === imageUrl || selectedEditReferenceImage === image);
@@ -536,7 +539,7 @@ export function GenerationPanel() {
                               <GeneratedImageViewer
                                 imageUrl={imageUrl}
                                 imageItemId={job.result?.imageItemIds?.[index]}
-                                alt={`generated-${index + 1}`}
+                                alt={t("generatedImageAlt", { index: index + 1 })}
                                 protectFromContextMenu
                                 className="w-full cursor-zoom-in rounded-lg border object-cover"
                                 style={{ aspectRatio: job.result?.ratio ? job.result.ratio.replace(":", "/") : "1/1" }}
@@ -560,7 +563,7 @@ export function GenerationPanel() {
                                   }}
                                 >
                                   <Pencil className="h-3.5 w-3.5 mr-1" />
-                                  Edit
+                                  {t("edit")}
                                 </Button>
                               )}
                             </div>
@@ -573,13 +576,39 @@ export function GenerationPanel() {
                                     ? "bg-blue-600 text-white hover:bg-blue-700"
                                     : "border border-input bg-muted text-foreground hover:bg-muted/80"
                                 }
-                                onClick={() => onSelectGeneratedImage(job, image)}
+                                onClick={() => {
+                                  if (
+                                    !isSelected &&
+                                    selectedContentImages.length >= MAX_CAROUSEL_IMAGES
+                                  ) {
+                                    showToast(
+                                      "error",
+                                      t("carouselLimitReached", {
+                                        max: MAX_CAROUSEL_IMAGES,
+                                      })
+                                    );
+                                    return;
+                                  }
+                                  onToggleContentImage(job, image);
+                                }}
                               >
-                                {isSelected ? (
+                                {isSelected && isCarouselSelection ? (
+                                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-semibold leading-none text-blue-600">
+                                    {selectionIndex + 1}
+                                  </span>
+                                ) : isSelected ? (
                                   <Check className="h-3.5 w-3.5" />
                                 ) : null}
-                                {isSelected ? "Content Used" : "Use Content"}
+                                {isSelected ? t("contentUsed") : t("useContent")}
                               </Button>
+                              {isSelected && isCarouselSelection ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {t("carouselSlideLabel", {
+                                    index: selectionIndex + 1,
+                                    total: selectedContentImages.length,
+                                  })}
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                         );
@@ -596,7 +625,7 @@ export function GenerationPanel() {
                         <div className="space-y-3 border-t bg-background px-4 py-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-sm font-medium text-foreground">
-                              Generating image...
+                              {t("generatingImage")}
                             </div>
                             <div className="text-xs font-medium text-muted-foreground">
                               {Math.max(0, Math.min(100, job.progress ?? 0))}%
@@ -620,21 +649,20 @@ export function GenerationPanel() {
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       {selectedEditReferenceImage ? (
                         <div className="relative">
-                          <Image
+                          <ProtectedImage
                             src={
                               selectedEditReferenceImage ||
                               DEFAULT_PLACEHOLDER_IMAGE
                             }
-                            alt="selected edit reference"
-                            width={96}
-                            height={96}
-                            className="h-16 w-16 rounded-md object-cover"
+                            alt={t("selectedEditReferenceAlt")}
+                            className="h-16 w-16 rounded-md"
                           />
                           <Button
                             type="button"
                             variant="secondary"
                             size="icon"
                             className="absolute -right-2 -top-2 h-6 w-6 rounded-full after:absolute after:-inset-2 after:content-[''] sm:after:hidden"
+                            aria-label={t("removeImage")}
                             onClick={() =>
                               form.setBasic({
                                 ...form.basic,
@@ -653,7 +681,7 @@ export function GenerationPanel() {
                         <div key={`${imageUrl}-${index}`} className="relative">
                           <Image
                             src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                            alt={`attached image ${index + 1}`}
+                            alt={t("attachedImageAlt", { index: index + 1 })}
                             width={96}
                             height={96}
                             className="h-16 w-16 rounded-md object-cover"
@@ -663,6 +691,7 @@ export function GenerationPanel() {
                             variant="secondary"
                             size="icon"
                             className="absolute -right-2 -top-2 h-6 w-6 rounded-full after:absolute after:-inset-2 after:content-[''] sm:after:hidden"
+                            aria-label={t("removeImage")}
                             onClick={() =>
                               setAttachedImages((current) =>
                                 current.filter((_, itemIndex) => itemIndex !== index)
@@ -735,14 +764,14 @@ export function GenerationPanel() {
         />
         <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
           <DialogContent className="max-w-max p-0 bg-transparent border-none shadow-none [&>button]:hidden">
-            <DialogTitle className="sr-only">Image Preview</DialogTitle>
+            <DialogTitle className="sr-only">{t("imagePreview")}</DialogTitle>
             {previewPromptImage && (
               <div className="relative h-[95dvh] w-[95vw]">
-                <Image 
-                  src={previewPromptImage} 
-                  alt="Prompt preview" 
-                  fill
-                  className="object-contain rounded-md"
+                <ProtectedImage
+                  src={previewPromptImage}
+                  alt={t("promptPreviewAlt")}
+                  fit="contain"
+                  className="h-full w-full rounded-md"
                 />
               </div>
             )}
@@ -794,14 +823,14 @@ export function GenerationPanel() {
 
       <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
         <DialogContent className="max-w-max p-0 bg-transparent border-none shadow-none [&>button]:hidden">
-          <DialogTitle className="sr-only">Image Preview</DialogTitle>
+          <DialogTitle className="sr-only">{t("imagePreview")}</DialogTitle>
           {previewPromptImage && (
             <div className="relative h-[95dvh] w-[95vw]">
-              <Image 
-                src={previewPromptImage} 
-                alt="Prompt preview" 
-                fill
-                className="object-contain rounded-md"
+              <ProtectedImage
+                src={previewPromptImage}
+                alt={t("promptPreviewAlt")}
+                fit="contain"
+                className="h-full w-full rounded-md"
               />
             </div>
           )}
@@ -833,7 +862,11 @@ export function GenerationPanel() {
               }
           }
         >
-          <img src={flyingImage.url} className="w-full h-full object-cover rounded-lg shadow-lg" />
+          <ProtectedImage
+            src={flyingImage.url}
+            alt=""
+            className="w-full h-full rounded-lg shadow-lg"
+          />
         </div>
       )}
     </>

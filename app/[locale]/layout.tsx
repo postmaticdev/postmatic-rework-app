@@ -15,16 +15,29 @@ import BusinessClientLayout from "./client-layout";
 import { Locale, routing } from "@/i18n/routing";
 import { redirect } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { AutoGenerateProvider } from "@/contexts/auto-generate-context";
 
 import { NotificationProvider } from "@/contexts/notification-context";
 
 
-export const metadata: Metadata = {
-  title: "Postmatic Business",
-  description: "Dashboard manajemen bisnis untuk Postmatic",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({
+    locale: routing.locales.includes(locale as Locale)
+      ? locale
+      : routing.defaultLocale,
+    namespace: "metadata",
+  });
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default async function RootLayout({
   children,

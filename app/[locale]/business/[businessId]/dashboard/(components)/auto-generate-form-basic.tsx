@@ -60,6 +60,7 @@ export const AutoGenerateFormBasic = () => {
   const { basic, setBasic } = form;
   const disabled = false; // Auto generate doesn't have selectedHistory
   const t = useTranslations("generationPanel");
+  const tAuto = useTranslations("autoGenerate");
 
   const ratioOptions =
     basic?.ratio && !aiModels.validRatios.includes(basic.ratio)
@@ -176,7 +177,7 @@ export const AutoGenerateFormBasic = () => {
       ) : null}
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium">AI Model</label>
+        <label className="block text-sm font-medium">{tAuto("aiModel")}</label>
         <AiModelSelect
           disabled={isLoading || disabled || aiModels.isLoading}
           isLoading={aiModels.isLoading}
@@ -207,7 +208,7 @@ export const AutoGenerateFormBasic = () => {
           }}
         >
           <SelectTrigger className={cn("w-full bg-background-secondary", isLoading && "opacity-50 cursor-not-allowed")}>
-            <SelectValue placeholder="Select ratio" />
+            <SelectValue placeholder={tAuto("selectRatio")} />
           </SelectTrigger>
           <SelectContent>
             {ratioOptions.map((option) => (

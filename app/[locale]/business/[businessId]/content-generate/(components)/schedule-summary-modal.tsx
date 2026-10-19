@@ -17,12 +17,17 @@ import { cn } from "@/lib/utils";
 import { CalendarDays, Loader2, Send, Sparkles, Heart, MessageCircle, Bookmark, MoreHorizontal, ThumbsUp, Share2, Globe, Repeat2, Clock, BadgeCheck, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useEffect } from "react";
+import { ContentCarouselPreview } from "./content-carousel-preview";
+import { ProtectedImage } from "./protected-image";
 
 interface ScheduleSummaryModalProps {
   isOpen: boolean;
   businessName?: string;
   businessLogo?: string;
   imageUrl: string;
+  // More than one image renders the post as a swipeable carousel.
+  imageUrls?: string[];
+  ratio?: string;
   caption: string;
   date: string;
   time: string;
@@ -35,8 +40,13 @@ interface ScheduleSummaryModalProps {
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
   onTogglePlatform: (platform: PlatformEnum) => void;
-  onEnhanceCaption: () => void;
+  // Omit to hide the enhance-caption button.
+  onEnhanceCaption?: () => void;
   onConfirm: () => void;
+  // Replaces the image area (e.g. with a video player); receives the max-height
+  // class of the platform frame it renders in.
+  renderMedia?: (maxHeightClass: string) => React.ReactNode;
+  showShareReference?: boolean;
 }
 
 export function ScheduleSummaryModal({
@@ -44,6 +54,8 @@ export function ScheduleSummaryModal({
   businessName,
   businessLogo,
   imageUrl,
+  imageUrls = [],
+  ratio,
   caption,
   date,
   time,
@@ -58,8 +70,12 @@ export function ScheduleSummaryModal({
   onTogglePlatform,
   onEnhanceCaption,
   onConfirm,
+  renderMedia,
+  showShareReference = true,
 }: ScheduleSummaryModalProps) {
   const t = useTranslations("contentGenerateScheduler");
+  const isCarousel = imageUrls.length > 1;
+  const carouselAspectRatio = ratio ? ratio.replace(":", "/") : "1/1";
   const [activePreviewPlatform, setActivePreviewPlatform] = useState<PlatformEnum>("instagram_professional");
 
   useEffect(() => {
@@ -74,17 +90,21 @@ export function ScheduleSummaryModal({
         value={caption}
         onChange={(event) => onCaptionChange(event.target.value)}
         className="min-h-[60px] max-h-[300px] resize-none bg-transparent border-none p-0 focus-visible:ring-0 shadow-none scrollbar-hidden leading-relaxed"
-        placeholder={t("caption") + "..."}
+        placeholder={t("captionPlaceholder")}
       />
-      <Button
-        type="button"
-        size="icon-sm"
-        className="absolute -bottom-2 -right-2 shadow-md opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
-        onClick={onEnhanceCaption}
-        disabled={isLoading}
-      >
-        <Sparkles className="h-4 w-4" />
-      </Button>
+      {onEnhanceCaption && (
+        <Button
+          type="button"
+          size="icon-sm"
+          className="absolute -bottom-2 -right-2 shadow-md opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+          onClick={onEnhanceCaption}
+          disabled={isLoading}
+          title={t("enhanceCaption")}
+          aria-label={t("enhanceCaption")}
+        >
+          <Sparkles className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 
@@ -94,20 +114,20 @@ export function ScheduleSummaryModal({
         <div className="flex gap-3">
           <div className="w-12 h-12 rounded-full bg-muted overflow-hidden shrink-0">
             {businessLogo ? (
-              <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+              <img src={businessLogo} alt={t("preview.logoAlt")} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center font-bold text-lg">{businessName ? businessName.charAt(0).toUpperCase() : "P"}</div>
             )}
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
-              <span className="font-semibold text-sm hover:text-blue-600 hover:underline cursor-pointer">{businessName || "Business Name"}</span>
+              <span className="font-semibold text-sm hover:text-blue-600 hover:underline cursor-pointer">{businessName || t("preview.businessNamePlaceholder")}</span>
               <BadgeCheck className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-muted-foreground text-xs">• 1st</span>
+              <span className="text-muted-foreground text-xs">• {t("preview.firstDegreeConnection")}</span>
             </div>
-            <span className="text-muted-foreground text-xs line-clamp-1">Postmatic Business Page</span>
+            <span className="text-muted-foreground text-xs line-clamp-1">{t("preview.businessPage")}</span>
             <span className="text-muted-foreground text-xs flex items-center gap-1 mt-0.5">
-              Just now • <Globe className="w-3 h-3" />
+              {t("preview.justNow")} • <Globe className="w-3 h-3" />
             </span>
           </div>
         </div>
@@ -122,10 +142,25 @@ export function ScheduleSummaryModal({
       </div>
 
       <div className="w-full bg-black/5 flex items-center justify-center relative max-h-[500px] overflow-hidden">
-        {imageUrl ? (
-          <img src={imageUrl} alt="Preview" className="w-full h-auto object-contain max-h-[500px]" />
+        {renderMedia ? (
+          renderMedia("max-h-[500px]")
+        ) : isCarousel ? (
+          <ContentCarouselPreview
+            images={imageUrls}
+            aspectRatio={carouselAspectRatio}
+            imageFit="contain"
+            className="max-h-[500px] bg-transparent"
+          />
+        ) : imageUrl ? (
+          <ProtectedImage
+            src={imageUrl}
+            alt={t("preview.mediaAlt")}
+            fit="contain"
+            className="w-full"
+            canvasClassName="h-auto max-h-[500px]"
+          />
         ) : (
-          <div className="w-full aspect-video flex items-center justify-center text-muted-foreground bg-muted">No Image</div>
+          <div className="w-full aspect-video flex items-center justify-center text-muted-foreground bg-muted">{t("preview.noImage")}</div>
         )}
       </div>
 
@@ -133,19 +168,19 @@ export function ScheduleSummaryModal({
         <div className="flex items-center justify-between border-t border-border/60 pt-3 text-muted-foreground">
           <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1">
             <ThumbsUp className="w-5 h-5" />
-            <span className="text-sm font-medium max-sm:text-xs">Like</span>
+            <span className="text-sm font-medium max-sm:text-xs">{t("preview.like")}</span>
           </div>
           <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1">
             <MessageCircle className="w-5 h-5" />
-            <span className="text-sm font-medium max-sm:text-xs">Comment</span>
+            <span className="text-sm font-medium max-sm:text-xs">{t("preview.comment")}</span>
           </div>
           <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1">
             <Repeat2 className="w-5 h-5" />
-            <span className="text-sm font-medium max-sm:text-xs">Repost</span>
+            <span className="text-sm font-medium max-sm:text-xs">{t("preview.repost")}</span>
           </div>
           <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:flex-col max-sm:gap-0.5 max-sm:px-1">
             <Send className="w-5 h-5" />
-            <span className="text-sm font-medium max-sm:text-xs">Send</span>
+            <span className="text-sm font-medium max-sm:text-xs">{t("preview.send")}</span>
           </div>
         </div>
       </div>
@@ -158,20 +193,20 @@ export function ScheduleSummaryModal({
         <div className="flex gap-3">
           <div className="w-10 h-10 rounded-full bg-muted overflow-hidden shrink-0 border border-border/50">
             {businessLogo ? (
-              <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+              <img src={businessLogo} alt={t("preview.logoAlt")} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center font-bold text-lg">{businessName ? businessName.charAt(0).toUpperCase() : "P"}</div>
             )}
           </div>
           <div className="flex flex-col">
             <div className="flex items-center flex-wrap gap-x-1">
-              <span className="font-bold text-sm hover:underline cursor-pointer">{businessName || "Business Name"}</span>
+              <span className="font-bold text-sm hover:underline cursor-pointer">{businessName || t("preview.businessNamePlaceholder")}</span>
               <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />
               <span className="text-muted-foreground text-sm font-semibold mx-1">•</span>
-              <span className="text-blue-500 font-semibold text-sm cursor-pointer hover:underline">Follow</span>
+              <span className="text-blue-500 font-semibold text-sm cursor-pointer hover:underline">{t("preview.follow")}</span>
             </div>
             <span className="text-muted-foreground text-[13px] flex items-center gap-1 hover:underline cursor-pointer w-fit mt-0.5">
-              Just now • <Globe className="w-3.5 h-3.5" />
+              {t("preview.justNow")} • <Globe className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
@@ -186,10 +221,25 @@ export function ScheduleSummaryModal({
       </div>
 
       <div className="w-full bg-black/5 flex items-center justify-center relative max-h-[600px] overflow-hidden border-y border-border/50">
-        {imageUrl ? (
-          <img src={imageUrl} alt="Preview" className="w-full h-auto object-contain max-h-[600px]" />
+        {renderMedia ? (
+          renderMedia("max-h-[600px]")
+        ) : isCarousel ? (
+          <ContentCarouselPreview
+            images={imageUrls}
+            aspectRatio={carouselAspectRatio}
+            imageFit="contain"
+            className="max-h-[600px] bg-transparent"
+          />
+        ) : imageUrl ? (
+          <ProtectedImage
+            src={imageUrl}
+            alt={t("preview.mediaAlt")}
+            fit="contain"
+            className="w-full"
+            canvasClassName="h-auto max-h-[600px]"
+          />
         ) : (
-          <div className="w-full aspect-square flex items-center justify-center text-muted-foreground bg-muted">No Image</div>
+          <div className="w-full aspect-square flex items-center justify-center text-muted-foreground bg-muted">{t("preview.noImage")}</div>
         )}
       </div>
 
@@ -206,8 +256,8 @@ export function ScheduleSummaryModal({
           <span className="text-[13px]">12</span>
         </div>
         <div className="flex items-center gap-3 text-[13px]">
-          <span className="cursor-pointer hover:underline">1 Comment</span>
-          <span className="cursor-pointer hover:underline">1 Share</span>
+          <span className="cursor-pointer hover:underline">{t("preview.commentCount", { count: 1 })}</span>
+          <span className="cursor-pointer hover:underline">{t("preview.shareCount", { count: 1 })}</span>
         </div>
       </div>
 
@@ -215,15 +265,15 @@ export function ScheduleSummaryModal({
         <div className="flex items-center justify-between text-muted-foreground font-semibold">
           <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
             <ThumbsUp className="w-5 h-5" />
-            <span className="text-sm">Like</span>
+            <span className="text-sm">{t("preview.like")}</span>
           </div>
           <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
             <MessageCircle className="w-5 h-5" />
-            <span className="text-sm">Comment</span>
+            <span className="text-sm">{t("preview.comment")}</span>
           </div>
           <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
             <Share2 className="w-5 h-5" />
-            <span className="text-sm">Share</span>
+            <span className="text-sm">{t("preview.share")}</span>
           </div>
         </div>
       </div>
@@ -237,25 +287,40 @@ export function ScheduleSummaryModal({
           <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 p-[2px]">
             <div className="w-full h-full rounded-full border-2 border-card bg-muted flex items-center justify-center overflow-hidden">
               {businessLogo ? (
-                <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+                <img src={businessLogo} alt={t("preview.logoAlt")} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-sm font-bold">{businessName ? businessName.charAt(0).toUpperCase() : "P"}</span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-sm cursor-pointer">{businessName || "business_name"}</span>
-            <span className="text-muted-foreground text-sm">• 1m</span>
+            <span className="font-semibold text-sm cursor-pointer">{businessName || t("preview.usernamePlaceholder")}</span>
+            <span className="text-muted-foreground text-sm">• {t("preview.minutesAgoShort", { count: 1 })}</span>
           </div>
         </div>
         <MoreHorizontal className="w-5 h-5 text-foreground cursor-pointer" />
       </div>
 
       <div className="w-full bg-black/5 flex items-center justify-center relative min-h-[300px] max-h-[580px] overflow-hidden">
-        {imageUrl ? (
-          <img src={imageUrl} alt="Preview" className="w-full h-auto object-contain max-h-[580px]" />
+        {renderMedia ? (
+          renderMedia("max-h-[580px]")
+        ) : isCarousel ? (
+          <ContentCarouselPreview
+            images={imageUrls}
+            aspectRatio={carouselAspectRatio}
+            imageFit="contain"
+            className="max-h-[580px] bg-transparent"
+          />
+        ) : imageUrl ? (
+          <ProtectedImage
+            src={imageUrl}
+            alt={t("preview.mediaAlt")}
+            fit="contain"
+            className="w-full"
+            canvasClassName="h-auto max-h-[580px]"
+          />
         ) : (
-          <div className="w-full aspect-square flex items-center justify-center text-muted-foreground bg-muted">No Image</div>
+          <div className="w-full aspect-square flex items-center justify-center text-muted-foreground bg-muted">{t("preview.noImage")}</div>
         )}
       </div>
 
@@ -269,14 +334,14 @@ export function ScheduleSummaryModal({
           <Bookmark className="w-6 h-6 text-foreground cursor-pointer hover:opacity-50 transition-opacity" />
         </div>
         
-        <span className="font-semibold text-sm cursor-pointer mt-1 w-fit">12 likes</span>
+        <span className="font-semibold text-sm cursor-pointer mt-1 w-fit">{t("preview.likesCount", { count: 12 })}</span>
 
         <div className="text-sm mt-1 flex flex-col w-full">
-          <span className="font-semibold cursor-pointer w-fit mb-1">{businessName || "business_name"}</span>
+          <span className="font-semibold cursor-pointer w-fit mb-1">{businessName || t("preview.usernamePlaceholder")}</span>
           {renderCaptionArea()}
         </div>
         
-        <span className="text-muted-foreground text-sm mt-1 cursor-pointer w-fit">View all 1 comment</span>
+        <span className="text-muted-foreground text-sm mt-1 cursor-pointer w-fit">{t("preview.viewAllComments", { count: 1 })}</span>
       </div>
     </div>
   );
@@ -387,10 +452,12 @@ export function ScheduleSummaryModal({
                 </div>
               </div>
 
-              <label className="flex items-start gap-3 text-sm mt-2">
-                <input type="checkbox" checked readOnly className="mt-1 h-4 w-4 rounded text-primary focus:ring-primary" />
-                <span>{t("shareReference")}</span>
-              </label>
+              {showShareReference && (
+                <label className="flex items-start gap-3 text-sm mt-2">
+                  <input type="checkbox" checked readOnly className="mt-1 h-4 w-4 rounded text-primary focus:ring-primary" />
+                  <span>{t("shareReference")}</span>
+                </label>
+              )}
             </div>
 
             {/* Right Section - Social Media Preview */}

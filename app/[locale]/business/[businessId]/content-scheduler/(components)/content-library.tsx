@@ -16,14 +16,14 @@ import { isProblemGenerationJob } from "./failed-generation-history";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 import { JobData } from "@/models/socket-content";
 
-function formatJobDate(value?: string) {
+function formatJobDate(value: string | undefined, locale: string) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -53,7 +53,7 @@ import { SearchNotFound } from "@/components/base/search-not-found";
 import { NoContent } from "@/components/base/no-content";
 import { ContentLibrarySkeleton } from "@/components/grid-skeleton/content-library-skeleton";
 import { useContentSchedulerTab } from "../page";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { PersonalContentForm, PersonalPostModal } from "./personal-post-modal";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
@@ -138,6 +138,7 @@ export function ContentLibrary({
   const { businessId } = useParams() as { businessId: string };
   const router = useRouter();
   const t = useTranslations("contentScheduler");
+  const locale = useLocale();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -227,7 +228,7 @@ export function ContentLibrary({
       } catch {}
       return next;
     });
-    showToast("success", "Riwayat gagal berhasil dihapus");
+    showToast("success", t("failedHistoryDeleted"));
   };
 
   const handleRetryFailedJob = (job: JobData) => {
@@ -246,7 +247,7 @@ export function ContentLibrary({
       } catch {}
       return next;
     });
-    showToast("success", "Riwayat gagal upload berhasil dihapus");
+    showToast("success", t("failedUploadHistoryDeleted"));
   };
 
   const handleRetryFailedPost = (content: PostedImageRes) => {
@@ -486,10 +487,10 @@ export function ContentLibrary({
   const handleSavePersonalContent = async () => {
     const errors: Partial<Record<keyof PersonalContentForm, string>> = {};
     if (!personalForm.image) {
-      errors.image = "Please upload a photo";
+      errors.image = t("uploadPhotoFirst");
     }
     if (!personalForm.caption.trim()) {
-      errors.caption = "Caption is required";
+      errors.caption = t("captionRequired");
     }
     setPersonalErrors(errors);
     if (Object.keys(errors).length > 0) return;
@@ -521,7 +522,7 @@ export function ContentLibrary({
               <div className="relative h-full w-full">
                 <Image
                   src={content.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
-                  alt="image content"
+                  alt={t("contentImageAlt")}
                   className="object-cover rounded-xl select-none pointer-events-none
              transform-gpu transition-transform duration-500 ease-out will-change-transform
              group-hover:scale-110"
@@ -586,10 +587,10 @@ export function ContentLibrary({
             job.input.referenceImage ||
             job.product?.images?.[0] ||
             DEFAULT_PLACEHOLDER_IMAGE;
-          const title = job.product?.name || "Gagal Generate";
+          const title = job.product?.name || t("failedGenerate");
           const errorMessage =
             job.error?.message ||
-            "Proses generate gambar tidak berhasil.";
+            t("generateImageFailedDescription");
 
           return (
             <div
@@ -606,7 +607,7 @@ export function ContentLibrary({
                   />
                   <div className="absolute top-2 right-2 z-10">
                     <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-medium shadow-sm">
-                      Gagal Generate
+                      {t("failedGenerate")}
                     </span>
                   </div>
                 </div>
@@ -618,7 +619,7 @@ export function ContentLibrary({
                     {title}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    {formatJobDate(job.updatedAt)}
+                    {formatJobDate(job.updatedAt, locale)}
                   </p>
                 </div>
 
@@ -646,7 +647,7 @@ export function ContentLibrary({
                     onClick={() => handleDeleteFailedJob(job.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    Hapus
+                    {t("delete")}
                   </Button>
                   <Button
                     type="button"
@@ -655,7 +656,7 @@ export function ContentLibrary({
                     onClick={() => handleRetryFailedJob(job)}
                   >
                     <RotateCw className="h-3.5 w-3.5 mr-1" />
-                    Retry
+                    {t("retry")}
                   </Button>
                 </div>
               </div>
@@ -679,13 +680,13 @@ export function ContentLibrary({
                   <div className="relative h-full w-full">
                     <Image
                       src={content?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
-                      alt="image content"
+                      alt={t("contentImageAlt")}
                       className="object-cover select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-105"
                       fill
                     />
                     <div className="absolute top-2 right-2 z-10">
                       <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-medium shadow-sm">
-                        Gagal Upload
+                        {t("uploadFailed")}
                       </span>
                     </div>
                   </div>
@@ -693,14 +694,14 @@ export function ContentLibrary({
 
                 <div className="mt-4 flex flex-1 flex-col space-y-3">
                   <p className="text-sm text-muted-foreground line-clamp-2">
-                    {content?.caption || "Konten tanpa caption"}
+                    {content?.caption || t("contentWithoutCaption")}
                   </p>
 
                   <div className="rounded-md bg-red-100/70 p-2 text-xs text-red-800 dark:bg-red-900/30 dark:text-red-300">
                     <div className="flex items-start gap-1.5">
                       <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
-                      <p className="line-clamp-2 leading-relaxed" title={firstFailedPost?.errorMessage || "Gagal posting ke sosial media."}>
-                        {firstFailedPost?.errorMessage || "Gagal posting ke sosial media."}
+                      <p className="line-clamp-2 leading-relaxed" title={firstFailedPost?.errorMessage || t("postToSocialFailed")}>
+                        {firstFailedPost?.errorMessage || t("postToSocialFailed")}
                       </p>
                     </div>
                   </div>
@@ -729,8 +730,11 @@ export function ContentLibrary({
                               "h-3.5 w-3.5 shrink-0"
                             )}
                             <span className="truncate">
-                              {mapEnumPlatform.getPlatformLabel(post.platform)}
-                              {isPostFailed && " (Failed)"}
+                              {isPostFailed
+                                ? t("platformFailed", {
+                                    platform: mapEnumPlatform.getPlatformLabel(post.platform),
+                                  })
+                                : mapEnumPlatform.getPlatformLabel(post.platform)}
                             </span>
                           </span>
                         );
@@ -747,7 +751,7 @@ export function ContentLibrary({
                       onClick={() => handleDeleteFailedPost(content.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      Hapus
+                      {t("delete")}
                     </Button>
                     <Button
                       type="button"
@@ -756,7 +760,7 @@ export function ContentLibrary({
                       onClick={() => handleRetryFailedPost(content)}
                     >
                       <RotateCw className="h-3.5 w-3.5 mr-1" />
-                      Retry
+                      {t("retry")}
                     </Button>
                   </div>
                 </div>
@@ -774,7 +778,7 @@ export function ContentLibrary({
                 <div className="relative h-full w-full">
                   <Image
                     src={content?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
-                    alt="image content"
+                    alt={t("contentImageAlt")}
                     className="object-cover select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
                     width={500}
                     height={500}

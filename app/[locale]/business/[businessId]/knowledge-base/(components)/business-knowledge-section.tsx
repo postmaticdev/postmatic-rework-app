@@ -70,7 +70,7 @@ export function BusinessKnowledgeSection() {
                   businessData?.data?.data?.logo ||
                   DEFAULT_BUSINESS_IMAGE
                 }
-                alt="Business Image"
+                alt={b("logoBrand")}
                 fill
                 className="object-contain"
               />

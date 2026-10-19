@@ -12,10 +12,12 @@ export default function BusinessPage() {
   const { data: profile } = useAuthProfileGetProfile();
   const userName = profile?.data?.data?.name;
   const t = useTranslations("welcomeSection");
-  const greeting = userName ? `${t("welcome")} ${userName}` : "Loading...";
+  const greeting = userName
+    ? t("welcomeUser", { name: userName })
+    : t("loading");
   return (
     <div className="min-h-dvh bg-background">
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<div>{t("loading")}</div>}>
         <main className="py-4 sm:py-6 px-4 sm:px-6">
           <WelcomeSection
             message={t("selectBusiness")}

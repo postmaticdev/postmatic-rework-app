@@ -81,6 +81,7 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     SUCCESS_GENERATE_CAPTION: "Caption berhasil dibuat.",
     SUCCESS_PRESIGN_UPLOAD_IMAGE: "Tautan upload gambar berhasil disiapkan.",
     SUCCESS_UPLOAD_IMAGE: "Gambar berhasil diunggah.",
+    UPLOAD_IMAGE_FAILED: "Gagal mengunggah gambar. Silakan coba lagi.",
   },
   en: {
     LOGIN_SUCCESS: "Logged in successfully.",
@@ -161,6 +162,7 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     SUCCESS_GENERATE_CAPTION: "Caption generated successfully.",
     SUCCESS_PRESIGN_UPLOAD_IMAGE: "Image upload link prepared successfully.",
     SUCCESS_UPLOAD_IMAGE: "Image uploaded successfully.",
+    UPLOAD_IMAGE_FAILED: "Failed to upload image. Please try again.",
   },
 };
 

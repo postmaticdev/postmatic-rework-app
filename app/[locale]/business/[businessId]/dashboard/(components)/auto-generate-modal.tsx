@@ -63,13 +63,14 @@ export function AutoGenerateModal({
   const t = useTranslations("autoGenerate");
   const tContentGenerate = useTranslations("contentGenerateScheduler");
   const tAutoPosting = useTranslations("autoPosting");
+  const tPreview = useTranslations("mockPostPreview");
   const mCreateSchedule = useContentAutoGenerateCreateSchedule();
   const mUpdateSchedule = useContentAutoGenerateUpdateSchedule();
   const { businessId } = useParams() as { businessId: string };
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
   const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(businessId);
 
-  const businessName = businessKnowledgeData?.data?.data?.name || "Business Name";
+  const businessName = businessKnowledgeData?.data?.data?.name || tPreview("businessNameFallback");
   const businessLogo = businessKnowledgeData?.data?.data?.primaryLogo || businessKnowledgeData?.data?.data?.primaryLogoUrl || "";
 
   // Form state
@@ -351,7 +352,7 @@ export function AutoGenerateModal({
         value={additionalPrompt}
         readOnly
         className="min-h-[60px] max-h-[300px] resize-none bg-transparent border-none p-0 focus-visible:ring-0 shadow-none text-sm scrollbar-hidden leading-relaxed text-muted-foreground"
-        placeholder={tContentGenerate("caption") + "..."}
+        placeholder={tPreview("captionPlaceholder")}
       />
     </div>
   );
@@ -359,8 +360,8 @@ export function AutoGenerateModal({
   const renderImagePreviewPlaceholder = () => (
     <div className="w-full aspect-square flex flex-col items-center justify-center text-muted-foreground bg-muted border border-dashed border-border/50">
       <Sparkles className="h-8 w-8 mb-2 opacity-50" />
-      <span className="text-sm font-medium">Generated Image</span>
-      <span className="text-xs opacity-70">Ratio: {basic.ratio || "1:1"}</span>
+      <span className="text-sm font-medium">{tPreview("generatedImageAlt")}</span>
+      <span className="text-xs opacity-70">{tPreview("ratioValue", { ratio: basic.ratio || "1:1" })}</span>
     </div>
   );
 
@@ -370,7 +371,7 @@ export function AutoGenerateModal({
         <div className="flex gap-3">
           <div className="w-12 h-12 rounded-full bg-muted overflow-hidden shrink-0">
             {businessLogo ? (
-              <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+              <img src={businessLogo} alt={tPreview("logoAlt")} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center font-bold text-lg">{businessName.charAt(0).toUpperCase()}</div>
             )}
@@ -379,11 +380,11 @@ export function AutoGenerateModal({
             <div className="flex items-center gap-1">
               <span className="font-semibold text-sm hover:text-blue-600 hover:underline cursor-pointer">{businessName}</span>
               <BadgeCheck className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-muted-foreground text-xs">• 1st</span>
+              <span className="text-muted-foreground text-xs">• {tPreview("firstDegree")}</span>
             </div>
-            <span className="text-muted-foreground text-xs line-clamp-1">Postmatic Business Page</span>
+            <span className="text-muted-foreground text-xs line-clamp-1">{tPreview("businessPage")}</span>
             <span className="text-muted-foreground text-xs flex items-center gap-1 mt-0.5">
-              Just now • <Globe className="w-3 h-3" />
+              {tPreview("justNow")} • <Globe className="w-3 h-3" />
             </span>
           </div>
         </div>
@@ -402,19 +403,19 @@ export function AutoGenerateModal({
         <div className="flex items-center justify-between border-t border-border/60 pt-3 text-muted-foreground">
           <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
             <ThumbsUp className="w-5 h-5 max-sm:size-4" />
-            <span className="text-sm font-medium max-sm:text-xs">Like</span>
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("like")}</span>
           </div>
           <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
             <MessageCircle className="w-5 h-5 max-sm:size-4" />
-            <span className="text-sm font-medium max-sm:text-xs">Comment</span>
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("comment")}</span>
           </div>
           <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
             <Repeat2 className="w-5 h-5 max-sm:size-4" />
-            <span className="text-sm font-medium max-sm:text-xs">Repost</span>
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("repost")}</span>
           </div>
           <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
             <Send className="w-5 h-5 max-sm:size-4" />
-            <span className="text-sm font-medium max-sm:text-xs">Send</span>
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("send")}</span>
           </div>
         </div>
       </div>
@@ -427,7 +428,7 @@ export function AutoGenerateModal({
         <div className="flex gap-3">
           <div className="w-10 h-10 rounded-full bg-muted overflow-hidden shrink-0 border border-border/50">
             {businessLogo ? (
-              <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+              <img src={businessLogo} alt={tPreview("logoAlt")} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center font-bold text-lg">{businessName.charAt(0).toUpperCase()}</div>
             )}
@@ -437,10 +438,10 @@ export function AutoGenerateModal({
               <span className="font-bold text-sm hover:underline cursor-pointer">{businessName}</span>
               <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />
               <span className="text-muted-foreground text-sm font-semibold mx-1">•</span>
-              <span className="text-blue-500 font-semibold text-sm cursor-pointer hover:underline">Follow</span>
+              <span className="text-blue-500 font-semibold text-sm cursor-pointer hover:underline">{tPreview("follow")}</span>
             </div>
             <span className="text-muted-foreground text-[13px] flex items-center gap-1 hover:underline cursor-pointer w-fit mt-0.5">
-              Just now • <Globe className="w-3.5 h-3.5" />
+              {tPreview("justNow")} • <Globe className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
@@ -468,23 +469,23 @@ export function AutoGenerateModal({
           <span className="text-[13px]">12</span>
         </div>
         <div className="flex items-center gap-3 text-[13px]">
-          <span className="cursor-pointer hover:underline">1 Comment</span>
-          <span className="cursor-pointer hover:underline">1 Share</span>
+          <span className="cursor-pointer hover:underline">{tPreview("commentCount", { count: 1 })}</span>
+          <span className="cursor-pointer hover:underline">{tPreview("shareCount", { count: 1 })}</span>
         </div>
       </div>
       <div className="px-4 py-1.5">
         <div className="flex items-center justify-between text-muted-foreground font-semibold">
           <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
             <ThumbsUp className="w-5 h-5" />
-            <span className="text-sm">Like</span>
+            <span className="text-sm">{tPreview("like")}</span>
           </div>
           <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
             <MessageCircle className="w-5 h-5" />
-            <span className="text-sm">Comment</span>
+            <span className="text-sm">{tPreview("comment")}</span>
           </div>
           <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
             <Share2 className="w-5 h-5" />
-            <span className="text-sm">Share</span>
+            <span className="text-sm">{tPreview("share")}</span>
           </div>
         </div>
       </div>
@@ -498,7 +499,7 @@ export function AutoGenerateModal({
           <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 p-[2px]">
             <div className="w-full h-full rounded-full border-2 border-card bg-muted flex items-center justify-center overflow-hidden">
               {businessLogo ? (
-                <img src={businessLogo} alt="Logo" className="w-full h-full object-cover" />
+                <img src={businessLogo} alt={tPreview("logoAlt")} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-sm font-bold">{businessName.charAt(0).toUpperCase()}</span>
               )}
@@ -506,7 +507,7 @@ export function AutoGenerateModal({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-sm cursor-pointer">{businessName}</span>
-            <span className="text-muted-foreground text-sm">• 1m</span>
+            <span className="text-muted-foreground text-sm">• {tPreview("minutesAgoShort", { count: 1 })}</span>
           </div>
         </div>
         <MoreHorizontal className="w-5 h-5 text-foreground cursor-pointer" />
@@ -523,12 +524,12 @@ export function AutoGenerateModal({
           </div>
           <Bookmark className="w-6 h-6 text-foreground cursor-pointer hover:opacity-50 transition-opacity" />
         </div>
-        <span className="font-semibold text-sm cursor-pointer mt-1 w-fit">12 likes</span>
+        <span className="font-semibold text-sm cursor-pointer mt-1 w-fit">{tPreview("likesCount", { count: 12 })}</span>
         <div className="text-sm mt-1 flex flex-col w-full">
           <span className="font-semibold cursor-pointer w-fit mb-1">{businessName}</span>
           {renderCaptionArea()}
         </div>
-        <span className="text-muted-foreground text-sm mt-1 cursor-pointer w-fit">View all 1 comment</span>
+        <span className="text-muted-foreground text-sm mt-1 cursor-pointer w-fit">{tPreview("viewAllComments", { count: 1 })}</span>
       </div>
     </div>
   );
@@ -651,7 +652,7 @@ export function AutoGenerateModal({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium flex gap-2 items-center">
-                  <Sparkles className="size-4 text-primary" /> Content Brief 
+                  <Sparkles className="size-4 text-primary" /> {t("contentBrief")}
                 </label>
                 <Textarea
                   value={additionalPrompt}

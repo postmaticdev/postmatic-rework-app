@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeCountryNames } from "@/helper/locale";
 import { useNotification } from "@/contexts/notification-context";
 
 import { SearchableCountrySelect } from "@/app/[locale]/profile/(components)/searchable-select-content";
@@ -119,6 +120,11 @@ export function ReportIssueModal({
   onClose,
 }: ReportIssueModalProps) {
   const t = useTranslations("reportIssueModal");
+  const locale = useLocale();
+  const localizedCountries = useMemo(
+    () => localizeCountryNames(countryCodes, locale),
+    [locale]
+  );
   const { refreshTickets } = useNotification();
   const { data: profileData } = useAuthProfileGetProfile();
   const { data: categoryData, isLoading: isCategoryLoading } =
@@ -279,7 +285,7 @@ export function ReportIssueModal({
             <Label htmlFor="report-phone-number">{t("phoneNumber")}</Label>
             <div className="flex space-x-2">
               <SearchableCountrySelect
-                countries={countryCodes}
+                countries={localizedCountries}
                 value={form.countryCode || DEFAULT_COUNTRY_CODE}
                 onValueChange={(value) => updateField("countryCode", value)}
                 placeholder={t("countryCode")}

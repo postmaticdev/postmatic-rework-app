@@ -1,6 +1,7 @@
 "use client";
 
 import { Info } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { NativeSelect } from "@/components/ui/native-select";
 
 interface CurrencyDropdownProps {
@@ -39,11 +40,13 @@ const CURRENCIES = [
 export function CurrencyDropdown({
   value,
   onChange,
-  placeholder = "Pilih mata uang",
+  placeholder: placeholderProp,
   disabled = false,
   error,
   onFocus,
 }: CurrencyDropdownProps) {
+  const tField = useTranslations("currencyDropdown");
+  const placeholder = placeholderProp ?? tField("selectPlaceholder");
   return (
     <div className="space-y-1">
       <NativeSelect

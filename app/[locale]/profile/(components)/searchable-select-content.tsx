@@ -4,6 +4,7 @@ import * as React from "react";
 import { ChevronDown, Search, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { useTranslations } from "next-intl";
 
 interface Country {
   name: string;
@@ -24,10 +25,13 @@ export function SearchableCountrySelect({
   countries,
   value,
   onValueChange,
-  placeholder = "Pilih negara",
-  searchPlaceholder = "Cari negara...",
+  placeholder: placeholderProp,
+  searchPlaceholder: searchPlaceholderProp,
   className,
 }: SearchableCountrySelectProps) {
+  const t = useTranslations("countrySelect");
+  const placeholder = placeholderProp ?? t("placeholder");
+  const searchPlaceholder = searchPlaceholderProp ?? t("searchPlaceholder");
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [focusedIndex, setFocusedIndex] = React.useState(-1);
@@ -154,8 +158,8 @@ export function SearchableCountrySelect({
   // fokuskan search saat buka
   React.useEffect(() => {
     if (isOpen && searchInputRef.current) {
-      const t = setTimeout(() => searchInputRef.current?.focus(), 100);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => searchInputRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -274,7 +278,7 @@ export function SearchableCountrySelect({
                 ))
               ) : (
                 <div className="py-6 text-center text-sm text-muted-foreground">
-                  Tidak ada hasil
+                  {t("noResults")}
                 </div>
               )}
             </div>
@@ -336,7 +340,7 @@ export function SearchableCountrySelect({
                 ))
               ) : (
                 <div className="py-6 text-center text-sm text-muted-foreground">
-                  Tidak ada hasil
+                  {t("noResults")}
                 </div>
               )}
             </div>

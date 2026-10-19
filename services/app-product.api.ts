@@ -1,5 +1,6 @@
 import { api } from "@/config/api";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
+import { getToastLocale } from "@/helper/api-response-message";
 import {
   ProductDetailParamsPld,
   ProductDetailRes,
@@ -147,7 +148,10 @@ const appProductService = {
         data: {
           id: String(product.tokenAmount),
           name: `Image Token x${product.tokenAmount}`,
-          description: "Token for image generation",
+          description:
+            getToastLocale() === "en"
+              ? "Token for image generation"
+              : "Token untuk pembuatan gambar",
           type: "token",
           pricingByMethod: Object.entries(methodsByType).map(
             ([type, methods]) => ({

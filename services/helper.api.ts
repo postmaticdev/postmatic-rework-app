@@ -1,6 +1,7 @@
 import { api } from "@/config/api";
 import { BaseResponse } from "@/models/api/base-response.type";
 import { UploadSingleImagePld } from "@/models/api/helper/image.type";
+import { translateApiResponseMessage } from "@/helper/api-response-message";
 
 // Mirrors the backend asset uploader image policy (jpeg/png/webp, max 10MB).
 export const UPLOAD_IMAGE_ALLOWED_TYPES = [
@@ -46,7 +47,7 @@ export const helperService = {
       
       if (response.data.metaData.code !== 200) {
         throw new Error(
-          response.data.responseMessage || "Failed to upload image"
+          response.data.responseMessage || translateApiResponseMessage("UPLOAD_IMAGE_FAILED")
         );
       }
       
@@ -68,7 +69,7 @@ export const helperService = {
       const ownMessage =
         !axiosLike?.isAxiosError && error instanceof Error ? error.message : "";
       throw new Error(
-        serverMessage || ownMessage || "Failed to upload image. Please try again."
+        serverMessage || ownMessage || translateApiResponseMessage("UPLOAD_IMAGE_FAILED")
       );
     }
   },

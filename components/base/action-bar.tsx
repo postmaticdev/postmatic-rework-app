@@ -43,7 +43,7 @@ export function ActionBar() {
             onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
             className="sm:hidden shrink-0 text-muted-foreground hover:text-foreground"
             title={viewMode === "grid" ? t("listView") : t("galleryView")}
-            aria-label={viewMode === "grid" ? "List view" : "Gallery view"}
+            aria-label={viewMode === "grid" ? t("listView") : t("galleryView")}
           >
             {viewMode === "grid" ? (
               <LayoutGrid className="w-4 h-4" />
@@ -67,7 +67,7 @@ export function ActionBar() {
                   : "text-muted-foreground hover:text-foreground"
               )}
               title={t("galleryView")}
-              aria-label="Gallery view"
+              aria-label={t("galleryView")}
             >
               <LayoutGrid className="w-4 h-4" />
             </Button>
@@ -83,7 +83,7 @@ export function ActionBar() {
                   : "text-muted-foreground hover:text-foreground"
               )}
               title={t("listView")}
-              aria-label="List view"
+              aria-label={t("listView")}
             >
               <List className="w-4 h-4" />
             </Button>

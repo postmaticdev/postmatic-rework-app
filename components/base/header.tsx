@@ -6,12 +6,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { BarChart3, ChevronDown, Plus, Users, Zap, Bell } from "lucide-react";
+import { BarChart3, ChevronDown, Plus, Users, Zap } from "lucide-react";
 import { ProfileDropdown } from "./profile-dropdown";
-import { useNotification } from "@/contexts/notification-context";
+import { NotificationDropdown } from "./notification-dropdown";
 import { MobileMenu } from "../mobile-menu";
 import Image from "next/image";
 import {
+  businessService,
   useBusinessGetAll,
   useBusinessGetById,
 } from "@/services/business.api";
@@ -24,9 +25,9 @@ import {
 } from "next/navigation";
 import { useTokenGetTokenUsage } from "@/services/tier/token.api";
 import { useEffect, useMemo, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LanguageToggle } from "../language-toggle";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { BusinessRes } from "@/models/api/business/index.type";
@@ -43,26 +44,38 @@ function BusinessDropdownLogo({
   className?: string;
   overrideImage?: string;
 }) {
-  const businessImage = overrideImage || business.logo || DEFAULT_BUSINESS_IMAGE;
+  const t = useTranslations("header");
+  const knownLogo = overrideImage || business.logo;
+  // GET /business/information (list) does not return the logo, so resolve it from the
+  // business detail endpoint (primaryLogoUrl). Only runs while the dropdown is open
+  // (this component is mounted inside the dropdown content) and is cached.
+  const { data: detailData } = useQuery({
+    queryKey: ["business", business.id],
+    queryFn: () => businessService.getById(business.id),
+    enabled: !knownLogo && Boolean(business.id),
+    staleTime: 5 * 60_000,
+  });
+  const resolvedLogo = knownLogo || detailData?.data?.data?.logo;
+  const businessImage = resolvedLogo || DEFAULT_BUSINESS_IMAGE;
 
   return (
     <Image
       src={businessImage}
-      alt={`${business.name} logo`}
+      alt={t("businessLogoAlt", { name: business.name })}
       fill
       sizes={size}
-      className={className || "object-contain"}
+      className={resolvedLogo ? className || "object-contain" : "object-cover"}
     />
   );
 }
 
 export function Header() {
+  const t = useTranslations("header");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { businessId } = useParams() as { businessId?: string };
-  const { unreadCount } = useNotification();
   const { access } = useRole();
 
   const { data: businessesData, isLoading: isLoadingBusinesses } =
@@ -199,7 +212,7 @@ export function Header() {
         <Link href="/" className="shrink-0 cursor-pointer">
           <Image
             src="/logoblue.png"
-            alt="logol"
+            alt="Postmatic"
             width={200}
             height={200}
             className="w-12 h-12"
@@ -235,7 +248,7 @@ export function Header() {
                         href={buildSettingsPath(currentBusiness.id, "billing")}
                         className="block text-sm leading-4 text-blue-600 hover:text-blue-700"
                       >
-                        Pay as you go
+                        {t("payAsYouGo")}
                       </Link>
                     </div>
                   </div>
@@ -248,7 +261,7 @@ export function Header() {
                     >
                       <Link href={buildSettingsPath(currentBusiness.id, "overview")}>
                         <BarChart3 className="h-4 w-4 text-foreground" />
-                        Overview
+                        {t("overview")}
                       </Link>
                     </Button>
                     <Button
@@ -258,7 +271,7 @@ export function Header() {
                     >
                       <Link href={buildSettingsPath(currentBusiness.id, "workspace")}>
                         <Users className="h-4 w-4 text-foreground" />
-                        People
+                        {t("people")}
                       </Link>
                     </Button>
                   </div>
@@ -295,7 +308,7 @@ export function Header() {
                   >
                     <Link href="/business/new-business">
                       <Plus className="h-4 w-4" />
-                      Create Workspace
+                      {t("createWorkspace")}
                     </Link>
                   </Button>
                 </div>
@@ -325,6 +338,7 @@ export function Header() {
             {access.purchase.write && (
               <Link
                 href={`/business/${businessId}/settings?tab=billing&topUp=token`}
+                aria-label={t("topUpToken")}
                 className="w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-4 h-4 text-white" />
@@ -339,28 +353,9 @@ export function Header() {
           </div>
 
           {/* Notifikasi desktop — di mobile dipindah ke dalam sidebar */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              const activeBusinessId = businessId || currentBusiness?.id || businesses[0]?.id;
-              router.push(
-                activeBusinessId
-                  ? `/business/${activeBusinessId}/notifications`
-                  : "/notifications"
-              );
-            }}
-            className="relative hidden md:inline-flex text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 hover:scale-105 active:scale-95 group"
-            aria-label="System Notifications"
-          >
-            <Bell className="size-5 transition-transform duration-300 group-hover:rotate-12" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] px-1 md:h-4 md:min-w-4 md:px-0 shrink-0 items-center justify-center rounded-full bg-red-500 text-[11px] md:text-[10px] leading-none font-bold text-white ring-2 ring-background animate-in zoom-in-50 duration-200">
-                {unreadCount}
-              </span>
-            )}
-          </Button>
+          <NotificationDropdown
+            businessId={businessId || currentBusiness?.id || businesses[0]?.id}
+          />
 
           {/* Mobile Menu */}
           <MobileMenu />

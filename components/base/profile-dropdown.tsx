@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { getMemberRoleLabel } from "@/helper/member-role";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 
@@ -15,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "next-themes";
-import { Settings, LogOut, User } from "lucide-react";
+import { Moon, Sun, LogOut, User } from "lucide-react";
 import {
   useAuthProfileGetProfile,
   useAuthProfileLogout,
@@ -29,7 +30,7 @@ import { useBusinessGetAll } from "@/services/business.api";
 
 export function ProfileDropdown() {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const { data: profileData } = useAuthProfileGetProfile();
   const { data: businessesData } = useBusinessGetAll();
   const { businessId } = useParams() as { businessId?: string };
@@ -39,8 +40,15 @@ export function ProfileDropdown() {
   const userRole = currentBusiness?.userPosition?.role;
   const profile = profileData?.data?.data;
   const tSideBar = useTranslations("sideBar");
+  const tRole = useTranslations("memberRole");
 
-  const [isDarkMode, setIsDarkMode] = useState(theme === "dark");
+  const [isDarkMode, setIsDarkMode] = useState(
+    theme === "dark" || resolvedTheme === "dark"
+  );
+
+  useEffect(() => {
+    setIsDarkMode(resolvedTheme === "dark" || theme === "dark");
+  }, [theme, resolvedTheme]);
 
   const handleThemeToggle = (checked: boolean) => {
     setIsDarkMode(checked);
@@ -90,11 +98,11 @@ export function ProfileDropdown() {
             </Avatar>
             <div className="hidden sm:flex flex-col text-left">
               <span className="text-sm font-medium text-foreground">
-                {profile?.name || "User"}
+                {profile?.name || tSideBar("user")}
               </span>
               {userRole && (
                 <span className="text-xs text-muted-foreground">
-                  {userRole}
+                  {getMemberRoleLabel(userRole, tRole)}
                 </span>
               )}
             </div>
@@ -115,11 +123,11 @@ export function ProfileDropdown() {
             </Avatar>
             <div className="flex flex-col">
               <span className="text-sm font-medium">
-                {profile?.name || "User"}
+                {profile?.name || tSideBar("user")}
               </span>
               {userRole && (
                 <span className="text-xs text-muted-foreground">
-                  {userRole}
+                  {getMemberRoleLabel(userRole, tRole)}
                 </span>
               )}
             </div>
@@ -137,12 +145,23 @@ export function ProfileDropdown() {
           </DropdownMenuItem>
 
           {/* Dark Mode Toggle */}
-          <div className="flex items-center justify-between px-4 py-2">
+          <div
+            className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-accent rounded-sm transition-colors"
+            onClick={() => handleThemeToggle(!isDarkMode)}
+          >
             <div className="flex items-center">
-              <Settings className="mr-4 h-4 w-4" />
-              <span className="text-sm">{tSideBar("darkMode")}</span>
+              {isDarkMode ? (
+                <Moon className="text-foreground mr-4 h-4 w-4" />
+              ) : (
+                <Sun className="text-foreground mr-4 h-4 w-4" />
+              )}
+              <span className="text-sm select-none">{tSideBar("darkMode")}</span>
             </div>
-            <Switch checked={isDarkMode} onCheckedChange={handleThemeToggle} />
+            <Switch
+              checked={isDarkMode}
+              onCheckedChange={handleThemeToggle}
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
 
           <DropdownMenuSeparator />

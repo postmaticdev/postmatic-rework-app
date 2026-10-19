@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 interface ColorPickerFieldProps {
   label: string;
@@ -17,6 +18,10 @@ interface ColorPickerFieldProps {
   error?: string;
   onFocus?: () => void;
 }
+
+/** Approximate rendered height of the picker popover (react-colorful + padding). */
+const PICKER_HEIGHT_PX = 240;
+const PICKER_GAP_PX = 12;
 
 function normalizeHex(input?: string) {
   const raw = (input ?? "").trim().replace(/^#/, "").toUpperCase();
@@ -38,10 +43,23 @@ export function ColorPickerField({
   error,
   onFocus,
 }: ColorPickerFieldProps) {
+  const t = useTranslations("colorPicker");
   const colorHash = useMemo(() => toHashHex(value), [value]);
   const [hexInput, setHexInput] = useState(stripHash(colorHash));
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [placement, setPlacement] = useState<"top" | "bottom">("top");
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+
+  // Open the picker above the field; fall back to below when there is not
+  // enough room above it in the viewport.
+  const togglePicker = () => {
+    if (!isPickerOpen) {
+      const top = fieldRef.current?.getBoundingClientRect().top ?? Infinity;
+      setPlacement(top >= PICKER_HEIGHT_PX + PICKER_GAP_PX ? "top" : "bottom");
+    }
+    setIsPickerOpen((open) => !open);
+  };
 
   useEffect(() => {
     setHexInput(stripHash(colorHash));
@@ -92,6 +110,7 @@ export function ColorPickerField({
 
       <div className="relative" onFocus={onFocus}>
         <div
+          ref={fieldRef}
           className={cn(
             "flex h-(--control-h) items-center overflow-hidden rounded-md border bg-background transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20",
             error ? "border-red-500" : "border-border"
@@ -99,10 +118,10 @@ export function ColorPickerField({
         >
           <button
             type="button"
-            aria-label={`Open color picker for ${label}`}
+            aria-label={t("openPicker", { label })}
             aria-expanded={isPickerOpen}
             aria-haspopup="dialog"
-            onClick={() => setIsPickerOpen((open) => !open)}
+            onClick={togglePicker}
             className="flex h-full items-center justify-center border-r border-border px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-inset"
           >
             <span
@@ -142,7 +161,12 @@ export function ColorPickerField({
         </div>
 
         {isPickerOpen && (
-          <div className="absolute left-0 top-full z-50 mt-3 rounded-2xl border border-border bg-background p-3 shadow-lg">
+          <div
+            className={cn(
+              "absolute left-0 z-50 rounded-2xl border border-border bg-background p-3 shadow-lg",
+              placement === "top" ? "bottom-full mb-3" : "top-full mt-3"
+            )}
+          >
             <HexColorPicker
               color={colorHash}
               onChange={(next) => {

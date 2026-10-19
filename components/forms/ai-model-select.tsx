@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 
 export type AiModelSelectOption = {
@@ -85,12 +86,13 @@ export function AiModelSelect({
   size = "default",
   side = "bottom",
 }: AiModelSelectProps) {
+  const t = useTranslations("aiModelSelect");
   const selectedOption = models.find((model) => model.name === selectedModel);
   const selectedLabel = selectedOption
     ? getAiModelDisplayName(selectedOption)
     : isLoading
-      ? "Loading models..."
-      : "No model available";
+      ? t("loading")
+      : t("empty");
   const isSmall = size === "sm";
 
   return (

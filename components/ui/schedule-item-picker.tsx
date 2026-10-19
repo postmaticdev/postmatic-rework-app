@@ -189,6 +189,7 @@ export function ScheduleItemPicker({
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => onRemoveItem(item.time)}
+                aria-label={t("removeTime", { time: item.time })}
                 className="text-red-500 hover:text-red-700"
               >
                 <X className="h-4 w-4" />

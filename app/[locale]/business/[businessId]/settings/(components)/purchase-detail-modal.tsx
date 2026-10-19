@@ -11,7 +11,6 @@ import {
 import { ReceiptText } from "lucide-react";
 import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { showToast } from "@/helper/show-toast";
-import { formatIdr } from "@/helper/formatter";
 import {
   mergeBusinessPurchaseWithRealtimePayment,
   normalizeRealtimePaymentStatus,
@@ -27,6 +26,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
+  formatIdrStable,
   formatProductName,
   formatProductType,
 } from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
@@ -55,6 +55,8 @@ export function PurchaseDetailModal({
   const tToast = useTranslations();
   const { formatDate } = useDateFormat();
   const locale = useLocale();
+  const tDialog = useTranslations("settings.topUpTokenDialog");
+  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
 
   const paymentDetails = transaction?.paymentDetails ?? [];
 
@@ -162,7 +164,7 @@ export function PurchaseDetailModal({
     const diffMs = new Date(expiredAt).getTime() - now;
     if (diffMs <= 0) {
       return {
-        text: "Batas pembayaran telah berakhir.",
+        text: tDialog("paymentExpired"),
         expired: true,
       };
     }
@@ -178,7 +180,10 @@ export function PurchaseDetailModal({
     )}:${String(seconds).padStart(2, "0")}`;
 
     return {
-      text: days > 0 ? `Sisa waktu pembayaran: ${days} hari ${hhmmss}` : `Sisa waktu pembayaran: ${hhmmss}`,
+      text:
+        days > 0
+          ? tDialog("paymentTimeRemainingWithDays", { days, time: hhmmss })
+          : tDialog("paymentTimeRemaining", { time: hhmmss }),
       expired: false,
     };
   };
@@ -186,35 +191,35 @@ export function PurchaseDetailModal({
   const paymentCountdown = getPaymentCountdown(transaction.expiredAt);
   const statusLabel = mapEnumPaymentStatus.getStatusLabel(transaction.status, tStatus);
   const statusTitle = isPending
-    ? "Menunggu Pembayaran..."
+    ? tDialog("pendingTitle")
     : isSuccess
-      ? "Pembayaran Berhasil"
+      ? tDialog("successTitle")
       : statusLabel;
   const statusDescription = isPending
-    ? "Silakan lakukan pembayaran untuk melanjutkan pesanan."
+    ? tDialog("pendingDescription")
     : transaction.status === "Expired"
-      ? "Batas waktu pembayaran sudah berakhir."
+      ? tDialog("expiredDescription")
       : transaction.status === "Failed" ||
           transaction.status === "Denied" ||
           transaction.status === "Canceled"
-        ? "Pembayaran tidak berhasil diproses."
-        : "Transaksi ini sudah diproses.";
+        ? tDialog("failedDescription")
+        : tDialog("processedDescription");
 
   const detailRows = [
     {
-      label: "Ref",
+      label: tDialog("reference"),
       value: transaction.paymentCode || transaction.orderId || transaction.id,
     },
-    { label: "Tgl Dibuat", value: formatDateTime(transaction.createdAt) },
-    { label: "Tgl Diubah", value: formatDateTime(transaction.updatedAt) },
-    { label: "Produk", value: formatProductName(transaction.productName, locale) },
-    { label: "Tipe", value: formatProductType(transaction.productType) },
-    { label: "Metode", value: transaction.method?.toUpperCase() || "-" },
+    { label: tDialog("createdAt"), value: formatDateTime(transaction.createdAt) },
+    { label: tDialog("updatedAt"), value: formatDateTime(transaction.updatedAt) },
+    { label: tDialog("product"), value: formatProductName(transaction.productName, locale) },
+    { label: tDialog("type"), value: formatProductType(transaction.productType) },
+    { label: tDialog("method"), value: transaction.method?.toUpperCase() || "-" },
     ...paymentDetails.map((detail) => ({
       label: detail.name,
       value: formatIdr(detail.price),
     })),
-    { label: "Total", value: formatIdr(transaction.totalAmount) },
+    { label: tDialog("total"), value: formatIdr(transaction.totalAmount) },
   ];
 
   return (
@@ -251,7 +256,7 @@ export function PurchaseDetailModal({
               <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
                 <ReceiptText className="h-5 w-5" />
               </div>
-              <h3 className="text-lg font-semibold">Detail Order</h3>
+              <h3 className="text-lg font-semibold">{tDialog("orderDetails")}</h3>
             </div>
             <div className="space-y-3">
               {detailRows.map((row) => (

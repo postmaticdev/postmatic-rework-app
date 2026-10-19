@@ -5,10 +5,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Home, ArrowLeft, Search, AlertCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function NotFoundPage() {
+  const t = useTranslations("notFoundPage");
   return (
-    <Suspense fallback={<div className="p-6">Loading…</div>}>
+    <Suspense fallback={<div className="p-6">{t("loading")}</div>}>
       <div className="min-h-dvh overflow-x-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
         <div className="max-w-2xl w-full text-center">
           {/* Animated 404 Number */}
@@ -26,14 +28,14 @@ export default function NotFoundPage() {
             <div className="flex items-center justify-center mb-4">
               <AlertCircle className="w-8 h-8 text-red-500 mr-3 animate-pulse" />
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-                Page Not Found
+                {t("title")}
               </h1>
             </div>
             <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-2">
-              Oops! The page you&apos;re looking for doesn&apos;t exist.
+              {t("description")}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              It might have been moved, deleted, or you entered the wrong URL.
+              {t("hint")}
             </p>
           </div>
 
@@ -56,7 +58,7 @@ export default function NotFoundPage() {
             >
               <Link href="/">
                 <Home className="w-5 h-5 mr-2 max-md:mr-0" />
-                Go Home
+                {t("goHome")}
               </Link>
             </Button>
             
@@ -67,7 +69,7 @@ export default function NotFoundPage() {
               className="w-full sm:w-auto border-2 border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 transform hover:scale-105"
             >
               <ArrowLeft className="w-5 h-5 mr-2 max-md:mr-0" />
-              Go Back
+              {t("goBack")}
             </Button>
           </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,8 @@ import { showToast } from "@/helper/show-toast";
 import { SearchableCountrySelect } from "./searchable-select-content";
 import countryCodes from "@/lib/country-code.json";
 import { FcGoogle } from "react-icons/fc";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeCountryNames } from "@/helper/locale";
 
 type ViewMode = "profile" | "password";
 
@@ -182,6 +183,11 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
   };
  
   const t = useTranslations("editProfileModal");
+  const locale = useLocale();
+  const localizedCountries = useMemo(
+    () => localizeCountryNames(countryCodes, locale),
+    [locale]
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleModalClose}>
@@ -260,7 +266,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 <label className="text-sm font-medium">{t("phone")}</label>
                 <div className="flex space-x-2">
                   <SearchableCountrySelect
-                    countries={countryCodes}
+                    countries={localizedCountries}
                     value={formData.countryCode}
                     onValueChange={(value) =>
                       handleInputChange("countryCode", value)

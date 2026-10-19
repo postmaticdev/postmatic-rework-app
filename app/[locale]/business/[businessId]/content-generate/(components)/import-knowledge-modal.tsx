@@ -158,7 +158,7 @@ export function ImportKnowledgeModal({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{title}</p>
           <p className="text-xs text-muted-foreground">
-            {t("selectedAvatarCount", {
+            {t("avatarCount", {
               count: options.length,
             })}
           </p>

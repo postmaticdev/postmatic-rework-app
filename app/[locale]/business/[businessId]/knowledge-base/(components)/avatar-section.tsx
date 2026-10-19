@@ -244,7 +244,7 @@ export function AvatarSection() {
                 titleDescription={t("notAvailableDescription")}
               />
             ) : avatars.length === 0 ? (
-              <SearchNotFound description={t("searchEmptyDescription")} />
+              <SearchNotFound />
             ) : (
               <div
                 className={`space-y-3 ${

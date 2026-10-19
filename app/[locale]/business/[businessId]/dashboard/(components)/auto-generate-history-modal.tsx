@@ -110,7 +110,7 @@ export function AutoGenerateHistoryModal({
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col gap-2">
                         <h4 className="font-semibold">
-                          {history.productKnowledge?.name || "Unknown Product"}
+                          {history.productKnowledge?.name || m("unknownProduct")}
                         </h4>
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge
@@ -123,7 +123,7 @@ export function AutoGenerateHistoryModal({
                                 : "bg-yellow-500 hover:bg-yellow-600"
                             )}
                           >
-                            {history.status}
+                            {m("autoGenerateHistoryStatus", { status: String(history.status) })}
                           </Badge>
                           {history.status === "failed" && (
                             <Badge variant="outline">{history.code}</Badge>

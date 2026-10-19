@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { useManageKnowledge } from "@/contexts/manage-knowledge-context";
 import { BusinessKnowledgePld } from "@/models/api/knowledge/business.type";
 import { SearchableCountrySelect } from "@/app/[locale]/profile/(components)/searchable-select-content";
+import { useMemo } from "react";
 import countryCodes from "@/lib/country-code.json";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeCountryNames } from "@/helper/locale";
 
 export function BusinessKnowledgeForm() {
   const { formKnowledge, setFormKnowledge, errors } = useManageKnowledge();
@@ -24,6 +26,11 @@ export function BusinessKnowledgeForm() {
     });
   };
   const b = useTranslations("businessKnowledge");
+  const locale = useLocale();
+  const localizedCountries = useMemo(
+    () => localizeCountryNames(countryCodes, locale),
+    [locale]
+  );
 
   const defaultLabels = {
     logoBrand: b("logoBrand"),
@@ -104,11 +111,11 @@ export function BusinessKnowledgeForm() {
         </label>
         <div className="flex gap-2">
           <SearchableCountrySelect
-            countries={countryCodes}
+            countries={localizedCountries}
             value={formKnowledge?.business?.countryCode || "+62"}
             onValueChange={(value) => updateField("countryCode", value)}
             placeholder="+62"
-            searchPlaceholder="Search country..."
+            searchPlaceholder={b("searchCountry")}
             className="w-36 bg-background-secondary"
           />
           <Input

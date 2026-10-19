@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Suspense } from "react";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,22 +15,37 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Postmatic Business",
-  description: "Dashboard manajemen bisnis untuk Postmatic",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("metadata");
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
-export default function RootLayout({
+// Namespaces needed by the root-level error / not-found pages, which render
+// outside the [locale] layout (and its full NextIntlClientProvider).
+const ROOT_MESSAGE_NAMESPACES = ["errorPage", "notFoundPage"] as const;
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const rootMessages = Object.fromEntries(
+    ROOT_MESSAGE_NAMESPACES.map((ns) => [ns, messages[ns]])
+  );
+
   return (
-    <html lang="id" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <Suspense fallback={null}>
-          {children}
-        </Suspense>
+        <NextIntlClientProvider locale={locale} messages={rootMessages}>
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

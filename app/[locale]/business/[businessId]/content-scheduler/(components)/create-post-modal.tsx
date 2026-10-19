@@ -146,7 +146,7 @@ export function CreatePostModal({
           {/* Media Upload Area */}
           <Image
             src={formData?.edit?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
-            alt="Media"
+            alt={t("mediaAlt")}
             width={800}
             height={400}
             className="w-full h-auto object-cover rounded-lg"

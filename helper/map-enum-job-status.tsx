@@ -1,5 +1,27 @@
 import { JobStatus } from "@/models/socket-content";
 import { CheckCircle, Loader2, X } from "lucide-react";
+import { getToastLocale } from "@/helper/api-response-message";
+
+type Translator = (key: string) => string;
+type JobStatusLabelKey = "waiting" | "done" | "processing" | "failed" | "retrying";
+
+// Fallback when the caller does not pass a translator (keep in sync with messages `jobStatus.*`).
+const FALLBACK_LABELS: Record<"id" | "en", Record<JobStatusLabelKey, string>> = {
+  id: {
+    waiting: "Menunggu",
+    done: "Selesai",
+    processing: "Dalam Proses",
+    failed: "Gagal",
+    retrying: "Mencoba Lagi",
+  },
+  en: {
+    waiting: "Waiting",
+    done: "Done",
+    processing: "In Progress",
+    failed: "Failed",
+    retrying: "Retrying",
+  },
+};
 
 const getColor = (status: JobStatus) => {
   switch (status) {
@@ -20,23 +42,31 @@ const getColor = (status: JobStatus) => {
   }
 };
 
-const getLabel = (status: JobStatus) => {
+const getLabelKey = (status: JobStatus): JobStatusLabelKey => {
   switch (status) {
-    case "queued":
-      return "Menunggu";
     case "done":
-      return "Selesai";
+      return "done";
     case "processing":
-      return "Dalam Proses";
+      return "processing";
     case "error":
-      return "Gagal";
+      return "failed";
     case "retrying":
-      return "Mencoba Lagi";
+      return "retrying";
+    case "queued":
     case "waiting_before_retry":
-      return "Menunggu";
     default:
-      return "Menunggu";
+      return "waiting";
   }
+};
+
+/**
+ * @param t root translator (`useTranslations()`); resolves `jobStatus.<key>`.
+ *          Without it the label follows the active locale from the URL.
+ */
+const getLabel = (status: JobStatus, t?: Translator) => {
+  const key = getLabelKey(status);
+  if (t) return t(`jobStatus.${key}`);
+  return FALLBACK_LABELS[getToastLocale()][key];
 };
 
 const getIcon = (status: JobStatus, className?: string) => {
@@ -61,5 +91,6 @@ const getIcon = (status: JobStatus, className?: string) => {
 export const mapEnumJobStatus = {
   getColor,
   getLabel,
+  getLabelKey,
   getIcon,
 };

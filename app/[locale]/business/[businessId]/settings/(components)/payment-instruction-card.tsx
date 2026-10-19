@@ -1,7 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { formatIdr } from "@/helper/formatter";
+import {
+  formatIdrStable,
+} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Copy, Info, RefreshCw } from "lucide-react";
 import Image from "next/image";
@@ -87,22 +89,6 @@ const getPaymentStatusBadgeClassName = (status?: string) => {
   }
 };
 
-const getPaymentStatusBadgeLabel = (label: string, locale: string) => {
-  const normalizedLabel = label.trim();
-  const prefix = locale === "id" ? "Pembayaran" : "Transaction";
-
-  if (!normalizedLabel) return prefix;
-
-  const lowerLabel = normalizedLabel.toLowerCase();
-  const lowerPrefix = prefix.toLowerCase();
-
-  if (lowerLabel.startsWith(lowerPrefix)) {
-    return normalizedLabel;
-  }
-
-  return `${prefix} ${normalizedLabel}`;
-};
-
 export function PaymentInstructionCard({
   status,
   statusTitle,
@@ -122,6 +108,7 @@ export function PaymentInstructionCard({
 }: PaymentInstructionCardProps) {
   const t = useTranslations("settings.topUpTokenDialog");
   const locale = useLocale();
+  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
   const qrCodeAction =
     paymentActions.find(
       (action) => action.type === "image" && action.action === "generate-qr-code"
@@ -168,7 +155,7 @@ export function PaymentInstructionCard({
                   getPaymentStatusBadgeClassName(status)
                 )}
               >
-                {getPaymentStatusBadgeLabel(paymentStatusLabel, locale)}
+                {t("statusBadge", { status: paymentStatusLabel.trim() })}
               </div>
             ) : null}
             {isPending && expiresAtLabel ? (
@@ -279,6 +266,7 @@ export function PaymentInstructionCard({
 }
 
 function VirtualAccountLogo({ method }: { method?: string }) {
+  const t = useTranslations("settings.topUpTokenDialog");
   const logoSrc = getBankLogoByMethod(method);
   const bankLabel = getBankLabelByMethod(method);
 
@@ -287,14 +275,14 @@ function VirtualAccountLogo({ method }: { method?: string }) {
       {logoSrc ? (
         <Image
           src={logoSrc}
-          alt={`Logo ${bankLabel}`}
+          alt={t("bankLogoAlt", { bank: bankLabel })}
           width={180}
           height={90}
           className="h-auto w-full object-contain"
         />
       ) : (
         <div className="text-center text-base font-semibold text-muted-foreground">
-          Virtual Account {bankLabel}
+          {t("virtualAccountLabel", { bank: bankLabel })}
         </div>
       )}
     </div>
@@ -306,11 +294,12 @@ function PaymentMethodVisual({ method }: { method?: string }) {
 }
 
 function QrisLogoPlaceholder() {
+  const t = useTranslations("settings.topUpTokenDialog");
   return (
     <div className="grid h-24 w-24 place-items-center rounded-md border border-muted bg-muted/10 p-2 sm:h-52 sm:w-52 sm:p-4">
       <Image
         src="/qrislogo.png"
-        alt="Logo QRIS"
+        alt={t("qrisLogoAlt")}
         width={180}
         height={180}
         className="h-auto w-full object-contain"
@@ -332,9 +321,10 @@ function PaymentTextInstruction({
   onCopy: (value: string) => void;
   copyLabel: string;
 }) {
+  const t = useTranslations("settings.topUpTokenDialog");
   const label =
     action === "virtual-account"
-      ? `Virtual Account ${method?.toUpperCase() || ""}`.trim()
+      ? t("virtualAccountLabel", { bank: method?.toUpperCase() || "" }).trim()
       : action;
 
   return (
@@ -407,7 +397,7 @@ function PaymentStepsCollapsible({
 }: {
   kind: "virtualAccount" | "qris" | "redirect";
 }) {
-  const t = useTranslations("checkout.Instructions");
+  const tSteps = useTranslations("checkout.Instructions");
   const [isOpen, setIsOpen] = useState(false);
   const steps = Array.from({ length: PAYMENT_STEP_COUNT[kind] }, (_, i) => i + 1);
 
@@ -421,7 +411,7 @@ function PaymentStepsCollapsible({
       >
         <span className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
           <Info className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-          {t("title")}
+          {tSteps("title")}
         </span>
         <ChevronDown
           className={cn(
@@ -434,7 +424,7 @@ function PaymentStepsCollapsible({
       {isOpen ? (
         <div className="space-y-3 border-t border-blue-200 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:text-blue-200">
           <p className="font-semibold text-blue-900 dark:text-blue-100">
-            {t(`${kind}.title`)}
+            {tSteps(`${kind}.title`)}
           </p>
           <ol className="space-y-2">
             {steps.map((n) => (
@@ -442,12 +432,12 @@ function PaymentStepsCollapsible({
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold leading-none text-white">
                   {n}
                 </span>
-                <span className="leading-relaxed">{t(`${kind}.step${n}`)}</span>
+                <span className="leading-relaxed">{tSteps(`${kind}.step${n}`)}</span>
               </li>
             ))}
           </ol>
           <p className="rounded-md bg-blue-100/70 px-3 py-2 text-xs text-blue-900 dark:bg-blue-900/40 dark:text-blue-100">
-            {t(`${kind}.note`)}
+            {tSteps(`${kind}.note`)}
           </p>
         </div>
       ) : null}

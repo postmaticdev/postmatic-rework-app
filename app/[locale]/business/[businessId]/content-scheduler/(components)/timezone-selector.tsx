@@ -11,9 +11,11 @@ import { showToast } from "@/helper/show-toast";
 import { useLibraryTime } from "@/services/library.api";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export function TimezoneSelector() {
   const { businessId } = useParams() as { businessId: string };
+  const t = useTranslations("contentScheduler");
   const { data: timezone } = useContentSchedulerTimezoneGetTimezone(businessId);
   const { data: libraryTimezone } = useLibraryTime();
   const timezones = React.useMemo(
@@ -117,7 +119,7 @@ export function TimezoneSelector() {
         <span className="truncate">
           {selectedTimezoneData
             ? `(${selectedTimezoneData.offset}) ${selectedTimezoneData.name}`
-            : selectedTimezone || "Select timezone"}
+            : selectedTimezone || t("selectTimezone")}
         </span>
         <ChevronDown
           className={cn(
@@ -139,7 +141,7 @@ export function TimezoneSelector() {
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search timezone..."
+                placeholder={t("searchTimezone")}
                 className="pl-9"
                 autoComplete="off"
                 autoCorrect="off"
@@ -186,7 +188,7 @@ export function TimezoneSelector() {
               ))
             ) : (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                Timezone tidak ditemukan
+                {t("timezoneNotFound")}
               </div>
             )}
           </div>

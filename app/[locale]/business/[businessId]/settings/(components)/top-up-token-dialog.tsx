@@ -14,7 +14,9 @@ import { Button } from "@/components/ui/button";
 import { PaymentMethodSelect } from "@/components/forms/payment-method-select";
 import { showToast } from "@/helper/show-toast";
 import { translateApiResponseMessage } from "@/helper/api-response-message";
-import { formatIdr } from "@/helper/formatter";
+import {
+  formatIdrStable,
+} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 import {
   mergeCheckoutWithRealtimePayment,
   normalizeRealtimePaymentStatus,
@@ -129,6 +131,7 @@ export function TopUpTokenDialog({
 }: TopUpTokenDialogProps) {
   const { businessId } = useParams() as { businessId: string };
   const locale = useLocale();
+  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
   const t = useTranslations();
   const tDialog = useTranslations("settings.topUpTokenDialog");
   const tStatus = useTranslations("checkout.paymentStatusLabel");

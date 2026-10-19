@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DOMPurify from "dompurify";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -40,6 +41,7 @@ import {
 import { showToast } from "@/helper/show-toast";
 import { cn } from "@/lib/utils";
 import { helperService } from "@/services/helper.api";
+import { useTranslations } from "next-intl";
 
 type MediaViewerState = {
   type: "photo" | "video";
@@ -190,6 +192,8 @@ function MediaFullscreenOverlay({
   media: NonNullable<MediaViewerState>;
   onClose: () => void;
 }) {
+  const t = useTranslations("notifications");
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -213,7 +217,7 @@ function MediaFullscreenOverlay({
         type="button"
         onClick={onClose}
         className="absolute right-4 top-4 z-[101] rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-        aria-label="Tutup"
+        aria-label={t("close")}
       >
         <X className="h-6 w-6" />
       </button>
@@ -258,6 +262,10 @@ export default function NotificationsPage() {
     loadTicketMessages,
   } = useNotification();
 
+  const t = useTranslations("notifications");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"notifications" | "tickets">("notifications");
   const [selectedNotifId, setSelectedNotifId] = useState<string | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
@@ -384,6 +392,32 @@ export default function NotificationsPage() {
     }
   }, [activeTicket?.messages]);
 
+  // Deep link from the header notification dropdown: ?tab=notifications|tickets&id=<id>.
+  // Applied once the target item is loaded, then removed from the URL so the same
+  // item can be opened again from the dropdown.
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    const requestedId = searchParams.get("id");
+    if (!requestedTab && !requestedId) return;
+
+    const tab = requestedTab === "tickets" ? "tickets" : "notifications";
+    if (requestedId) {
+      const items = tab === "tickets" ? tickets : notifications;
+      if (!items.some((item) => item.id === requestedId)) {
+        const isLoading = tab === "notifications" ? isNotificationLoading : tickets.length === 0;
+        if (isLoading) return;
+      } else if (tab === "tickets") {
+        setSelectedTicketId(requestedId);
+      } else {
+        setSelectedNotifId(requestedId);
+      }
+    }
+
+    setActiveTab(tab);
+    setMobileView(requestedId ? "detail" : "list");
+    router.replace(pathname, { scroll: false });
+  }, [searchParams, notifications, tickets, isNotificationLoading, pathname, router]);
+
   // Auto-mark as read when viewing
   useEffect(() => {
     if (activeNotification?.unread) {
@@ -421,7 +455,7 @@ export default function NotificationsPage() {
 
   const handleLink = () => {
     const previousUrl = editor?.getAttributes("link").href as string | undefined;
-    const url = window.prompt("Masukkan URL:", previousUrl ?? "https://");
+    const url = window.prompt(t("enterUrl"), previousUrl ?? "https://");
 
     if (url === null) return;
     if (!url.trim()) {
@@ -438,7 +472,7 @@ export default function NotificationsPage() {
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
 
     if (files.length > imageFiles.length) {
-      showToast("warning", "Untuk saat ini lampiran tiket hanya mendukung gambar.");
+      showToast("warning", t("imageAttachmentsOnly"));
     }
 
     if (imageFiles.length === 0) {
@@ -487,7 +521,7 @@ export default function NotificationsPage() {
       setIsUploadingAttachment(false);
       e.target.value = "";
     }
-  }, []);
+  }, [t]);
 
   const removeAttachment = (index: number) => {
     setAttachments((prev) => {
@@ -572,6 +606,21 @@ export default function NotificationsPage() {
     return map[status] || "bg-gray-100 text-gray-700";
   };
 
+  const getStatusLabel = (status: TicketItem["status"]) => {
+    switch (status) {
+      case "Terkirim":
+        return t("ticketStatusSent");
+      case "Sedang Direview":
+        return t("ticketStatusReviewing");
+      case "In Progress":
+        return t("ticketStatusInProgress");
+      case "Done":
+        return t("ticketStatusDone");
+      default:
+        return status;
+    }
+  };
+
   const canSendReply = !isEmptyRichText(editorHtml) || attachments.length > 0;
   const toolbarButtonClass = (active?: boolean) =>
     cn(
@@ -593,7 +642,7 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
           <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
-            System Notification
+            {t("pageTitle")}
           </h1>
 
           <div className="flex bg-muted p-1 rounded-lg">
@@ -606,7 +655,7 @@ export default function NotificationsPage() {
               }`}
             >
               <Bell className="w-4 h-4" />
-              Notification
+              {t("notificationTab")}
               {blastUnreadCount > 0 && (
                 <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                   {blastUnreadCount}
@@ -622,7 +671,7 @@ export default function NotificationsPage() {
               }`}
             >
               <MessageSquare className="w-4 h-4" />
-              Ticket
+              {t("ticketTab")}
               {ticketUnreadCount > 0 && (
                 <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
                   {ticketUnreadCount}
@@ -639,7 +688,7 @@ export default function NotificationsPage() {
             onClick={markAllAsRead}
             className="text-blue-600 hover:text-blue-700 shrink-0"
           >
-            Tandai semua dibaca
+            {t("markAllAsRead")}
           </Button>
         )}
       </div>
@@ -664,7 +713,7 @@ export default function NotificationsPage() {
                   <Input
                     value={notifSearch}
                     onChange={(e) => setNotifSearch(e.target.value)}
-                    placeholder="Cari notifikasi..."
+                    placeholder={t("searchNotifications")}
                     className="pl-9 bg-muted/40 border-border"
                   />
                   {notifSearch && (
@@ -682,17 +731,17 @@ export default function NotificationsPage() {
                 {isNotificationLoading ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin opacity-60" />
-                    <p className="text-sm">Memuat notifikasi...</p>
+                    <p className="text-sm">{t("loadingNotifications")}</p>
                   </div>
                 ) : notificationError ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Gagal memuat notifikasi.</p>
+                    <p className="text-sm">{t("loadNotificationsFailed")}</p>
                   </div>
                 ) : filteredNotifications.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Tidak ada notifikasi ditemukan.</p>
+                    <p className="text-sm">{t("noNotificationsFound")}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
@@ -751,7 +800,7 @@ export default function NotificationsPage() {
                   className="flex items-center gap-1"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  Kembali
+                  {t("back")}
                 </Button>
               </div>
 
@@ -767,7 +816,7 @@ export default function NotificationsPage() {
                                 variant="secondary"
                                 className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
                               >
-                                Baru
+                                {t("newBadge")}
                               </Badge>
                             )}
                             {activeNotification.channelType && (
@@ -804,7 +853,7 @@ export default function NotificationsPage() {
                         onClick={() => markAsRead(activeNotification.id)}
                         disabled={!activeNotification.unread}
                       >
-                        {activeNotification.unread ? "Tandai sudah dibaca" : "Sudah Dibaca"}
+                        {activeNotification.unread ? t("markAsRead") : t("alreadyRead")}
                       </Button>
                     </footer>
                   </article>
@@ -812,7 +861,7 @@ export default function NotificationsPage() {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
                   <Bell className="w-12 h-12 stroke-[1.5] mb-2 opacity-30" />
-                  <p className="text-sm">Pilih notifikasi untuk melihat detail.</p>
+                  <p className="text-sm">{t("selectNotificationHint")}</p>
                 </div>
               )}
             </div>
@@ -837,7 +886,7 @@ export default function NotificationsPage() {
                   <Input
                     value={ticketSearch}
                     onChange={(e) => setTicketSearch(e.target.value)}
-                    placeholder="Cari tiket..."
+                    placeholder={t("searchTickets")}
                     className="pl-9 bg-muted/40 border-border"
                   />
                   {ticketSearch && (
@@ -855,7 +904,7 @@ export default function NotificationsPage() {
                 {filteredTickets.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Tidak ada tiket ditemukan.</p>
+                    <p className="text-sm">{t("noTicketsFound")}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
@@ -921,8 +970,13 @@ export default function NotificationsPage() {
                                     : "text-muted-foreground"
                                 )}
                               >
-                                {lastMsg.sender === "user" ? "Anda: " : "CS: "}
-                                {htmlToPreviewText(lastMsg.text) || "[Lampiran]"}
+                                {lastMsg.sender === "user"
+                                  ? t("lastMessageFromYou", {
+                                      message: htmlToPreviewText(lastMsg.text) || t("attachmentPlaceholder"),
+                                    })
+                                  : t("lastMessageFromCs", {
+                                      message: htmlToPreviewText(lastMsg.text) || t("attachmentPlaceholder"),
+                                    })}
                               </p>
                             )}
                           </div>
@@ -932,11 +986,11 @@ export default function NotificationsPage() {
                                 ticket.status
                               )}`}
                             >
-                              {ticket.status}
+                              {getStatusLabel(ticket.status)}
                             </span>
                             {hasUnread && (
                               <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                                {ticket.unreadMessages} baru
+                                {t("newMessagesCount", { count: ticket.unreadMessages })}
                               </span>
                             )}
                           </div>
@@ -975,7 +1029,7 @@ export default function NotificationsPage() {
                               activeTicket.status
                             )}`}
                           >
-                            {activeTicket.status}
+                            {getStatusLabel(activeTicket.status)}
                           </span>
                         </div>
                         <h3 className="text-sm font-bold text-foreground truncate mt-0.5">
@@ -984,7 +1038,7 @@ export default function NotificationsPage() {
                       </div>
                     </div>
                     <span className="text-xs text-muted-foreground hidden sm:block shrink-0">
-                      Dibuat: {activeTicket.date}
+                      {t("createdAt", { date: activeTicket.date })}
                     </span>
                   </div>
 
@@ -993,8 +1047,8 @@ export default function NotificationsPage() {
                     <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
                     {activeTicket.messages.map((msg) => {
                       const isUser = msg.sender === "user";
-                      const authorName = isUser ? "Anda" : "Customer Service";
-                      const authorRole = isUser ? "Pelapor" : "CS Agent";
+                      const authorName = isUser ? t("authorYou") : t("authorCustomerService");
+                      const authorRole = isUser ? t("roleReporter") : t("roleCsAgent");
                       return (
                         <article
                           key={msg.id}
@@ -1030,7 +1084,7 @@ export default function NotificationsPage() {
                                 </p>
                                 {msg.category && (
                                   <p className="text-xs text-muted-foreground">
-                                    Kategori Masalah: {msg.category}
+                                    {t("issueCategory", { category: msg.category })}
                                   </p>
                                 )}
                               </>
@@ -1136,7 +1190,7 @@ export default function NotificationsPage() {
                           onClick={() => editor?.chain().focus().setParagraph().run()}
                           className={toolbarButtonClass(editor?.isActive("paragraph"))}
                         >
-                          Paragraf
+                          {t("paragraph")}
                         </button>
 
                         <span className="mx-1 h-4 w-px shrink-0 bg-border" />
@@ -1282,7 +1336,7 @@ export default function NotificationsPage() {
                       <div className="relative rounded-b-md border border-t-0 border-border/70 bg-muted/20">
                         {editor && editor.isEmpty && (
                           <div className="pointer-events-none absolute left-4 top-3 select-none text-sm text-muted-foreground/70 max-sm:text-base">
-                            Tulis balasan laporan di sini...
+                            {t("replyPlaceholder")}
                           </div>
                         )}
                         <EditorContent
@@ -1301,7 +1355,7 @@ export default function NotificationsPage() {
                           ) : (
                             <Send className="h-4 w-4" />
                           )}
-                          Kirim Balasan
+                          {t("sendReply")}
                         </Button>
                       </div>
                     </div>
@@ -1310,7 +1364,7 @@ export default function NotificationsPage() {
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
                   <MessageSquare className="w-12 h-12 stroke-[1.5] mb-2 opacity-30" />
-                  <p className="text-sm">Pilih tiket untuk memulai percakapan CS.</p>
+                  <p className="text-sm">{t("selectTicketHint")}</p>
                 </div>
               )}
             </div>

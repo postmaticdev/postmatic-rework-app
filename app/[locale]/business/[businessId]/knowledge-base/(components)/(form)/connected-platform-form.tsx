@@ -200,7 +200,7 @@ export function ConnectedPlatformForm() {
             </div>
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">
-              No pending platform account found.
+              {t("noPendingAccount")}
             </p>
           )}
         </div>
@@ -245,7 +245,7 @@ export function ConnectedPlatformForm() {
                         <div>{platform.name}</div>
                       </span>
                       <div className="text-xs text-muted-foreground">
-                        Account ID: {platform.accountId}
+                        {t("accountId", { id: platform.accountId ?? "" })}
                       </div>
                     </div>
                   )}
@@ -268,7 +268,7 @@ export function ConnectedPlatformForm() {
                 }
               >
                 {connectingPlatform === platform.platform
-                  ? "Connecting..."
+                  ? t("connecting")
                   : mapEnumPlatform.getPlatformCtaLabel(platform.status, t)}
               </Button>
             )}

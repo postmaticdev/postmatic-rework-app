@@ -154,7 +154,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
       )}
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium">AI Model</label>
+        <label className="block text-sm font-medium">{t("aiModel")}</label>
         <AiModelSelect
           disabled={isLoading || aiModels.isLoading}
           isLoading={aiModels.isLoading}
@@ -208,7 +208,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
           }}
         >
           <SelectTrigger className={cn("w-full bg-background-secondary", isLoading && "opacity-50 cursor-not-allowed")}>
-            <SelectValue placeholder="Select ratio" />
+            <SelectValue placeholder={t("selectRatio")} />
           </SelectTrigger>
           <SelectContent>
             {aiModels.validRatios.map((option) => (
@@ -227,7 +227,8 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
 
       <div className="space-y-2">
         <label className="block text-sm font-medium">
-          Trend & Avatar <span className="text-muted-foreground font-normal text-xs">(Opsional)</span>
+          {t("trendAndAvatar")}{" "}
+          <span className="text-muted-foreground font-normal text-xs">({t("optional")})</span>
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           {/* Trend Button */}

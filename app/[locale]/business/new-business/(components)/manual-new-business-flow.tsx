@@ -171,7 +171,7 @@ export function ManualNewBusinessFlow() {
             <Link href="/" className="cursor-pointer max-md:shrink-0">
               <Image
                 src="/logoblue.png"
-                alt="logol"
+                alt="Postmatic"
                 width={200}
                 height={200}
                 className="h-12 w-12"
@@ -215,7 +215,7 @@ export function ManualNewBusinessFlow() {
       <div className="relative hidden flex-1 md:block">
         <Image
           src={currentStepData.backgroundImage}
-          alt={`${currentStepData.title} Background`}
+          alt={t("backgroundAlt", { title: currentStepData.title })}
           fill
           className="object-cover"
           priority

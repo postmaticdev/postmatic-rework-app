@@ -134,7 +134,7 @@ const dedupeBusinesses = (businesses: BusinessRes[]) => {
   return result;
 };
 
-const businessService = {
+export const businessService = {
   getAll: (filterQuery?: Partial<FilterQuery>) => {
     return api
       .get<BaseResponseFiltered<BusinessRes[]>>("/business/information", {

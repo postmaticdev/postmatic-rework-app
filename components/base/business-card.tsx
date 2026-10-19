@@ -1,5 +1,6 @@
 "use client";
 
+import { getMemberRoleLabel } from "@/helper/member-role";
 import { useState, useMemo } from "react";
 import { MoreVertical, UserPlus, Trash2, LogOut } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -49,6 +50,7 @@ export function BusinessCard({
 }: BusinessCardProps) {
   const router = useRouter();
   const t = useTranslations("businessCard");
+  const tRole = useTranslations("memberRole");
   const tModal = useTranslations("modal");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false); // controlled AlertDialog (Keluar)
@@ -150,7 +152,7 @@ export function BusinessCard({
                   </h3>
                   {role && (
                     <span className="shrink-0 rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
-                      {role}
+                      {getMemberRoleLabel(role, tRole)}
                     </span>
                   )}
                 </div>
@@ -178,6 +180,7 @@ export function BusinessCard({
               <DropdownMenu modal>
                 <DropdownMenuTrigger asChild>
                   <Button
+                    aria-label={t("moreActions")}
                     variant="ghost"
                     size="icon-sm"
                     className="hover:bg-muted/60 text-muted-foreground hover:text-foreground"
@@ -254,6 +257,7 @@ export function BusinessCard({
                 <DropdownMenu modal>
                   <DropdownMenuTrigger asChild>
                     <Button
+                      aria-label={t("moreActions")}
                       variant="ghost"
                       size="icon-sm"
                       className="bg-card hover:bg-muted/30"

@@ -17,7 +17,7 @@ import { useAutoGenerate } from "@/contexts/auto-generate-context";
 import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { formatPriceWithCurrency } from "@/helper/price-formatter";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 interface ProductSelectionModalProps {
   isOpen: boolean;
@@ -39,6 +39,7 @@ export function AutoProductSelectionModal({
   };
 
   const m = useTranslations("modal");
+  const locale = useLocale();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -129,7 +130,8 @@ export function AutoProductSelectionModal({
                       <p className="text-sm font-medium text-foreground">
                             {formatPriceWithCurrency(
                               product.price,
-                              product.currency
+                              product.currency,
+                              locale
                             )}
                           </p>
                     </div>

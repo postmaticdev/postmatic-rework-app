@@ -43,7 +43,7 @@ import { NoContent } from "@/components/base/no-content";
 import { SearchNotFound } from "@/components/base/search-not-found";
 import { useProductKnowledgeSchema } from "@/validator/new-business/schema-with-i18n";
 import { useRole } from "@/contexts/role-context";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 const initialProduct: ProductKnowledgePld & { id?: string } = {
   category: "",
@@ -68,6 +68,7 @@ export function ProductSection() {
   const { businessId } = useParams() as { businessId: string };
   const productKnowledgeSchema = useProductKnowledgeSchema();
   const t = useTranslations();
+  const locale = useLocale();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -309,7 +310,8 @@ export function ProductSection() {
                         <p className="text-sm font-medium text-foreground">
                           {formatPriceWithCurrency(
                             product.price,
-                            product.currency
+                            product.currency,
+                            locale
                           )}
                         </p>
                       </div>
@@ -345,7 +347,8 @@ export function ProductSection() {
                           <p className="text-sm font-medium text-foreground">
                             {formatPriceWithCurrency(
                               product.price,
-                              product.currency
+                              product.currency,
+                              locale
                             )}
                           </p>
                         </div>

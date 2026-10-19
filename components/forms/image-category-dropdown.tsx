@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Info } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTemplateImageCategories } from "@/services/template-category.api";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -26,11 +27,14 @@ interface ImageCategoryDropdownProps {
 export function ImageCategoryDropdown({
   value,
   onChange,
-  placeholder = "Pilih kategori gambar",
-  label = "Kategori Gambar",
+  placeholder: placeholderProp,
+  label: labelProp,
   error,
   onFocus,
 }: ImageCategoryDropdownProps) {
+  const tField = useTranslations("imageCategory");
+  const placeholder = placeholderProp ?? tField("selectPlaceholder");
+  const label = labelProp ?? tField("label");
   const { data: categoriesResponse, isLoading } = useTemplateImageCategories();
   const categories = categoriesResponse?.data?.data || [];
 

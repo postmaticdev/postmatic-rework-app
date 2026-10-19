@@ -26,7 +26,8 @@ export default function Settings() {
   const w = useTranslations("welcomeSection");
   const { data: profile } = useAuthProfileGetProfile();
   const userName = profile?.data?.data?.name;
-  const greeting = `${w("welcome")} ${userName || ""}`.trim();
+  const s = useTranslations("settings");
+  const greeting = userName ? s("welcomeUser", { name: userName }) : w("welcome");
 
   useEffect(() => {
     if (isSettingsTab(requestedTab)) {

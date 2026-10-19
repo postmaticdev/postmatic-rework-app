@@ -4,14 +4,16 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { formatIdr } from "@/helper/formatter";
 import { Info } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { toIntlLocale } from "@/helper/locale";
 
 // Format currency based on currency code
-const formatCurrency = (amount: number, currency: string) => {
+const formatCurrency = (amount: number, currency: string, locale: string) => {
   if (currency === "IDR") {
-    return formatIdr(amount);
+    return formatIdr(amount, locale);
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(toIntlLocale(locale), {
     style: "currency",
     currency: currency,
     minimumFractionDigits: 0,
@@ -32,18 +34,20 @@ interface PriceInputProps {
 export function PriceInput({
   value,
   onChange,
-  placeholder = "Masukkan harga produk",
+  placeholder,
   disabled = false,
   currency = "IDR",
   error,
   onFocus,
 }: PriceInputProps) {
+  const t = useTranslations("priceInput");
+  const locale = useLocale();
   const [displayValue, setDisplayValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
   // Format number with thousand separators
   const formatNumber = (num: number): string => {
-    return new Intl.NumberFormat("id-ID").format(num);
+    return new Intl.NumberFormat(toIntlLocale(locale)).format(num);
   };
 
   // Parse formatted string back to number
@@ -53,7 +57,7 @@ export function PriceInput({
     if (!isFocused && value > 0) {
       setDisplayValue(formatNumber(value));
     }
-  }, [value, isFocused]);
+  }, [value, isFocused, locale]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
@@ -123,7 +127,7 @@ export function PriceInput({
           }}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("placeholder")}
           disabled={disabled}
           className={error ? "border-red-500 focus:border-red-500" : ""}
         />
@@ -132,8 +136,10 @@ export function PriceInput({
       {/* Display formatted price preview */}
       {value > 0 && !isFocused && (
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium">Preview:</span>{" "}
-          {formatCurrency(value, currency)}
+          {t.rich("preview", {
+            label: (chunks) => <span className="font-medium">{chunks}</span>,
+            value: formatCurrency(value, currency, locale),
+          })}
         </div>
       )}
       {error && (

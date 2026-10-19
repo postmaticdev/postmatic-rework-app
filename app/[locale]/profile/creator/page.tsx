@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,9 @@ interface FormData {
 }
 
 export default function CreatorPage() {
+  const t = useTranslations("creatorDashboard");
+  const locale = useLocale();
+  const numberLocale = locale === "en" ? "en-US" : "id-ID";
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [newKeyword, setNewKeyword] = useState("");
@@ -169,15 +173,15 @@ export default function CreatorPage() {
         <div className="flex justify-between items-start">
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">
-              Selamat datang kembali, Hayhasan
+              {t("welcomeBack", { name: "Hayhasan" })}
             </h1>
             <p className="text-gray-500 text-sm">
-              Kelola desain Anda dan pantau pendapatan Anda
+              {t("subtitle")}
             </p>
           </div>
           <div className="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">
-              ID Kreator
+              {t("creatorId")}
             </p>
             <p className="text-lg font-semibold text-gray-900">HXSNX221</p>
           </div>
@@ -190,7 +194,7 @@ export default function CreatorPage() {
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500">
-                    Total Desain
+                    {t("totalDesigns")}
                   </p>
                   <p className="text-3xl font-bold text-gray-900">1,045</p>
                   <div className="flex items-center space-x-1">
@@ -198,7 +202,7 @@ export default function CreatorPage() {
                     <span className="text-sm font-medium text-emerald-600">
                       +30%
                     </span>
-                    <span className="text-sm text-gray-500">vs tahun lalu</span>
+                    <span className="text-sm text-gray-500">{t("vsLastYear")}</span>
                   </div>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-xl">
@@ -213,7 +217,7 @@ export default function CreatorPage() {
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500">
-                    Total Pesanan
+                    {t("totalOrders")}
                   </p>
                   <p className="text-3xl font-bold text-gray-900">903</p>
                   <div className="flex items-center space-x-1">
@@ -221,7 +225,7 @@ export default function CreatorPage() {
                     <span className="text-sm font-medium text-emerald-600">
                       +30%
                     </span>
-                    <span className="text-sm text-gray-500">vs tahun lalu</span>
+                    <span className="text-sm text-gray-500">{t("vsLastYear")}</span>
                   </div>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-xl">
@@ -236,7 +240,7 @@ export default function CreatorPage() {
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500">
-                    Total Pendapatan
+                    {t("totalRevenue")}
                   </p>
                   <p className="text-3xl font-bold text-gray-900">Rp 2.56B</p>
                   <div className="flex items-center space-x-1">
@@ -244,7 +248,7 @@ export default function CreatorPage() {
                     <span className="text-sm font-medium text-emerald-600">
                       +30%
                     </span>
-                    <span className="text-sm text-gray-500">vs tahun lalu</span>
+                    <span className="text-sm text-gray-500">{t("vsLastYear")}</span>
                   </div>
                 </div>
                 <div className="p-3 bg-emerald-50 rounded-xl">
@@ -259,7 +263,7 @@ export default function CreatorPage() {
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500">
-                    Total Komisi
+                    {t("totalCommission")}
                   </p>
                   <p className="text-3xl font-bold text-gray-900">Rp 256M</p>
                   <div className="flex items-center space-x-1">
@@ -267,7 +271,7 @@ export default function CreatorPage() {
                     <span className="text-sm font-medium text-emerald-600">
                       +30%
                     </span>
-                    <span className="text-sm text-gray-500">vs tahun lalu</span>
+                    <span className="text-sm text-gray-500">{t("vsLastYear")}</span>
                   </div>
                 </div>
                 <div className="p-3 bg-amber-50 rounded-xl">
@@ -284,27 +288,27 @@ export default function CreatorPage() {
             <div className="flex justify-between items-center">
               <div className="space-y-1">
                 <CardTitle className="text-2xl font-semibold text-gray-900">
-                  Portofolio Desain
+                  {t("portfolioTitle")}
                 </CardTitle>
                 <p className="text-sm text-gray-500">
-                  Kelola template desain dan kreasi Anda
+                  {t("portfolioSubtitle")}
                 </p>
               </div>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm font-medium">
                     <Plus className="h-4 w-4 mr-2" />
-                    Buat Desain
+                    {t("createDesign")}
                   </Button>
                 </DialogTrigger>
                 <DialogContent size="sm">
                   <DialogHeader>
-                    <DialogTitle>Buat Desain Baru</DialogTitle>
+                    <DialogTitle>{t("createNewDesign")}</DialogTitle>
                   </DialogHeader>
                   <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4">
                     {/* Upload Design */}
                     <UploadPhoto
-                      label="Unggah Desain"
+                      label={t("uploadDesign")}
                       onImageChange={(file: string | null) =>
                         setFormData((prev) => ({ ...prev, designFile: file }))
                       }
@@ -312,7 +316,7 @@ export default function CreatorPage() {
 
                     {/* Design Name */}
                     <div className="space-y-2">
-                      <Label htmlFor="designName">Nama Desain</Label>
+                      <Label htmlFor="designName">{t("designName")}</Label>
                       <Input
                         id="designName"
                         value={formData.designName}
@@ -322,18 +326,18 @@ export default function CreatorPage() {
                             designName: e.target.value,
                           }))
                         }
-                        placeholder="Masukkan nama desain"
+                        placeholder={t("designNamePlaceholder")}
                       />
                     </div>
 
                     {/* Keywords */}
                     <div className="space-y-2">
-                      <Label>Kata Kunci</Label>
+                      <Label>{t("keywords")}</Label>
                       <div className="flex gap-2">
                         <Input
                           value={newKeyword}
                           onChange={(e) => setNewKeyword(e.target.value)}
-                          placeholder="Tambah kata kunci"
+                          placeholder={t("addKeywordPlaceholder")}
                           onKeyPress={(e) => e.key === "Enter" && addKeyword()}
                         />
                         <Button type="button" onClick={addKeyword} size="icon">
@@ -359,7 +363,7 @@ export default function CreatorPage() {
 
                     {/* Category */}
                     <div className="space-y-2">
-                      <Label>Kategori</Label>
+                      <Label>{t("category")}</Label>
                       <Select
                         value={formData.category}
                         onValueChange={(value) =>
@@ -367,7 +371,7 @@ export default function CreatorPage() {
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Pilih kategori" />
+                          <SelectValue placeholder={t("selectCategory")} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="logo">Logo</SelectItem>
@@ -375,7 +379,7 @@ export default function CreatorPage() {
                           <SelectItem value="poster">Poster</SelectItem>
                           <SelectItem value="flyer">Flyer</SelectItem>
                           <SelectItem value="business-card">
-                            Kartu Nama
+                            {t("categoryBusinessCard")}
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -383,7 +387,7 @@ export default function CreatorPage() {
 
                     {/* Price */}
                     <div className="space-y-2">
-                      <Label htmlFor="price">Harga</Label>
+                      <Label htmlFor="price">{t("price")}</Label>
                       <Input
                         id="price"
                         value={formData.price}
@@ -393,7 +397,7 @@ export default function CreatorPage() {
                             price: e.target.value,
                           }))
                         }
-                        placeholder="Masukkan harga"
+                        placeholder={t("pricePlaceholder")}
                         type="number"
                       />
                     </div>
@@ -403,7 +407,7 @@ export default function CreatorPage() {
                       onClick={handleSubmit}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
-                      Buat Desain
+                      {t("createDesign")}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -412,7 +416,7 @@ export default function CreatorPage() {
             <div className="relative mt-6">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
-                placeholder="Cari desain, template, atau kata kunci..."
+                placeholder={t("searchDesignsPlaceholder")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
@@ -446,7 +450,7 @@ export default function CreatorPage() {
                       {template.name}
                     </p>
                     <p className="text-blue-600 font-semibold text-sm">
-                      Rp {template.price.toLocaleString()}
+                      Rp {template.price.toLocaleString(numberLocale)}
                     </p>
                   </div>
                 </div>
@@ -507,27 +511,27 @@ export default function CreatorPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <CardTitle className="text-2xl font-semibold text-gray-900">
-                  Manajemen Afiliator
+                  {t("affiliatorTitle")}
                 </CardTitle>
                 <p className="text-sm text-gray-500">
-                  Kelola dan pantau mitra afiliasi Anda (5 pengguna aktif)
+                  {t("affiliatorSubtitle", { count: 5 })}
                 </p>
               </div>
               <Select defaultValue="all-status">
                 <SelectTrigger className="w-full sm:w-40 border-gray-200">
-                  <SelectValue placeholder="Semua Status" />
+                  <SelectValue placeholder={t("allStatus")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all-status">Semua Status</SelectItem>
-                  <SelectItem value="active">Aktif</SelectItem>
-                  <SelectItem value="inactive">Tidak Aktif</SelectItem>
+                  <SelectItem value="all-status">{t("allStatus")}</SelectItem>
+                  <SelectItem value="active">{t("active")}</SelectItem>
+                  <SelectItem value="inactive">{t("inactive")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="relative mt-6">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
-                placeholder="Cari berdasarkan nama, email, atau kode referral..."
+                placeholder={t("searchAffiliatorPlaceholder")}
                 className="pl-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -538,28 +542,28 @@ export default function CreatorPage() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="pb-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Nama
+                      {t("colName")}
                     </th>
                     <th className="pb-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Email
+                      {t("colEmail")}
                     </th>
                     <th className="pb-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Status
+                      {t("colStatus")}
                     </th>
                     <th className="pb-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Kode
+                      {t("colCode")}
                     </th>
                     <th className="pb-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Total Pengeluaran
+                      {t("colTotalSpend")}
                     </th>
                     <th className="pb-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Komisi
+                      {t("colCommission")}
                     </th>
                     <th className="pb-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Tanggal Dibayar
+                      {t("colPaidDate")}
                     </th>
                     <th className="pb-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Aksi
+                      {t("colActions")}
                     </th>
                   </tr>
                 </thead>
@@ -575,7 +579,7 @@ export default function CreatorPage() {
                       <td className="py-4 text-gray-600">{affiliator.email}</td>
                       <td className="py-4">
                         <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium px-2.5 py-1 rounded-full">
-                          {affiliator.status}
+                          {affiliator.status === "Active" ? t("active") : t("inactive")}
                         </Badge>
                       </td>
                       <td className="py-4 font-mono text-sm font-medium text-gray-900">
@@ -664,9 +668,9 @@ export default function CreatorPage() {
               </div>
               <div>
                 <CardTitle className="text-xl font-semibold text-gray-900">
-                  Withdrawal Center
+                  {t("withdrawalCenter")}
                 </CardTitle>
-                <p className="text-sm text-gray-500">Manage your earnings</p>
+                <p className="text-sm text-gray-500">{t("manageEarnings")}</p>
               </div>
             </div>
           </CardHeader>
@@ -674,40 +678,40 @@ export default function CreatorPage() {
             <div className="space-y-4">
               <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
                 <p className="text-sm font-medium text-blue-900 mb-1">
-                  Total Balance
+                  {t("totalBalance")}
                 </p>
                 <p className="text-2xl font-bold text-blue-900">
                   Rp 100.000.000
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  Available for withdrawal
+                  {t("availableForWithdrawal")}
                 </p>
               </div>
 
               <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-100">
                 <p className="text-sm font-medium text-amber-900 mb-1">
-                  Under Review
+                  {t("underReview")}
                 </p>
                 <p className="text-2xl font-bold text-amber-900">
                   Rp 156.000.000
                 </p>
                 <p className="text-xs text-amber-600 mt-1">
-                  Processing time: 7 working days
+                  {t("processingTime", { days: 7 })}
                 </p>
               </div>
             </div>
 
             <Button className="w-full bg-blue-600 hover:bg-blue-700 font-medium shadow-sm">
-              Request Withdrawal
+              {t("requestWithdrawal")}
             </Button>
 
             <div>
               <div className="mb-4">
                 <p className="font-semibold text-gray-900 mb-1">
-                  Withdrawal History
+                  {t("withdrawalHistory")}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Track your withdrawal requests and transactions
+                  {t("withdrawalHistoryDescription")}
                 </p>
               </div>
 
@@ -720,7 +724,7 @@ export default function CreatorPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          Completed
+                          {t("completed")}
                         </p>
                         <p className="text-xs text-gray-600">Rp 1.000.000</p>
                         <p className="text-xs text-gray-500 mt-0.5">
@@ -749,7 +753,7 @@ export default function CreatorPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          Under Review
+                          {t("underReview")}
                         </p>
                         <p className="text-xs text-gray-600">Rp 3.200.000</p>
                         <p className="text-xs text-gray-500 mt-0.5">

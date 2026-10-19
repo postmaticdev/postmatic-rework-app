@@ -10,13 +10,29 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ChartErrorBoundary } from "./chart-error-boundary";
-import { formatXAxisLabel, type TimePeriod } from "@/lib/chart-data-generator";
+import type { TimePeriod } from "@/lib/chart-data-generator";
 import { FilterQuery } from "@/models/api/base-response.type";
 import { useTokenGetAnalyticUsage } from "@/services/tier/token.api";
 import { useParams } from "next/navigation";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { useDateFormat } from "@/hooks/use-date-format";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+
+const toIntlLocale = (locale: string) => (locale === "id" ? "id-ID" : "en-US");
+
+// Locale-aware variant of formatXAxisLabel from @/lib/chart-data-generator
+// (that helper is pinned to id-ID).
+function formatAxisLabel(date: string, period: TimePeriod, locale: string) {
+  const dateObj = new Date(date);
+  const options: Intl.DateTimeFormatOptions =
+    period === "7d"
+      ? { weekday: "short", day: "numeric" }
+      : period === "1y"
+        ? { month: "short", year: "2-digit" }
+        : { day: "numeric", month: "short" };
+
+  return dateObj.toLocaleDateString(toIntlLocale(locale), options);
+}
 
 interface CustomTooltipPayload {
   color: string;
@@ -38,6 +54,8 @@ const CustomTooltip = ({
   label,
   period,
 }: CustomTooltipProps) => {
+  const t = useTranslations("periodSelector");
+  const locale = useLocale();
   const total = payload.find((entry) => entry.dataKey === "Total");
   const otherPayload = payload.filter((entry) => entry.dataKey !== "Total");
 
@@ -45,7 +63,7 @@ const CustomTooltip = ({
     return (
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 min-w-[200px]">
         <p className="text-sm font-medium text-gray-900 dark:text-white mb-3">
-          {formatXAxisLabel(label, period)}
+          {formatAxisLabel(label, period, locale)}
         </p>
         <div className="space-y-2">
           {otherPayload.map((entry, index) => (
@@ -59,14 +77,14 @@ const CustomTooltip = ({
                   style={{ backgroundColor: entry.color }}
                 />
                 <span className="text-sm text-gray-600 dark:text-gray-300">
-                  {entry.dataKey === "Image" && "Gambar"}
-                  {entry.dataKey === "Video" && "Video"}
-                  {entry.dataKey === "LiveStream" && "Siaran Langsung"}
-                  {entry.dataKey === "Total" && "Total"}
+                  {entry.dataKey === "Image" && t("image")}
+                  {entry.dataKey === "Video" && t("video")}
+                  {entry.dataKey === "LiveStream" && t("liveStream")}
+                  {entry.dataKey === "Total" && t("total")}
                 </span>
               </div>
               <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                {entry.value.toLocaleString()}
+                {entry.value.toLocaleString(toIntlLocale(locale))}
               </span>
             </div>
           ))}
@@ -78,10 +96,10 @@ const CustomTooltip = ({
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: total?.color }}
               />
-              Total:
+              {t("totalLabel")}
             </span>
             <span className="font-semibold text-gray-900 dark:text-white">
-              {total?.value?.toLocaleString()}
+              {total?.value?.toLocaleString(toIntlLocale(locale))}
             </span>
           </div>
         </div>
@@ -112,9 +130,9 @@ const CustomLegend = ({ payload }: CustomLegendProps) => {
             style={{ backgroundColor: entry.color }}
           />
           <span className="text-sm text-gray-600 dark:text-gray-300">
-            {entry.value === "Gambar" && t("image")}
+            {entry.value === "Image" && t("image")}
             {entry.value === "Video" && t("video")}
-            {entry.value === "Siaran Langsung" && t("liveStream")}
+            {entry.value === "LiveStream" && t("liveStream")}
             {entry.value === "Total" && t("total")}
           </span>
         </div>
@@ -142,6 +160,7 @@ export function AdvancedTokenChart({
   selectedPeriod,
 }: Partial<AdvancedTokenChartProps>) {
   const t = useTranslations("periodSelector");
+  const locale = useLocale();
   const { formatDate } = useDateFormat();
 
   const periods: Period[] = [
@@ -264,7 +283,7 @@ export function AdvancedTokenChart({
                 />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(value) => formatXAxisLabel(value, period)}
+                  tickFormatter={(value) => formatAxisLabel(value, period, locale)}
                   stroke="#6B7280"
                   fontSize={12}
                   tickLine={false}
@@ -275,7 +294,7 @@ export function AdvancedTokenChart({
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value) => value.toLocaleString()}
+                  tickFormatter={(value) => value.toLocaleString(toIntlLocale(locale))}
                 />
                 <Tooltip
                   content={(props) => (
@@ -327,9 +346,9 @@ export function AdvancedTokenChart({
           </div>
           <CustomLegend
             payload={[
-              { value: "Gambar", color: "#3B82F6" },
+              { value: "Image", color: "#3B82F6" },
               { value: "Video", color: "#8B5CF6" },
-              { value: "Siaran Langsung", color: "#10B981" },
+              { value: "LiveStream", color: "#10B981" },
               { value: "Total", color: "#F59E0B" },
             ]}
           />

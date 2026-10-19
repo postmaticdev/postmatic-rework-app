@@ -14,7 +14,8 @@ import { ScheduleSummaryModal } from "@/app/[locale]/business/[businessId]/conte
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
-import { getModelRestrictionCopy } from "./model-restriction-copy";
+import { ContentCarouselPreview } from "./content-carousel-preview";
+import { ProtectedImage } from "./protected-image";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
   CalendarDays,
+  GalleryHorizontal,
   Loader2,
   RotateCcw,
   WandSparkles,
@@ -68,6 +70,15 @@ const getPaddingBottomStyle = (ratio?: string) => {
   }
 };
 
+const formatScheduleDetail = (date: string, time: string, locale: string) => {
+  const parsed = new Date(`${date}T${time}`);
+  if (Number.isNaN(parsed.getTime())) return `${date} ${time}`;
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(parsed);
+};
+
 export function PreviewPanel() {
   const { mutateAsync: getImageWatermark } = useContentImageWatermarkGet();
   const previewPanelRef = useRef<HTMLDivElement>(null);
@@ -90,6 +101,7 @@ export function PreviewPanel() {
     aiModels,
     selectedHistory,
     selectedGeneratedImageUrl,
+    selectedContentImages,
     schedulerDraftPost,
     onSelectHistory,
     isLoading,
@@ -131,32 +143,28 @@ export function PreviewPanel() {
   }, [selectedHistory?.result?.images, selectedImageUrl]);
   const selectedImageItemId =
     selectedHistory?.result?.imageItemIds?.[selectedImageIndex];
-  const modelRestrictionCopy = getModelRestrictionCopy(
-    locale,
-    aiModels.freeUserAllowedModel
-      ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
-      : getAiModelDisplayName("gpt-image-1")
-  );
+  const restrictedModelName = aiModels.freeUserAllowedModel
+    ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
+    : getAiModelDisplayName("gpt-image-1");
+  const modelRestrictionCopy = {
+    title: t("freeModelRestrictionTitle"),
+    description: t("freeModelRestrictionDescription", {
+      modelName: restrictedModelName,
+    }),
+    topUp: t("freeModelRestrictionTopUp"),
+    useDefault: t("freeModelRestrictionUseDefault"),
+  };
   const [watermarkedPreviewUrl, setWatermarkedPreviewUrl] = useState<
     string | null
   >(null);
-  const handleProtectedImageInteraction = (
-    event:
-      | React.MouseEvent<HTMLElement>
-      | React.DragEvent<HTMLElement>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  const protectedImageStyle = {
-    WebkitTouchCallout: "none",
-    userSelect: "none",
-  } as const;
+  // ProtectedImage swaps generated images for their watermark for free users.
   const displayedPreviewImageUrl =
     watermarkedPreviewUrl ||
     selectedImageUrl ||
     form.basic.productImage ||
     DEFAULT_PLACEHOLDER_IMAGE;
+  const carouselPreviewImages = selectedContentImages;
+  const isCarouselPreview = carouselPreviewImages.length > 1;
 
   const [date, setDate] = useState(() => getCurrentScheduleInput().date);
   const [time, setTime] = useState(() => getCurrentScheduleInput().time);
@@ -845,13 +853,19 @@ export function PreviewPanel() {
           <div className="flex min-w-0 items-center space-x-3">
             <Image
               src={businessLogo || "/logoblue.png"}
-              alt="logo"
+              alt={t("businessLogoAlt")}
               width={200}
               height={200}
               className="w-8 h-8 shrink-0 rounded-full"
               unoptimized
             />
             <span className="truncate font-medium text-sm">{businessName}</span>
+            {isCarouselPreview && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                <GalleryHorizontal className="h-3.5 w-3.5" />
+                {t("carouselBadge", { count: carouselPreviewImages.length })}
+              </span>
+            )}
           </div>
           {!schedulerMode && selectedHistory && (
             <Button
@@ -871,41 +885,26 @@ export function PreviewPanel() {
           style={{ paddingBottom: getPaddingBottomStyle(form.basic.ratio) }}
         >
           <div className="absolute inset-0 w-full h-full">
-            {isLoading ? (
-              <div
-                className="flex items-center justify-center w-full h-full bg-background-secondary relative"
-                onContextMenu={handleProtectedImageInteraction}
-                onDragStart={handleProtectedImageInteraction}
-              >
+            {/* A new generation doesn't replace a carousel, so keep it visible meanwhile. */}
+            {isCarouselPreview ? (
+              <ContentCarouselPreview images={carouselPreviewImages} />
+            ) : isLoading ? (
+              <div className="flex items-center justify-center w-full h-full bg-background-secondary relative">
                 <LogoLoader
                   hideContentBackground={false}
-                  className="absolute z-10"
+                  className="absolute z-20"
                 />
-                <div className="absolute bg-black z-0 w-full h-full opacity-50 blur-sm">
-                  <Image
-                    src={displayedPreviewImageUrl}
-                    alt=""
-                    fill
-                    draggable={false}
-                    style={protectedImageStyle}
-                    className="object-cover w-full h-full"
-                    priority
-                    unoptimized
-                  />
-                </div>
+                <ProtectedImage
+                  src={displayedPreviewImageUrl}
+                  alt=""
+                  className="absolute inset-0 bg-black opacity-50 blur-sm"
+                />
               </div>
             ) : (
-              <Image
+              <ProtectedImage
                 src={displayedPreviewImageUrl}
                 alt=""
-                fill
-                draggable={false}
-                onContextMenu={handleProtectedImageInteraction}
-                onDragStart={handleProtectedImageInteraction}
-                style={protectedImageStyle}
-                className="object-cover bg-background-secondary"
-                priority
-                unoptimized
+                className="h-full w-full bg-background-secondary"
               />
             )}
           </div>
@@ -924,7 +923,7 @@ export function PreviewPanel() {
           <div className="flex items-start gap-3">
             <Image
               src={businessLogo || "/logoblue.png"}
-              alt="logo"
+              alt={t("businessLogoAlt")}
               width={32}
               height={32}
               className="w-8 h-8 rounded-full shrink-0 object-cover"
@@ -1027,6 +1026,8 @@ export function PreviewPanel() {
         businessName={businessName}
         businessLogo={businessLogo}
         imageUrl={displayedPreviewImageUrl}
+        imageUrls={isCarouselPreview ? carouselPreviewImages : undefined}
+        ratio={form.basic.ratio}
         caption={form.basic.caption || selectedHistory?.result?.caption || ""}
         date={date}
         time={time}
@@ -1053,7 +1054,7 @@ export function PreviewPanel() {
         confirmText={schedulerT("scheduleNowConfirm")}
         cancelText={schedulerT("scheduleNowCancel")}
         detailLabel={schedulerT("selectedPublishTime")}
-        detailValue={`${date} ${time}`}
+        detailValue={formatScheduleDetail(date, time, locale)}
         isLoading={isScheduling || mEnhanceCaption.isPending}
       />
       <ConfirmationModal

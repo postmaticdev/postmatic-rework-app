@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
+import { ProtectedImage } from "./protected-image";
 import { Button } from "@/components/ui/button";
 import { useContentImageWatermarkGet } from "@/services/content/content.api";
 import { Download, Loader2 } from "lucide-react";
@@ -10,68 +10,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { ImageWatermarkRes } from "@/models/api/content/image.type";
 import { useContentGenerate } from "@/contexts/content-generate-context";
-
-interface ProtectedCanvasImageProps {
-  src: string;
-  alt: string;
-  className?: string;
-  style?: React.CSSProperties;
-  objectFit?: React.CSSProperties["objectFit"];
-  onClick?: (event: React.MouseEvent<HTMLElement>) => void;
-}
-
-const ProtectedCanvasImage = ({ src, alt, className, style, objectFit = "cover", onClick }: ProtectedCanvasImageProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  useEffect(() => {
-    if (!src) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let isActive = true;
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      if (!isActive) return;
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      ctx.drawImage(img, 0, 0);
-    };
-    img.onerror = () => {
-      if (isActive && img.crossOrigin === "anonymous") {
-        img.crossOrigin = "";
-        img.src = src;
-      }
-    };
-    img.src = src;
-    
-    return () => {
-      isActive = false;
-    };
-  }, [src]);
-
-  return (
-    <div 
-      className={`relative overflow-hidden ${className || ""}`}
-      style={style}
-      onClick={onClick}
-    >
-      <canvas
-        ref={canvasRef}
-        aria-label={alt}
-        className="w-full h-full pointer-events-none"
-        style={{ objectFit, WebkitUserSelect: "none", userSelect: "none" }}
-      />
-      <div 
-        className="absolute inset-0 z-10 bg-transparent" 
-        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} 
-        onDragStart={e => { e.preventDefault(); e.stopPropagation(); }} 
-      />
-    </div>
-  );
-};
+import { useTranslations } from "next-intl";
 
 const WATERMARK_POLL_INTERVAL_MS = 1500;
 const WATERMARK_POLL_TIMEOUT_MS = 15000;
@@ -114,6 +53,7 @@ export function GeneratedImageViewer({
   height = 800,
 }: GeneratedImageViewerProps) {
   const { aiModels } = useContentGenerate();
+  const t = useTranslations("generationPanel");
   const { mutateAsync: getImageWatermark } = useContentImageWatermarkGet();
   const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -242,7 +182,7 @@ export function GeneratedImageViewer({
           if (!silent) {
             showToast(
               "info",
-              "ID gambar untuk watermark tidak ditemukan, download file original."
+              t("watermarkImageIdMissing")
             );
           }
 
@@ -311,7 +251,7 @@ export function GeneratedImageViewer({
             if (!silent) {
               showToast(
                 "info",
-                "Watermark belum siap, download file original untuk sementara."
+                t("watermarkNotReadyOriginal")
               );
             }
 
@@ -328,7 +268,7 @@ export function GeneratedImageViewer({
             if (!silent) {
               showToast(
                 "warning",
-                "Gagal ambil watermark, download file original."
+                t("watermarkFetchFailed")
               );
             }
 
@@ -364,6 +304,7 @@ export function GeneratedImageViewer({
       imageUrl,
       isWatermarkedDownload,
       resolvedDownloadUrl,
+      t,
       watermarkStatus,
     ]
   );
@@ -452,7 +393,15 @@ export function GeneratedImageViewer({
     try {
       await waitForAccessResolution();
       const { url: downloadUrl, isWatermarkedDownload } =
-        await resolveWatermarkImage({ waitForWatermark: true });
+        await resolveWatermarkImage({ silent: true, waitForWatermark: true });
+      // Free users may only ever download the watermarked file.
+      if (aiModels.isFreeUser && !isWatermarkedDownload) {
+        showToast(
+          "info",
+          t("watermarkStillProcessing")
+        );
+        return;
+      }
       const fileName = buildDownloadFileName(
         downloadUrl,
         isWatermarkedDownload ? "generated-watermarked" : "generated"
@@ -466,7 +415,7 @@ export function GeneratedImageViewer({
     } catch {
       showToast(
         "error",
-        "Gagal memverifikasi akses download gambar. Coba lagi sebentar."
+        t("downloadAccessVerifyFailed")
       );
     } finally {
       setIsDownloading(false);
@@ -502,7 +451,7 @@ export function GeneratedImageViewer({
         type="button"
         size="icon"
         variant="ghost"
-        aria-label="Download image preview"
+        aria-label={t("downloadImagePreview")}
         aria-disabled={isDownloading || !imageUrl}
         className="absolute right-4 top-4 z-[101] size-12 rounded-full bg-primary text-white hover:bg-primary/80 hover:text-white"
         onClick={(event) => {
@@ -523,10 +472,11 @@ export function GeneratedImageViewer({
         onContextMenu={handleProtectedInteraction}
         onDragStart={handleProtectedInteraction}
       >
-        <ProtectedCanvasImage
+        <ProtectedImage
           src={displayedImageUrl}
-          alt={`${alt} fullscreen`}
-          objectFit="contain"
+          imageItemId={imageItemId}
+          alt={t("fullscreenAlt", { alt })}
+          fit="contain"
           className="h-dvh w-screen cursor-zoom-out"
           onClick={() => setIsOpen(false)}
         />
@@ -543,10 +493,11 @@ export function GeneratedImageViewer({
         onContextMenu={handleProtectedInteraction}
         onDragStart={handleProtectedInteraction}
       >
-        <ProtectedCanvasImage
+        <ProtectedImage
           src={displayedImageUrl}
+          imageItemId={imageItemId}
           alt={alt}
-          objectFit="cover"
+          fit="cover"
           className={
             className ||
             "aspect-square w-full max-w-full cursor-zoom-in rounded-lg border object-cover"

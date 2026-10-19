@@ -74,6 +74,7 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  Clapperboard,
   Edit,
   Eye,
   FileClock,
@@ -96,6 +97,7 @@ import { AutoGenerate } from "../../dashboard/(components)/auto-generate";
 import { useContentSchedulerManualEditQueue } from "@/services/content/content.api";
 
 function RetryEventForm({ event, businessId }: { event: SchedulerEvent; businessId: string }) {
+  const t = useTranslations("contentScheduler");
   const mEdit = useContentSchedulerManualEditQueue();
   const [date, setDate] = useState(() => {
     const d = new Date();
@@ -131,7 +133,7 @@ function RetryEventForm({ event, businessId }: { event: SchedulerEvent; business
           withChatAI: event.withChatAI,
         },
       });
-      showToast("success", "Jadwal ulang berhasil");
+      showToast("success", t("rescheduleSuccess"));
     } catch (e) {
       showToast("error", e);
     }
@@ -152,7 +154,7 @@ function RetryEventForm({ event, businessId }: { event: SchedulerEvent; business
         className="flex-1 bg-background-secondary sm:w-auto"
       />
       <Button onClick={handleRetry} disabled={mEdit.isPending}>
-        Retry
+        {t("retry")}
       </Button>
     </div>
   );
@@ -376,7 +378,7 @@ export function ContentSchedulerBoard({
           id: `upcoming-${item.id}`,
           title:
             item.status?.toLowerCase() === "draft"
-              ? "Draft"
+              ? t("draftLabel")
               : item.title || t("scheduledPostLabel"),
           date: new Date(item.date),
           time: dateFormat.getHhMm(new Date(item.date)),
@@ -465,7 +467,7 @@ export function ContentSchedulerBoard({
         )
         .map((marker) => ({
           id: `draft-${marker.draftId}`,
-          title: "Draft",
+          title: t("draftLabel"),
           date: new Date(`${marker.date}T00:00:00`),
           time: marker.time || "",
           image: marker.image || DEFAULT_PLACEHOLDER_IMAGE,
@@ -494,7 +496,7 @@ export function ContentSchedulerBoard({
           historyJob: null,
           postedUrl: null,
         })),
-    [draftMarkers, manualEvents]
+    [draftMarkers, manualEvents, t]
   );
 
   const historyDraftEvents = useMemo<SchedulerEvent[]>(() => {
@@ -518,7 +520,7 @@ export function ContentSchedulerBoard({
 
         return {
           id: `history-draft-${job.id}`,
-          title: job.product?.name || "Draft",
+          title: job.product?.name || t("draftLabel"),
           date: new Date(job.createdAt),
           time: dateFormat.getHhMm(new Date(job.createdAt)),
           image,
@@ -543,7 +545,7 @@ export function ContentSchedulerBoard({
           postedUrl: null,
         };
       });
-  }, [draftMarkers, generationHistoryData?.data.data, manualEvents]);
+  }, [draftMarkers, generationHistoryData?.data.data, manualEvents, t]);
 
   const postedEvents = useMemo<SchedulerEvent[]>(
     () =>
@@ -921,9 +923,10 @@ export function ContentSchedulerBoard({
       12,
       containerRect.width - 12
     );
+    // Menu height: 3 actions × ~52px + padding, so it never overflows the bottom.
     const menuTop = Math.min(
       triggerRect.top - containerRect.top + 8,
-      containerRect.height - 116
+      containerRect.height - 172
     );
 
     setDateActionMenuPosition({
@@ -1064,7 +1067,7 @@ export function ContentSchedulerBoard({
                               className="min-w-0 overflow-hidden rounded-md bg-background-secondary text-muted-foreground sm:rounded-lg"
                             >
                               <div className="truncate px-0.5 py-0.5 text-center text-[11px] font-semibold leading-tight sm:px-2 sm:py-1 sm:text-xs">
-                                + {hiddenEventCount} {t("more")}
+                                {t("moreCount", { count: hiddenEventCount })}
                               </div>
                             </div>
                           )}
@@ -1116,6 +1119,23 @@ export function ContentSchedulerBoard({
                       </span>
                       {t("buildWithAi")}
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDateActionCard(false);
+                        setDateActionMenuPosition(null);
+                        router.push(
+                          `/business/${businessId}/video-generator?scheduleDate=${chosenDate}`
+                        );
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-background-secondary"
+                    >
+                      <span className="flex size-8 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                        <Clapperboard className="size-4" />
+                      </span>
+                      {t("videoGenerator")}
+                    </button>
                   </div>
                 )}
               </div>
@@ -1135,7 +1155,7 @@ export function ContentSchedulerBoard({
                   </div>
                   <div className="flex min-w-0 flex-col-reverse sm:flex-col">
                     <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
-                      {t("totalScheduled")}
+                      {t("overviewQueued")}
                     </div>
                     <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalFutureReadySchedules ?? 0}
@@ -1149,7 +1169,7 @@ export function ContentSchedulerBoard({
                   </div>
                   <div className="flex min-w-0 flex-col-reverse sm:flex-col">
                     <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
-                      {t("contentRepetitionShort")}
+                      {t("overviewRepetition")}
                     </div>
                     <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalActiveRepetitions ?? 0}
@@ -1163,7 +1183,7 @@ export function ContentSchedulerBoard({
                   </div>
                   <div className="flex min-w-0 flex-col-reverse sm:flex-col">
                     <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
-                      {t("postedThisMonth")}
+                      {t("overviewPosted")}
                     </div>
                     <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalSuccessfulPosted ?? 0}
@@ -1236,6 +1256,17 @@ export function ContentSchedulerBoard({
                       <WandSparkles className="h-4 w-4" />
                       {t("buildWithAi")}
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsHistoryDialogOpen(false);
+                        router.push(
+                          `/business/${businessId}/video-generator?scheduleDate=${chosenDate}`
+                        );
+                      }}
+                    >
+                      <Clapperboard className="h-4 w-4" />
+                      {t("videoGenerator")}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -1273,11 +1304,11 @@ export function ContentSchedulerBoard({
                           }`}
                       >
                         {event.status === "posted"
-                          ? "Posted"
+                          ? t("postedBadge")
                           : event.type === "manual"
                           ? t("scheduledBadge")
                           : event.type === "draft"
-                            ? "Draft"
+                            ? t("draftLabel")
                             : t("repetitionBadge")}
                       </span>
                     </div>
@@ -1290,7 +1321,7 @@ export function ContentSchedulerBoard({
                   {event.status === "posted" ? (
                     <Button variant="outline" size="sm" asChild className="shrink-0">
                       <a href={event.postedUrl || "#"} target="_blank" rel="noopener noreferrer">
-                        Lihat Post
+                        {t("viewPost")}
                       </a>
                     </Button>
                   ) : event.type === "manual" || event.type === "draft" ? (

@@ -355,7 +355,7 @@ export function SchedulePost({
                               onClick={() => handleEditPost(post)}
                             >
                               <Edit className="h-4 w-4 mr-2" />
-                              Edit
+                              {t("edit")}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem

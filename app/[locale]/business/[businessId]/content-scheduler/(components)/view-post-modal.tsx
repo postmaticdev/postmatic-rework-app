@@ -57,9 +57,10 @@ export function ViewPostModal({
   const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(businessId);
   const platforms = platformData?.data.data || [];
   const t = useTranslations("contentScheduler");
+  const tPreview = useTranslations("mockPostPreview");
 
   const businessName =
-    businessKnowledgeData?.data?.data?.name || "Business Name";
+    businessKnowledgeData?.data?.data?.name || tPreview("businessNameFallback");
   const businessLogo =
     businessKnowledgeData?.data?.data?.primaryLogo ||
     businessKnowledgeData?.data?.data?.primaryLogoUrl ||
@@ -161,7 +162,7 @@ export function ViewPostModal({
     <div className={cn("relative w-full group", className)}>
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
         {postCaption || (
-          <span className="italic text-muted-foreground">Tidak ada caption</span>
+          <span className="italic text-muted-foreground">{tPreview("noCaption")}</span>
         )}
       </p>
     </div>
@@ -172,7 +173,7 @@ export function ViewPostModal({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={postImageUrl}
-        alt="Post content"
+        alt={tPreview("postContentAlt")}
         className="h-auto max-h-[500px] w-full object-contain"
       />
     </div>
@@ -187,7 +188,7 @@ export function ViewPostModal({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={businessLogo}
-                alt="Logo"
+                alt={tPreview("logoAlt")}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -202,13 +203,13 @@ export function ViewPostModal({
                 {businessName}
               </span>
               <BadgeCheck className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">• 1st</span>
+              <span className="text-xs text-muted-foreground">• {tPreview("firstDegree")}</span>
             </div>
             <span className="line-clamp-1 text-xs text-muted-foreground">
-              Postmatic Business Page
+              {tPreview("businessPage")}
             </span>
             <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-              Just now • <Globe className="h-3 w-3" />
+              {tPreview("justNow")} • <Globe className="h-3 w-3" />
             </span>
           </div>
         </div>
@@ -223,19 +224,19 @@ export function ViewPostModal({
         <div className="flex items-center justify-between border-t border-border/60 pt-3 text-muted-foreground">
           <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted max-sm:gap-1 max-sm:px-1.5">
             <ThumbsUp className="h-5 w-5 max-sm:size-4" />
-            <span className="text-sm font-medium max-sm:text-xs">Like</span>
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("like")}</span>
           </div>
           <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted max-sm:gap-1 max-sm:px-1.5">
             <MessageCircle className="h-5 w-5 max-sm:size-4" />
-            <span className="text-sm font-medium max-sm:text-xs">Comment</span>
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("comment")}</span>
           </div>
           <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted max-sm:gap-1 max-sm:px-1.5">
             <Repeat2 className="h-5 w-5 max-sm:size-4" />
-            <span className="text-sm font-medium max-sm:text-xs">Repost</span>
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("repost")}</span>
           </div>
           <div className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 transition-colors hover:bg-muted max-sm:gap-1 max-sm:px-1.5">
             <Send className="h-5 w-5 max-sm:size-4" />
-            <span className="text-sm font-medium max-sm:text-xs">Send</span>
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("send")}</span>
           </div>
         </div>
       </div>
@@ -251,7 +252,7 @@ export function ViewPostModal({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={businessLogo}
-                alt="Logo"
+                alt={tPreview("logoAlt")}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -270,11 +271,11 @@ export function ViewPostModal({
                 •
               </span>
               <span className="cursor-pointer text-sm font-semibold text-blue-500 hover:underline">
-                Follow
+                {tPreview("follow")}
               </span>
             </div>
             <span className="mt-0.5 flex w-fit cursor-pointer items-center gap-1 text-[13px] text-muted-foreground hover:underline">
-              Just now • <Globe className="h-3.5 w-3.5" />
+              {tPreview("justNow")} • <Globe className="h-3.5 w-3.5" />
             </span>
           </div>
         </div>
@@ -298,23 +299,23 @@ export function ViewPostModal({
           <span className="text-[13px]">12</span>
         </div>
         <div className="flex items-center gap-3 text-[13px]">
-          <span className="cursor-pointer hover:underline">1 Comment</span>
-          <span className="cursor-pointer hover:underline">1 Share</span>
+          <span className="cursor-pointer hover:underline">{tPreview("commentCount", { count: 1 })}</span>
+          <span className="cursor-pointer hover:underline">{tPreview("shareCount", { count: 1 })}</span>
         </div>
       </div>
       <div className="px-4 py-1.5">
         <div className="flex items-center justify-between font-semibold text-muted-foreground">
           <div className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md py-2 transition-colors hover:bg-muted">
             <ThumbsUp className="h-5 w-5" />
-            <span className="text-sm">Like</span>
+            <span className="text-sm">{tPreview("like")}</span>
           </div>
           <div className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md py-2 transition-colors hover:bg-muted">
             <MessageCircle className="h-5 w-5" />
-            <span className="text-sm">Comment</span>
+            <span className="text-sm">{tPreview("comment")}</span>
           </div>
           <div className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md py-2 transition-colors hover:bg-muted">
             <Share2 className="h-5 w-5" />
-            <span className="text-sm">Share</span>
+            <span className="text-sm">{tPreview("share")}</span>
           </div>
         </div>
       </div>
@@ -331,7 +332,7 @@ export function ViewPostModal({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={businessLogo}
-                  alt="Logo"
+                  alt={tPreview("logoAlt")}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -345,7 +346,7 @@ export function ViewPostModal({
             <span className="cursor-pointer text-sm font-semibold">
               {businessName}
             </span>
-            <span className="text-sm text-muted-foreground">• 1m</span>
+            <span className="text-sm text-muted-foreground">• {tPreview("minutesAgoShort", { count: 1 })}</span>
           </div>
         </div>
         <MoreHorizontal className="h-5 w-5 cursor-pointer text-foreground" />
@@ -364,7 +365,7 @@ export function ViewPostModal({
           <Bookmark className="h-6 w-6 cursor-pointer text-foreground transition-opacity hover:opacity-50" />
         </div>
         <span className="mt-1 w-fit cursor-pointer text-sm font-semibold">
-          12 likes
+          {tPreview("likesCount", { count: 12 })}
         </span>
         <div className="mt-1 flex w-full flex-col text-sm">
           <span className="mb-1 w-fit cursor-pointer font-semibold">
@@ -373,7 +374,7 @@ export function ViewPostModal({
           {renderCaptionArea()}
         </div>
         <span className="mt-1 w-fit cursor-pointer text-sm text-muted-foreground">
-          View all 1 comment
+          {tPreview("viewAllComments", { count: 1 })}
         </span>
       </div>
     </div>

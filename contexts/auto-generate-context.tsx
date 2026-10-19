@@ -748,9 +748,9 @@ export function AutoGenerateProvider({
   const confirmLeave = useCallback(() => {
     if (!isChanged) return true;
     return window.confirm(
-      "Perubahan belum disimpan. Tinggalkan halaman tanpa menyimpan?"
+      t("toast.general.unsavedChangesConfirm")
     );
-  }, [isChanged]);
+  }, [isChanged, t]);
 
   const guardedNavigate = useCallback(
     (href: string, navigate: (href: string) => void) => {
@@ -790,7 +790,7 @@ export function AutoGenerateProvider({
       const isSelf = !a.target || a.target === "_self";
       if (isSameOrigin && isSelf) {
         const ok = window.confirm(
-          "Perubahan belum disimpan. Tinggalkan halaman tanpa menyimpan?"
+          t("toast.general.unsavedChangesConfirm")
         );
         if (!ok) {
           e.preventDefault();
@@ -800,7 +800,7 @@ export function AutoGenerateProvider({
     };
     const onPopState = () => {
       const ok = window.confirm(
-        "Perubahan belum disimpan. Tinggalkan halaman tanpa menyimpan?"
+        t("toast.general.unsavedChangesConfirm")
       );
       if (!ok) history.pushState(null, "", window.location.href);
     };
@@ -810,7 +810,7 @@ export function AutoGenerateProvider({
       document.removeEventListener("click", onDocumentClick, true);
       window.removeEventListener("popstate", onPopState);
     };
-  }, [isChanged]);
+  }, [isChanged, t]);
 
   // ===== Value =====
   const value = useMemo<Ctx>(

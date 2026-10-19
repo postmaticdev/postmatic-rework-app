@@ -10,7 +10,6 @@ import {
   usePaymentRealtime,
 } from "@/hooks/use-payment-realtime";
 import { dateFormat } from "@/helper/date-format";
-import { formatIdr } from "@/helper/formatter";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { showToast } from "@/helper/show-toast";
 import { cn } from "@/lib/utils";
@@ -26,7 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { formatProductName } from "./product-display";
+import { formatIdrStable, formatProductName } from "./product-display";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 type PaymentAction = CheckoutPaymentAction | BusinessPaymentAction;
@@ -256,7 +255,7 @@ export function PaymentConfirmation({
                   {item.value}
                 </span>
                 <IconButton
-                  title={t("toast.payment.clipboardCopySuccess")}
+                  title={t("checkout.copy")}
                   onClick={() => handleCopy(item.value)}
                 />
               </div>
@@ -419,7 +418,13 @@ export function PaymentConfirmation({
       </div>
 
             <p className="text-gray-600 dark:text-gray-300 mb-4 sm:mb-6 text-sm sm:text-base">
-        {formatProductName(product?.name || checkoutResult?.productName || "", locale)} - {t("checkout.total")} {formatIdr(detailPricing?.total)}
+        {t("checkout.productTotal", {
+          product: formatProductName(
+            product?.name || checkoutResult?.productName || "",
+            locale
+          ),
+          total: formatIdrStable(detailPricing?.total ?? 0, locale),
+        })}
       </p>
 
       {checkoutResult?.paymentActions.map((action, index) => (
@@ -580,6 +585,7 @@ function Step({ n, text }: { n: number; text: string }) {
 }
 
 function Note({ text }: { text: string }) {
+  const tNote = useTranslations("checkout.Instructions");
   return (
     <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
       <div className="flex items-start gap-2">
@@ -597,7 +603,7 @@ function Note({ text }: { text: string }) {
           />
         </svg>
         <p className="text-xs sm:text-sm text-yellow-800 dark:text-yellow-200">
-          <strong>Catatan:</strong> {text}
+          <strong>{tNote("noteLabel")}</strong> {text}
         </p>
       </div>
     </div>

@@ -17,6 +17,9 @@ import {
 
 import { ACCESS_TOKEN_KEY, NEXT_PUBLIC_ENABLE_SOCKET } from "@/constants";
 import { showToast } from "@/helper/show-toast";
+import { errorString } from "@/helper/error-handler";
+import { toIntlLocale } from "@/helper/locale";
+import { useLocale, useTranslations } from "next-intl";
 import { usePathname } from "@/i18n/navigation";
 import { createSocket, RealtimeEnvelope } from "@/lib/socket";
 import type {
@@ -75,7 +78,10 @@ export interface TicketItem {
   id: string;
   remoteId?: number;
   title: string;
+  /** Internal status key (kept for existing consumers); translate it for display. */
   status: "Terkirim" | "Sedang Direview" | "In Progress" | "Done";
+  /** Raw backend SLA status (e.g. "pending", "in_progress", "resolved"). */
+  rawStatus?: string | null;
   date: string;
   updatedAt?: string;
   lastActivityAt?: string;
@@ -172,25 +178,31 @@ function getBrowserAccessToken() {
     : localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-function formatDate(value?: string | null) {
+/** Locale-aware formatting + fallback labels used by the mappers below. */
+interface NotificationFormatter {
+  intlLocale: string;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}
+
+function formatDate(value: string | null | undefined, fmt: NotificationFormatter) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
 
-  return date.toLocaleDateString("id-ID", {
+  return date.toLocaleDateString(fmt.intlLocale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
 }
 
-function formatDateTime(value?: string | null) {
+function formatDateTime(value: string | null | undefined, fmt: NotificationFormatter) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
 
-  return `${formatDate(value)} ${date
-    .toLocaleTimeString("id-ID", {
+  return `${formatDate(value, fmt)} ${date
+    .toLocaleTimeString(fmt.intlLocale, {
       hour: "2-digit",
       minute: "2-digit",
     })
@@ -260,7 +272,10 @@ function attachmentType(
 
 type ApiAttachment = string | ChatBlastAttachment;
 
-function mapAttachments(attachments?: ApiAttachment[] | null) {
+function mapAttachments(
+  attachments: ApiAttachment[] | null | undefined,
+  fmt: NotificationFormatter
+) {
   return (attachments ?? []).reduce<NotificationAttachment[]>(
     (mappedAttachments, attachment, index) => {
       if (!attachment) return mappedAttachments;
@@ -268,7 +283,7 @@ function mapAttachments(attachments?: ApiAttachment[] | null) {
       if (typeof attachment === "string") {
         mappedAttachments.push({
           type: attachmentType(attachment),
-          name: attachmentName(attachment, `Lampiran ${index + 1}`),
+          name: attachmentName(attachment, fmt.t("attachmentFallback", { index: index + 1 })),
           url: attachment,
         });
         return mappedAttachments;
@@ -285,7 +300,7 @@ function mapAttachments(attachments?: ApiAttachment[] | null) {
         ),
         name:
           attachment.filename ||
-          attachmentName(url, `Lampiran ${index + 1}`),
+          attachmentName(url, fmt.t("attachmentFallback", { index: index + 1 })),
         url,
       });
 
@@ -338,7 +353,10 @@ function plainTextFromRichText(value?: string | null) {
     .trim();
 }
 
-function mapCommonNotification(notification: CommonNotification): NotificationItem {
+function mapCommonNotification(
+  notification: CommonNotification,
+  fmt: NotificationFormatter
+): NotificationItem {
   const blast = notification.chatBlast;
   const content = blast?.body ?? "";
   const preview = plainTextFromRichText(content);
@@ -351,19 +369,19 @@ function mapCommonNotification(notification: CommonNotification): NotificationIt
     remoteId: notification.id,
     chatBlastMessageHistoryId:
       notification.chatBlastMessageHistoryId ?? blast?.id ?? undefined,
-    title: blast?.subject || `Notifikasi #${notification.id}`,
-    message: preview || "Notifikasi baru dari Postmatic.",
-    time: formatDateTime(createdAt),
+    title: blast?.subject || fmt.t("notificationFallbackTitle", { id: notification.id }),
+    message: preview || fmt.t("notificationFallbackMessage"),
+    time: formatDateTime(createdAt, fmt),
     unread: !notification.readAt,
     content,
     createdAt,
     updatedAt,
-    attachments: mapAttachments(blast?.attachments),
+    attachments: mapAttachments(blast?.attachments, fmt),
     channelType: blast?.channelType,
   };
 }
 
-function mapWebsiteMessage(message: WebsiteTicketMessage): ChatMessage {
+function mapWebsiteMessage(message: WebsiteTicketMessage, fmt: NotificationFormatter): ChatMessage {
   const fromUser = message.senderType !== "customer_service";
 
   return {
@@ -371,16 +389,17 @@ function mapWebsiteMessage(message: WebsiteTicketMessage): ChatMessage {
     externalId: message.id,
     sender: fromUser ? "user" : "cs",
     text: message.body ?? "",
-    time: formatDateTime(message.createdAt),
+    time: formatDateTime(message.createdAt, fmt),
     createdAt: message.createdAt ?? undefined,
-    attachments: mapAttachments(message.attachments),
+    attachments: mapAttachments(message.attachments, fmt),
   };
 }
 
 function mapWebsiteTicket(
   ticket: WebsiteTicket,
   mappedMessages: ChatMessage[] = [],
-  categoryNameById: Map<number, string> = new Map()
+  categoryNameById: Map<number, string>,
+  fmt: NotificationFormatter
 ): TicketItem {
   const categoryName =
     ticket.appTicketCategoryId != null
@@ -390,15 +409,15 @@ function mapWebsiteTicket(
     id: -Number(ticket.id),
     sender: "user",
     text: ticket.body ?? "",
-    time: formatDateTime(ticket.createdAt),
+    time: formatDateTime(ticket.createdAt, fmt),
     createdAt: ticket.createdAt,
     isInitialReport: true,
     category:
       categoryName ??
       (ticket.appTicketCategoryId != null
-        ? `Kategori #${ticket.appTicketCategoryId}`
+        ? fmt.t("categoryFallback", { id: ticket.appTicketCategoryId })
         : undefined),
-    attachments: mapAttachments(ticket.attachments),
+    attachments: mapAttachments(ticket.attachments, fmt),
   };
 
   const allMessages = [initialMessage, ...mappedMessages].sort(
@@ -413,12 +432,13 @@ function mapWebsiteTicket(
   return {
     id: `TCK-${ticket.id}`,
     remoteId: Number(ticket.id),
-    title: ticket.subject || `Website Ticket #${ticket.id}`,
+    title: ticket.subject || fmt.t("ticketFallbackTitle", { id: ticket.id }),
     status: statusToLabel(ticket.slaStatus),
-    date: formatDate(ticket.createdAt),
+    rawStatus: ticket.slaStatus ?? null,
+    date: formatDate(ticket.createdAt, fmt),
     updatedAt: ticket.updatedAt ?? ticket.createdAt,
     lastActivityAt,
-    lastActivityTime: formatDateTime(lastActivityAt),
+    lastActivityTime: formatDateTime(lastActivityAt, fmt),
     unreadMessages: toSafeCount(ticket.unreadMessages),
     messages: allMessages,
   };
@@ -448,7 +468,7 @@ async function getTicketCategoryNameById(queryClient: QueryClient) {
   return new Map(categories.map((category) => [category.id, category.name]));
 }
 
-async function getWebsiteTicketRooms(queryClient: QueryClient) {
+async function getWebsiteTicketRooms(queryClient: QueryClient, fmt: NotificationFormatter) {
   const [response, categoryNameById] = await Promise.all([
     ticketService.getWebsiteTickets(),
     getTicketCategoryNameById(queryClient).catch(() => new Map<number, string>()),
@@ -462,18 +482,19 @@ async function getWebsiteTicketRooms(queryClient: QueryClient) {
       mapWebsiteTicket(
         ticket,
         (existingMessagesMap.get(ticket.id) as ChatMessage[]) ?? [],
-        categoryNameById
+        categoryNameById,
+        fmt
       )
     )
   );
 }
 
-async function getCommonNotifications() {
+async function getCommonNotifications(fmt: NotificationFormatter) {
   const response = await notificationService.getNotifications();
   const notifications = response.data.data ?? [];
 
   return notifications
-    .map(mapCommonNotification)
+    .map((notification) => mapCommonNotification(notification, fmt))
     .sort(
       (a, b) =>
         new Date(b.createdAt ?? "").getTime() -
@@ -520,6 +541,14 @@ function shouldRefreshForNotificationEvent(message: RealtimeEnvelope) {
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
+  const locale = useLocale();
+  const tNotification = useTranslations("notificationContext");
+  // Read by query functions / callbacks so mapped dates and fallback labels follow the active locale.
+  const formatterRef = useRef<NotificationFormatter>({
+    intlLocale: toIntlLocale(locale),
+    t: tNotification,
+  });
+  formatterRef.current = { intlLocale: toIntlLocale(locale), t: tNotification };
   const pathname = usePathname();
   const isNotificationsPage = pathname?.endsWith("/notifications") ?? false;
   const profileQuery = useAuthProfileGetProfile();
@@ -536,7 +565,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const notificationsQuery = useQuery({
     queryKey: NOTIFICATIONS_QUERY_KEY,
-    queryFn: getCommonNotifications,
+    queryFn: () => getCommonNotifications(formatterRef.current),
     refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
       ? SOCKET_SAFETY_REFRESH_INTERVAL_MS
       : NOTIFICATION_FALLBACK_REFRESH_INTERVAL_MS,
@@ -558,7 +587,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const websiteTicketsQuery = useQuery({
     queryKey: WEBSITE_TICKETS_QUERY_KEY,
-    queryFn: () => getWebsiteTicketRooms(queryClient),
+    queryFn: () => getWebsiteTicketRooms(queryClient, formatterRef.current),
     enabled: shouldLoadWebsiteTickets,
     refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
       ? SOCKET_SAFETY_REFRESH_INTERVAL_MS
@@ -567,6 +596,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
   });
+
+  // Cached items hold pre-formatted dates/labels; refetch them when the locale changes.
+  const previousLocaleRef = useRef(locale);
+  useEffect(() => {
+    if (previousLocaleRef.current === locale) return;
+    previousLocaleRef.current = locale;
+    void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: WEBSITE_TICKETS_QUERY_KEY });
+  }, [locale, queryClient]);
 
   useEffect(() => {
     ticketsRef.current = tickets;
@@ -661,7 +699,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return old.map(t => {
           if (t.remoteId === ticketId) {
             const initialMessage = t.messages[0];
-            const mappedMessages = (detail.messages ?? []).map(mapWebsiteMessage);
+            const mappedMessages = (detail.messages ?? []).map((message) =>
+              mapWebsiteMessage(message, formatterRef.current)
+            );
             const allMessages = [initialMessage, ...mappedMessages].sort(
               (a, b) => timestampOf(a.createdAt) - timestampOf(b.createdAt)
             );
@@ -672,7 +712,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               ...t,
               updatedAt: detail.ticket.updatedAt ?? detail.ticket.createdAt,
               lastActivityAt,
-              lastActivityTime: formatDateTime(lastActivityAt),
+              lastActivityTime: formatDateTime(lastActivityAt, formatterRef.current),
               unreadMessages: toSafeCount(detail.ticket.unreadMessages),
               messages: allMessages,
             };
@@ -797,7 +837,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         .then((response) => {
           const notification = response.data.data;
           if (notification) {
-            const mappedNotification = mapCommonNotification(notification);
+            const mappedNotification = mapCommonNotification(
+              notification,
+              formatterRef.current
+            );
             setNotifications((prev) =>
               prev.map((item) =>
                 item.id === mappedNotification.id ? mappedNotification : item
@@ -858,7 +901,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         id: Date.now(),
         sender: "user",
         text: body,
-        time: formatDateTime(now),
+        time: formatDateTime(now, formatterRef.current),
         createdAt: now,
         attachments,
       };
@@ -871,7 +914,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                   ...item,
                   updatedAt: now,
                   lastActivityAt: now,
-                  lastActivityTime: formatDateTime(now),
+                  lastActivityTime: formatDateTime(now, formatterRef.current),
                   messages: [...item.messages, optimisticMessage],
                 }
               : item
@@ -930,14 +973,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         ticketUnreadCount,
         isNotificationLoading: notificationsQuery.isLoading,
         isTicketLoading: websiteTicketsQuery.isLoading,
-        notificationError:
-          notificationsQuery.error instanceof Error
-            ? notificationsQuery.error.message
-            : null,
-        ticketError:
-          websiteTicketsQuery.error instanceof Error
-            ? websiteTicketsQuery.error.message
-            : null,
+        notificationError: notificationsQuery.error
+          ? errorString(notificationsQuery.error)
+          : null,
+        ticketError: websiteTicketsQuery.error
+          ? errorString(websiteTicketsQuery.error)
+          : null,
         markAsRead,
         markAllAsRead,
         addTicket,

@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { useFormNewBusiness } from "@/contexts/form-new-business-context";
 import { BusinessKnowledgePld } from "@/models/api/knowledge/business.type";
 import { SearchableCountrySelect } from "@/app/[locale]/profile/(components)/searchable-select-content";
+import { useMemo } from "react";
 import countryCodes from "@/lib/country-code.json";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeCountryNames } from "@/helper/locale";
 
 export function BusinessKnowledge() {
   const { formData, setFormData, errors, clearFieldError } =
@@ -24,13 +26,18 @@ export function BusinessKnowledge() {
   };
 
   const t = useTranslations("businessKnowledge");
+  const locale = useLocale();
+  const localizedCountries = useMemo(
+    () => localizeCountryNames(countryCodes, locale),
+    [locale]
+  );
 
   const defaultLabels = {
     logoBrand: t("logoBrand"),
     brandName: t("brandName"),
     category: t("category"),
     description: t("description"),
-    website: `${t("urlWebsite")} (Opsional)`,
+    website: t("urlWebsiteOptional"),
     phone: t("phone"),
     colorTone: t("colorTone"),
   };
@@ -80,7 +87,7 @@ export function BusinessKnowledge() {
               value={step1.category}
               onChange={(value) => updateField("category", value)}
               placeholder={finalPlaceholders.category}
-              label="Kategori Bisnis"
+              label={t("category")}
               error={errors.step1.category}
               onFocus={() => clearFieldError(0, "category")}
             />
@@ -114,14 +121,13 @@ export function BusinessKnowledge() {
         </label>
         <div className="flex gap-2">
           <SearchableCountrySelect
-            countries={countryCodes}
+            countries={localizedCountries}
             value={step1.countryCode || "+62"}
             onValueChange={(value) => {
               updateField("countryCode", value);
               clearFieldError(0, "countryCode");
             }}
             placeholder="+62"
-            searchPlaceholder="Search country..."
             className="w-36 bg-background-secondary"
           />
           <Input

@@ -13,7 +13,8 @@ import { MoreHorizontal, Edit, Trash2, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import { CreatorDesign } from "@/models/api/creator/design";
 import { useCreatorDesign } from "@/contexts/creator-design-context";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { toIntlLocale } from "@/helper/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DEFAULT_USER_AVATAR } from "@/constants";
 import { useState } from "react";
@@ -27,6 +28,7 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
   const { openEditModal, handlePublishToggle, handleDeleteDesign } =
     useCreatorDesign();
   const t = useTranslations("creatorDesign");
+  const locale = useLocale();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -75,7 +77,7 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
                 <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">
                   {design.templateImageCategories.length > 0
                     ? design.templateImageCategories[0].name
-                    : "Uncategorized"}
+                    : t("uncategorized")}
                 </span>
               </div>
             {/* Product Categories */}
@@ -83,7 +85,7 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
                 <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded">
                   {design.templateProductCategories.length > 0
                     ? design.templateProductCategories[0].indonesianName
-                    : "Uncategorized"}
+                    : t("uncategorized")}
                 </span>
               </div>
             </div>
@@ -99,13 +101,18 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
                 {/* Price */}
                 <div className="text-sm">
                   {design.price > 0
-                    ? `Rp ${design.price.toLocaleString()}`
-                    : "Free"}
+                    ? `Rp ${design.price.toLocaleString(toIntlLocale(locale))}`
+                    : t("free")}
                 </div>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon-sm" className="max-md:size-10">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="max-md:size-10"
+                    aria-label={t("moreActions")}
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -137,9 +144,10 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
                 <Switch
                   checked={design.isPublished}
                   onCheckedChange={handlePublishChange}
+                  aria-label={t("publishDesign")}
                 />
                 <span className="text-xs text-muted-foreground">
-                  {design.isPublished ? "Published" : "Draft"}
+                  {design.isPublished ? t("published") : t("draft")}
                 </span>
               </div>
 
@@ -148,8 +156,8 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
 
             {/* Stats */}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{design._count.templateImageSaved} saved</span>
-              <span>{new Date(design.createdAt).toLocaleDateString()}</span>
+              <span>{t("savedCount", { count: design._count.templateImageSaved })}</span>
+              <span>{new Date(design.createdAt).toLocaleDateString(toIntlLocale(locale))}</span>
             </div>
           </div>
         </div>

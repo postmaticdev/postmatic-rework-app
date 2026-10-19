@@ -1,5 +1,6 @@
 "use client";
 
+import { getMemberRoleLabel } from "@/helper/member-role";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
@@ -58,6 +59,7 @@ export function MobileMenu() {
   businesses.find((business) => business.id === businessId) || null;
   const userRole = currentBusiness?.userPosition?.role;
   const tSideBar = useTranslations("sideBar");
+  const tRole = useTranslations("memberRole");
   const { unreadCount } = useNotification();
   const notificationBusinessId = businessId || businesses[0]?.id;
   const isNotificationActive = pathname.endsWith("/notifications");
@@ -177,7 +179,7 @@ export function MobileMenu() {
         size="icon"
         onClick={() => setIsOpen(true)}
         className="relative md:hidden hover:bg-muted"
-        aria-label="Buka menu"
+        aria-label={tSideBar("openMenu")}
       >
         <Menu className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -190,17 +192,17 @@ export function MobileMenu() {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Menu"
+          aria-label={tSideBar("menu")}
           className="fixed inset-0 z-50 flex h-dvh flex-col bg-background md:hidden animate-in fade-in slide-in-from-right-8 duration-200"
         >
           {/* Header */}
           <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4">
-            <h2 className="text-lg font-semibold">Menu</h2>
+            <h2 className="text-lg font-semibold">{tSideBar("menu")}</h2>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsOpen(false)}
-              aria-label="Tutup menu"
+              aria-label={tSideBar("closeMenu")}
               className="-mr-2 size-12 rounded-full"
             >
               <X className="size-7" />
@@ -228,11 +230,11 @@ export function MobileMenu() {
                   </Avatar>
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-base font-semibold">
-                      {profile?.name || "Pengguna"}
+                      {profile?.name || tSideBar("user")}
                     </span>
                     {userRole && (
                       <span className="text-xs text-muted-foreground">
-                        {userRole || "Pengguna"}
+                        {getMemberRoleLabel(userRole, tRole) || tSideBar("user")}
                       </span>
                     )}
                   </div>
@@ -245,7 +247,7 @@ export function MobileMenu() {
                     size="icon"
                     onClick={() => handleThemeToggle(!isDarkMode)}
                     className="shrink-0 rounded-full"
-                    aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+                    aria-label={isDarkMode ? tSideBar("switchToLightMode") : tSideBar("switchToDarkMode")}
                   >
                     {isDarkMode ? (
                       <Sun className="h-4 w-4 text-yellow-500" />
@@ -280,7 +282,7 @@ export function MobileMenu() {
                 <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-4">
                   <div className="flex min-w-0 flex-col gap-1">
                     <span className="truncate text-xs font-medium text-muted-foreground">
-                      {subscription?.subscription?.productName || "Paket Gratis"}
+                      {subscription?.subscription?.productName || tSideBar("freePlan")}
                     </span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xl font-bold text-primary">
@@ -291,8 +293,9 @@ export function MobileMenu() {
                     </div>
                     {subscription?.expiredAt && (
                       <span className="text-xs text-muted-foreground">
-                        {tSideBar("validUntil")}{" "}
-                        {formatDate(new Date(subscription.expiredAt))}
+                        {tSideBar("validUntilDate", {
+                          date: formatDate(new Date(subscription.expiredAt)),
+                        })}
                       </span>
                     )}
                   </div>
@@ -307,7 +310,7 @@ export function MobileMenu() {
                         setIsOpen(false);
                       }}
                       className="shrink-0 rounded-full"
-                      aria-label="Top up token"
+                      aria-label={tSideBar("topUpToken")}
                     >
                       <Plus className="h-5 w-5 text-white" />
                     </Button>
@@ -319,7 +322,7 @@ export function MobileMenu() {
               {filteredNavigationItems.length > 0 && (
                 <nav className="pt-3">
                   <h3 className="px-1 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Navigasi
+                    {tSideBar("navigation")}
                   </h3>
                   <div className="overflow-hidden rounded-2xl border border-border bg-card p-1.5">
                     {filteredNavigationItems.map((item) => {

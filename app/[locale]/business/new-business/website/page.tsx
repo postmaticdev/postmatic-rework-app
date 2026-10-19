@@ -351,7 +351,7 @@ export default function NewBusinessWebsitePage() {
       await new Promise((resolve) => window.setTimeout(resolve, delayMs));
     }
 
-    throw new Error("Process timed out. Please try again.");
+    throw new Error(t("errorTimeout"));
   };
 
   const handleScrapWebsite = async () => {
@@ -383,13 +383,13 @@ export default function NewBusinessWebsitePage() {
 
       if (isErrorResult) {
         throw new Error(
-          finalResult.errorReason || "Website analysis failed. Please try again."
+          finalResult.errorReason || t("errorAnalysisFailed")
         );
       }
 
       if (!finalResult.data) {
         throw new Error(
-          "Website analysis is still processing. Please try again in a few moments."
+          t("errorStillProcessing")
         );
       }
 

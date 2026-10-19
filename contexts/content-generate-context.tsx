@@ -2,9 +2,11 @@
 
 import {
   ACCESS_TOKEN_KEY,
+  MAX_CAROUSEL_IMAGES,
   NEXT_PUBLIC_API_ORIGIN,
   NEXT_PUBLIC_ENABLE_CONTENT_FEATURES,
   NEXT_PUBLIC_ENABLE_SOCKET,
+  SELECTED_IMAGE_REFERENCE_NAME,
 } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
@@ -217,6 +219,9 @@ interface ContentGenerateContext {
     imageUrl: string,
     options?: { attachForEdit?: boolean }
   ) => void;
+  // Images picked via "Use Content", in carousel order. More than one means a carousel post.
+  selectedContentImages: string[];
+  onToggleContentImage: (item: JobData, imageUrl: string) => void;
 
   // AI Models
   aiModels: {
@@ -420,8 +425,6 @@ const sleep = (ms: number) =>
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-const schedulerFirstGeneratePrompt =
-  "Buat gambar konten promosi produk yang menarik untuk media sosial berdasarkan produk yang dipilih.";
 const REALTIME_IMAGE_ITEM_HYDRATION_ATTEMPTS = 5;
 const REALTIME_IMAGE_ITEM_HYDRATION_INTERVAL_MS = 1500;
 
@@ -770,7 +773,10 @@ function buildSchedulerFallbackChatJob({
   imageSize,
   productName,
   caption,
+  prompt,
 }: {
+  /** Localized first-generation prompt (`contentGenerateScheduler.firstGeneratePrompt`). */
+  prompt: string;
   scheduledPostId: string;
   businessId: string;
   chatSessionId?: number | null;
@@ -799,7 +805,7 @@ function buildSchedulerFallbackChatJob({
     input: {
       rss: null,
       ratio,
-      prompt: schedulerFirstGeneratePrompt,
+      prompt,
       caption: caption || "",
       chatSessionId: chatSessionId ?? null,
       avatarImageUrl: avatarImages[0] || null,
@@ -1005,6 +1011,9 @@ export const ContentGenerateProvider = ({
   const [selectedGeneratedImageUrl, setSelectedGeneratedImageUrl] = useState<
     string | null
   >(null);
+  const [selectedContentImages, setSelectedContentImages] = useState<string[]>(
+    []
+  );
   const selectedHistory = useMemo(() => {
     if (!selectedJobId) return null;
     return (
@@ -1181,6 +1190,7 @@ export const ContentGenerateProvider = ({
       }));
       setSelectedJobId(item.id);
       setSelectedGeneratedImageUrl(activeImageUrl);
+      setSelectedContentImages(activeImageUrl ? [activeImageUrl] : []);
       setFormAdvance(initialFormAdvance);
       setFormRss(null);
       setMode("regenerate");
@@ -1198,6 +1208,7 @@ export const ContentGenerateProvider = ({
       setTab("knowledge");
       setSelectedJobId(null);
       setSelectedGeneratedImageUrl(null);
+      setSelectedContentImages([]);
       setFormBasic({
         ...initialFormBasic,
         model: defaultModel?.name || initialFormBasic.model,
@@ -1251,7 +1262,7 @@ export const ContentGenerateProvider = ({
       setFormBasic((prev) => ({
         ...prev,
         prompt: options?.attachForEdit ? "" : prev.prompt,
-        referenceImageName: options?.attachForEdit ? "Selected image" : "",
+        referenceImageName: options?.attachForEdit ? SELECTED_IMAGE_REFERENCE_NAME : "",
         caption: item?.result?.caption || prev.caption || "",
         productKnowledgeId: item?.input?.productKnowledgeId || "",
         productName: item?.product?.name || "",
@@ -1280,6 +1291,65 @@ export const ContentGenerateProvider = ({
       setIsDraftSaved(false);
     },
     [aiModelsRes, isFreeUser]
+  );
+
+  // A single selection follows the primary image (e.g. a new result becomes the
+  // used content). A carousel selection survives new generations and edits;
+  // only onSelectHistory (history pick / reset form) clears it.
+  useEffect(() => {
+    setSelectedContentImages((current) => {
+      if (current.length > 1) return current;
+      return selectedGeneratedImageUrl ? [selectedGeneratedImageUrl] : [];
+    });
+  }, [selectedGeneratedImageUrl]);
+
+  const onToggleContentImage = useCallback(
+    (item: JobData, imageUrl: string) => {
+      if (!selectedContentImages.includes(imageUrl)) {
+        if (selectedContentImages.length === 0) {
+          onSelectGeneratedImage(item, imageUrl);
+          return;
+        }
+        if (selectedContentImages.length >= MAX_CAROUSEL_IMAGES) return;
+        setSelectedContentImages([...selectedContentImages, imageUrl]);
+        return;
+      }
+
+      // Keep at least one image selected.
+      if (selectedContentImages.length === 1) return;
+
+      const remainingImages = selectedContentImages.filter(
+        (selectedUrl) => selectedUrl !== imageUrl
+      );
+      setSelectedContentImages(remainingImages);
+      // The primary can sit outside a carousel selection after a new result;
+      // re-anchor it once it no longer matches what the preview shows.
+      const isPrimaryKept =
+        !!selectedGeneratedImageUrl &&
+        remainingImages.includes(selectedGeneratedImageUrl);
+      if (
+        isPrimaryKept ||
+        (remainingImages.length > 1 && imageUrl !== selectedGeneratedImageUrl)
+      ) {
+        return;
+      }
+
+      const nextPrimaryUrl = remainingImages[0];
+      const nextPrimaryJob = histories
+        .flatMap((group) => group.jobs)
+        .find((job) => job.result?.images?.includes(nextPrimaryUrl));
+      if (nextPrimaryJob) {
+        onSelectGeneratedImage(nextPrimaryJob, nextPrimaryUrl);
+      } else {
+        setSelectedGeneratedImageUrl(nextPrimaryUrl);
+      }
+    },
+    [
+      histories,
+      onSelectGeneratedImage,
+      selectedContentImages,
+      selectedGeneratedImageUrl,
+    ]
   );
 
   /**
@@ -1535,6 +1605,7 @@ export const ContentGenerateProvider = ({
         productKnowledgeId: productKnowledgeId || null,
       };
       const fallbackJob = buildSchedulerFallbackChatJob({
+        prompt: t("contentGenerateScheduler.firstGeneratePrompt"),
         scheduledPostId: routeScheduledPostId,
         businessId,
         chatSessionId: Number(routeChatSessionId),
@@ -1648,6 +1719,7 @@ export const ContentGenerateProvider = ({
           })
         : [
             buildSchedulerFallbackChatJob({
+              prompt: t("contentGenerateScheduler.firstGeneratePrompt"),
               scheduledPostId: routeScheduledPostId,
               businessId,
               chatSessionId: Number(routeChatSessionId),
@@ -2551,7 +2623,7 @@ export const ContentGenerateProvider = ({
 
     const chatSessionId = draft.chatSessionId;
     if (!chatSessionId) {
-      showToast("error", "Chat session belum tersedia dari scheduled post.");
+      showToast("error", t("contentGenerateScheduler.chatSessionUnavailable"));
       return true;
     }
 
@@ -2565,11 +2637,11 @@ export const ContentGenerateProvider = ({
         : form.basic.imageSize;
     const firstPrompt =
       form.basic.prompt?.trim() ||
-      (isFirstSchedulerBubble ? schedulerFirstGeneratePrompt : "");
+      (isFirstSchedulerBubble ? t("contentGenerateScheduler.firstGeneratePrompt") : "");
     const firstRss =
       isFirstSchedulerBubble && effMode === "rss" ? form.rss : null;
     const selectedSystemBubbleId =
-      form.basic.referenceImageName === "Selected image" &&
+      form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME &&
       typeof selectedHistory?.input?.systemBubbleId === "number"
         ? selectedHistory.input.systemBubbleId
         : undefined;
@@ -2578,7 +2650,7 @@ export const ContentGenerateProvider = ({
         ? selectedSystemBubbleId
         : undefined;
     const selectedReplyReferenceImage =
-      replyBubbleChatId && form.basic.referenceImageName === "Selected image"
+      replyBubbleChatId && form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
         ? selectedGeneratedImageUrl || form.basic.referenceImage || null
         : null;
     const selectedAvatarImages = form.basic.selectedAvatars.map(
@@ -2744,7 +2816,7 @@ export const ContentGenerateProvider = ({
                 (error as { response?: { data?: { responseMessage?: string } } })
                   ?.response?.data?.responseMessage ||
                   (error as Error)?.message ||
-                  "Image chat belum siap. Coba generate ulang."
+                  t("contentGenerateScheduler.imageChatNotReady")
               ),
             stack: null,
             attempt: 4,
@@ -2873,7 +2945,7 @@ export const ContentGenerateProvider = ({
       );
     } catch (error) {
       console.error(error);
-      showToast("error", typeof t === "function" ? t("toast.contentGeneration.failed") : "Generation failed");
+      showToast("error", t("toast.contentGeneration.failed"));
     } finally {
       setIsLoading(false);
     }
@@ -3695,6 +3767,8 @@ export const ContentGenerateProvider = ({
         schedulerChatSeed,
         onSelectHistory,
         onSelectGeneratedImage,
+        selectedContentImages,
+        onToggleContentImage,
         selectedTemplate,
         setSelectedTemplate,
         isLoading,
@@ -3712,6 +3786,10 @@ export const ContentGenerateProvider = ({
     </ContentGenerateContext.Provider>
   );
 };
+
+// For shared components that also render outside the content-generate page.
+export const useOptionalContentGenerate = () =>
+  useContext(ContentGenerateContext);
 
 export const useContentGenerate = () => {
   const context = useContext(ContentGenerateContext);

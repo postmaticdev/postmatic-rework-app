@@ -62,6 +62,7 @@ export function PaginationWithControls({
   currData,
   showSort = true,
 }: PaginationWithControlsProps) {
+  const t = useTranslations("paginationControls");
   const limitOptions = [5, 7, 10, 20, 50];
 
   const sort = filterQuery?.productCategory || "all";
@@ -75,14 +76,12 @@ export function PaginationWithControls({
 
   const allSortOptions: SortOption[] = [
     {
-      label: "Semua",
+      label: t("all"),
       value: "all",
     },
     ...sortOptions,
     ...productCategorySortOptions,
   ];
-
-  const t = useTranslations("paginationControls");
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -102,7 +101,7 @@ export function PaginationWithControls({
                 }
               >
                 <SelectTrigger className="h-9 w-[140px] text-sm max-md:h-(--control-h) max-sm:text-base">
-                  <SelectValue placeholder="Sort by" />
+                  <SelectValue placeholder={t("sortBy")} />
                 </SelectTrigger>
                 <SelectContent>
                   {allSortOptions.map((option) => (
@@ -141,7 +140,7 @@ export function PaginationWithControls({
         {/* Results Info */}
 
         <div className="text-xs text-muted-foreground">
-          {t("showing")} {currData} {t("of")} {pagination.total} {t("results")}
+          {t("showingResults", { count: currData, total: pagination.total })}
         </div>
         {!showSort && (
           <Select

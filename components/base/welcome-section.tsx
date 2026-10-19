@@ -1,6 +1,7 @@
 import { TimezoneSelector } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/timezone-selector";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Badge } from "../ui/badge";
 interface WelcomeSectionProps {
   title?: string;
@@ -10,11 +11,12 @@ interface WelcomeSectionProps {
 }
 
 export function WelcomeSection({
-  title = "IF THIS SHOW, IT MEANS ERROR",
-  message = "IF THIS SHOW, IT MEANS ERROR",
+  title = "",
+  message = "",
   showTimezoneSelector = false,
   showSubscription = false,
 }: WelcomeSectionProps) {
+  const t = useTranslations("welcomeSection");
   const { businessId } = useParams() as { businessId: string };
   const { data: subscriptionData } = useSubscribtionGetSubscription(
     businessId || ""
@@ -30,7 +32,7 @@ export function WelcomeSection({
             </h1>
             {showSubscription && (
               <Badge className="text-xs text-white w-fit">
-                {subscription?.subscription?.productName || "Paket Gratis"}
+                {subscription?.subscription?.productName || t("freePlan")}
               </Badge>
             )}
           </div>

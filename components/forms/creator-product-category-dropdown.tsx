@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Info } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTemplateProductCategories } from "@/services/template-category.api";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -26,11 +27,14 @@ interface CreatorProductCategoryDropdownProps {
 export function CreatorProductCategoryDropdown({
   value,
   onChange,
-  placeholder = "Pilih kategori produk",
-  label = "Kategori Produk",
+  placeholder: placeholderProp,
+  label: labelProp,
   error,
   onFocus,
 }: CreatorProductCategoryDropdownProps) {
+  const tField = useTranslations("productCategory");
+  const placeholder = placeholderProp ?? tField("selectPlaceholder");
+  const label = labelProp ?? tField("label");
   const { data: categoriesResponse, isLoading } =
     useTemplateProductCategories();
   const categories = categoriesResponse?.data?.data || [];

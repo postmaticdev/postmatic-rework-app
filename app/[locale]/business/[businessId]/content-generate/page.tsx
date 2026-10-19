@@ -11,6 +11,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
+import { SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
 
 // Mobile (< lg) memecah halaman menjadi langkah terpisah:
 // 1. "reference" — pilih referensi, sticky button Lanjutkan
@@ -55,7 +56,7 @@ export default function ContentGenerate() {
           size={112}
           hideContentBackground={false}
           pulse
-          label="Loading scheduler chat"
+          label={t("loadingSchedulerChat")}
         />
       </main>
     );
@@ -142,7 +143,12 @@ export default function ContentGenerate() {
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border">
               <Image
                 src={selectedReferenceImage}
-                alt={form.basic.referenceImageName || ""}
+                alt={
+                  // The context's marker for an attached edit image.
+                  form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
+                    ? t("selectedEditReferenceAlt")
+                    : form.basic.referenceImageName || ""
+                }
                 fill
                 className="object-cover"
                 unoptimized

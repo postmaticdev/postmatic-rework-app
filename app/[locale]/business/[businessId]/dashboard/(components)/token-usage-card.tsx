@@ -47,8 +47,9 @@ export function TokenUsageCard() {
 
         {subscription?.expiredAt && (
           <span className="text-sm text-red-500">
-            ({t("validUntil")}
-            {formatDate(new Date(subscription?.expiredAt))})
+            {t("validUntilDate", {
+              date: formatDate(new Date(subscription?.expiredAt)),
+            })}
           </span>
         )}
       </div>
@@ -60,11 +61,19 @@ export function TokenUsageCard() {
 
       <div className="flex mt-2 justify-between flex-row text-sm">
         <span className="text-muted-foreground">
-          {usedValue.toLocaleString(locale)} {t("usedValue")} ({percentage.toFixed(2)}%)
+          {t("usedWithPercent", {
+            used: usedValue.toLocaleString(locale),
+            percent: percentage.toLocaleString(locale, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }),
+          })}
         </span>
 
         <span className="text-muted-foreground">
-          {availableValue.toLocaleString(locale)} {t("availableValue")}
+          {t("availableWithValue", {
+            available: availableValue.toLocaleString(locale),
+          })}
         </span>
       </div>
     </div>

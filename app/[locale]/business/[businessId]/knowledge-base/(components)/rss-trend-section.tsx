@@ -39,7 +39,7 @@ import {
 import { NoContent } from "@/components/base/no-content";
 import { SearchNotFound } from "@/components/base/search-not-found";
 import { getRssSourceImage } from "@/helper/rss-image-helper";
-import { rssKnowledgeSchema } from "@/validator/new-business";
+import z from "zod";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { useRole } from "@/contexts/role-context";
 import { useTranslations } from "next-intl";
@@ -178,6 +178,19 @@ export function RSSTrendSection({
 
   const e = useTranslations("errors");
   const r = useTranslations("rssKnowledge");
+  const rssKnowledgeSchema = useMemo(
+    () =>
+      z.object({
+        title: z
+          .string()
+          .min(1, r("zodFeedTitle"))
+          .max(100, r("zodMaxLengthFeedTitle")),
+        masterRssCategoryId: z.string().min(1, r("zodFeedCategory")),
+        masterRssId: z.string().min(1, r("zodRssSource")),
+        isActive: z.boolean(),
+      }),
+    [r]
+  );
   const [isSavingRSS, setIsSavingRSS] = useState(false);
   const isSavingRSSRef = useRef(false);
   const handleSaveRSS = async (item: AddRssPld & { id?: string }) => {

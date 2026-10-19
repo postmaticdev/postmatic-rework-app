@@ -11,6 +11,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ImagePlus, Plus, Send, BookOpen } from "lucide-react";
 import { AiModelSelect } from "@/components/forms/ai-model-select";
+import { useTranslations } from "next-intl";
 
 type ModelOption = {
   name: string;
@@ -49,6 +50,7 @@ export function ChatComposerField({
   onAttachGallery,
   onAttachKnowledge,
 }: ChatComposerFieldProps) {
+  const t = useTranslations("generationPanel");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -84,6 +86,7 @@ export function ChatComposerField({
                 size="icon-sm"
                 className="shrink-0 border border-border bg-card hover:bg-card/80 max-sm:size-10"
                 disabled={disabled || isUploadingAttachment}
+                aria-label={t("attachImage")}
               >
                 {isUploadingAttachment ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -100,7 +103,7 @@ export function ChatComposerField({
                 }}
               >
                 <ImagePlus className="h-4 w-4" />
-                Import Gallery
+                {t("importGallery")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={(event) => {
@@ -109,7 +112,7 @@ export function ChatComposerField({
                 }}
               >
                 <BookOpen className="h-4 w-4" />
-                Import from Knowledge
+                {t("importFromKnowledgeTitle")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -141,6 +144,7 @@ export function ChatComposerField({
               disabled={disabled || !canSubmit}
               size="icon-sm"
               className="shrink-0 rounded-full max-sm:size-10"
+              aria-label={t("sendPrompt")}
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -162,6 +166,7 @@ export function ChatComposerField({
                 size="icon-sm"
                 className="shrink-0 border border-border bg-card hover:bg-card/80 max-sm:size-10"
                 disabled={disabled || isUploadingAttachment}
+                aria-label={t("attachImage")}
               >
                 {isUploadingAttachment ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -178,7 +183,7 @@ export function ChatComposerField({
                 }}
               >
                 <ImagePlus className="h-4 w-4" />
-                Import Gallery
+                {t("importGallery")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={(event) => {
@@ -186,7 +191,7 @@ export function ChatComposerField({
                   onAttachKnowledge();
                 }}
               >
-                Import from Knowledge
+                {t("importFromKnowledgeTitle")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -208,6 +213,7 @@ export function ChatComposerField({
               disabled={disabled || !canSubmit}
               size="icon-sm"
               className="shrink-0 rounded-full max-sm:size-10"
+              aria-label={t("sendPrompt")}
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

@@ -37,6 +37,9 @@ export const createBusinessKnowledgeSchema = (messages: {
   zodMaxLengthBrandName: string;
   zodMaxLengthDescription: string;
   zodMaxLengthPhone: string;
+  zodMaxLengthWebsite: string;
+  zodUrlWebsite: string;
+  zodCountryCode: string;
 }) => z.object({
   primaryLogo: z.string().min(1, messages.zodLogoBrand),
   name: z
@@ -50,20 +53,21 @@ export const createBusinessKnowledgeSchema = (messages: {
     .max(1000, messages.zodMaxLengthDescription),
   visionMission: z.string(),
   website: optionalUrlSchema(
-    "Website harus kurang dari 200 karakter",
-    "Website harus berupa URL valid"
+    messages.zodMaxLengthWebsite,
+    messages.zodUrlWebsite
   ),
   businessPhone: z
     .string()
     .min(1, messages.zodPhone)
     .max(50, messages.zodMaxLengthPhone),
-  countryCode: z.string().min(1, "Harap pilih kode negara"),
+  countryCode: z.string().min(1, messages.zodCountryCode),
   uniqueSellingPoint: z.string(),
   location: z.string(),
   colorTone: colorToneSchemaWithMsg(messages.zodColorTone),
 });
 
-// Default schema with Indonesian messages (for backward compatibility)
+// Default schema with Indonesian messages (for backward compatibility).
+// Only used for type inference — runtime validation goes through useBusinessKnowledgeSchema().
 export const businessKnowledgeSchema = z.object({
   primaryLogo: z.string().min(1, "Harap upload logo bisnis"),
   name: z

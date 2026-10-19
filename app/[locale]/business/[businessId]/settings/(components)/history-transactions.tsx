@@ -17,7 +17,6 @@ import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { PurchaseDetailModal } from "@/app/[locale]/business/[businessId]/settings/(components)/purchase-detail-modal";
 import { useState } from "react";
 import { NoContent } from "@/components/base/no-content";
-import { formatIdr } from "@/helper/formatter";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { dateFormat } from "@/helper/date-format";
 import {
@@ -27,12 +26,14 @@ import {
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useLocale, useTranslations } from "next-intl";
 import {
+  formatIdrStable,
   formatProductName,
   formatProductType,
 } from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 
 export function HistoryTransactions() {
   const locale = useLocale();
+  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
   const { businessId } = useParams() as { businessId: string };
   const [filterQuery, setFilterQuery] = useState<Partial<FilterQuery>>({
     page: 1,

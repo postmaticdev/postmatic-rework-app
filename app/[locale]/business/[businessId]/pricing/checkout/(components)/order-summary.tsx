@@ -47,7 +47,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
   const billedText = isOneTime
     ? tPricing("purchaseOnce")
     : periodLabel
-      ? t("billedPeriod", { period: periodLabel })
+      ? t("billedCycle", { cycle: validForInfo ?? "", label: periodLabel })
       : "";
 
   const detailItems = [
@@ -94,7 +94,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
           <Link href="/" className="mb-8">
             <Image
               src="/logowhite.png"
-              alt="Postmatic Logo"
+              alt={t("logoAlt")}
               width={70}
               height={40}
             />
@@ -109,7 +109,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
               isDesktop ? "text-3xl" : "text-2xl"
             }`}
           >
-            {formatIdrStable(price)}{" "}
+            {formatIdrStable(price, locale)}{" "}
             <span
               className={` font-normal ${isDesktop ? "text-lg" : "text-base"}`}
             >
@@ -163,7 +163,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                   isDesktop ? "text-base" : "text-sm"
                 }`}
               >
-                {formatIdrStable(price)}
+                {formatIdrStable(price, locale)}
               </div>
             </div>
           </div>
@@ -184,7 +184,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                     isDesktop ? "text-base" : "text-sm"
                   }`}
                 >
-                  {formatIdrStable(item.value || 0)}
+                  {formatIdrStable(item.value || 0, locale)}
                 </span>
               </div>
             ))}
@@ -205,7 +205,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
                     isDesktop ? "text-lg" : "text-base"
                   }`}
                 >
-                  {formatIdrStable(detailPricing?.total || 0)}
+                  {formatIdrStable(detailPricing?.total || 0, locale)}
                 </span>
               </div>
             </div>

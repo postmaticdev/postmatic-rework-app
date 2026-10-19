@@ -21,6 +21,8 @@ interface UploadPhotoProps {
     | ((urls: string[]) => void);
   currentImages?: string[];
   multiple?: boolean;
+  /** Multiple mode only: rejects a selection that would exceed this count. */
+  maxImages?: number;
   error?: string;
   onFocus?: () => void;
   emptyText?: string;
@@ -38,16 +40,20 @@ export function UploadPhoto({
   onImagesChange,
   currentImages = EMPTY_ARRAY,
   multiple = false,
+  maxImages,
   error,
   onFocus,
-  emptyText = "Upload Photo",
-  uploadingText = "Uploading...",
+  emptyText: emptyTextProp,
+  uploadingText: uploadingTextProp,
   onUploadingChange,
 }: UploadPhotoProps) {
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [previews, setPreviews] = useState<string[]>(currentImages);
   const [isUploading, setIsUploading] = useState(false);
   const t = useTranslations();
+  const tUpload = useTranslations("uploadPhoto");
+  const emptyText = emptyTextProp ?? tUpload("empty");
+  const uploadingText = uploadingTextProp ?? tUpload("uploading");
 
   useEffect(() => {
     setPreview(currentImage || null);
@@ -72,6 +78,10 @@ export function UploadPhoto({
           .find(Boolean);
         if (invalidReason) {
           showToast("error", t(`toast.content.${invalidReason}`));
+          return;
+        }
+        if (multiple && maxImages && previews.length + files.length > maxImages) {
+          showToast("error", t("toast.content.maxImagesExceeded", { max: maxImages }));
           return;
         }
         setIsUploading(true);
@@ -158,7 +168,7 @@ export function UploadPhoto({
             <div key={`${imageUrl}-${index}`} className="relative">
               <Image
                 src={imageUrl}
-                alt={`Preview ${index + 1}`}
+                alt={tUpload("previewAltIndexed", { index: index + 1 })}
                 width={400}
                 height={400}
                 className="h-32 w-32 rounded-lg object-cover sm:h-40 sm:w-40"
@@ -170,6 +180,7 @@ export function UploadPhoto({
                 size="icon"
                 className="absolute -right-2 -top-2 size-7 rounded-full max-sm:after:absolute max-sm:after:-inset-2 max-sm:after:content-['']"
                 onClick={() => handleRemoveImage(index)}
+                aria-label={tUpload("removeImage", { index: index + 1 })}
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -228,7 +239,7 @@ export function UploadPhoto({
         ) : preview ? (
           <Image
             src={preview}
-            alt="Preview"
+            alt={tUpload("previewAlt")}
             width={400}
             height={400}
             className="h-full w-full rounded-lg object-cover"

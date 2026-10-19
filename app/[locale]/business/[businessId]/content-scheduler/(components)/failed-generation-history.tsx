@@ -11,6 +11,7 @@ import { useContentGenerate } from "@/contexts/content-generate-context";
 import { JobData } from "@/models/socket-content";
 import { useParams } from "next/navigation";
 import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { useLocale, useTranslations } from "next-intl";
 
 export function isProblemGenerationJob(job: JobData) {
   return (
@@ -20,13 +21,13 @@ export function isProblemGenerationJob(job: JobData) {
   );
 }
 
-function formatJobDate(value: string) {
+function formatJobDate(value: string, locale: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -44,6 +45,8 @@ export function FailedGenerationHistory() {
   const { histories, onSelectHistory } = useContentGenerate();
   const { businessId } = useParams() as { businessId: string };
   const router = useRouter();
+  const t = useTranslations("contentScheduler");
+  const locale = useLocale();
 
   const failedJobs = histories
     .flatMap((group) => group.jobs)
@@ -69,14 +72,14 @@ export function FailedGenerationHistory() {
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-red-700 dark:text-red-300">
               <AlertCircle className="h-5 w-5" />
-              Generation Issues
+              {t("generationIssuesTitle")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Image generation attempts that did not finish successfully.
+              {t("generationIssuesDescription")}
             </p>
           </div>
           <Badge variant="destructive" className="self-start text-white sm:self-auto">
-            {failedJobs.length} issues
+            {t("issuesCount", { count: failedJobs.length })}
           </Badge>
         </div>
 
@@ -94,7 +97,7 @@ export function FailedGenerationHistory() {
               >
                 <Image
                   src={image}
-                  alt={job.product?.name || "Failed generation"}
+                  alt={job.product?.name || t("failedGenerationAlt")}
                   width={96}
                   height={96}
                   className="h-20 w-20 shrink-0 rounded-md object-cover"
@@ -103,19 +106,19 @@ export function FailedGenerationHistory() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">
-                        {job.product?.name || "Unknown product"}
+                        {job.product?.name || t("unknownProduct")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatJobDate(job.updatedAt)}
+                        {formatJobDate(job.updatedAt, locale)}
                       </p>
                     </div>
-                    <Badge variant="destructive" className="shrink-0 text-white">Failed</Badge>
+                    <Badge variant="destructive" className="shrink-0 text-white">{t("failedBadge")}</Badge>
                   </div>
 
                   <p className="line-clamp-2 text-sm text-red-700 dark:text-red-300">
                     {getErrorMessage(
                       job,
-                      "The image generation finished without a usable image."
+                      t("generationNoUsableImage")
                     )}
                   </p>
 
@@ -135,7 +138,7 @@ export function FailedGenerationHistory() {
                     onClick={() => openJob(job)}
                   >
                     <ExternalLink className="h-3.5 w-3.5 max-sm:size-4" />
-                    Open in Generator
+                    {t("openInGenerator")}
                   </Button>
                 </div>
               </div>

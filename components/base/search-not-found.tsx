@@ -2,7 +2,8 @@ import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface SearchNotFoundProps {
-  description: string;
+  /** Optional hint appended to the default text, e.g. "or add a new product". */
+  description?: string;
 }
 
 export function SearchNotFound({ description }: SearchNotFoundProps) {
@@ -14,7 +15,9 @@ export function SearchNotFound({ description }: SearchNotFoundProps) {
         {t("title")}
       </h3>
       <p className="text-sm text-muted-foreground">
-       {t("description")} {description}  
+        {description?.trim()
+          ? t("descriptionWithHint", { hint: description.trim() })
+          : t("descriptionDefault")}
       </p>
     </div>
   );

@@ -10,6 +10,9 @@ import {
   FaWhatsapp,
   FaYoutube,
 } from "react-icons/fa";
+import { getToastLocale } from "@/helper/api-response-message";
+
+const getUnknownLabel = () => (getToastLocale() === "en" ? "Unknown" : "Tidak Diketahui");
 
 
 
@@ -78,7 +81,7 @@ const getPlatformLabel = (platform: PlatformEnum): string => {
     case "pinterest":
       return "Pinterest";
     default:
-      return "Tidak Diketahui";
+      return getUnknownLabel();
   }
 };
 
@@ -135,7 +138,7 @@ const getPlatformHint = (
     case "unavailable":
       return t("notAvailable");
     default:
-      return "Tidak Diketahui";
+      return getUnknownLabel();
   }
 };
 

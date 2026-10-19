@@ -1,15 +1,24 @@
 // Display helpers for product data coming from the API (raw enums / generated names).
 
+// next-intl locale ("id" | "en") -> Intl locale tag.
+export const toIntlLocale = (locale: string) =>
+  locale === "en" ? "en-US" : "id-ID";
+
 // IDR formatter with explicit fraction digits. The shared `formatIdr` relies on the
 // runtime's ICU default for IDR, which differs between Node ("Rp 0") and browsers
 // ("Rp 0,00") and caused a hydration mismatch on SSR-rendered checkout prices.
-const idrFormatter = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-export const formatIdrStable = (amount: number) => idrFormatter.format(amount);
+// Currency is always IDR; the number format follows the active locale.
+const idrFormatters: Record<string, Intl.NumberFormat> = {};
+export const formatIdrStable = (amount: number, locale: string = "id") => {
+  const tag = toIntlLocale(locale);
+  idrFormatters[tag] ??= new Intl.NumberFormat(tag, {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return idrFormatters[tag].format(amount);
+};
 
 // "image_token" -> "Image Token", "token" -> "Token"
 export const formatProductType = (type?: string | null) => {

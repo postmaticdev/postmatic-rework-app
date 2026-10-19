@@ -35,7 +35,7 @@ export function PersonalInformation() {
         <div className="w-40 h-40 rounded-full overflow-hidden mb-4 md:hidden ">
           <Image
             src={profile?.image || DEFAULT_USER_AVATAR}
-            alt="Foto Profil"
+            alt={t("profilePhoto")}
             width={200}
             height={200}
             className="w-full h-full object-cover"
@@ -46,7 +46,7 @@ export function PersonalInformation() {
           <div className="w-32 h-32 rounded-full overflow-hidden hidden md:block flex-shrink-0 ">
             <Image
               src={profile?.image || DEFAULT_USER_AVATAR}
-              alt="Foto Profil"
+              alt={t("profilePhoto")}
               width={500}
               height={500}
               className="w-full h-full object-cover"

@@ -32,3 +32,10 @@ export const SOCIAL_MEDIA_PLATFORMS: PlatformEnum[] = [
   "instagram_professional",
   "linked_in",
 ];
+
+// Facebook caps carousel posts at 10 images; Instagram and LinkedIn allow more.
+export const MAX_CAROUSEL_IMAGES = 10;
+
+// Internal marker stored in `form.basic.referenceImageName` for an image attached for editing.
+// Never render it directly; show a translated label instead.
+export const SELECTED_IMAGE_REFERENCE_NAME = "Selected image";
