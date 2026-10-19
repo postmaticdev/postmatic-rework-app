@@ -70,7 +70,7 @@ export type VideoChatMessage =
 export const getGenerateStepKey = (progress: number) =>
   progress < 50 ? "stepScenes" : "stepRender";
 
-export const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const MAX_HISTORY = 50;
 
@@ -139,14 +139,6 @@ export function useVideoGenerator({
     storyboardRef.current = nextStoryboard;
     setStoryboardState(nextStoryboard);
   }, []);
-
-  // Manual edits from the storyboard review.
-  const updateStoryboard = useCallback(
-    (updater: (current: VideoStoryboard) => VideoStoryboard) => {
-      if (storyboardRef.current) setStoryboard(updater(storyboardRef.current));
-    },
-    [setStoryboard]
-  );
 
   const pushHistory = useCallback((snapshot: VideoProject) => {
     const { past } = historyRef.current;
@@ -507,7 +499,6 @@ export function useVideoGenerator({
     setup,
     setSetup,
     storyboard,
-    updateStoryboard,
     approveStoryboard,
     submitPrompt,
     retry,

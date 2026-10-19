@@ -89,35 +89,98 @@ const buildMockStoryboardScenes = (payload: GenerateVideoPld): StoryboardScene[]
   });
 };
 
+const MOCK_PANEL_COLORS = ["#2563eb", "#7c3aed", "#ea580c", "#0d9488", "#db2777", "#4f46e5"];
+
+const escapeSvgText = (text: string) =>
+  text.replace(/[&<>"]/g, (char) => `&#${char.charCodeAt(0)};`);
+
+const truncate = (text: string, max: number) =>
+  text.length > max ? `${text.slice(0, max - 1)}…` : text;
+
+// Draws the storyboard sheet the backend will return as an image: one panel
+// per scene in the video's ratio, with its title and caption.
+const buildMockStoryboardImage = (
+  scenes: StoryboardScene[],
+  ratio: VideoStoryboard["ratio"]
+) => {
+  const [ratioWidth, ratioHeight] = ratio.split(":").map(Number);
+  const columns = scenes.length <= 4 ? 2 : scenes.length <= 6 ? 3 : 4;
+  const rows = Math.ceil(scenes.length / columns);
+  const gap = 24;
+  const panelWidth = 320;
+  const frameHeight = Math.round((panelWidth * ratioHeight) / ratioWidth);
+  const panelHeight = frameHeight + 72;
+  const width = columns * panelWidth + (columns + 1) * gap;
+  const height = rows * panelHeight + (rows + 1) * gap;
+  const sceneWord = getToastLocale() === "id" ? "Adegan" : "Scene";
+
+  const panels = scenes
+    .map((scene, index) => {
+      const x = gap + (index % columns) * (panelWidth + gap);
+      const y = gap + Math.floor(index / columns) * (panelHeight + gap);
+      const color = MOCK_PANEL_COLORS[index % MOCK_PANEL_COLORS.length];
+      return `
+        <g transform="translate(${x} ${y})">
+          <rect width="${panelWidth}" height="${frameHeight}" rx="14" fill="${color}" />
+          <rect width="${panelWidth}" height="${frameHeight}" rx="14" fill="url(#shade)" />
+          <rect x="14" y="14" width="96" height="28" rx="14" fill="rgba(0,0,0,0.35)" />
+          <text x="62" y="33" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">${sceneWord} ${index + 1}</text>
+          <text x="${panelWidth / 2}" y="${frameHeight - 28}" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">${escapeSvgText(truncate(scene.caption ?? "", 30))}</text>
+          <text x="2" y="${frameHeight + 30}" font-size="17" font-weight="700" fill="#111827">${escapeSvgText(truncate(scene.title, 28))} · ${scene.durationSec}s</text>
+          <text x="2" y="${frameHeight + 56}" font-size="14" fill="#6b7280">${escapeSvgText(truncate(scene.description, 40))}</text>
+        </g>`;
+    })
+    .join("");
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Inter, Arial, sans-serif">
+    <defs>
+      <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0.45" stop-color="#000" stop-opacity="0" />
+        <stop offset="1" stop-color="#000" stop-opacity="0.55" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="#ffffff" />
+    ${panels}
+  </svg>`;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
 const videoGeneratorService = {
-  // Plans the video; nothing is rendered until the storyboard is approved.
+  // Plans the video as a storyboard image; nothing is rendered until the
+  // storyboard is approved.
   generateStoryboard: async (
     payload: GenerateVideoPld,
     onProgress?: ProgressCallback
   ): Promise<VideoStoryboard> => {
     await simulateJob(3000, onProgress);
+    const scenes = buildMockStoryboardScenes(payload);
 
     return {
       id: createId(),
       title: payload.prompt.trim().split("\n")[0].slice(0, 60),
       ratio: payload.ratio,
-      scenes: buildMockStoryboardScenes(payload),
+      imageUrl: buildMockStoryboardImage(scenes, payload.ratio),
+      scenes,
     };
   },
 
+  // Redraws the storyboard image with the requested changes.
   reviseStoryboard: async (
     storyboard: VideoStoryboard,
     payload: ReviseStoryboardPld,
     onProgress?: ProgressCallback
   ): Promise<VideoStoryboard> => {
     await simulateJob(2500, onProgress);
+    const scenes = storyboard.scenes.map((scene) => ({
+      ...scene,
+      description: `${scene.title}: ${payload.prompt}`,
+    }));
 
     return {
       ...storyboard,
-      scenes: storyboard.scenes.map((scene) => ({
-        ...scene,
-        description: `${scene.title}: ${payload.prompt}`,
-      })),
+      imageUrl: buildMockStoryboardImage(scenes, storyboard.ratio),
+      scenes,
     };
   },
 

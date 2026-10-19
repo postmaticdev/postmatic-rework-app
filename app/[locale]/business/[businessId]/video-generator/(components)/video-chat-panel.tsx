@@ -52,6 +52,9 @@ const SUGGESTION_KEYS = [
   "suggestionTutorial",
 ] as const;
 
+// Lets the storyboard's "Edit" button move focus to the composer.
+export const VIDEO_CHAT_PROMPT_ID = "video-chat-prompt";
+
 type VideoChatPanelProps = {
   generator: VideoGeneratorState;
   onSelectScene: (index: number) => void;
@@ -349,6 +352,8 @@ export function VideoChatPanel({ generator, onSelectScene, onEditSetup }: VideoC
 
           <textarea
             ref={textareaRef}
+            id={VIDEO_CHAT_PROMPT_ID}
+            aria-label={placeholder}
             value={prompt}
             rows={1}
             disabled={isBusy}

@@ -35,7 +35,7 @@ import {
 } from "./sequence-editor";
 import { VideoStage } from "./video-stage";
 import { formatVideoTime, VideoPlaybackState } from "./use-video-playback";
-import { StoryboardEditor } from "./storyboard-editor";
+import { StoryboardPreview } from "./storyboard-preview";
 import { VideoStoryboard } from "@/models/api/content/video.type";
 import { getDragKind, readDraggedVideo } from "./use-media-import";
 import type { AttachedVideo } from "./use-video-generator";
@@ -60,7 +60,7 @@ type VideoPlayerPanelProps = {
   // Shown for review until it is approved and rendered.
   storyboard: VideoStoryboard | null;
   isStoryboardRevising: boolean;
-  onChangeStoryboard: (updater: (current: VideoStoryboard) => VideoStoryboard) => void;
+  onEditStoryboard: () => void;
   onApproveStoryboard: () => void;
   isBusy: boolean;
   isDownloading: boolean;
@@ -89,7 +89,7 @@ export function VideoPlayerPanel({
   generating,
   storyboard,
   isStoryboardRevising,
-  onChangeStoryboard,
+  onEditStoryboard,
   onApproveStoryboard,
   isBusy,
   isDownloading,
@@ -371,11 +371,11 @@ export function VideoPlayerPanel({
             </div>
           </div>
         ) : storyboard ? (
-          <StoryboardEditor
+          <StoryboardPreview
             storyboard={storyboard}
             disabled={isBusy}
             isRevising={isStoryboardRevising}
-            onChange={onChangeStoryboard}
+            onEdit={onEditStoryboard}
             onApprove={onApproveStoryboard}
           />
         ) : (

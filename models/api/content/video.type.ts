@@ -75,11 +75,15 @@ export interface StoryboardScene {
   durationSec: number;
 }
 
-// The plan the user reviews (and can edit) before the video is generated.
+// The plan the user reviews before the video is generated. It is shown as a
+// single image with one panel per scene; changes are asked for in the chat,
+// which returns a new image.
 export interface VideoStoryboard {
   id: string;
   title: string;
   ratio: VideoRatio;
+  imageUrl: string;
+  // The scenes drawn in the image, in order.
   scenes: StoryboardScene[];
 }
 

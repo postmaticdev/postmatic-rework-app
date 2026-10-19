@@ -10,7 +10,7 @@ import { useRole } from "@/contexts/role-context";
 import { showToast } from "@/helper/show-toast";
 import { VideoScene } from "@/models/api/content/video.type";
 import { useVideoDownloadUrl } from "@/services/content/video-generator.api";
-import { VideoChatPanel } from "./(components)/video-chat-panel";
+import { VIDEO_CHAT_PROMPT_ID, VideoChatPanel } from "./(components)/video-chat-panel";
 import { VideoPlayerPanel } from "./(components)/video-player-panel";
 import { VideoScheduleModal } from "./(components)/video-schedule-modal";
 import { VideoSetupPanel } from "./(components)/video-setup-panel";
@@ -200,6 +200,14 @@ export default function VideoGeneratorPage() {
     router.push(`/business/${businessId}/settings?tab=billing&topUp=token`);
   };
 
+  // Storyboard changes are asked for in the chat. On mobile the chat sits
+  // below the preview, so bring the composer into view.
+  const focusChatPrompt = () => {
+    const promptField = document.getElementById(VIDEO_CHAT_PROMPT_ID);
+    promptField?.scrollIntoView({ behavior: "smooth", block: "center" });
+    promptField?.focus({ preventScroll: true });
+  };
+
   const handleOpenSchedule = () => {
     pause();
     setIsScheduleOpen(true);
@@ -234,7 +242,7 @@ export default function VideoGeneratorPage() {
           generating={generating}
           storyboard={generator.storyboard}
           isStoryboardRevising={isStoryboardRevising}
-          onChangeStoryboard={generator.updateStoryboard}
+          onEditStoryboard={focusChatPrompt}
           onApproveStoryboard={generator.approveStoryboard}
           isBusy={isBusy}
           isDownloading={mDownloadUrl.isPending}
