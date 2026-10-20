@@ -17,7 +17,10 @@ import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { ContentCarouselPreview } from "./content-carousel-preview";
 import { ProtectedImage } from "./protected-image";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import {
+  getFreeUserAiModelDisplayNames,
+  isAiModelRestrictedForFreeUser,
+} from "@/models/api/content/ai-model";
 import { cn } from "@/lib/utils";
 import {
   getSchedulerDraftMarkers,
@@ -144,9 +147,7 @@ export function PreviewPanel() {
   }, [selectedHistory?.result?.images, selectedImageUrl]);
   const selectedImageItemId =
     selectedHistory?.result?.imageItemIds?.[selectedImageIndex];
-  const restrictedModelName = aiModels.freeUserAllowedModel
-    ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
-    : getAiModelDisplayName("gpt-image-1");
+  const restrictedModelName = getFreeUserAiModelDisplayNames(aiModels.models);
   const modelRestrictionCopy = {
     title: t("freeModelRestrictionTitle"),
     description: t("freeModelRestrictionDescription", {
@@ -437,8 +438,7 @@ export function PreviewPanel() {
     if (
       aiModels.isFreeUser &&
       aiModels.freeUserAllowedModel &&
-      form.basic.model &&
-      form.basic.model !== aiModels.freeUserAllowedModel.name
+      isAiModelRestrictedForFreeUser(aiModels.models, form.basic.model)
     ) {
       setIsRestrictedModelModalOpen(true);
       return;

@@ -23,6 +23,11 @@ import { showToast } from "@/helper/show-toast";
 import { helperService } from "@/services/helper.api";
 import { useTranslations } from "next-intl";
 import { VALID_RATIOS, ValidRatio } from "@/models/api/content/image.type";
+import {
+  getAiModelDisplayName,
+  isFreeUserAllowedAiModel,
+  isGridAiModel,
+} from "@/models/api/content/ai-model";
 import { cn } from "@/lib/utils";
 
 interface FullscreenImageModalProps {
@@ -54,21 +59,33 @@ export function FullscreenImageModal({
 
   const m = useTranslations("modal");
 
-  // Force GPT Image 1 model when modal opens (mask feature only supports this model)
+  // Masks go through the OpenAI image edit endpoint, so the modal locks to an OpenAI model the user may use.
+  const maskModel = useMemo(() => {
+    const openAiModels = aiModels.models.filter(
+      (model) => model.provider === "openai" && !isGridAiModel(model)
+    );
+    return (
+      (aiModels.isFreeUser
+        ? openAiModels.find(isFreeUserAllowedAiModel)
+        : openAiModels[0]) || null
+    );
+  }, [aiModels.models, aiModels.isFreeUser]);
+  const maskModelName = getAiModelDisplayName(maskModel);
+
+  // Force the mask model when modal opens
   useEffect(() => {
-    if (isOpen && aiModels.models.length > 0) {
-      const gptModel = aiModels.models.find(model => model.name === "gpt-image-1");
-      if (gptModel && form.basic.model !== "gpt-image-1") {
-        onSelectAiModel(gptModel);
+    if (isOpen && maskModel) {
+      if (form.basic.model !== maskModel.name) {
+        onSelectAiModel(maskModel);
         
-        // Ensure ratio is valid for GPT Image 1
-        const validRatiosForGPT = [...VALID_RATIOS];
-        if (!validRatiosForGPT.includes(form.basic.ratio)) {
-          form.setBasic({ ...form.basic, ratio: "1:1" as ValidRatio, model: "gpt-image-1" });
+        // Ensure ratio is valid for the mask model
+        const validRatiosForMask = [...VALID_RATIOS];
+        if (!validRatiosForMask.includes(form.basic.ratio)) {
+          form.setBasic({ ...form.basic, ratio: "1:1" as ValidRatio, model: maskModel.name });
         }
       }
     }
-  }, [isOpen, aiModels.models, form.basic.model, form.basic.ratio, onSelectAiModel, form]);
+  }, [isOpen, maskModel, form.basic.model, form.basic.ratio, onSelectAiModel, form]);
 
   // Extract the first image URL for stable reference
   const firstImageUrl = selectedHistory?.result?.images?.[0];
@@ -1304,12 +1321,12 @@ export function FullscreenImageModal({
                   isLoading
                 )}
                 disabled={true}
-                value="gpt-image-1"
+                value={maskModel?.name || ""}
               >
-                <option value="gpt-image-1">GPT Image 1</option>
+                <option value={maskModel?.name || ""}>{maskModelName}</option>
               </NativeSelect>
               <p className="text-xs text-muted-foreground mt-1">
-                Saat ini fitur mask hanya ada di model GPT Image 1
+                Saat ini fitur mask hanya ada di model {maskModelName}
               </p>
             </div>
 
@@ -1327,7 +1344,7 @@ export function FullscreenImageModal({
                   form.setBasic({ ...form.basic, ratio: e.target.value as ValidRatio });
                 }}
               >
-                {/* Only show valid ratios for GPT Image 1 */}
+                {/* Only show valid ratios for the mask model */}
                 {VALID_RATIOS.map((option) => (
                   <option key={option} value={option}>
                     {option}

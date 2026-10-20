@@ -13,7 +13,7 @@ import Image from "next/image";
 import { useRouter } from "@/i18n/navigation";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { isProblemGenerationJob } from "./failed-generation-history";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { getAiModelDisplayNameByName } from "@/models/api/content/ai-model";
 import { JobData } from "@/models/socket-content";
 
 function formatJobDate(value: string | undefined, locale: string) {
@@ -175,7 +175,7 @@ export function ContentLibrary({
       ...historyFilterQuery,
     });
 
-  const { histories, onSelectHistory } = useContentGenerate();
+  const { histories, onSelectHistory, aiModels } = useContentGenerate();
 
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
   const [dismissedPostIds, setDismissedPostIds] = useState<string[]>([]);
@@ -683,7 +683,7 @@ export function ContentLibrary({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  {job.input.model && <span>{getAiModelDisplayName(job.input.model)}</span>}
+                  {job.input.model && <span>{getAiModelDisplayNameByName(aiModels.models, job.input.model)}</span>}
                   {job.input.ratio && <span>• {job.input.ratio}</span>}
                   {job.type && <span>• {job.type}</span>}
                 </div>

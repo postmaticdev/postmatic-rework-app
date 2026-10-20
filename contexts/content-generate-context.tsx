@@ -34,8 +34,10 @@ import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { RssArticleRes } from "@/models/api/library/rss.type";
 import { AiModelRes } from "@/models/api/content/ai-model";
 import {
+  isFreeUserAllowedAiModel,
   isGridAiModel,
-  pickGptImageOneModel,
+  pickDefaultAiModel,
+  pickFreeUserAiModel,
 } from "@/models/api/content/ai-model";
 import {
   GetAllJob,
@@ -409,14 +411,19 @@ const getBackendApiUrl = (path: string) => {
   return new URL(`/api${normalizedPath}`, NEXT_PUBLIC_API_ORIGIN).toString();
 };
 
-const pickDefaultAiModel = (models: AiModelRes[]) =>
-  models.find((model) => model.name === "gemini-3-pro-image-preview") ||
-  models[0] ||
-  null;
-
 const pickPreferredAiModel = (models: AiModelRes[], isFreeUser: boolean) =>
-  (isFreeUser ? pickGptImageOneModel(models) : null) ||
+  (isFreeUser ? pickFreeUserAiModel(models) : null) ||
   pickDefaultAiModel(models);
+
+/** Free users keep a history model they may use; otherwise they fall back to their default free model. */
+const pickHistoryAiModel = (
+  models: AiModelRes[],
+  modelFromHistory: AiModelRes | undefined,
+  isFreeUser: boolean
+) =>
+  isFreeUser && !isFreeUserAllowedAiModel(modelFromHistory)
+    ? pickFreeUserAiModel(models) || modelFromHistory
+    : modelFromHistory;
 
 const notLoadingJobStatus: JobStatus[] = ["done", "error"];
 const notLoadingJobStages: JobStage[] = ["done", "error"];
@@ -1205,7 +1212,7 @@ export const ContentGenerateProvider = ({
     return !hasSuccessfulBillingPayment;
   }, [hasResolvedBillingHistory, hasSuccessfulBillingPayment]);
   const freeUserAllowedModel = useMemo(
-    () => pickGptImageOneModel(aiModelsRes?.data?.data || []),
+    () => pickFreeUserAiModel(aiModelsRes?.data?.data || []),
     [aiModelsRes?.data?.data]
   );
 
@@ -1275,11 +1282,11 @@ export const ContentGenerateProvider = ({
       const modelFromHistory = aiModelsRes?.data?.data?.find(
         model => model.name === item?.input?.model
       );
-      const effectiveModel =
+      const effectiveModel = pickHistoryAiModel(
+        aiModelsRes?.data?.data || [],
+        modelFromHistory,
         isFreeUser
-          ? pickGptImageOneModel(aiModelsRes?.data?.data || []) ||
-            modelFromHistory
-          : modelFromHistory;
+      );
       hasManualAiModelSelectionRef.current = false;
       const effectiveModelRatios = normalizeValidRatios(
         effectiveModel?.validRatios
@@ -1361,11 +1368,11 @@ export const ContentGenerateProvider = ({
       const modelFromHistory = aiModelsRes?.data?.data?.find(
         (model) => model.name === item?.input?.model
       );
-      const effectiveModel =
+      const effectiveModel = pickHistoryAiModel(
+        aiModelsRes?.data?.data || [],
+        modelFromHistory,
         isFreeUser
-          ? pickGptImageOneModel(aiModelsRes?.data?.data || []) ||
-            modelFromHistory
-          : modelFromHistory;
+      );
       hasManualAiModelSelectionRef.current = false;
       const effectiveModelRatios = normalizeValidRatios(
         effectiveModel?.validRatios

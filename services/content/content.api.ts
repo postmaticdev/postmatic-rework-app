@@ -157,6 +157,7 @@ type NewGenerativeImageModel = {
   validRatios: string[];
   imageSizes: string[] | null;
   gridSize?: number;
+  premiumModel?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -487,6 +488,7 @@ const mapAiModel = (model: NewGenerativeImageModel): AiModelRes => ({
   validRatios: Array.isArray(model.validRatios) ? model.validRatios : [],
   imageSizes: Array.isArray(model.imageSizes) ? model.imageSizes : [],
   gridSize: model.gridSize ?? 1,
+  premiumModel: model.premiumModel,
 });
 
 const mapImagePostCreateToJob = (post: NewImagePostCreateRes): JobRes => ({

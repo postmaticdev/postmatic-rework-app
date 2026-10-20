@@ -200,7 +200,7 @@ export function AutoGenerateModal({
       day: modalDay,
       time: timeString,
       platforms: connectedSelectedPlatforms,
-      model: basic.model || "gpt-image-1",
+      model: basic.model || aiModels.selectedModel?.name || "",
       designStyle: basic.designStyle || "modern",
       ratio: basic.ratio || "1:1",
       category: basic.category || "sale",

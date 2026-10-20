@@ -47,7 +47,11 @@ import { GenerateFormBasic } from "./generate-form-basic";
 import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
 import { ProtectedImage } from "./protected-image";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import {
+  getAiModelDisplayName,
+  getFreeUserAiModelDisplayNames,
+  isAiModelRestrictedForFreeUser,
+} from "@/models/api/content/ai-model";
 import { AiModelLogo } from "@/components/forms/ai-model-select";
 import { GridResultTiles } from "./grid-result-tiles";
 
@@ -232,8 +236,7 @@ export function GenerationPanel() {
     if (
       aiModels.isFreeUser &&
       aiModels.freeUserAllowedModel &&
-      form.basic.model &&
-      form.basic.model !== aiModels.freeUserAllowedModel.name
+      isAiModelRestrictedForFreeUser(aiModels.models, form.basic.model)
     ) {
       setIsRestrictedModelModalOpen(true);
       return;
@@ -325,9 +328,7 @@ export function GenerationPanel() {
   };
 
   const isCarouselSelection = selectedContentImages.length > 1;
-  const restrictedModelName = aiModels.freeUserAllowedModel
-    ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
-    : getAiModelDisplayName("gpt-image-1");
+  const restrictedModelName = getFreeUserAiModelDisplayNames(aiModels.models);
   const modelRestrictionCopy = {
     title: t("freeModelRestrictionTitle"),
     description: t("freeModelRestrictionDescription", {
@@ -475,7 +476,11 @@ export function GenerationPanel() {
                                   onSelectHistory(job);
                                   setTimeout(() => {
                                     const allowedModel = aiModels.freeUserAllowedModel;
-                                    if (aiModels.isFreeUser && allowedModel) {
+                                    if (
+                                      aiModels.isFreeUser &&
+                                      allowedModel &&
+                                      isAiModelRestrictedForFreeUser(aiModels.models, job.input.model)
+                                    ) {
                                       const allowedRatios = allowedModel.validRatios.length
                                         ? allowedModel.validRatios
                                         : aiModels.validRatios;

@@ -10,7 +10,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { JobData } from "@/models/socket-content";
 import { useParams } from "next/navigation";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { getAiModelDisplayNameByName } from "@/models/api/content/ai-model";
 import { useLocale, useTranslations } from "next-intl";
 
 export function isProblemGenerationJob(job: JobData) {
@@ -42,7 +42,7 @@ function getErrorMessage(job: JobData, fallback: string) {
 }
 
 export function FailedGenerationHistory() {
-  const { histories, onSelectHistory } = useContentGenerate();
+  const { histories, onSelectHistory, aiModels } = useContentGenerate();
   const { businessId } = useParams() as { businessId: string };
   const router = useRouter();
   const t = useTranslations("contentScheduler");
@@ -124,7 +124,7 @@ export function FailedGenerationHistory() {
 
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {job.input.model ? (
-                      <span>{getAiModelDisplayName(job.input.model)}</span>
+                      <span>{getAiModelDisplayNameByName(aiModels.models, job.input.model)}</span>
                     ) : null}
                     {job.input.ratio ? <span>{job.input.ratio}</span> : null}
                     {job.type ? <span>{job.type}</span> : null}

@@ -27,7 +27,7 @@ import { useContentJobDeleteHistoryJob } from "@/services/content/content.api";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { NoContent } from "@/components/base/no-content";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { getAiModelDisplayNameByName } from "@/models/api/content/ai-model";
 
 interface HistoryModalProps {
   isOpen: boolean;
@@ -41,7 +41,7 @@ export function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedItemToDelete, setSelectedItemToDelete] =
     useState<JobData | null>(null);
-  const { histories, onSelectHistory } = useContentGenerate();
+  const { histories, onSelectHistory, aiModels } = useContentGenerate();
 
   const toggleExpanded = (itemId: string) => {
     setExpandedItems((prev) => {
@@ -206,7 +206,7 @@ export function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
                                   {mapEnumJobStatus.getLabel(item.status)}
                                 </Badge>
                                 <Badge variant="outline">
-                                  {getAiModelDisplayName(item?.input?.model)}
+                                  {getAiModelDisplayNameByName(aiModels.models, item?.input?.model)}
                                 </Badge>
                                 <Badge variant="outline">
                                   {item?.input?.ratio}
