@@ -71,7 +71,9 @@
     "retry": "Coba Lagi",
     "loopTitle": "Sesi masuk tidak dapat dipulihkan",
     "loopDescription": "Gagal masuk beberapa kali berturut-turut. Silakan masuk kembali.",
-    "relogin": "Masuk kembali"
+    "relogin": "Masuk kembali",
+    "loading": "Memuat Postmatic",
+    "loggingOut": "Keluar dari Postmatic"
   },
   "welcomeSection": {
     "welcome": "Selamat Datang,",

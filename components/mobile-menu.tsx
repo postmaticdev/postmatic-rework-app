@@ -32,6 +32,7 @@ import {
 } from "@/services/auth.api";
 import { DEFAULT_USER_AVATAR } from "@/constants";
 import { logoutAndRedirect } from "@/config/api";
+import { showLogoutOverlay } from "@/lib/logout-overlay";
 import { useBusinessGetAll } from "@/services/business.api";
 import { showToast } from "@/helper/show-toast";
 import { useLocale, useTranslations } from "next-intl";
@@ -132,6 +133,8 @@ export function MobileMenu() {
   const tToast = useTranslations();
   
   const handleLogout = async () => {
+    // Layar loading langsung tampil, tidak menunggu request logout selesai.
+    showLogoutOverlay();
     try {
       if (currentSessionId) {
         await mLogout.mutateAsync(currentSessionId);

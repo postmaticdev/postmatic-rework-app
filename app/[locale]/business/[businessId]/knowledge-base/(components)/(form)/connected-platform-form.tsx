@@ -82,9 +82,17 @@ export function ConnectedPlatformForm() {
           break;
         case "unconnected":
           setConnectingPlatform(platform.platform);
+          // Kembali ke halaman Business Knowledge ini setelah akun dipilih di auth,
+          // tanpa parameter sisa koneksi sebelumnya.
+          const returnUrl = new URL(window.location.href);
+          ["platformTempCode", "tempCode", "connectedPlatformTempCode", "reconnectPlatform"].forEach(
+            (key) => returnUrl.searchParams.delete(key)
+          );
+          returnUrl.hash = "";
           const response = await mdAuthorizeUrl.mutateAsync({
             businessId,
             platform: platform.platform,
+            from: returnUrl.toString(),
           });
           if (response.data.data.authUrl) {
             const newWindow = window.open();

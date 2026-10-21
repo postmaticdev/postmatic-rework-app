@@ -812,9 +812,12 @@ const platformService = {
         } as unknown as Awaited<ReturnType<typeof api.get<BaseResponse<PlatformRes[]>>>>;
       });
   },
-  getAuthorizeUrl: (businessId: string, platform: PlatformEnum) => {
+  // `from` adalah halaman tujuan setelah akun platform dipilih di auth;
+  // tanpa ini backend kembali ke root workspace (daftar bisnis).
+  getAuthorizeUrl: (businessId: string, platform: PlatformEnum, from?: string) => {
     return api.get<BaseResponse<ConnectedPlatformAuthorizeUrlRes>>(
-      `/business/connected-platform/${businessId}/oauth/${platform}/authorize-url`
+      `/business/connected-platform/${businessId}/oauth/${platform}/authorize-url`,
+      { params: from ? { from } : undefined }
     );
   },
   getPendingOauth: (businessId: string, tempCode: string) => {
@@ -850,10 +853,12 @@ export const usePlatformKnowledgeGetAuthorizeUrl = () => {
     mutationFn: ({
       businessId,
       platform,
+      from,
     }: {
       businessId: string;
       platform: PlatformEnum;
-    }) => platformService.getAuthorizeUrl(businessId, platform),
+      from?: string;
+    }) => platformService.getAuthorizeUrl(businessId, platform, from),
   });
 };
 

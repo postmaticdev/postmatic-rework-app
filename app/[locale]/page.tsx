@@ -27,10 +27,12 @@ export default function Home() {
   const t = useTranslations("authCheck");
   const { status, retry } = useCheckBusiness();
 
+  // Layar transisi dari auth: hanya logo kecil beranimasi, tanpa header/sidebar
+  // (path "/" dikecualikan di client-layout).
   if (status === "loading") {
     return (
-      <div className="flex justify-center items-center h-[calc(100vh-64px)]">
-        <LogoLoader />
+      <div className="flex min-h-dvh items-center justify-center">
+        <LogoLoader size={64} strokeWidth={28} hideContentBackground={false} label={t("loading")} />
       </div>
     );
   }
@@ -38,7 +40,7 @@ export default function Home() {
   const isAuthLoop = status === "auth-loop";
 
   return (
-    <div className="flex justify-center items-center h-[calc(100vh-64px)] px-4">
+    <div className="flex min-h-dvh items-center justify-center px-4">
       <div className="flex max-w-md flex-col items-center gap-3 text-center">
         <h1 className="text-xl font-semibold text-foreground">
           {isAuthLoop ? t("loopTitle") : t("errorTitle")}

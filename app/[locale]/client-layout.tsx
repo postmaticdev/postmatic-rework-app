@@ -8,6 +8,7 @@ import { useParams } from "next/navigation";
 import { usePathname } from "@/i18n/navigation";
 
 const SKIP_HEADER_PATHS = [
+  "/",
   "/business/[businessId]/pricing/checkout",
   "/business/new-business",
   "/business/new-business/manual",
@@ -15,6 +16,7 @@ const SKIP_HEADER_PATHS = [
 ];
 
 const SKIP_SIDEBAR_PATHS = [
+  "/",
   "/profile",
   "/business/new-business",
   "/business/new-business/manual",

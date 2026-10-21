@@ -146,7 +146,7 @@ const mapCheckout = (payment: NewPaymentCreated): CheckoutRes => ({
   midtransId: payment.paymentId,
   orderId: payment.orderId,
   paymentCode: payment.orderId,
-  productName: `Image Token x${payment.tokenAmount}`,
+  productName: `Postmatic Token x${payment.tokenAmount}`,
   productType: "token",
   totalAmount: payment.calculation.totalAmount,
   method: payment.paymentMethod.code,

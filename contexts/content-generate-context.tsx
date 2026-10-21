@@ -9,6 +9,7 @@ import {
   SELECTED_IMAGE_REFERENCE_NAME,
 } from "@/constants";
 import { showToast } from "@/helper/show-toast";
+import { haptic } from "@/lib/haptics";
 import { useTranslations } from "next-intl";
 import {
   createSocket,
@@ -3301,6 +3302,8 @@ export const ContentGenerateProvider = ({
     selectedHistory?.input.chatSessionId,
   ]);
 
+  const generationHapticKeysRef = useRef(new Set<string>());
+
   const applyRealtimeChatProgress = useCallback(
     (payload: RealtimeGenerativeChatProgressData) => {
       if (
@@ -3669,6 +3672,15 @@ export const ContentGenerateProvider = ({
         | RealtimeGenerativeChatProgressData
         | undefined;
       if (!payload) return;
+
+      // Getaran halus saat generate selesai (berhasil/gagal), sekali per job.
+      if (payload.processState === "success" || payload.processState === "failed") {
+        const hapticKey = `${payload.userBubbleId}:${payload.processState}`;
+        if (!generationHapticKeysRef.current.has(hapticKey)) {
+          generationHapticKeysRef.current.add(hapticKey);
+          haptic(payload.processState === "success" ? "success" : "error");
+        }
+      }
 
       applyRealtimeChatProgressRef.current(payload);
     };

@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/provider/query-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { HapticsListener } from "@/components/haptics-listener";
+import { LogoutOverlay } from "@/components/logout-overlay";
 import { FormNewBusinessProvider } from "@/contexts/form-new-business-context";
 import { ManageKnowledgeProvider } from "@/contexts/manage-knowledge-context";
 import { CheckoutProvider } from "@/contexts/checkout-context";
@@ -84,6 +86,8 @@ export default async function RootLayout({
                   </RoleProvider>
                 </NotificationProvider>
                 <Toaster />
+                <HapticsListener />
+                <LogoutOverlay />
               </QueryProvider>
             </Suspense>
           </NextIntlClientProvider>

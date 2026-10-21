@@ -13,6 +13,7 @@ import {
 import { BaseResponse } from "@/models/api/base-response.type";
 import { destroySocket } from "@/lib/socket";
 import { getJwtMaxAge } from "@/lib/jwt";
+import { showLogoutOverlay } from "@/lib/logout-overlay";
 
 const MINUTE = 60_000;
 const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
@@ -295,6 +296,7 @@ export function getLoginUrl() {
 
 /** Logout manual: bersihkan sesi lalu pindah ke halaman login. */
 export async function logoutAndRedirect() {
+  showLogoutOverlay();
   isRedirectingToLogin = true;
   resetAuthRedirectLoop();
   await clearAuthSession();
@@ -315,6 +317,7 @@ function hardLogout() {
 
     isRedirectingToLogin = true;
     recordAuthRedirect();
+    showLogoutOverlay();
     window.location.href = getLoginUrl();
   })().finally(() => {
     if (!isRedirectingToLogin) hardLogoutPromise = null;

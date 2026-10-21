@@ -26,6 +26,7 @@ import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { DEFAULT_USER_AVATAR } from "@/constants";
 import { logoutAndRedirect } from "@/config/api";
+import { showLogoutOverlay } from "@/lib/logout-overlay";
 import { useBusinessGetAll } from "@/services/business.api";
 
 export function ProfileDropdown() {
@@ -65,6 +66,8 @@ export function ProfileDropdown() {
   const tToast = useTranslations();
 
   const handleLogout = async () => {
+    // Layar loading langsung tampil, tidak menunggu request logout selesai.
+    showLogoutOverlay();
     try {
       if (currentSessionId) {
         await mLogout.mutateAsync(currentSessionId);

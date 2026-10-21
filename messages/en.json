@@ -71,7 +71,9 @@
     "retry": "Try again",
     "loopTitle": "We couldn’t restore your login session",
     "loopDescription": "Signing in failed several times in a row. Please log in again.",
-    "relogin": "Log in again"
+    "relogin": "Log in again",
+    "loading": "Loading Postmatic",
+    "loggingOut": "Signing out of Postmatic"
   },
   "welcomeSection": {
     "welcome": "Welcome,",

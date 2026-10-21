@@ -147,7 +147,7 @@ const appProductService = {
         responseMessage: "SUCCESS_GET_TOKEN_PRODUCT_DETAIL",
         data: {
           id: String(product.tokenAmount),
-          name: `Image Token x${product.tokenAmount}`,
+          name: `Postmatic Token x${product.tokenAmount}`,
           description:
             getToastLocale() === "en"
               ? "Token for image generation"

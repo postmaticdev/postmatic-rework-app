@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useRouter } from "@/i18n/navigation";
 import { useRole } from "@/contexts/role-context";
 import { showToast } from "@/helper/show-toast";
+import { haptic } from "@/lib/haptics";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import {
   getPublishJobState,
@@ -70,6 +71,7 @@ export function usePublishFeedback() {
       );
 
       if (!failed.length) {
+        haptic("success");
         toast.success(t("publishAllSuccess", { platforms: toLabels(succeeded) }));
         return "success";
       }
@@ -96,10 +98,12 @@ export function usePublishFeedback() {
       };
 
       if (!succeeded.length) {
+        haptic("error");
         toast.error(t("publishAllFailed", { platforms: toLabels(failed) }), options);
         return "failed";
       }
 
+      haptic("warning");
       toast.warning(
         t("publishPartial", {
           succeeded: toLabels(succeeded),
@@ -134,6 +138,7 @@ export function usePublishFeedback() {
 
       // 409: another request is already publishing this post.
       if (responseMessage === "IMAGE_POST_PUBLISH_IN_PROGRESS") {
+        haptic("notification");
         toast.info(t("publishInProgress"), { duration: RESULT_TOAST_DURATION_MS });
         return "in_progress";
       }

@@ -17,6 +17,7 @@ import {
 
 import { ACCESS_TOKEN_KEY, NEXT_PUBLIC_ENABLE_SOCKET } from "@/constants";
 import { showToast } from "@/helper/show-toast";
+import { haptic } from "@/lib/haptics";
 import { errorString } from "@/helper/error-handler";
 import { toIntlLocale } from "@/helper/locale";
 import { useLocale, useTranslations } from "next-intl";
@@ -142,6 +143,8 @@ const EMPTY_NOTIFICATION_UNREAD_SUMMARY: NotificationUnreadSummary = {
   blast: 0,
   ticketReplies: 0,
 };
+
+const NOTIFICATION_HAPTIC_SETTLE_MS = 1000;
 
 const REALTIME_CONTROL_EVENT_TYPES = new Set([
   "connected",
@@ -816,6 +819,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const unreadCount = hasRemoteUnreadCounts
     ? notificationUnreadCounts.total
     : blastUnreadCount + ticketUnreadCount;
+
+  // Getaran halus saat ada notifikasi atau balasan baru (jumlah belum dibaca naik).
+  // Baru aktif setelah kedua query awal selesai, agar pemuatan pertama (0 -> N) tidak ikut bergetar.
+  const isUnreadCountLoaded = notificationsQuery.isFetched && notificationUnreadCountQuery.isFetched;
+  const previousUnreadCountRef = useRef(unreadCount);
+  const notificationHapticArmedAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!isUnreadCountLoaded || notificationHapticArmedAtRef.current !== null) return;
+    notificationHapticArmedAtRef.current = Date.now() + NOTIFICATION_HAPTIC_SETTLE_MS;
+  }, [isUnreadCountLoaded]);
+  useEffect(() => {
+    const previous = previousUnreadCountRef.current;
+    previousUnreadCountRef.current = unreadCount;
+    const armedAt = notificationHapticArmedAtRef.current;
+    if (
+      unreadCount > previous &&
+      armedAt !== null &&
+      Date.now() >= armedAt &&
+      document.visibilityState === "visible"
+    ) {
+      haptic("notification");
+    }
+  }, [unreadCount]);
 
   const markAsRead = useCallback(
     (id: string) => {

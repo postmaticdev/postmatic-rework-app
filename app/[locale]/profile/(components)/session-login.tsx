@@ -15,6 +15,7 @@ import {
 } from "@/services/auth.api";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { logoutAndRedirect } from "@/config/api";
+import { showLogoutOverlay } from "@/lib/logout-overlay";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { Session } from "@/models/api/auth/profile.type";
@@ -161,6 +162,7 @@ export function SessionLogin() {
       try {
         await mLogoutAll.mutateAsync();
         showToast("success", tToast("toast.auth.logoutAllSuccess"), tToast);
+        showLogoutOverlay();
         await sleep(1000);
         await logoutAndRedirect();
       } catch {
@@ -176,6 +178,7 @@ export function SessionLogin() {
         showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
 
         if (isCurrentSession) {
+          showLogoutOverlay();
           await sleep(1000);
           await logoutAndRedirect();
         } else {

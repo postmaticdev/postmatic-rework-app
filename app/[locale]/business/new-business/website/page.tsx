@@ -154,19 +154,31 @@ function parseHashtags(value: string) {
     .map((item) => (item.startsWith("#") ? item.slice(1) : item));
 }
 
-function mapScrapperToDraft(item: WebsiteScrapperHistoryItem): WebsiteDraft {
+type CategoryLabels = {
+  business: (value: string) => string;
+  product: (value: string) => string;
+};
+
+function mapScrapperToDraft(
+  item: WebsiteScrapperHistoryItem,
+  categoryLabels: CategoryLabels
+): WebsiteDraft {
   const data = item.data;
   const businessKnowledge = data?.businessKnowledge;
   const businessRole = data?.businessRole;
   const metadata = data?.metadata;
-  const firstProduct = data?.businessProducts?.[0] ?? null;
+  const rawFirstProduct = data?.businessProducts?.[0] ?? null;
+  // Scraper mengirim kode kategori (mis. "foodAndDrink"); dropdown form memakai labelnya.
+  const firstProduct = rawFirstProduct
+    ? { ...rawFirstProduct, category: categoryLabels.product(rawFirstProduct.category) }
+    : null;
 
   return {
     sourceId: item.id,
     primaryLogoUrl:
       businessKnowledge?.primaryLogoUrl || metadata?.brandImage || "",
     name: businessKnowledge?.name || metadata?.title || "",
-    category: businessKnowledge?.category || "",
+    category: categoryLabels.business(businessKnowledge?.category || ""),
     description: businessKnowledge?.description || metadata?.description || "",
     website: businessKnowledge?.websiteUrl || item.url || "",
     businessPhone: businessKnowledge?.businessPhone || "",
@@ -187,6 +199,13 @@ export default function NewBusinessWebsitePage() {
   const t = useTranslations("newBusinessWebsite");
   const b = useTranslations("businessKnowledge");
   const r = useTranslations("roleKnowledge");
+  const businessCategoryT = useTranslations("businessCategory");
+  const productCategoryT = useTranslations("productCategory");
+  // Kode yang dikenal diterjemahkan; hasil lama berupa teks bebas tetap ditampilkan apa adanya.
+  const categoryLabels: CategoryLabels = {
+    business: (value) => (value && businessCategoryT.has(value) ? businessCategoryT(value) : value),
+    product: (value) => (value && productCategoryT.has(value) ? productCategoryT(value) : value),
+  };
   const mWebsiteScrapper = useWebsiteScrapperCreate();
   const pollingSessionRef = useRef(0);
   const isScrappingRef = useRef(false);
@@ -393,7 +412,7 @@ export default function NewBusinessWebsitePage() {
         );
       }
 
-      const newDraft = mapScrapperToDraft(finalResult);
+      const newDraft = mapScrapperToDraft(finalResult, categoryLabels);
       setDraft(newDraft); // Keep for consistency
       prefillManualForm(newDraft);
       router.push("/business/new-business/manual");
