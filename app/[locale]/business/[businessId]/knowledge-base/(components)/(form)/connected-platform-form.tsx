@@ -17,7 +17,7 @@ import {
 } from "@/services/knowledge.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Link2, Loader2, RefreshCw, Unlink } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
@@ -199,6 +199,7 @@ export function ConnectedPlatformForm() {
                     }
                     disabled={mdConnectAccount.isPending}
                   >
+                    <Link2 className="h-4 w-4" />
                     {mdConnectAccount.isPending ? t("connecting") : t("connect")}
                   </Button>
                 </div>
@@ -277,6 +278,7 @@ export function ConnectedPlatformForm() {
                   disabled={connectingPlatform === platform.platform}
                   className="bg-amber-500 text-white hover:bg-amber-600"
                 >
+                  <RefreshCw className="h-4 w-4" />
                   {connectingPlatform === platform.platform
                     ? t("connecting")
                     : t("reconnect")}
@@ -289,6 +291,7 @@ export function ConnectedPlatformForm() {
                     setIsDisconnectDialogOpen(true);
                   }}
                 >
+                  <Unlink className="h-4 w-4" />
                   {t("disconnect")}
                 </Button>
               </div>
@@ -307,6 +310,11 @@ export function ConnectedPlatformForm() {
                     : ""
                 }
               >
+                {platform.status === "connected" ? (
+                  <Unlink className="h-4 w-4" />
+                ) : (
+                  <Link2 className="h-4 w-4" />
+                )}
                 {connectingPlatform === platform.platform
                   ? t("connecting")
                   : mapEnumPlatform.getPlatformCtaLabel(platform.status, t)}

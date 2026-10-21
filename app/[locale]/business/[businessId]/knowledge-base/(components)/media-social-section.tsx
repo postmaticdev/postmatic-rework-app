@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, Edit } from "lucide-react";
+import { AlertTriangle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
@@ -29,6 +29,7 @@ export function MediaSocialSection() {
   const { access } = useRole();
   const { platformKnowledge } = access;
   const b = useTranslations("businessKnowledge");
+  const m = useTranslations("modal");
 
   useEffect(() => {
     if (hasPendingPlatform) {
@@ -55,8 +56,9 @@ export function MediaSocialSection() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => setIsPlatformModalOpen(true)}
+                aria-label={m("managePlatformSocialMedia")}
               >
-                <Edit className="h-4 w-4" />
+                <Pencil className="h-4 w-4" />
               </Button>
             )}
           </div>

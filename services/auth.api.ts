@@ -136,5 +136,9 @@ export const useAuthProfileChangePassword = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: AUTH_PROFILE_QUERY_KEY });
     },
+    // The edit profile modal shows its own error message (e.g. 429, Google-only account).
+    onError: (error) => {
+      throw error;
+    },
   });
 };

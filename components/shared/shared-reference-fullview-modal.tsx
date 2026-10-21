@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Plus, Heart, Save } from "lucide-react";
+import { Check, Heart, Save } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -116,7 +116,7 @@ export function SharedReferenceFullviewModal({
               onSelectReferenceImage(template.imageUrl, template.name, template);
               onClose();
             },
-            icon: <Plus className="mr-2 h-4 w-4" />,
+            icon: <Check className="mr-2 h-4 w-4" />,
             className:
               "bg-gradient-to-r text-white from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700  shadow-sm font-medium",
           }}

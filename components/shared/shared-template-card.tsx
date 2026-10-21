@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Info } from "lucide-react";
+import { CheckCircle2, Eye } from "lucide-react";
 import { DEFAULT_USER_AVATAR } from "@/constants";
 import { Template } from "./shared-reference-panel";
 
@@ -64,7 +64,7 @@ export const SharedTemplateCard = ({
         }}
         aria-label={t("detail") || "Detail"}
       >
-        <Info className="w-4 h-4" />
+        <Eye className="w-4 h-4" />
       </button>
 
       {/* Overlay to indicate loading or selected state if needed */}

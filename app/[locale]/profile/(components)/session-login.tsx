@@ -19,6 +19,7 @@ import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { Session } from "@/models/api/auth/profile.type";
 import { useQueryClient } from "@tanstack/react-query";
+import { LogOut } from "lucide-react";
 
 interface GroupedSession {
   key: string;
@@ -213,6 +214,7 @@ export function SessionLogin() {
               className="h-(--control-h-sm) shrink-0 sm:h-9"
               onClick={() => setLogoutTarget("all")}
             >
+              <LogOut className="h-4 w-4" />
               {t("logoutAll")}
             </Button>
           </div>
@@ -258,6 +260,7 @@ export function SessionLogin() {
                     className="h-(--control-h-sm) shrink-0 text-white sm:h-9"
                     onClick={() => setLogoutTarget(group)}
                   >
+                    <LogOut className="h-4 w-4" />
                     {t("logout")}
                   </Button>
                 </div>

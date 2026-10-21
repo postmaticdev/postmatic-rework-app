@@ -4,9 +4,9 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import {
-  Edit,
   Loader2,
   MoreVertical,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -69,6 +69,7 @@ export function AvatarSection() {
   const [avatarErrors, setAvatarErrors] = useState<Record<string, string>>({});
 
   const t = useTranslations("avatarKnowledge");
+  const tCard = useTranslations("businessCard");
   const e = useTranslations("errors");
   const avatarKnowledgeSchema = useAvatarKnowledgeSchema();
   const { access } = useRole();
@@ -285,6 +286,7 @@ export function AvatarSection() {
                                   <Button
                                     variant="ghost"
                                     size="icon-sm"
+                                    aria-label={tCard("moreActions")}
                                   >
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
@@ -293,7 +295,7 @@ export function AvatarSection() {
                                   <DropdownMenuItem
                                     onClick={() => handleEditAvatar(avatar)}
                                   >
-                                    <Edit className="mr-2 h-4 w-4" />
+                                    <Pencil className="mr-2 h-4 w-4" />
                                     {t("edit")}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem

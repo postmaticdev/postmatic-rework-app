@@ -8,12 +8,12 @@ import { useParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   BookOpen,
-  Send,
+  CalendarClock,
   Settings,
   Menu,
   X,
   LogOut,
-  Plus,
+  CreditCard,
   AlertTriangle,
   Sun,
   Moon,
@@ -81,7 +81,7 @@ export function MobileMenu() {
     {
       name: tSideBar("contentScheduler"),
       href: "content-scheduler",
-      icon: Send,
+      icon: CalendarClock,
     },
     {
       name: tSideBar("settings"),
@@ -312,7 +312,7 @@ export function MobileMenu() {
                       className="shrink-0 rounded-full"
                       aria-label={tSideBar("topUpToken")}
                     >
-                      <Plus className="h-5 w-5 text-white" />
+                      <CreditCard className="h-5 w-5 text-white" />
                     </Button>
                   )}
                 </div>

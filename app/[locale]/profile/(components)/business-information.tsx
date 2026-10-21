@@ -9,6 +9,7 @@ import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { BusinessRes } from "@/models/api/business/index.type";
+import { Eye } from "lucide-react";
 
 function BusinessInformationItem({ business }: { business: BusinessRes }) {
   const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(
@@ -63,6 +64,7 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
             size="sm"
             className="h-(--control-h-sm) bg-blue-600 hover:bg-blue-700 text-white sm:h-9"
           >
+            <Eye className="h-4 w-4" />
             {t("view")}
           </Button>
         </Link>

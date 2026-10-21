@@ -114,6 +114,8 @@ export interface JobData {
   };
   error: { message: string; stack: string | null; attempt: number } | null;
   stage: JobStage;
+  /** Backend pipeline step of a chat generation (validating, generating_image, ...); set from realtime progress. */
+  progressStep?: string;
   product: Product;
   result: Result | null;
 }

@@ -6,7 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { BarChart3, ChevronDown, Plus, Users, Zap } from "lucide-react";
+import { BarChart3, ChevronDown, CreditCard, Plus, Users, Zap } from "lucide-react";
 import { ProfileDropdown } from "./profile-dropdown";
 import { NotificationDropdown } from "./notification-dropdown";
 import { MobileMenu } from "../mobile-menu";
@@ -341,7 +341,7 @@ export function Header() {
                 aria-label={t("topUpToken")}
                 className="w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors"
               >
-                <Plus className="w-4 h-4 text-white" />
+                <CreditCard className="w-4 h-4 text-white" />
               </Link>
             )}
           </div>

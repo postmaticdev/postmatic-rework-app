@@ -33,6 +33,10 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     DELETE_DRAFT_NOT_AVAILABLE: "Fitur hapus draft belum tersedia.",
     GET_IMAGE_POST_EMPTY: "Belum ada konten yang tersedia.",
     IMAGE_POST_ALREADY_SUCCESS_ON_PLATFORM: "Konten ini sudah berhasil dipublikasikan di platform tersebut.",
+    PARTIAL_SUCCESS_DIRECT_POST_IMAGE_POST: "Postingan hanya berhasil terbit di sebagian platform.",
+    DIRECT_POST_ALL_PLATFORMS_FAILED: "Postingan gagal terbit di semua platform.",
+    IMAGE_POST_PUBLISH_IN_PROGRESS: "Postingan ini sedang diproses. Tunggu sebentar lalu cek tab Riwayat.",
+    PUBLISH_INTERRUPTED_RESULT_UNKNOWN: "Proses posting terputus dan hasilnya tidak diketahui. Cek akun media sosial Anda sebelum mencoba lagi.",
     PUBLISH_AT_MUST_NOT_BE_IN_THE_PAST: "Jadwal publikasi tidak boleh di waktu yang sudah lewat.",
     RSS_ONLY_ALLOWED_ON_FIRST_BUBBLE: "RSS hanya bisa digunakan pada bubble pertama.",
     GET_GENERATIVE_IMAGE_MODELS_SUCCESS: "Model gambar AI berhasil dimuat.",
@@ -68,6 +72,11 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
       "Respons undangan anggota bisnis berhasil disimpan.",
     OWNER_CANNOT_EDITED: "Pemilik bisnis tidak dapat diubah.",
     OWNER_CANNOT_REMOVE_ITSELF: "Pemilik bisnis tidak dapat menghapus dirinya sendiri.",
+    ONLY_OWNER_CAN_ACCESS: "Hanya pemilik bisnis yang dapat melakukan tindakan ini.",
+    ONLY_OWNER_OR_ADMIN_CAN_ACCESS: "Hanya pemilik bisnis atau admin yang dapat melakukan tindakan ini.",
+    TOO_MANY_REQUESTS: "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
+    ACCOUNT_USES_GOOGLE_SIGN_IN:
+      "Akun ini masuk dengan Google. Gunakan \"Lupa kata sandi\" di halaman masuk untuk membuat kata sandi.",
     TIMEZONE_NOT_VALID: "Zona waktu yang dipilih tidak valid.",
     CONNECTED_PLATFORM_TEMP_CODE_ACCOUNT_NOT_FOUND:
       "Akun platform yang akan dihubungkan tidak ditemukan.",
@@ -114,6 +123,12 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     GET_IMAGE_POST_EMPTY: "No content is available yet.",
     IMAGE_POST_ALREADY_SUCCESS_ON_PLATFORM:
       "This content has already been published successfully on that platform.",
+    PARTIAL_SUCCESS_DIRECT_POST_IMAGE_POST: "The post was published on only some of the platforms.",
+    DIRECT_POST_ALL_PLATFORMS_FAILED: "The post failed to publish on every platform.",
+    IMAGE_POST_PUBLISH_IN_PROGRESS:
+      "This post is already being published. Wait a moment, then check the History tab.",
+    PUBLISH_INTERRUPTED_RESULT_UNKNOWN:
+      "Publishing was interrupted and the result is unknown. Check your social media account before retrying.",
     PUBLISH_AT_MUST_NOT_BE_IN_THE_PAST: "The publish schedule cannot be set in the past.",
     RSS_ONLY_ALLOWED_ON_FIRST_BUBBLE: "RSS can only be used in the first bubble.",
     GET_GENERATIVE_IMAGE_MODELS_SUCCESS: "AI image models loaded successfully.",
@@ -149,6 +164,11 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
       "Business member invitation response saved successfully.",
     OWNER_CANNOT_EDITED: "The business owner cannot be edited.",
     OWNER_CANNOT_REMOVE_ITSELF: "The business owner cannot remove themselves.",
+    ONLY_OWNER_CAN_ACCESS: "Only the business owner can do this.",
+    ONLY_OWNER_OR_ADMIN_CAN_ACCESS: "Only the business owner or an admin can do this.",
+    TOO_MANY_REQUESTS: "Too many attempts. Please wait a moment and try again.",
+    ACCOUNT_USES_GOOGLE_SIGN_IN:
+      "This account signs in with Google. Use \"Forgot password\" on the sign-in page to set a password.",
     TIMEZONE_NOT_VALID: "The selected timezone is invalid.",
     CONNECTED_PLATFORM_TEMP_CODE_ACCOUNT_NOT_FOUND:
       "The platform account to connect could not be found.",

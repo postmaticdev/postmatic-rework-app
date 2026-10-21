@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Trash2 } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
@@ -49,6 +49,7 @@ export function SelectedAvatars() {
                   size="icon-sm"
                   className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   disabled={isLoading}
+                  aria-label={`${t("removeSelectedTrend")} ${avatar.title}`}
                   onClick={() => {
                     const nextAvatars = form.basic.selectedAvatars.filter(
                       (item) => item.id !== avatar.id
@@ -59,7 +60,7 @@ export function SelectedAvatars() {
                     });
                   }}
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                 </Button>
               </div>
             </div>

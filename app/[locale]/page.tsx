@@ -6,6 +6,7 @@ import { countBusiness } from "@/services/business.api";
 import { ACCESS_TOKEN_KEY } from "@/constants";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { Button } from "@/components/ui/button";
+import { LogIn, RefreshCw } from "lucide-react";
 import {
   adoptCookieSession,
   isAuthRedirectBlocked,
@@ -46,9 +47,15 @@ export default function Home() {
           {isAuthLoop ? t("loopDescription") : t("errorDescription")}
         </p>
         {isAuthLoop ? (
-          <Button onClick={() => logoutAndRedirect()}>{t("relogin")}</Button>
+          <Button onClick={() => logoutAndRedirect()}>
+            <LogIn className="h-4 w-4" />
+            {t("relogin")}
+          </Button>
         ) : (
-          <Button onClick={retry}>{t("retry")}</Button>
+          <Button onClick={retry}>
+            <RefreshCw className="h-4 w-4" />
+            {t("retry")}
+          </Button>
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { SyntheticEvent, MouseEvent, KeyboardEvent } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronDown, ChevronRight, RefreshCcw } from "lucide-react";
+import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { GenerateContentAdvanceBase } from "@/models/api/content/image.type";
 import { Button } from "@/components/ui/button";
@@ -407,7 +407,7 @@ export const GenerateFormAdvanced = () => {
           </div>
           <div className="flex justify-end">
             <Button onClick={onResetAdvance}>
-              <RefreshCcw className="h-4 w-4" />
+              <RotateCcw className="h-4 w-4" />
               {t("reset")}
             </Button>
           </div>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Shield } from "lucide-react";
+import { Shield, UserPlus } from "lucide-react";
 import { useMemberGetAllMembers } from "@/services/member.api";
 import { useParams } from "next/navigation";
 import { MemberManagementModal } from "@/app/[locale]/business/[businessId]/settings/(components)/member-management-modal";
@@ -41,7 +41,8 @@ export function MembersTable() {
                 onClick={onInviteMember}
                 className="w-full sm:w-auto text-white"
               >
-                + {t("inviteMember")}
+                <UserPlus className="h-4 w-4" />
+                {t("inviteMember")}
               </Button>
             )}
           </div>

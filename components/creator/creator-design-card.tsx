@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
-import { MoreHorizontal, Edit, Trash2, Eye, EyeOff } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import { CreatorDesign } from "@/models/api/creator/design";
 import { useCreatorDesign } from "@/contexts/creator-design-context";
@@ -121,7 +121,7 @@ export function CreatorDesignCard({ design }: CreatorDesignCardProps) {
                     onClick={() => openEditModal(design)}
                     className="cursor-pointer"
                   >
-                    <Edit className="mr-2 h-4 w-4" />
+                    <Pencil className="mr-2 h-4 w-4" />
                     {t("edit")}
                   </DropdownMenuItem>
                   <DropdownMenuItem

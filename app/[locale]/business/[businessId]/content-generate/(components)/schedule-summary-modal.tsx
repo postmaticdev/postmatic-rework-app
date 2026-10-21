@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Loader2, Send, Sparkles, Heart, MessageCircle, Bookmark, MoreHorizontal, ThumbsUp, Share2, Globe, Repeat2, Clock, BadgeCheck, X } from "lucide-react";
+import { CalendarClock, CalendarDays, Loader2, Send, Wand2, Heart, MessageCircle, Bookmark, MoreHorizontal, ThumbsUp, Share2, Globe, Repeat2, Clock, BadgeCheck, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useEffect } from "react";
 import { ContentCarouselPreview } from "./content-carousel-preview";
@@ -102,7 +102,7 @@ export function ScheduleSummaryModal({
           title={t("enhanceCaption")}
           aria-label={t("enhanceCaption")}
         >
-          <Sparkles className="h-4 w-4" />
+          <Wand2 className="h-4 w-4" />
         </Button>
       )}
     </div>
@@ -495,7 +495,7 @@ export function ScheduleSummaryModal({
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <CalendarClock className="h-4 w-4" />
             )}
             {t("schedulePost")}
           </Button>

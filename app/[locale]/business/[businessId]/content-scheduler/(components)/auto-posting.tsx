@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ScheduleItemPicker } from "@/components/ui/schedule-item-picker";
-import { Calendar } from "lucide-react";
+import { Calendar, Save } from "lucide-react";
 import { useContentSchedulerAutoGetSettings } from "@/services/content/content.api";
 import { useParams } from "next/navigation";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
@@ -66,6 +66,7 @@ export function AutoPosting({ handleIfNoPlatformConnected }: AutoPostingProps) {
                 }}
               />
               <Button onClick={onUpsert} disabled={loading || !isValueChanged}>
+                <Save className="h-4 w-4" />
                 {loading ? t("saving") : t("save")}
               </Button>
             </div>

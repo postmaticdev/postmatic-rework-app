@@ -538,6 +538,29 @@ function mergeHydratedResult(current: Result, hydrated: Result): Result {
   };
 }
 
+/**
+ * A full chat snapshot merged over a job already in history. The snapshot wins, except that item ids
+ * missing from it are kept and an upscale an event already finished is not rolled back to pending by
+ * a snapshot requested before that event.
+ */
+function mergeRestoredResult(existing: Result, restored: Result): Result {
+  const imageItemIds = restored.imageItemIds?.length
+    ? restored.imageItemIds
+    : existing.imageItemIds;
+  const sameImages =
+    restored.images.length === existing.images.length &&
+    restored.images.every((image, index) => image === existing.images[index]);
+  if (!sameImages) return { ...restored, imageItemIds };
+
+  const upscale = mergeHydratedResult(existing, restored);
+  return {
+    ...restored,
+    imageItemIds,
+    upscaledImages: upscale.upscaledImages,
+    upscaleStatuses: upscale.upscaleStatuses,
+  };
+}
+
 /** Applies a tile upscale event to the job holding that item. Original URLs stay the image identity. */
 function applyImageUpscaleToHistories(groups: GetAllJob[], payload: RealtimeImageUpscaleData) {
   let changed = false;
@@ -683,6 +706,37 @@ function getBubbleGridSize(
   return Math.max(2, Math.ceil(Math.sqrt(Math.max(...positions) + 1)));
 }
 
+// The backend keeps the tile a follow-up iterated on only in the job payload, not on the bubble, so
+// a reloaded chat cannot tell which tile of a replied grid was used. The tile is remembered here per
+// user bubble; without it the replied grid shows no reference instead of every tile.
+const GRID_REPLY_TILE_STORAGE_KEY = "content-generate:grid-reply-tiles";
+const GRID_REPLY_TILE_LIMIT = 200;
+
+function readGridReplyTiles(): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem(GRID_REPLY_TILE_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function rememberGridReplyTile(userBubbleId: number, imageUrl: string) {
+  try {
+    const entries = Object.entries(readGridReplyTiles()).filter(
+      ([id]) => id !== String(userBubbleId)
+    );
+    entries.push([String(userBubbleId), imageUrl]);
+    window.localStorage.setItem(
+      GRID_REPLY_TILE_STORAGE_KEY,
+      JSON.stringify(Object.fromEntries(entries.slice(-GRID_REPLY_TILE_LIMIT)))
+    );
+  } catch {
+    // Storage unavailable: a reload then shows no reference for this follow-up.
+  }
+}
+
 function uniqueImageUrls(images: Array<string | null | undefined>) {
   return Array.from(new Set(images.filter(Boolean) as string[]));
 }
@@ -765,6 +819,7 @@ function buildSchedulerChatJobs({
   );
   const bubblesById = new Map(bubbles.map((bubble) => [bubble.id, bubble]));
   const userBubbles = bubbles.filter((bubble) => bubble.role === "user");
+  const gridReplyTiles = readGridReplyTiles();
 
   return userBubbles.map((userBubble, index) => {
     const nextUser = userBubbles[index + 1];
@@ -782,7 +837,11 @@ function buildSchedulerChatJobs({
       (userBubble.replyToBubbleId
         ? bubblesById.get(userBubble.replyToBubbleId)
         : null);
-    const replyReferenceImages = getBubbleImageUrls(replyBubble);
+    // A replied grid holds every tile, but the follow-up used only one of them.
+    const replyReferenceImages =
+      getBubbleGridSize(replyBubble) !== undefined
+        ? uniqueImageUrls([gridReplyTiles[String(userBubble.id)]])
+        : getBubbleImageUrls(replyBubble);
     const userImages = getBubbleImageUrls(userBubble);
     const resolvedInputImages = resolveJobInputImages({
       avatarImageUrl: userBubble.avatarImageUrl,
@@ -1907,13 +1966,7 @@ export const ContentGenerateProvider = ({
           },
           result:
             job.result && existingJob?.result
-              ? {
-                  ...job.result,
-                  imageItemIds:
-                    job.result.imageItemIds?.length
-                      ? job.result.imageItemIds
-                      : existingJob.result.imageItemIds,
-                }
+              ? mergeRestoredResult(existingJob.result, job.result)
               : job.result || existingJob?.result || null,
           product: {
             ...job.product,
@@ -2051,6 +2104,21 @@ export const ContentGenerateProvider = ({
     routeChatSessionId,
     searchParams,
   ]);
+
+  // The provider outlives the page (it sits in the locale layout), so leaving the generator route
+  // resets the selection here. Done on the route change rather than on page unmount, which Strict
+  // Mode simulates and which would cancel an in-flight draft-chat restore.
+  const onSelectHistoryRef = useRef(onSelectHistory);
+  useEffect(() => {
+    onSelectHistoryRef.current = onSelectHistory;
+  }, [onSelectHistory]);
+  const wasContentGenerateRouteRef = useRef(isContentGenerateRoute);
+  useEffect(() => {
+    if (wasContentGenerateRouteRef.current && !isContentGenerateRoute) {
+      onSelectHistoryRef.current(null);
+    }
+    wasContentGenerateRouteRef.current = isContentGenerateRoute;
+  }, [isContentGenerateRoute]);
 
   /**
    *
@@ -2774,27 +2842,40 @@ export const ContentGenerateProvider = ({
       (isFirstSchedulerBubble ? t("contentGenerateScheduler.firstGeneratePrompt") : "");
     const firstRss =
       isFirstSchedulerBubble && effMode === "rss" ? form.rss : null;
+    // The image attached for editing is what the composer shows, so it decides the reply. The
+    // selected job can move on without it (a running job's realtime progress selects that job), so
+    // the replied bubble is the job that owns the attached image.
+    const attachedEditImage =
+      form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
+        ? form.basic.referenceImage || selectedGeneratedImageUrl || null
+        : null;
+    const replyJob = attachedEditImage
+      ? histories
+          .flatMap((group) => group.jobs)
+          .find(
+            (job) =>
+              job.input.chatSessionId === chatSessionId &&
+              (job.result?.images?.includes(attachedEditImage) ||
+                job.result?.upscaledImages?.includes(attachedEditImage))
+          ) || selectedHistory
+      : null;
     const selectedSystemBubbleId =
-      form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME &&
-      typeof selectedHistory?.input?.systemBubbleId === "number"
-        ? selectedHistory.input.systemBubbleId
+      typeof replyJob?.input?.systemBubbleId === "number"
+        ? replyJob.input.systemBubbleId
         : undefined;
     const replyBubbleChatId =
       selectedSystemBubbleId && Number.isFinite(selectedSystemBubbleId)
         ? selectedSystemBubbleId
         : undefined;
-    const selectedReplyReferenceImage =
-      replyBubbleChatId && form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
-        ? selectedGeneratedImageUrl || form.basic.referenceImage || null
-        : null;
+    const selectedReplyReferenceImage = replyBubbleChatId ? attachedEditImage : null;
     const replyImageItemId = replyBubbleChatId
-      ? findResultImageItemId(selectedHistory?.result, selectedReplyReferenceImage)
+      ? findResultImageItemId(replyJob?.result, selectedReplyReferenceImage)
       : undefined;
     // A follow-up to a grid result must name the tile to iterate on. Without an explicit reply the
     // backend answers the latest result, so that one is checked too.
     if (!isFirstSchedulerBubble) {
       const replyResult = replyBubbleChatId
-        ? selectedHistory?.result
+        ? replyJob?.result
         : findLatestChatResult(histories, chatSessionId);
       if (isGridResult(replyResult) && !replyImageItemId) {
         showToast("error", t("contentGenerateScheduler.gridTileRequired"));
@@ -2978,6 +3059,9 @@ export const ContentGenerateProvider = ({
 
     const systemBubble = chatRes.data.data.systemBubble;
     const userBubble = chatRes.data.data.userBubble;
+    if (replyImageItemId && selectedReplyReferenceImage) {
+      rememberGridReplyTile(userBubble.id, selectedReplyReferenceImage);
+    }
     const images =
       systemBubble?.images?.map((item) => item.imageUrl).filter(Boolean) || [];
     const chatJob: JobData = {
@@ -3267,6 +3351,7 @@ export const ContentGenerateProvider = ({
           rootBusinessId: String(payload.businessRootId || businessId),
           status: nextStatus,
           stage: nextStage,
+          progressStep: payload.progressStep || fallbackJob.progressStep,
           progress: clampProgress(
             payload.progressPercentage,
             payload.processState
@@ -3753,13 +3838,7 @@ export const ContentGenerateProvider = ({
             },
             result:
               job.result && existingJob?.result
-                ? {
-                    ...job.result,
-                    imageItemIds:
-                      job.result.imageItemIds?.length
-                        ? job.result.imageItemIds
-                        : existingJob.result.imageItemIds,
-                  }
+                ? mergeRestoredResult(existingJob.result, job.result)
                 : job.result || existingJob?.result || null,
             product: {
               ...job.product,

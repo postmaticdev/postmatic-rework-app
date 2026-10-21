@@ -5,15 +5,15 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import {
   AlertCircle,
-  ArrowUp,
   Check,
   ChevronDown,
-  Clapperboard,
   Film,
   Paperclip,
   Loader2,
   Pencil,
   RefreshCw,
+  RotateCcw,
+  Send,
   Sparkles,
   X,
 } from "lucide-react";
@@ -46,11 +46,6 @@ import { formatVideoTime } from "./use-video-playback";
 
 const MAX_ATTACHMENTS = 4;
 const MAX_VIDEO_ATTACHMENTS = 10;
-const SUGGESTION_KEYS = [
-  "suggestionProductLaunch",
-  "suggestionPromo",
-  "suggestionTutorial",
-] as const;
 
 // Lets the storyboard's "Edit" button move focus to the composer.
 export const VIDEO_CHAT_PROMPT_ID = "video-chat-prompt";
@@ -58,11 +53,11 @@ export const VIDEO_CHAT_PROMPT_ID = "video-chat-prompt";
 type VideoChatPanelProps = {
   generator: VideoGeneratorState;
   onSelectScene: (index: number) => void;
-  // Reopens the product / avatar / reference step.
-  onEditSetup: () => void;
+  // Asks before going back to the start screen.
+  onStartOver: () => void;
 };
 
-export function VideoChatPanel({ generator, onSelectScene, onEditSetup }: VideoChatPanelProps) {
+export function VideoChatPanel({ generator, onSelectScene, onStartOver }: VideoChatPanelProps) {
   const t = useTranslations("videoGenerator");
   const tRoot = useTranslations();
   const {
@@ -77,9 +72,18 @@ export function VideoChatPanel({ generator, onSelectScene, onEditSetup }: VideoC
     isBusy,
     setup,
     storyboard,
+    approveStoryboard,
     submitPrompt,
     retry,
   } = generator;
+  // Only the latest storyboard reply offers to approve, while it's still up
+  // for review.
+  const approvableMessageId =
+    storyboard && !project
+      ? [...messages]
+          .reverse()
+          .find((message) => message.role === "assistant" && message.kind === "storyboard")?.id
+      : undefined;
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<string[]>([]);
   const [attachedVideos, setAttachedVideos] = useState<AttachedVideo[]>([]);
@@ -174,99 +178,81 @@ export function VideoChatPanel({ generator, onSelectScene, onEditSetup }: VideoC
 
   return (
     <div className="flex min-h-0 flex-col bg-card lg:h-full">
-      {setup && (
-        <div className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
-          <div className="flex shrink-0 -space-x-2">
-            {[setup.product.imageUrl || DEFAULT_PRODUCT_IMAGE, setup.avatar?.imageUrl, setup.reference?.imageUrl]
-              .filter((imageUrl): imageUrl is string => Boolean(imageUrl))
-              .map((imageUrl, index) => (
-                <Image
-                  key={`${imageUrl}-${index}`}
-                  src={imageUrl}
-                  alt=""
-                  width={72}
-                  height={72}
-                  className="h-9 w-9 rounded-lg border-2 border-card object-cover"
-                  unoptimized
-                />
-              ))}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{setup.product.name}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {[
-                t("setupProduct"),
-                setup.avatar && t("setupAvatar"),
-                setup.reference && t("setupReference"),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          </div>
-          {!project && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 shrink-0 px-2.5 text-xs"
-              disabled={isBusy}
-              onClick={onEditSetup}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              {t("setupEdit")}
-            </Button>
-          )}
-        </div>
-      )}
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5 scrollbar-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {messages.length === 0 ? (
-          <div className="flex flex-col gap-5 py-4">
-            <div className="space-y-2">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Clapperboard className="h-5 w-5" />
-              </div>
-              <h2 className="text-lg font-semibold">{t("emptyChatTitle")}</h2>
-              <p className="text-sm text-muted-foreground">
-                {t("emptyChatDescription")}
+      <div className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
+        {setup ? (
+          <>
+            <div className="flex shrink-0 -space-x-2">
+              {[setup.product.imageUrl || DEFAULT_PRODUCT_IMAGE, setup.avatar?.imageUrl, setup.reference?.imageUrl]
+                .filter((imageUrl): imageUrl is string => Boolean(imageUrl))
+                .map((imageUrl, index) => (
+                  <Image
+                    key={`${imageUrl}-${index}`}
+                    src={imageUrl}
+                    alt=""
+                    width={72}
+                    height={72}
+                    className="h-9 w-9 rounded-lg border-2 border-card object-cover"
+                    unoptimized
+                  />
+                ))}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{setup.product.name}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {[
+                  t("setupProduct"),
+                  setup.avatar && t("setupAvatar"),
+                  setup.reference && t("setupReference"),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             </div>
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t("suggestionLabel")}
-              </p>
-              {SUGGESTION_KEYS.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className="flex w-full items-start gap-2 rounded-xl border bg-background-secondary px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
-                  onClick={() => {
-                    setPrompt(t(key));
-                    textareaRef.current?.focus();
-                  }}
-                >
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  {t(key)}
-                </button>
-              ))}
-            </div>
-          </div>
+          </>
         ) : (
-          messages.map((message) =>
-            message.role === "user" ? (
-              <UserBubble
-                key={message.id}
-                message={message}
-                onSelectScene={onSelectScene}
-              />
-            ) : (
-              <AssistantBubble
-                key={message.id}
-                message={message}
-                project={project}
-                isBusy={isBusy}
-                onRetry={() => retry(message.id)}
-              />
-            )
+          <>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+              <Film className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{t("uploadChatTitle")}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {t("uploadChatDescription")}
+              </p>
+            </div>
+          </>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 shrink-0 px-2.5 text-xs"
+          disabled={isBusy}
+          onClick={onStartOver}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          {t("startOver")}
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5 scrollbar-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {messages.map((message) =>
+          message.role === "user" ? (
+            <UserBubble
+              key={message.id}
+              message={message}
+              onSelectScene={onSelectScene}
+            />
+          ) : (
+            <AssistantBubble
+              key={message.id}
+              message={message}
+              project={project}
+              isBusy={isBusy}
+              onRetry={() => retry(message.id)}
+              onApproveStoryboard={
+                message.id === approvableMessageId ? approveStoryboard : undefined
+              }
+            />
           )
         )}
         <div ref={threadEndRef} />
@@ -424,7 +410,7 @@ export function VideoChatPanel({ generator, onSelectScene, onEditSetup }: VideoC
               {isBusy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <ArrowUp className="h-4 w-4" />
+                <Send className="h-4 w-4" />
               )}
             </Button>
           </div>
@@ -443,7 +429,7 @@ export function VideoChatPanel({ generator, onSelectScene, onEditSetup }: VideoC
 }
 
 // Outline of the frame shape, e.g. a tall rectangle for 9:16.
-function RatioIcon({ ratio }: { ratio: VideoRatio }) {
+export function RatioIcon({ ratio }: { ratio: VideoRatio }) {
   const [width, height] = ratio.split(":").map(Number);
   const longestSide = Math.max(width, height);
 
@@ -460,7 +446,7 @@ function RatioIcon({ ratio }: { ratio: VideoRatio }) {
   );
 }
 
-function OptionDropdown<TValue extends string | number>({
+export function OptionDropdown<TValue extends string | number>({
   label,
   value,
   options,
@@ -603,11 +589,14 @@ function AssistantBubble({
   project,
   isBusy,
   onRetry,
+  onApproveStoryboard,
 }: {
   message: Extract<VideoChatMessage, { role: "assistant" }>;
   project: VideoProject | null;
   isBusy: boolean;
   onRetry: () => void;
+  // Set on the storyboard reply that's still up for review.
+  onApproveStoryboard?: () => void;
 }) {
   const t = useTranslations("videoGenerator");
   const sceneName = message.scene
@@ -677,7 +666,20 @@ function AssistantBubble({
           )}
         </div>
       ) : (
-        <p className={cn("pt-1 text-sm leading-relaxed")}>{doneLabel}</p>
+        <div className="space-y-2.5 pt-1">
+          <p className="text-sm leading-relaxed">{doneLabel}</p>
+          {onApproveStoryboard && (
+            <Button
+              type="button"
+              size="sm"
+              disabled={isBusy}
+              onClick={onApproveStoryboard}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("approveStoryboard")}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

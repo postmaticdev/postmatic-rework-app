@@ -65,7 +65,7 @@ function PaymentMethodLogo({ method }: { method: PaymentMethodSelectOption }) {
   const logoSrc = getPaymentLogo(method);
 
   return (
-    <span className="flex h-7 w-10 shrink-0 items-center justify-center rounded-md bg-white p-1 shadow-sm ring-1 ring-black/5">
+    <span className="flex h-7 w-10 shrink-0 items-center justify-center rounded-md bg-white p-1">
       {logoSrc && !hasError ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

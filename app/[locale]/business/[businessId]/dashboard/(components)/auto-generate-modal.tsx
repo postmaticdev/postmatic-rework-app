@@ -29,7 +29,6 @@ import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
-import { TimeInput } from "@/components/ui/time-input";
 import { 
   Save, Sparkles, Trash2, Send,
   Heart, MessageCircle, Bookmark, MoreHorizontal, 
@@ -594,13 +593,25 @@ export function AutoGenerateModal({
                     </NativeSelect>
                   </div>
 
-                  <div className="flex h-(--control-h) items-center gap-2 rounded-md border border-input bg-background-secondary px-3 shadow-xs">
+                  {/* Same time field as the schedule summary: one native time input opening the picker. */}
+                  <div
+                    className="flex h-(--control-h) cursor-pointer items-center gap-2 rounded-md border border-input bg-background-secondary px-3"
+                    onClick={(e) => {
+                      const input = e.currentTarget.querySelector("input");
+                      try { input?.showPicker(); } catch {}
+                    }}
+                  >
                     <ClockIcon className="h-4 w-4 text-primary shrink-0" />
-                    <TimeInput
-                      hour={modalHour}
-                      minute={modalMinute}
-                      onHourChange={handleModalHourChange}
-                      onMinuteChange={handleModalMinuteChange}
+                    <input
+                      type="time"
+                      value={modalHour && modalMinute ? `${modalHour.padStart(2, "0")}:${modalMinute.padStart(2, "0")}` : ""}
+                      onChange={(e) => {
+                        const [hour = "", minute = ""] = e.target.value.split(":");
+                        handleModalHourChange(hour);
+                        handleModalMinuteChange(minute);
+                      }}
+                      aria-label={t("pleaseSelectTime")}
+                      className="h-full w-full border-0 bg-transparent p-0 text-base outline-none shadow-none sm:text-sm focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden!"
                     />
                   </div>
                 </div>

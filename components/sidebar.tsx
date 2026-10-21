@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 
 import {
   BookOpen,
-  Send,
+  CalendarClock,
   Settings,
   AlertTriangle,
 } from "lucide-react";
@@ -31,7 +31,7 @@ export function Sidebar() {
     {
       name: t("contentScheduler"),
       href: "content-scheduler",
-      icon: Send,
+      icon: CalendarClock,
     },
     {
       name: t("settings"),
@@ -96,6 +96,7 @@ export function Sidebar() {
               >
                 <Link
                   href={`/business/${businessId}/${item.href}`}
+                  aria-label={item.name}
                   onMouseEnter={() => setHoveredItem(item.href)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={cn(
@@ -152,6 +153,7 @@ export function Sidebar() {
               >
                 <button
                   onClick={() => setIsReportModalOpen(true)}
+                  aria-label={item.name}
                   onMouseEnter={() => setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={cn(

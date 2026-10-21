@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import {
   prepareBusinessKnowledgePayload,
   prepareRoleKnowledgePayload,
@@ -194,6 +195,7 @@ export function ManualNewBusinessFlow() {
                 onClick={handlePrevious}
                 disabled={currentStep === 0}
               >
+                <ArrowLeft className="size-4" />
                 {t("previous")}
               </Button>
               <Button
@@ -201,11 +203,19 @@ export function ManualNewBusinessFlow() {
                 className="bg-primary text-white hover:bg-blue-700"
                 disabled={isLoading}
               >
-                {isLoading
-                  ? t("loading")
-                  : currentStep === steps.length - 1
-                    ? t("submit")
-                    : t("next")}
+                {isLoading ? (
+                  t("loading")
+                ) : currentStep === steps.length - 1 ? (
+                  <>
+                    <Check className="size-4" />
+                    {t("submit")}
+                  </>
+                ) : (
+                  <>
+                    {t("next")}
+                    <ArrowRight className="size-4" />
+                  </>
+                )}
               </Button>
             </div>
           </div>

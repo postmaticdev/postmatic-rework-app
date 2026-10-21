@@ -13,6 +13,7 @@ import { showToast } from "@/helper/show-toast";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 
@@ -129,6 +130,7 @@ export default function CheckoutPage() {
                 className="w-full bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600"
               >
                 {isLoading ? t("toast.validation.processing") : t("toast.validation.continue")}
+                {!isLoading && <ArrowRight className="size-4" />}
               </Button>
             </>
           </CardContent>

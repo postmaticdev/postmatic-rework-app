@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
-import { Info, Send, Zap } from "lucide-react";
+import { CreditCard, ExternalLink, Info, Zap } from "lucide-react";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTokenGetTokenUsage } from "@/services/tier/token.api";
@@ -63,7 +63,7 @@ export function BillingInvoices() {
                 onClick={() => setIsDialogOpen(true)}
                 className="bg-blue-600 text-white hover:bg-blue-700"
               >
-                <Send className="mr-2 h-4 w-4" />
+                <CreditCard className="mr-2 h-4 w-4" />
                 {t("topUpCredit")}
               </Button>
             )}
@@ -78,7 +78,7 @@ export function BillingInvoices() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Send className="mr-2 h-4 w-4 rotate-45" />
+                <ExternalLink className="mr-2 h-4 w-4" />
                 {t("viewPricing")}
               </a>
             </Button>

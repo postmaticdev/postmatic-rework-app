@@ -15,21 +15,27 @@ type WatermarkFetcher = (generatedImagePostItemId: number) => Promise<{
 }>;
 
 // Shared across components so the chat, preview and carousel showing the same
-// image don't each poll the watermark endpoint.
-const watermarkUrlCache = new Map<number, string>();
-const watermarkRequests = new Map<number, Promise<string | null>>();
+// image don't each poll the watermark endpoint. Keyed by item and shown URL: a grid
+// tile's watermark is rebuilt from its upscale, so the one made from the small tile
+// must not be reused once the upscaled URL is shown.
+const watermarkUrlCache = new Map<string, string>();
+const watermarkRequests = new Map<string, Promise<string | null>>();
+const watermarkCacheKey = (imageItemId: number, imageUrl: string) =>
+  `${imageItemId}|${imageUrl}`;
 const EMPTY_HISTORIES: NonNullable<
   ReturnType<typeof useOptionalContentGenerate>
 >["histories"] = [];
 
 const requestWatermarkUrl = (
   imageItemId: number,
+  imageUrl: string,
   fetchWatermark: WatermarkFetcher
 ): Promise<string | null> => {
-  const cachedUrl = watermarkUrlCache.get(imageItemId);
+  const cacheKey = watermarkCacheKey(imageItemId, imageUrl);
+  const cachedUrl = watermarkUrlCache.get(cacheKey);
   if (cachedUrl) return Promise.resolve(cachedUrl);
 
-  const pendingRequest = watermarkRequests.get(imageItemId);
+  const pendingRequest = watermarkRequests.get(cacheKey);
   if (pendingRequest) return pendingRequest;
 
   const request = (async () => {
@@ -44,7 +50,7 @@ const requestWatermarkUrl = (
           watermarkData.isCached &&
           watermarkUrl
         ) {
-          watermarkUrlCache.set(imageItemId, watermarkUrl);
+          watermarkUrlCache.set(cacheKey, watermarkUrl);
           return watermarkUrl;
         }
       } catch {}
@@ -58,10 +64,10 @@ const requestWatermarkUrl = (
 
     return null;
   })().finally(() => {
-    watermarkRequests.delete(imageItemId);
+    watermarkRequests.delete(cacheKey);
   });
 
-  watermarkRequests.set(imageItemId, request);
+  watermarkRequests.set(cacheKey, request);
   return request;
 };
 
@@ -87,7 +93,7 @@ export function useProtectedImageUrl(
   const getImageWatermarkRef = useRef(getImageWatermark);
   getImageWatermarkRef.current = getImageWatermark;
   const [watermark, setWatermark] = useState<{
-    imageItemId: number;
+    cacheKey: string;
     url: string | null;
   } | null>(null);
 
@@ -95,7 +101,11 @@ export function useProtectedImageUrl(
     if (!imageUrl) return null;
     for (const group of histories) {
       for (const job of group.jobs) {
-        const imageIndex = job.result?.images?.indexOf(imageUrl) ?? -1;
+        // Grid tiles are also shown by their upscaled URL, which belongs to the same item.
+        let imageIndex = job.result?.images?.indexOf(imageUrl) ?? -1;
+        if (imageIndex < 0) {
+          imageIndex = job.result?.upscaledImages?.indexOf(imageUrl) ?? -1;
+        }
         if (imageIndex >= 0) {
           return { imageItemId: job.result?.imageItemIds?.[imageIndex] };
         }
@@ -113,22 +123,24 @@ export function useProtectedImageUrl(
     if (
       !needsWatermark ||
       isAccessLoading ||
+      !imageUrl ||
       typeof resolvedImageItemId !== "number"
     ) {
       return;
     }
 
     let isActive = true;
-    void requestWatermarkUrl(resolvedImageItemId, (id) =>
+    const cacheKey = watermarkCacheKey(resolvedImageItemId, imageUrl);
+    void requestWatermarkUrl(resolvedImageItemId, imageUrl, (id) =>
       getImageWatermarkRef.current({ generatedImagePostItemId: id })
     ).then((url) => {
-      if (isActive) setWatermark({ imageItemId: resolvedImageItemId, url });
+      if (isActive) setWatermark({ cacheKey, url });
     });
 
     return () => {
       isActive = false;
     };
-  }, [isAccessLoading, needsWatermark, resolvedImageItemId]);
+  }, [imageUrl, isAccessLoading, needsWatermark, resolvedImageItemId]);
 
   if (!imageUrl) return { src: null, status: "unavailable" };
   if (!needsWatermark) return { src: imageUrl, status: "ready" };
@@ -138,9 +150,10 @@ export function useProtectedImageUrl(
     return { src: null, status: "pending" };
   }
 
+  const cacheKey = watermarkCacheKey(resolvedImageItemId, imageUrl);
   const watermarkUrl =
-    watermarkUrlCache.get(resolvedImageItemId) ??
-    (watermark?.imageItemId === resolvedImageItemId ? watermark.url : undefined);
+    watermarkUrlCache.get(cacheKey) ??
+    (watermark?.cacheKey === cacheKey ? watermark.url : undefined);
   if (watermarkUrl) return { src: watermarkUrl, status: "ready" };
   if (watermarkUrl === null) return { src: null, status: "unavailable" };
   return { src: null, status: "pending" };

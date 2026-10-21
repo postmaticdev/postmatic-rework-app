@@ -95,7 +95,7 @@ export function RoleKnowledgeForm() {
               }
             }}
           />
-          <Button type="button" onClick={addHashtag} size="icon">
+          <Button type="button" onClick={addHashtag} size="icon" aria-label={r("addHashtag")}>
             <Plus className="w-4 h-4" color="white" />
           </Button>
         </div>
@@ -109,6 +109,7 @@ export function RoleKnowledgeForm() {
               <button
                 type="button"
                 onClick={() => removeHashtag(index)}
+                aria-label={r("removeHashtag", { hashtag })}
                 className="text-blue-600 hover:text-blue-800 max-sm:-my-1 max-sm:px-1.5 max-sm:py-1 max-sm:text-base max-sm:leading-none"
               >
                 ×

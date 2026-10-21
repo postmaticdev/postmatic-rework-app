@@ -9,7 +9,6 @@ import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { ScheduleTimeInput } from "@/components/ui/schedule-time-input";
 import { Textarea } from "@/components/ui/textarea";
 import { LogoLoader } from "@/components/base/logo-loader";
-import { Progress } from "@/components/ui/progress";
 import { ScheduleSummaryModal } from "@/app/[locale]/business/[businessId]/content-generate/(components)/schedule-summary-modal";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
@@ -38,11 +37,13 @@ import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { useParams, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
+  CalendarClock,
   CalendarDays,
-  GalleryHorizontal,
   Loader2,
+  RefreshCw,
   RotateCcw,
-  WandSparkles,
+  Sparkles,
+  Wand2,
 } from "lucide-react";
 import { showToast } from "@/helper/show-toast";
 import { useRole } from "@/contexts/role-context";
@@ -147,6 +148,10 @@ export function PreviewPanel() {
   }, [selectedHistory?.result?.images, selectedImageUrl]);
   const selectedImageItemId =
     selectedHistory?.result?.imageItemIds?.[selectedImageIndex];
+  // The backend rebuilds a grid tile's watermark from its upscale, so the watermark is refetched
+  // once the upscale finishes instead of keeping (and publishing) the one made from the small tile.
+  const selectedUpscaleStatus =
+    selectedHistory?.result?.upscaleStatuses?.[selectedImageIndex] ?? null;
   const restrictedModelName = getFreeUserAiModelDisplayNames(aiModels.models);
   const modelRestrictionCopy = {
     title: t("freeModelRestrictionTitle"),
@@ -271,7 +276,7 @@ export function PreviewPanel() {
     setWatermarkedPreviewUrl(null);
     previewWatermarkRequestKeyRef.current = null;
     previewWatermarkRequestPromiseRef.current = null;
-  }, [selectedImageItemId, selectedImageUrl]);
+  }, [selectedImageItemId, selectedImageUrl, selectedUpscaleStatus]);
 
   const resolvePreviewWatermarkUrl = useCallback(
     async ({
@@ -291,7 +296,7 @@ export function PreviewPanel() {
         return null;
       }
 
-      const requestKey = `${selectedImageItemId}-${selectedImageUrl}-${timeoutMs}`;
+      const requestKey = `${selectedImageItemId}-${selectedImageUrl}-${selectedUpscaleStatus}-${timeoutMs}`;
       if (
         previewWatermarkRequestPromiseRef.current &&
         previewWatermarkRequestKeyRef.current === requestKey
@@ -350,6 +355,7 @@ export function PreviewPanel() {
       getImageWatermark,
       selectedImageItemId,
       selectedImageUrl,
+      selectedUpscaleStatus,
       watermarkedPreviewUrl,
     ]
   );
@@ -883,12 +889,6 @@ export function PreviewPanel() {
               unoptimized
             />
             <span className="truncate font-medium text-sm">{businessName}</span>
-            {isCarouselPreview && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
-                <GalleryHorizontal className="h-3.5 w-3.5" />
-                {t("carouselBadge", { count: carouselPreviewImages.length })}
-              </span>
-            )}
           </div>
           {!schedulerMode && selectedHistory && (
             <Button
@@ -933,15 +933,6 @@ export function PreviewPanel() {
           </div>
         </div>
 
-        {isLoading &&
-          typeof selectedHistory?.progress === "number" &&
-          selectedHistory?.progress < 100 && (
-            <div className="p-4 flex flex-row items-center gap-4 border-b max-lg:hidden">
-              <Progress value={selectedHistory?.progress ?? 0} />
-              <span className="text-sm">{selectedHistory?.progress}%</span>
-            </div>
-          )}
-
         <div className="p-4 border-b max-lg:hidden">
           <div className="flex items-start gap-3">
             <Image
@@ -980,7 +971,7 @@ export function PreviewPanel() {
                     {isEnhanceCaptionLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <WandSparkles className="h-4 w-4" />
+                      <Wand2 className="h-4 w-4" />
                     )}
                   </Button>
                 )}
@@ -1031,7 +1022,13 @@ export function PreviewPanel() {
           className="w-full bg-blue-500 hover:bg-blue-600 text-white"
           disabled={isLoading}
         >
-          <WandSparkles className="h-5 w-5" />
+          {schedulerMode && selectedHistory ? (
+            <CalendarClock className="h-5 w-5" />
+          ) : !schedulerMode && !isLoading && selectedHistory ? (
+            <RefreshCw className="h-5 w-5" />
+          ) : (
+            <Sparkles className="h-5 w-5" />
+          )}
           {schedulerMode
             ? selectedHistory
               ? schedulerT("schedulePost")

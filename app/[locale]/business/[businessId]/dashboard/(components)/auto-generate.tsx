@@ -16,7 +16,7 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { AutoGenerateModal } from "./auto-generate-modal";
 import { AutoGenerateHistoryModal } from "./auto-generate-history-modal";
-import { Clock, Edit, Plus, Send, X } from "lucide-react";
+import { Clock, Pencil, Plus, X } from "lucide-react";
 import Image from "next/image";
 import {
   Dialog,
@@ -449,7 +449,7 @@ export function AutoGenerate({
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        <Edit className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
                                         <div
                                           data-toggle-schedule="true"
                                           onClick={(event) => event.stopPropagation()}
@@ -477,7 +477,7 @@ export function AutoGenerate({
                             onClick={() => handleAddScheduleToDay(day.value)}
                             className="w-full"
                           >
-                            <Send className="h-4 w-4" />
+                            <Plus className="h-4 w-4" />
                             {t("addScheduleFull")}
                           </Button>
                         </div>

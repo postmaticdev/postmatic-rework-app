@@ -142,6 +142,7 @@ function VideoPostPreview({
   withWatermark: boolean;
   className?: string;
 }) {
+  const t = useTranslations("videoGenerator");
   const playback = useVideoPlayback(project.scenes, project.id);
   const [ratioWidth, ratioHeight] = project.ratio.split(":").map(Number);
   const { restart, pause } = playback;
@@ -158,6 +159,7 @@ function VideoPostPreview({
       className={cn("group relative block w-full cursor-pointer", className)}
       style={{ aspectRatio: `${ratioWidth} / ${ratioHeight}` }}
       onClick={playback.togglePlay}
+      aria-label={playback.isPlaying ? t("pause") : t("play")}
     >
       <VideoStage
         ratio={project.ratio}

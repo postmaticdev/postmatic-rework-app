@@ -6,7 +6,7 @@ import { ChevronDown as ChevronDownIcon, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
-import { Plus, Trash2, Bot, Newspaper } from "lucide-react";
+import { Plus, X, Bot, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { ValidRatio } from "@/models/api/content/image.type";
@@ -113,8 +113,9 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
                       setBasic({ ...basic, productKnowledgeId: "", productName: "", productImage: "" });
                     }}
                     disabled={isLoading || disabled}
+                    aria-label={`${t("removeSelectedTrend")} ${basic.productName}`}
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <X className="w-5 h-5" />
                   </Button>
                 </div>
               </div>
@@ -241,7 +242,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             size="lg"
             className="w-full min-w-0 whitespace-normal leading-tight bg-red-600 text-white hover:bg-red-700 max-sm:h-(--control-h)"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
+            <X className="h-4 w-4 mr-2" />
             {t("removeSelectedTrend")}
           </Button>
         ) : (

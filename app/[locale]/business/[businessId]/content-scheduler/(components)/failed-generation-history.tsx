@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { AlertCircle, ExternalLink } from "lucide-react";
+import { AlertCircle, ArrowRight } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -137,7 +137,7 @@ export function FailedGenerationHistory() {
                     className="sm:min-h-0"
                     onClick={() => openJob(job)}
                   >
-                    <ExternalLink className="h-3.5 w-3.5 max-sm:size-4" />
+                    <ArrowRight className="h-3.5 w-3.5 max-sm:size-4" />
                     {t("openInGenerator")}
                   </Button>
                 </div>

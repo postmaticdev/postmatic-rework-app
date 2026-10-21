@@ -4,7 +4,7 @@ import { useState } from "react";
 import { TextField } from "@/components/forms/text-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Info, Plus } from "lucide-react";
+import { Info, Plus, X } from "lucide-react";
 import { useFormNewBusiness } from "@/contexts/form-new-business-context";
 import { RoleKnowledgePld } from "@/models/api/knowledge/role.type";
 import { useTranslations } from "next-intl";
@@ -159,7 +159,12 @@ export function RoleKnowledge() {
             }}
           />
 
-          <Button type="button" size="icon" onClick={addHashtag}>
+          <Button
+            type="button"
+            size="icon"
+            onClick={addHashtag}
+            aria-label={t("addHashtag")}
+          >
             <Plus className="w-4 h-4" color="white" />
           </Button>
         </div>
@@ -174,8 +179,9 @@ export function RoleKnowledge() {
                 type="button"
                 onClick={() => removeHashtag(index)}
                 className="text-blue-600 hover:text-blue-800 max-md:-my-1 max-md:-mr-1 max-md:inline-flex max-md:size-8 max-md:items-center max-md:justify-center max-md:text-lg"
+                aria-label={t("removeHashtag", { hashtag })}
               >
-                ×
+                <X className="h-3.5 w-3.5" />
               </button>
             </span>
           ))}

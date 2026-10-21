@@ -27,7 +27,7 @@ import {
 } from "@/services/content/content.api";
 import { usePlatformKnowledgeGetAll, useProductKnowledgeGetAll, useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { 
-  CalendarDays, Loader2, Send, Sparkles, 
+  CalendarClock, CalendarDays, Loader2, Send, Sparkles, 
   Heart, MessageCircle, Bookmark, MoreHorizontal, 
   ThumbsUp, Share2, Globe, Repeat2, Clock, BadgeCheck, X 
 } from "lucide-react";
@@ -342,6 +342,7 @@ export function ContentSchedulerUploadDialog({
         className="absolute -bottom-2 -right-2 rounded-xl h-10 w-10 sm:h-8 sm:w-8 shadow-md opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
         onClick={handleEnhanceCaption}
         disabled={enhanceCaptionMutation.isPending || isSubmitting}
+        aria-label={t("generateCaption")}
       >
         {enhanceCaptionMutation.isPending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -719,7 +720,7 @@ export function ContentSchedulerUploadDialog({
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <CalendarClock className="h-4 w-4" />
             )}
             {t("schedulePostButton")}
           </Button>

@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Lock, ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Lock, ArrowLeft, ArrowRight, Eye, EyeOff, Save } from "lucide-react";
 import { UploadPhoto } from "@/components/forms/upload-photo";
 import {
   useAuthProfileChangePassword,
@@ -26,8 +26,14 @@ import countryCodes from "@/lib/country-code.json";
 import { FcGoogle } from "react-icons/fc";
 import { useLocale, useTranslations } from "next-intl";
 import { localizeCountryNames } from "@/helper/locale";
+import { AxiosError } from "axios";
 
 type ViewMode = "profile" | "password";
+
+// Mirrors the API rule for PUT /account/profile/password (min=8, max=72).
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 72;
+const PASSWORD_LENGTH_PARAMS = { min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH };
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -152,7 +158,56 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
     });
   };
 
+  const newPasswordLength = passwordData.newPassword.length;
+  const isNewPasswordLengthValid =
+    newPasswordLength >= PASSWORD_MIN_LENGTH &&
+    newPasswordLength <= PASSWORD_MAX_LENGTH;
+  const isConfirmMismatch =
+    passwordData.confirmPassword.length > 0 &&
+    passwordData.confirmPassword !== passwordData.newPassword;
+
+  const getChangePasswordErrorMessage = (error: unknown): unknown => {
+    if (!(error instanceof AxiosError)) return error;
+    const code = error.response?.data?.responseMessage;
+    if (error.response?.status === 429 || code === "TOO_MANY_REQUESTS") {
+      const retryAfter = Number(
+        error.response?.data?.data?.retryAfter ??
+          error.response?.headers?.["retry-after"]
+      );
+      return retryAfter > 0
+        ? t("passwordErrors.tooManyRequestsRetry", {
+            minutes: Math.ceil(retryAfter / 60),
+          })
+        : t("passwordErrors.tooManyRequests");
+    }
+    if (
+      code === "ACCOUNT_USES_GOOGLE_SIGN_IN" ||
+      code === "CREDENTIAL_USER_NOT_FOUND"
+    ) {
+      return t("passwordErrors.googleOnly");
+    }
+    if (code === "VALIDATION_FAILED") {
+      return t("passwordErrors.newPasswordLength", PASSWORD_LENGTH_PARAMS);
+    }
+    return error;
+  };
+
   const handlePasswordSave = async () => {
+    if (!passwordData.oldPassword) {
+      showToast("error", t("passwordErrors.oldPasswordRequired"));
+      return;
+    }
+    if (!isNewPasswordLengthValid) {
+      showToast(
+        "error",
+        t("passwordErrors.newPasswordLength", PASSWORD_LENGTH_PARAMS)
+      );
+      return;
+    }
+    if (passwordData.confirmPassword !== passwordData.newPassword) {
+      showToast("error", t("passwordErrors.confirmMismatch"));
+      return;
+    }
     try {
       const res = await mChangePassword.mutateAsync(passwordData);
       showToast("success", res.data.responseMessage);
@@ -168,7 +223,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         new: false,
         confirm: false,
       });
-    } catch {}
+    } catch (error) {
+      showToast("error", getChangePasswordErrorMessage(error));
+    }
   };
 
   const handleModalClose = () => {
@@ -344,6 +401,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => togglePasswordVisibility("current")}
+                    aria-label={showPasswords.current ? t("hidePassword") : t("showPassword")}
                   >
                     {showPasswords.current ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -373,6 +431,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => togglePasswordVisibility("new")}
+                    aria-label={showPasswords.new ? t("hidePassword") : t("showPassword")}
                   >
                     {showPasswords.new ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -381,6 +440,15 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     )}
                   </Button>
                 </div>
+                <p
+                  className={`text-xs ${
+                    newPasswordLength > 0 && !isNewPasswordLengthValid
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {t("passwordHint", PASSWORD_LENGTH_PARAMS)}
+                </p>
               </div>
 
               {/* Confirm New Password */}
@@ -404,6 +472,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => togglePasswordVisibility("confirm")}
+                    aria-label={showPasswords.confirm ? t("hidePassword") : t("showPassword")}
                   >
                     {showPasswords.confirm ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -412,6 +481,11 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     )}
                   </Button>
                 </div>
+                {isConfirmMismatch && (
+                  <p className="text-xs text-destructive">
+                    {t("passwordErrors.confirmMismatch")}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -433,7 +507,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 ? handleSaveProfile
                 : handlePasswordSave
             }
+            disabled={currentView === "password" && mChangePassword.isPending}
           >
+            <Save className="h-4 w-4" />
             <span>
               {currentView === "profile"
                 ? t("save")

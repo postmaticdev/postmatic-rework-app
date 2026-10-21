@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, Globe, Phone } from "lucide-react";
+import { Globe, Pencil, Phone } from "lucide-react";
 import Image from "next/image";
 import { EditKnowledgeModal } from "./edit-knowledge-modal";
 import { useBusinessGetById } from "@/services/business.api";
@@ -23,6 +23,7 @@ export function BusinessKnowledgeSection() {
   const { access } = useRole();
   const { businessKnowledge } = access;
   const b = useTranslations("businessKnowledge");
+  const m = useTranslations("modal");
 
   const businessKnowledgeDetail = businessKnowledgeData?.data?.data;
   const phoneNumber = isLegacyUnusedValue(businessKnowledgeDetail?.businessPhone)
@@ -55,8 +56,9 @@ export function BusinessKnowledgeSection() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => setIsEditModalOpen(true)}
+                aria-label={m("titleBusinessRole")}
               >
-                <Edit className="h-4 w-4" />
+                <Pencil className="h-4 w-4" />
               </Button>
             )}
           </div>

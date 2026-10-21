@@ -18,9 +18,11 @@ import { Input } from "@/components/ui/input";
 import {
   Bell,
   MessageSquare,
-  Paperclip,
+  ImagePlus,
+  Check,
+  CheckCheck,
   Send,
-  ChevronLeft,
+  ArrowLeft,
   FileText,
   X,
   Circle,
@@ -688,6 +690,7 @@ export default function NotificationsPage() {
             onClick={markAllAsRead}
             className="text-blue-600 hover:text-blue-700 shrink-0"
           >
+            <CheckCheck className="h-4 w-4" />
             {t("markAllAsRead")}
           </Button>
         )}
@@ -719,6 +722,7 @@ export default function NotificationsPage() {
                   {notifSearch && (
                     <button
                       onClick={() => setNotifSearch("")}
+                      aria-label={t("clearSearch")}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground max-md:right-1 max-md:p-2"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -799,7 +803,7 @@ export default function NotificationsPage() {
                   onClick={() => setMobileView("list")}
                   className="flex items-center gap-1"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-4 h-4" />
                   {t("back")}
                 </Button>
               </div>
@@ -853,6 +857,7 @@ export default function NotificationsPage() {
                         onClick={() => markAsRead(activeNotification.id)}
                         disabled={!activeNotification.unread}
                       >
+                        <Check className="h-4 w-4" />
                         {activeNotification.unread ? t("markAsRead") : t("alreadyRead")}
                       </Button>
                     </footer>
@@ -892,6 +897,7 @@ export default function NotificationsPage() {
                   {ticketSearch && (
                     <button
                       onClick={() => setTicketSearch("")}
+                      aria-label={t("clearSearch")}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground max-md:right-1 max-md:p-2"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -1018,8 +1024,9 @@ export default function NotificationsPage() {
                         size="icon"
                         onClick={() => setMobileView("list")}
                         className="md:hidden"
+                        aria-label={t("back")}
                       >
-                        <ChevronLeft className="w-5 h-5 text-foreground" />
+                        <ArrowLeft className="w-5 h-5 text-foreground" />
                       </Button>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -1131,6 +1138,7 @@ export default function NotificationsPage() {
                           <button
                             type="button"
                             onClick={() => removeAttachment(idx)}
+                            aria-label={t("removeAttachment")}
                             className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity max-md:-top-2 max-md:-right-2 max-md:size-6 max-md:opacity-100"
                           >
                             <X className="w-2.5 h-2.5" />
@@ -1201,6 +1209,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleBold().run()}
+                          aria-label={t("bold")}
                           className={toolbarIconClass(editor?.isActive("bold"))}
                         >
                           <Bold className="h-4 w-4" />
@@ -1211,6 +1220,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleItalic().run()}
+                          aria-label={t("italic")}
                           className={toolbarIconClass(editor?.isActive("italic"))}
                         >
                           <Italic className="h-4 w-4" />
@@ -1221,6 +1231,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleUnderline().run()}
+                          aria-label={t("underline")}
                           className={toolbarIconClass(editor?.isActive("underline"))}
                         >
                           <UnderlineIcon className="h-4 w-4" />
@@ -1231,6 +1242,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={handleLink}
+                          aria-label={t("insertLink")}
                           className={toolbarIconClass(editor?.isActive("link"))}
                         >
                           <LinkIcon className="h-4 w-4" />
@@ -1244,6 +1256,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+                          aria-label={t("alignLeft")}
                           className={toolbarIconClass(editor?.isActive({ textAlign: "left" }))}
                         >
                           <AlignLeft className="h-4 w-4" />
@@ -1254,6 +1267,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+                          aria-label={t("alignCenter")}
                           className={toolbarIconClass(editor?.isActive({ textAlign: "center" }))}
                         >
                           <AlignCenter className="h-4 w-4" />
@@ -1264,6 +1278,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+                          aria-label={t("alignRight")}
                           className={toolbarIconClass(editor?.isActive({ textAlign: "right" }))}
                         >
                           <AlignRight className="h-4 w-4" />
@@ -1277,6 +1292,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                          aria-label={t("bulletList")}
                           className={toolbarIconClass(editor?.isActive("bulletList"))}
                         >
                           <List className="h-4 w-4" />
@@ -1287,6 +1303,7 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                          aria-label={t("numberedList")}
                           className={toolbarIconClass(editor?.isActive("orderedList"))}
                         >
                           <ListOrdered className="h-4 w-4" />
@@ -1323,12 +1340,13 @@ export default function NotificationsPage() {
                           size="icon-sm"
                           disabled={isUploadingAttachment}
                           onClick={() => fileInputRef.current?.click()}
+                          aria-label={t("attachImage")}
                           className={toolbarIconClass(false)}
                         >
                           {isUploadingAttachment ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <Paperclip className="h-4 w-4" />
+                            <ImagePlus className="h-4 w-4" />
                           )}
                         </Button>
                       </div>

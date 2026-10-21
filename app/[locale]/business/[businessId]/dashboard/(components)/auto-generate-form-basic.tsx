@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
-import { Bot, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Bot, ChevronRight, Plus, X } from "lucide-react";
 import { AutoProductSelectionModal } from "./auto-product-selection-modal";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -103,8 +103,9 @@ export const AutoGenerateFormBasic = () => {
                     setBasic({ ...basic, productKnowledgeId: "", productName: "", productImage: "" });
                   }}
                   disabled={isLoading || disabled}
+                  aria-label={`${t("removeSelectedTrend")} ${basic.productName}`}
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                 </Button>
               </div>
             </div>
@@ -168,8 +169,9 @@ export const AutoGenerateFormBasic = () => {
                 className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 disabled={isLoading}
                 onClick={() => onSelectAvatar(null)}
+                aria-label={`${t("removeSelectedTrend")} ${basic.selectedAvatar.title}`}
               >
-                <Trash2 className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </Button>
             </div>
           </Card>

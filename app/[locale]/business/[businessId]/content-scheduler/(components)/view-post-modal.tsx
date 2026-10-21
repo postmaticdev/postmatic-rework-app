@@ -32,7 +32,12 @@ import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { PostedImageContent } from "@/models/api/content/image.type";
 import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
-import { getPublishJobState } from "@/helper/publish-status";
+import {
+  PUBLISH_INTERRUPTED_ERROR,
+  getPublishJobState,
+  isPublishResultUnknown,
+} from "@/helper/publish-status";
+import { translateApiResponseMessage } from "@/helper/api-response-message";
 import {
   usePlatformKnowledgeGetAll,
   useBusinessKnowledgeGetById,
@@ -112,11 +117,11 @@ export function ViewPostModal({
   // Succeeded or still running: not offered again. Failed: can be resent.
   const postedPlatforms = new Set<PlatformEnum>(
     postedImageContents
-      .filter((item) => getPublishJobState(item.jobStatus) !== "failed")
+      .filter((item) => getPublishJobState(item.jobStatus, item.updatedAt) !== "failed")
       .map((item) => item.platform)
   );
   const failedImageContents = postedImageContents.filter(
-    (item) => getPublishJobState(item.jobStatus) === "failed"
+    (item) => getPublishJobState(item.jobStatus, item.updatedAt) === "failed"
   );
   const failedPlatforms = new Set<PlatformEnum>(
     failedImageContents.map((item) => item.platform)
@@ -135,10 +140,16 @@ export function ViewPostModal({
       return {
         ...platform,
         errorMessage: failedJob?.errorMessage || null,
+        resultUnknown: failedJob ? isPublishResultUnknown(failedJob) : false,
       };
     });
   const reconnectPlatformLabels = failedPlatformOptions
     .filter((platform) => platform.requiresReconnect)
+    .map((platform) => mapEnumPlatform.getPlatformLabel(platform.id))
+    .join(", ");
+  // Interrupted publishes may already be live: warn before a manual resend.
+  const resultUnknownPlatformLabels = failedPlatformOptions
+    .filter((platform) => platform.resultUnknown)
     .map((platform) => mapEnumPlatform.getPlatformLabel(platform.id))
     .join(", ");
 
@@ -452,7 +463,7 @@ export function ViewPostModal({
                 {publishedImageContents.length > 0 ? (
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {publishedImageContents.map((platform) =>
-                      getPublishJobState(platform.jobStatus) === "processing" ? (
+                      getPublishJobState(platform.jobStatus, platform.updatedAt) === "processing" ? (
                         <div
                           key={platform.id}
                           className="flex h-9 items-center gap-2 rounded-md border border-border px-3 text-muted-foreground"
@@ -538,6 +549,15 @@ export function ViewPostModal({
                       </Button>
                     ))}
                   </div>
+                  {resultUnknownPlatformLabels && (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1">
+                        {resultUnknownPlatformLabels}:{" "}
+                        {translateApiResponseMessage(PUBLISH_INTERRUPTED_ERROR)}
+                      </span>
+                    </div>
+                  )}
                   {reconnectPlatformLabels && (
                     <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
@@ -643,6 +663,7 @@ export function ViewPostModal({
               </>
             ) : (
               <>
+                <Send className="h-4 w-4" />
                 {t("repostNow")}{" "}
                 {formData?.selectedPlatforms?.length > 0 &&
                   `(${formData?.selectedPlatforms?.length})`}

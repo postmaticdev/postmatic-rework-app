@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Edit, Users, MessageCircle, Hash } from "lucide-react";
+import { Pencil, Users, MessageCircle, Hash } from "lucide-react";
 import { EditKnowledgeModal } from "./edit-knowledge-modal";
 import { useRoleKnowledgeGetById } from "@/services/knowledge.api";
 import { useParams } from "next/navigation";
@@ -17,6 +17,7 @@ export function RoleKnowledgeSection() {
   const { access } = useRole();
   const { roleKnowledge } = access;
   const r = useTranslations("roleKnowledge");
+  const m = useTranslations("modal");
 
   const roleTags = [
     {
@@ -55,8 +56,9 @@ export function RoleKnowledgeSection() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => setIsEditModalOpen(true)}
+                aria-label={m("titleBusinessRole")}
               >
-                <Edit className="h-4 w-4" />
+                <Pencil className="h-4 w-4" />
               </Button>
             )}
           </div>

@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Clock } from "lucide-react";
+import { CalendarClock, Send } from "lucide-react";
 
 import { FormDataDraft } from "./content-library";
 import Image from "next/image";
@@ -123,7 +123,7 @@ export function CreatePostModal({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Clock className="h-4 w-4" />
+                <Send className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("postNow")}</span>
                 <span className="sm:hidden">{t("now")}</span>
               </button>
@@ -135,7 +135,7 @@ export function CreatePostModal({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Calendar className="h-4 w-4" />
+                <CalendarClock className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("schedule")}</span>
                 <span className="sm:hidden">{t("later")}</span>
               </button>

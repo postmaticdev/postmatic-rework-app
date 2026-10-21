@@ -191,6 +191,7 @@ export function ChatComposerField({
                   onAttachKnowledge();
                 }}
               >
+                <BookOpen className="h-4 w-4" />
                 {t("importFromKnowledgeTitle")}
               </DropdownMenuItem>
             </DropdownMenuContent>

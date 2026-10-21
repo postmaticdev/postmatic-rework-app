@@ -105,7 +105,9 @@ export function useVideoGenerator({
   const [ratio, setRatio] = useState<VideoRatio>("9:16");
   const [duration, setDuration] = useState<VideoDuration>(30);
   const [isBusy, setIsBusy] = useState(false);
-  const [setup, setSetup] = useState<VideoSetup | null>(null);
+  const [setup, setSetupState] = useState<VideoSetup | null>(null);
+  // Read inside async handlers so a brief can be set and sent in one go.
+  const setupRef = useRef<VideoSetup | null>(null);
   // Read inside async handlers so they always see the latest project.
   const projectRef = useRef<VideoProject | null>(null);
   // Drafted from the first prompt and approved before anything is rendered.
@@ -138,6 +140,11 @@ export function useVideoGenerator({
   const setStoryboard = useCallback((nextStoryboard: VideoStoryboard | null) => {
     storyboardRef.current = nextStoryboard;
     setStoryboardState(nextStoryboard);
+  }, []);
+
+  const setSetup = useCallback((nextSetup: VideoSetup | null) => {
+    setupRef.current = nextSetup;
+    setSetupState(nextSetup);
   }, []);
 
   const pushHistory = useCallback((snapshot: VideoProject) => {
@@ -238,6 +245,7 @@ export function useVideoGenerator({
     async (request: VideoRequest, assistantMessageId: string) => {
       const currentProject = projectRef.current;
       const currentStoryboard = storyboardRef.current;
+      const setup = setupRef.current;
       const onProgress = (progress: number) => {
         // Keep the bar short of 100 until the result is actually in.
         updateAssistantMessage(assistantMessageId, {
@@ -315,7 +323,6 @@ export function useVideoGenerator({
       scheduleDate,
       setProject,
       setStoryboard,
-      setup,
     ]
   );
 
@@ -323,6 +330,7 @@ export function useVideoGenerator({
   const runRender = useCallback(
     async (assistantMessageId: string) => {
       const approvedStoryboard = storyboardRef.current;
+      const setup = setupRef.current;
       if (!approvedStoryboard) return;
       const onProgress = (progress: number) => {
         updateAssistantMessage(assistantMessageId, {
@@ -359,7 +367,7 @@ export function useVideoGenerator({
         setIsBusy(false);
       }
     },
-    [businessId, mRender, scheduleDate, setProject, setStoryboard, setup]
+    [businessId, mRender, scheduleDate, setProject, setStoryboard]
   );
 
   const approveStoryboard = useCallback(() => {
@@ -478,6 +486,37 @@ export function useVideoGenerator({
     [isBusy, messages, runRender, runRequest]
   );
 
+  // The two ways in from the start screen: a brief (product, optional avatar
+  // and the story in words) drafts the storyboard; existing videos go straight
+  // onto the timeline.
+  const startStoryboard = useCallback(
+    (nextSetup: VideoSetup, prompt: string) => {
+      setSetup(nextSetup);
+      submitPrompt(prompt, []);
+    },
+    [setSetup, submitPrompt]
+  );
+
+  const startFromVideos = useCallback(
+    (videos: AttachedVideo[]) => {
+      setSetup(null);
+      submitPrompt("", [], videos);
+    },
+    [setSetup, submitPrompt]
+  );
+
+  // Back to the start screen. The setup is kept to prefill the brief.
+  const reset = useCallback(() => {
+    if (isBusy) return;
+    historyRef.current = { past: [], future: [] };
+    gestureStartRef.current = null;
+    storyboardImagesRef.current = [];
+    setHistoryVersion((version) => version + 1);
+    setProject(null);
+    setStoryboard(null);
+    setMessages([]);
+  }, [isBusy, setProject, setStoryboard]);
+
   return {
     project,
     updateProject,
@@ -497,11 +536,13 @@ export function useVideoGenerator({
     setDuration,
     isBusy,
     setup,
-    setSetup,
     storyboard,
     approveStoryboard,
     submitPrompt,
     retry,
+    startStoryboard,
+    startFromVideos,
+    reset,
   };
 }
 

@@ -2,6 +2,7 @@
 
 import { Component, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 function ChartErrorFallback({ onRetry }: { onRetry: () => void }) {
@@ -21,6 +22,7 @@ function ChartErrorFallback({ onRetry }: { onRetry: () => void }) {
           onClick={onRetry}
           className="bg-blue-600 text-white hover:bg-blue-700"
         >
+          <RefreshCw className="h-4 w-4" />
           {t("retry")}
         </Button>
       </div>

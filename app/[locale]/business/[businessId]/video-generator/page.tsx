@@ -2,18 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { useRole } from "@/contexts/role-context";
 import { showToast } from "@/helper/show-toast";
+import { cn } from "@/lib/utils";
 import { VideoScene } from "@/models/api/content/video.type";
 import { useVideoDownloadUrl } from "@/services/content/video-generator.api";
 import { VIDEO_CHAT_PROMPT_ID, VideoChatPanel } from "./(components)/video-chat-panel";
-import { VideoPlayerPanel } from "./(components)/video-player-panel";
+import { formatScheduleDate, VideoPlayerPanel } from "./(components)/video-player-panel";
 import { VideoScheduleModal } from "./(components)/video-schedule-modal";
-import { VideoSetupPanel } from "./(components)/video-setup-panel";
+import { VideoBriefPanel, VideoStartScreen } from "./(components)/video-start-screen";
+import { VideoFlowStep } from "./(components)/video-flow-steps";
 import {
   AttachedVideo,
   getGenerateStepKey,
@@ -46,13 +48,16 @@ const triggerDownload = (href: string, fileName: string) => {
   document.body.removeChild(link);
 };
 
-// Desktop (lg+): chat on the left, player + scene timeline on the right.
-// Mobile: player first so the result stays visible, chat below with the
-// composer pinned to the bottom.
+// Opens on a start screen: upload existing videos, or brief the AI (product,
+// optional avatar, storyline) to draft a storyboard. The brief, then the chat,
+// sit on the left of the workspace: desktop (lg+) shows them beside the player
+// + scene timeline; mobile shows the player first so the result stays visible,
+// chat below with the composer pinned to the bottom.
 export default function VideoGeneratorPage() {
   const { businessId } = useParams() as { businessId: string };
   const searchParams = useSearchParams();
   const router = useRouter();
+  const locale = useLocale();
   const scheduleDate = searchParams.get("scheduleDate");
   const t = useTranslations("videoGenerator");
   const { aiModels } = useContentGenerate();
@@ -64,11 +69,13 @@ export default function VideoGeneratorPage() {
   const mDownloadUrl = useVideoDownloadUrl();
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isWatermarkConfirmOpen, setIsWatermarkConfirmOpen] = useState(false);
+  const [isStartOverOpen, setIsStartOverOpen] = useState(false);
   const isFreeUser = aiModels.isFreeUser;
-  // The chat opens once a product is picked; the setup can be reopened until
-  // the first video exists.
-  const [isEditingSetup, setIsEditingSetup] = useState(false);
-  const showSetup = !generator.setup || isEditingSetup;
+  // Until a brief is sent or videos are uploaded: the start screen, or the
+  // brief once the AI path is picked.
+  const hasStarted = Boolean(project || generator.storyboard || messages.length);
+  const [entryMode, setEntryMode] = useState<"choose" | "brief">("choose");
+  const isBriefing = !hasStarted && entryMode === "brief";
 
   // Play a freshly generated video right away (muted, so autoplay is allowed).
   const { restart, pause } = playback;
@@ -81,7 +88,7 @@ export default function VideoGeneratorPage() {
   const { undo, redo, insertVideoScenes } = generator;
   const { importVideos } = useMediaImport();
   const [isImportingVideos, setIsImportingVideos] = useState(false);
-  const isDialogOpen = isScheduleOpen || isWatermarkConfirmOpen;
+  const isDialogOpen = isScheduleOpen || isWatermarkConfirmOpen || isStartOverOpen;
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || isDialogOpen) return;
@@ -117,18 +124,31 @@ export default function VideoGeneratorPage() {
     };
   }, []);
 
+  // Before anything exists, dropped videos take the upload path so the chat
+  // opens on them; after that they're added to the sequence.
+  const { startFromVideos } = generator;
   const handleDropVideos = async (input: File[] | AttachedVideo[]) => {
+    const addVideos = project ? insertVideoScenes : startFromVideos;
     const isFileList = input.every((item) => item instanceof File);
     if (!isFileList) {
-      insertVideoScenes(input as AttachedVideo[]);
+      addVideos(input as AttachedVideo[]);
       return;
     }
     setIsImportingVideos(true);
     try {
-      insertVideoScenes(await importVideos(input as File[]));
+      const videos = await importVideos(input as File[]);
+      if (videos.length) addVideos(videos);
     } finally {
       setIsImportingVideos(false);
     }
+  };
+
+  // Starting over from the AI path reopens the brief, prefilled.
+  const handleStartOver = () => {
+    setIsStartOverOpen(false);
+    pause();
+    setEntryMode(generator.setup ? "brief" : "choose");
+    generator.reset();
   };
 
   const pendingMessage = [...messages]
@@ -155,6 +175,17 @@ export default function VideoGeneratorPage() {
           : null;
   const isStoryboardRevising =
     pendingAssistant?.kind === "storyboard" && Boolean(pendingAssistant.isRevision);
+  // The AI path is brief → storyboard → video; uploads skip the stepper.
+  const isAiFlow = messages.some(
+    (message) => message.role === "assistant" && message.kind === "storyboard"
+  );
+  const flowStep: VideoFlowStep | null = isBriefing
+    ? 1
+    : !isAiFlow
+      ? null
+      : project || pendingAssistant?.kind === "generate"
+        ? 3
+        : 2;
 
   // Selecting a scene jumps to it and targets the next prompt at it; picking
   // it again goes back to editing the whole video.
@@ -213,33 +244,64 @@ export default function VideoGeneratorPage() {
     setIsScheduleOpen(true);
   };
 
+  if (!hasStarted && !isBriefing) {
+    return (
+      <main className="relative flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
+        <VideoStartScreen
+          scheduleLabel={
+            scheduleDate
+              ? t("scheduledFor", { date: formatScheduleDate(scheduleDate, locale) })
+              : null
+          }
+          isImporting={isImportingVideos}
+          onUploadVideos={(files) => void handleDropVideos(files)}
+          onChooseAi={() => setEntryMode("brief")}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="relative flex min-h-0 flex-1 flex-col lg:h-[calc(100dvh-4rem)] lg:flex-row lg:overflow-hidden">
-      <div className="order-2 border-t lg:order-1 lg:min-h-0 lg:w-[380px] lg:shrink-0 lg:border-t-0 lg:border-r xl:w-[420px]">
-        {showSetup ? (
-          <VideoSetupPanel
+      <div
+        className={cn(
+          "border-t lg:order-1 lg:min-h-0 lg:w-[380px] lg:shrink-0 lg:border-t-0 lg:border-r xl:w-[420px]",
+          // On mobile the brief comes first; the empty preview waits below.
+          isBriefing ? "order-1 border-t-0" : "order-2"
+        )}
+      >
+        {isBriefing ? (
+          <VideoBriefPanel
             initialSetup={generator.setup}
-            onConfirm={(setup) => {
-              generator.setSetup(setup);
-              setIsEditingSetup(false);
-            }}
+            ratio={generator.ratio}
+            duration={generator.duration}
+            onRatioChange={generator.setRatio}
+            onDurationChange={generator.setDuration}
+            onBack={() => setEntryMode("choose")}
+            onSubmit={generator.startStoryboard}
           />
         ) : (
           <VideoChatPanel
             generator={generator}
             onSelectScene={handleSelectScene}
-            onEditSetup={() => setIsEditingSetup(true)}
+            onStartOver={() => setIsStartOverOpen(true)}
           />
         )}
       </div>
 
-      <div className="order-1 min-w-0 flex-1 lg:order-2 lg:min-h-0">
+      <div
+        className={cn(
+          "min-w-0 flex-1 lg:order-2 lg:min-h-0",
+          isBriefing ? "order-2 max-lg:hidden" : "order-1"
+        )}
+      >
         <VideoPlayerPanel
           project={project}
           playback={playback}
           selectedSceneId={selectedSceneId}
           updatingSceneId={updatingSceneId}
           generating={generating}
+          flowStep={flowStep}
           storyboard={generator.storyboard}
           isStoryboardRevising={isStoryboardRevising}
           onEditStoryboard={focusChatPrompt}
@@ -286,6 +348,17 @@ export default function VideoGeneratorPage() {
         description={t("downloadWatermarkDescription")}
         confirmText={canPurchase ? t("topUpNow") : t("downloadWithWatermark")}
         cancelText={canPurchase ? t("downloadWithWatermark") : t("cancel")}
+      />
+
+      <ConfirmationModal
+        isOpen={isStartOverOpen}
+        onClose={() => setIsStartOverOpen(false)}
+        onConfirm={handleStartOver}
+        title={t("startOverTitle")}
+        description={t("startOverDescription")}
+        confirmText={t("startOverConfirm")}
+        cancelText={t("cancel")}
+        variant="warning"
       />
     </main>
   );

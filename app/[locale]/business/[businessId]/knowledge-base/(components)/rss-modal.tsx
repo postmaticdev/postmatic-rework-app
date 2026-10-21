@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { AddRssPld } from "@/models/api/knowledge/rss.type";
 import {
   useLibraryRSSCategory,
@@ -128,6 +128,7 @@ export function RSSModal({
                   {t("addRSS")}
                 </Button>
                 <Button onClick={() => setRssAction("edit")} variant="outline">
+                  <Pencil className="w-4 h-4" />
                   {t("editRSS")}
                 </Button>
               </div>

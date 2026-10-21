@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
+import { Pencil } from "lucide-react";
 import Image from "next/image";
 import { EditProfileModal } from "./edit-profile-modal";
 import { useAuthProfileGetProfile } from "@/services/auth.api";
@@ -16,6 +16,7 @@ export function PersonalInformation() {
   const { data: profileData } = useAuthProfileGetProfile();
   const profile = profileData?.data?.data;
   const t = useTranslations("personalInformation");
+  const tEditProfile = useTranslations("editProfileModal");
 
   return (
     <Card className="h-fit">
@@ -28,8 +29,9 @@ export function PersonalInformation() {
             variant="ghost"
             size="icon-sm"
             onClick={() => setIsEditModalOpen(true)}
+            aria-label={tEditProfile("title")}
           >
-            <Edit className="h-4 w-4" />
+            <Pencil className="h-4 w-4" />
           </Button>
         </div>
         <div className="w-40 h-40 rounded-full overflow-hidden mb-4 md:hidden ">

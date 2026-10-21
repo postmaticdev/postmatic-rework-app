@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, BookOpen, Plus, RotateCw, Search, Trash2, X } from "lucide-react";
+import { AlertCircle, BookOpen, CalendarClock, Plus, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDebounce } from "@/hooks/use-debounce";
 import { CreatePostModal } from "./create-post-modal";
@@ -59,9 +59,14 @@ import { PaginationControls } from "@/components/ui/pagination-controls";
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import {
+  PUBLISH_INTERRUPTED_ERROR,
   getPublishJobState,
+  getPublishOutcome,
+  isPublishResultUnknown,
   isReconnectRequiredError,
+  isStalePublishJob,
 } from "@/helper/publish-status";
+import { translateApiResponseMessage } from "@/helper/api-response-message";
 import { usePublishFeedback } from "@/hooks/use-publish-feedback";
 
 export interface FormDataDraft {
@@ -270,7 +275,9 @@ export function ContentLibrary({
       content.postedImageContents.some(
         (post) =>
           post.jobStatus?.toLowerCase() === "failed" ||
-          post.jobStatus?.toLowerCase() === "error"
+          post.jobStatus?.toLowerCase() === "error" ||
+          // interrupted mid-publish: shown as failed so it can be retried
+          isStalePublishJob(post.jobStatus, post.updatedAt)
       )
     );
   };
@@ -419,10 +426,16 @@ export function ContentLibrary({
     // Platforms whose latest job succeeded or is still running cannot be
     // sent again; failed ones can.
     const lockedPlatforms = latestJobs
-      .filter((post) => getPublishJobState(post.jobStatus) !== "failed")
+      .filter((post) => getPublishJobState(post.jobStatus, post.updatedAt) !== "failed")
       .map((post) => post.platform);
+    // A publish that was interrupted may already be live: never preselect it,
+    // the user checks the account and selects it manually.
     const failedPlatforms = latestJobs
-      .filter((post) => getPublishJobState(post.jobStatus) === "failed")
+      .filter(
+        (post) =>
+          getPublishJobState(post.jobStatus, post.updatedAt) === "failed" &&
+          !isPublishResultUnknown(post)
+      )
       .map((post) => post.platform);
     const availablePlatformCodes = availablePlatforms.map((p) => p.platform);
 
@@ -616,6 +629,7 @@ export function ContentLibrary({
                         mAddToQueue.isPending || mSchedulePost.isPending
                       }
                     >
+                      <CalendarClock className="h-4 w-4" />
                       {t("addToQueue")}
                     </Button>
                   ))}
@@ -624,6 +638,7 @@ export function ContentLibrary({
                     className="flex-1 text-white"
                     onClick={() => handleSetFormDataDraft(content, "now")}
                   >
+                    <Send className="h-4 w-4" />
                     {t("posting")}
                   </Button>
                 )}
@@ -705,7 +720,7 @@ export function ContentLibrary({
                     className="flex-1 bg-red-600 text-white hover:bg-red-700 shadow-sm"
                     onClick={() => handleRetryFailedJob(job)}
                   >
-                    <RotateCw className="h-3.5 w-3.5 mr-1" />
+                    <RefreshCw className="h-3.5 w-3.5 mr-1" />
                     {t("retry")}
                   </Button>
                 </div>
@@ -717,7 +732,10 @@ export function ContentLibrary({
         const postedElements = (paginatedContent as PostedImageRes[]).map((content) => {
           const isUploadFailed = isUploadFailedPost(content);
           const firstFailedPost = content?.postedImageContents?.find(
-            (p) => p.jobStatus?.toLowerCase() === "failed" || p.jobStatus?.toLowerCase() === "error"
+            (p) =>
+              p.jobStatus?.toLowerCase() === "failed" ||
+              p.jobStatus?.toLowerCase() === "error" ||
+              isStalePublishJob(p.jobStatus, p.updatedAt)
           );
           // Raw provider codes such as FACEBOOK_PAGE_RECONNECT_REQUIRED are
           // replaced by a readable message.
@@ -726,7 +744,12 @@ export function ContentLibrary({
               ? t("publishReconnectHint", {
                   platforms: mapEnumPlatform.getPlatformLabel(firstFailedPost.platform),
                 })
-              : firstFailedPost?.errorMessage || t("postToSocialFailed");
+              : firstFailedPost && isPublishResultUnknown(firstFailedPost)
+                ? translateApiResponseMessage(PUBLISH_INTERRUPTED_ERROR)
+                : firstFailedPost?.errorMessage
+                  ? translateApiResponseMessage(firstFailedPost.errorMessage)
+                  : t("postToSocialFailed");
+          const isPartiallyPosted = getPublishOutcome(content?.postedImageContents || []) === "partial";
 
           if (isUploadFailed) {
             return (
@@ -744,7 +767,7 @@ export function ContentLibrary({
                     />
                     <div className="absolute top-2 right-2 z-10">
                       <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-medium shadow-sm">
-                        {t("uploadFailed")}
+                        {isPartiallyPosted ? t("publishStatusPartial") : t("uploadFailed")}
                       </span>
                     </div>
                   </div>
@@ -817,7 +840,7 @@ export function ContentLibrary({
                       className="flex-1 bg-red-600 text-white hover:bg-red-700 shadow-sm"
                       onClick={() => handleRetryFailedPost(content)}
                     >
-                      <RotateCw className="h-3.5 w-3.5 mr-1" />
+                      <RefreshCw className="h-3.5 w-3.5 mr-1" />
                       {t("retry")}
                     </Button>
                   </div>
@@ -869,7 +892,7 @@ export function ContentLibrary({
                             <span className="truncate">
                               {mapEnumPlatform.getPlatformLabel(post.platform)}
                             </span>
-                            {getPublishJobState(post.jobStatus) === "processing" && (
+                            {getPublishJobState(post.jobStatus, post.updatedAt) === "processing" && (
                               <span className="shrink-0 text-muted-foreground">
                                 · {t("publishStatusProcessing")}
                               </span>

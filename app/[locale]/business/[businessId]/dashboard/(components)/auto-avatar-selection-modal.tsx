@@ -177,38 +177,29 @@ export function AutoAvatarSelectionModal({
                   <button
                     key={item.id}
                     type="button"
+                    title={item.title}
+                    aria-label={item.title}
+                    aria-pressed={isSelected}
                     className={cn(
-                      "group overflow-hidden rounded-xl border bg-card text-left transition-all duration-300",
+                      "group relative aspect-square overflow-hidden rounded-xl border bg-card transition-all duration-300",
                       isSelected
                         ? "border-blue-500 ring-2 ring-blue-500/30 shadow-sm"
                         : "border-border hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
                     )}
                     onClick={() => toggleAvatar(item)}
                   >
-                    <div className="relative overflow-hidden">
-                      <Image
-                        src={item.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                        alt={item.title}
-                        width={240}
-                        height={180}
-                        className="h-28 w-full object-cover transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
-                      />
-                      {isSelected ? (
-                        <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
-                          <Check className="h-4 w-4" />
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="space-y-0.5 p-2.5">
-                      <p className="line-clamp-1 text-xs font-semibold text-foreground">
-                        {item.title}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground max-sm:text-xs">
-                        {item.source === "knowledge"
-                          ? t("avatarSourceKnowledge")
-                          : t("avatarSourceBrowse")}
-                      </p>
-                    </div>
+                    <Image
+                      src={item.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                      alt={item.title}
+                      width={240}
+                      height={240}
+                      className="h-full w-full object-cover transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
+                    />
+                    {isSelected ? (
+                      <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white">
+                        <Check className="h-4 w-4" />
+                      </div>
+                    ) : null}
                   </button>
                 );
               })}
@@ -220,6 +211,7 @@ export function AutoAvatarSelectionModal({
           primaryButton={{
             message: t("applyAvatarSelection"),
             onClick: () => onSave(tempSelected),
+            icon: <Check className="h-4 w-4" />,
             className:
               tempSelected === null
                 ? "pointer-events-none opacity-50"

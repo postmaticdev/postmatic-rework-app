@@ -56,6 +56,7 @@ import {
   useContentPostCommonGetOverview,
 } from "@/services/content/overview";
 import { useProductKnowledgeGetAll } from "@/services/knowledge.api";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   addMonths,
   eachDayOfInterval,
@@ -72,20 +73,21 @@ import {
   subMonths,
 } from "date-fns";
 import {
+  BookOpen,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
   Clapperboard,
-  Edit,
   Eye,
   FileClock,
   MoreVertical,
+  Pencil,
   Plus,
+  RefreshCw,
   Repeat2,
   Sparkles,
-  PencilLine,
   Trash2,
-  WandSparkles,
+  Upload,
   X,
   ExternalLink,
 } from "lucide-react";
@@ -97,28 +99,37 @@ import { TimezoneSelector } from "./timezone-selector";
 import { AutoGenerate } from "../../dashboard/(components)/auto-generate";
 import { useContentSchedulerManualEditQueue } from "@/services/content/content.api";
 
-function RetryEventForm({ event, businessId }: { event: SchedulerEvent; businessId: string }) {
+// Next schedulable minute as wall time in the business time zone.
+const getNextRetrySchedule = (businessTimeZone?: string | null) =>
+  dateFormat.getWallDateTimeInTimeZone(
+    new Date(Date.now() + 60 * 1000),
+    businessTimeZone
+  );
+
+function RetryEventForm({
+  event,
+  businessId,
+  businessTimeZone,
+}: {
+  event: SchedulerEvent;
+  businessId: string;
+  businessTimeZone?: string | null;
+}) {
   const t = useTranslations("contentScheduler");
   const mEdit = useContentSchedulerManualEditQueue();
-  const [date, setDate] = useState(() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() + 1);
-    return dateManipulation.ymd(d);
-  });
-  const [time, setTime] = useState(() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() + 1);
-    return dateFormat.getHhMm(d);
-  });
+  // date/time are wall time in the business time zone, which is how the
+  // backend parses publishAt.
+  const [initialSchedule] = useState(() => getNextRetrySchedule(businessTimeZone));
+  const [date, setDate] = useState(initialSchedule.date);
+  const [time, setTime] = useState(initialSchedule.time);
 
   const handleRetry = async () => {
     if (!event.schedulerManualPostingId) return;
 
-    let scheduledAt = new Date(`${date}T${time}`);
-    const now = new Date();
-    if (scheduledAt <= now) {
-      now.setMinutes(now.getMinutes() + 1);
-      scheduledAt = now;
+    let schedule = { date, time };
+    const now = dateFormat.getWallDateTimeInTimeZone(new Date(), businessTimeZone);
+    if (`${date}T${time}` <= `${now.date}T${now.time}`) {
+      schedule = getNextRetrySchedule(businessTimeZone);
     }
 
     try {
@@ -126,10 +137,14 @@ function RetryEventForm({ event, businessId }: { event: SchedulerEvent; business
         businessId,
         idScheduler: event.schedulerManualPostingId,
         formData: {
-          imageUrl: event.image,
+          // Never the calendar placeholder: a schedule without an image is
+          // rejected by the backend instead of being posted with it.
+          imageUrl: event.generatedImageContent?.images?.[0] || "",
           caption: event.generatedImageContent?.caption || "",
           platforms: event.platforms,
-          dateTime: scheduledAt.toISOString(),
+          // formatPublishAt sends the local wall time of this instant, i.e.
+          // the picked wall time (same as schedule-post.tsx).
+          dateTime: new Date(`${schedule.date}T${schedule.time}`).toISOString(),
           status: "ready",
           withChatAI: event.withChatAI,
         },
@@ -155,6 +170,7 @@ function RetryEventForm({ event, businessId }: { event: SchedulerEvent; business
         className="flex-1 bg-background-secondary sm:w-auto"
       />
       <Button onClick={handleRetry} disabled={mEdit.isPending}>
+        <RefreshCw className="h-4 w-4" />
         {t("retry")}
       </Button>
     </div>
@@ -319,7 +335,8 @@ export function ContentSchedulerBoard({
   // No manual polling: upcoming/posted/job queries poll on their own only
   // while something is being published or generated (and only while the tab
   // is visible); everything else is refreshed by mutation invalidation.
-  const { data: postOverviewData, refetch: refetchOverview } = useContentPostCommonGetOverview(businessId);
+  const queryClient = useQueryClient();
+  const { data: postOverviewData } = useContentPostCommonGetOverview(businessId);
   const { data: upcomingData } = useContentOverviewGetUpcoming(
     businessId,
     {
@@ -327,7 +344,7 @@ export function ContentSchedulerBoard({
       dateEnd: rangeEnd,
     }
   );
-  const { data: postedData, refetch: refetchPosted } = useContentPostedGetAllPostedImage(businessId, {
+  const { data: postedData } = useContentPostedGetAllPostedImage(businessId, {
     dateStart: rangeStart,
     dateEnd: rangeEnd,
     limit: 1000,
@@ -342,43 +359,49 @@ export function ContentSchedulerBoard({
     sort: "asc",
   });
 
-  // When a due scheduled post leaves the READY list the worker has published
-  // it: refresh the posted history and the overview counters once.
-  const dueReadyPostsRef = useRef<{ range: string; ids: Set<number> }>({
+  // When a READY post whose publish time has passed leaves the READY list the
+  // worker has published (or failed) it: mark every posted list (calendar and
+  // History) and the overview counters stale once. All READY posts are
+  // tracked with their publish time, so a post that became due while the tab
+  // was hidden (or was handled before the next fetch) is still detected.
+  const readyPostsRef = useRef<{ range: string; publishAtById: Map<number, number> }>({
     range: "",
-    ids: new Set(),
+    publishAtById: new Map(),
   });
   useEffect(() => {
     const items = upcomingData?.data.data;
     if (!items) return;
 
     const range = `${rangeStart}|${rangeEnd}`;
-    const previousDueIds =
-      dueReadyPostsRef.current.range === range
-        ? dueReadyPostsRef.current.ids
-        : new Set<number>();
+    const previousReady =
+      readyPostsRef.current.range === range
+        ? readyPostsRef.current.publishAtById
+        : new Map<number, number>();
     const now = Date.now();
     const readyItems = items.filter(
       (item) => item.status?.toLowerCase() === "ready"
     );
     const readyIds = new Set(readyItems.map((item) => item.id));
-    const hasFinishedPost = Array.from(previousDueIds).some(
-      (id) => !readyIds.has(id)
+    // A future post that disappears was cancelled: nothing was published.
+    const hasFinishedPost = Array.from(previousReady).some(
+      ([id, publishAtMs]) => !readyIds.has(id) && publishAtMs <= now
     );
-    dueReadyPostsRef.current = {
+    readyPostsRef.current = {
       range,
-      ids: new Set(
-        readyItems
-          .filter((item) => new Date(item.date).getTime() <= now)
-          .map((item) => item.id)
+      publishAtById: new Map(
+        readyItems.map((item) => [item.id, new Date(item.date).getTime()])
       ),
     };
 
     if (hasFinishedPost) {
-      refetchPosted();
-      refetchOverview();
+      queryClient.invalidateQueries({
+        queryKey: ["contentPostedGetAllPostedImage", businessId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["contentPostCommonOverview", businessId],
+      });
     }
-  }, [rangeEnd, rangeStart, refetchOverview, refetchPosted, upcomingData?.data.data]);
+  }, [businessId, queryClient, rangeEnd, rangeStart, upcomingData?.data.data]);
   const mRemove = useContentSchedulerManualRemove();
   const mReadyToPost = useContentDraftSetReadyToPost();
 
@@ -432,7 +455,12 @@ export function ContentSchedulerBoard({
               "",
           },
           sourceType: item.type,
-          status: item.status?.toLowerCase() ?? null,
+          // Failed schedules without publishing jobs come from calendar-view
+          // only; reuse the posted badges (and "Coba Lagi") for them.
+          status:
+            item.status?.toLowerCase() === "partial_published"
+              ? "partial"
+              : item.status?.toLowerCase() ?? null,
           draftMarker: null,
           historyJob: null,
           postedUrl: null,
@@ -585,12 +613,23 @@ export function ContentSchedulerBoard({
         const outcome = getPublishOutcome(postedContents) ?? "published";
         const postedUrl =
           postedContents.find(
-            (post) => getPublishJobState(post.jobStatus) === "success" && post.url
+            (post) =>
+              getPublishJobState(post.jobStatus, post.updatedAt) === "success" && post.url
           )?.url || null;
+
+        // Untitled posts are named after their real outcome, not "posted".
+        const fallbackTitle =
+          outcome === "failed"
+            ? t("failedToPost")
+            : outcome === "partial"
+              ? t("publishStatusPartial")
+              : outcome === "processing"
+                ? t("publishStatusProcessing")
+                : t("postedThisMonth");
 
         return {
           id: `posted-${item.id}`,
-          title: item.caption || t("postedThisMonth"),
+          title: item.caption || fallbackTitle,
           date: postedAt,
           time: dateFormat.getHhMm(postedAt),
           image,
@@ -1011,6 +1050,7 @@ export function ContentSchedulerBoard({
                   variant="outline"
                   size="icon"
                   className="shrink-0 justify-self-start"
+                  aria-label={t("previousMonth")}
                   onClick={() => {
                     setCurrentMonth((current) => subMonths(current, 1));
                     setShowDateActionCard(false);
@@ -1042,6 +1082,7 @@ export function ContentSchedulerBoard({
                   variant="outline"
                   size="icon"
                   className="shrink-0 justify-self-end"
+                  aria-label={t("nextMonth")}
                   onClick={() => {
                     setCurrentMonth((current) => addMonths(current, 1));
                     setShowDateActionCard(false);
@@ -1164,7 +1205,7 @@ export function ContentSchedulerBoard({
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-background-secondary"
                     >
                       <span className="flex size-8 items-center justify-center rounded-xl bg-background-secondary text-foreground">
-                        <PencilLine className="size-4" />
+                        <Upload className="size-4" />
                       </span>
                       {t("uploadFile")}
                     </button>
@@ -1181,7 +1222,7 @@ export function ContentSchedulerBoard({
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-background-secondary"
                     >
                       <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <WandSparkles className="size-4" />
+                        <Sparkles className="size-4" />
                       </span>
                       {t("buildWithAi")}
                     </button>
@@ -1265,7 +1306,7 @@ export function ContentSchedulerBoard({
 
               <Link href={`/business/${businessId}/knowledge-base`} className="block">
                 <Button className="w-full">
-                  <Sparkles className="h-4 w-4" />
+                  <BookOpen className="h-4 w-4" />
                   {t("goToBusinessKnowledge")}
                 </Button>
               </Link>
@@ -1308,7 +1349,7 @@ export function ContentSchedulerBoard({
                         setIsUploadDialogOpen(true);
                       }}
                     >
-                      <PencilLine className="h-4 w-4" />
+                      <Upload className="h-4 w-4" />
                       {t("uploadFile")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -1319,7 +1360,7 @@ export function ContentSchedulerBoard({
                         );
                       }}
                     >
-                      <WandSparkles className="h-4 w-4" />
+                      <Sparkles className="h-4 w-4" />
                       {t("buildWithAi")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -1400,6 +1441,7 @@ export function ContentSchedulerBoard({
                     event.postedUrl ? (
                       <Button variant="outline" size="sm" asChild className="shrink-0">
                         <a href={event.postedUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
                           {t("viewPost")}
                         </a>
                       </Button>
@@ -1441,7 +1483,7 @@ export function ContentSchedulerBoard({
                           disabled={!isEventEditable(event)}
                           onClick={() => handleEditEvent(event)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                           {t("editPost")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
@@ -1461,7 +1503,11 @@ export function ContentSchedulerBoard({
                 {(event.status === "failed" ||
                   event.status === "error" ||
                   event.status === "partial") && (
-                  <RetryEventForm event={event} businessId={businessId} />
+                  <RetryEventForm
+                    event={event}
+                    businessId={businessId}
+                    businessTimeZone={timezoneData?.data.data.timezone}
+                  />
                 )}
               </div>
               ))}
@@ -1518,7 +1564,7 @@ export function ContentSchedulerBoard({
                   <div className="mt-2 flex flex-wrap gap-2">
                     {viewEvent.postedContents?.length
                       ? viewEvent.postedContents.map((post) => {
-                          const state = getPublishJobState(post.jobStatus);
+                          const state = getPublishJobState(post.jobStatus, post.updatedAt);
                           const chip = (
                             <>
                               {mapEnumPlatform.getPlatformIcon(post.platform, "h-3 w-3")}

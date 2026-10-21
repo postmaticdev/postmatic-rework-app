@@ -73,6 +73,7 @@ export function DetailInformation() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={handleCopyReferralCode}
+                aria-label={tToast("checkout.copy")}
                 className="hover:bg-background"
                 disabled={!referralCode}
               >

@@ -6,7 +6,7 @@ import { useContentGenerate } from "@/contexts/content-generate-context";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { dateFormat } from "@/helper/date-format";
 import { useRssKnowledgeGetById } from "@/services/knowledge.api";
-import { ChartNoAxesCombined } from "lucide-react";
+import { ChartNoAxesCombined, Check } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
@@ -119,6 +119,7 @@ export const GenerateFormSelectRss = ({
                 disabled={!!form.rss || isLoading}
                 className="w-full bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
               >
+                <Check className="h-4 w-4" />
                 {t("use")}
               </Button>
             </div>

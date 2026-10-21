@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction, useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
-import { Image as ImageIcon, Info, Loader2, X } from "lucide-react";
+import { ImagePlus, Info, Loader2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -158,7 +158,7 @@ export function UploadPhoto({
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <ImageIcon className="h-8 w-8" />
+                <ImagePlus className="h-8 w-8" />
                 <span className="text-center text-sm">{emptyText}</span>
               </div>
             )}
@@ -247,7 +247,7 @@ export function UploadPhoto({
           />
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <ImageIcon className="h-8 w-8" />
+            <ImagePlus className="h-8 w-8" />
             <span className="text-sm">{emptyText}</span>
           </div>
         )}

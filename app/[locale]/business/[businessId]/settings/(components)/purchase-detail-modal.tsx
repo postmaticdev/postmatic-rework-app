@@ -224,7 +224,7 @@ export function PurchaseDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="scrollbar-hidden">
         <DialogHeader>
           <div>
             <DialogTitle>{m("purchaseDetail")}</DialogTitle>
@@ -232,7 +232,7 @@ export function PurchaseDetailModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:space-y-6 sm:p-6">
+        <div className="scrollbar-hidden flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:space-y-6 sm:p-6">
           <PaymentInstructionCard
             status={transaction.status}
             statusTitle={statusTitle}

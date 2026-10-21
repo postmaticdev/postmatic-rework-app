@@ -157,6 +157,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Scrollbars are hidden app-wide; every scroll area still scrolls by wheel, touch, keyboard and drag. */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -326,6 +334,90 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   }
   to {
     background-position: 350% 50%, 350% 50%;
+  }
+}
+
+
+/* Generation status: a caret while the step text types out, then a shimmer while the model works */
+@keyframes gen-status-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes gen-status-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes gen-status-dot {
+  0%, 80%, 100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+.gen-status-shimmer {
+  --gen-status-base: var(--foreground);
+  --gen-status-highlight: var(--muted-foreground);
+  background-image: linear-gradient(
+    90deg,
+    var(--gen-status-base) 0%,
+    var(--gen-status-base) 35%,
+    var(--gen-status-highlight) 50%,
+    var(--gen-status-base) 65%,
+    var(--gen-status-base) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gen-status-shimmer 2.2s linear infinite;
+}
+
+/* Light text over a dimmed image */
+.gen-status-inverse .gen-status-shimmer {
+  --gen-status-base: #ffffff;
+  --gen-status-highlight: rgba(255, 255, 255, 0.45);
+}
+
+.gen-status-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: gen-status-caret 0.9s step-end infinite;
+}
+
+.gen-status-dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: gen-status-dot 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gen-status-shimmer {
+    animation: none;
+    color: var(--gen-status-base);
+    background: none;
+  }
+
+  .gen-status-caret,
+  .gen-status-dot {
+    animation: none;
   }
 }
 

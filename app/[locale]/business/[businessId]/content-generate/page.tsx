@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
 
 // Mobile (< lg) memecah halaman menjadi langkah terpisah:
@@ -21,21 +21,17 @@ import { SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
 type MobileStep = "reference" | "form";
 
 export default function ContentGenerate() {
-  const { mode, form, isLoading, isRestoringSchedulerChat, onSelectHistory } =
+  const { mode, form, isLoading, isRestoringSchedulerChat } =
     useContentGenerate();
   const t = useTranslations("generationPanel");
-  const onSelectHistoryRef = useRef(onSelectHistory);
   const [mobileStep, setMobileStep] = useState<MobileStep>("reference");
 
-  useEffect(() => {
-    onSelectHistoryRef.current = onSelectHistory;
-  }, [onSelectHistory]);
-
+  // The generator state is reset by the provider when the route is left, not on unmount here:
+  // Strict Mode's simulated unmount would otherwise reset it in the middle of a draft-chat restore.
   useEffect(() => {
     document.body.style.pointerEvents = "";
     return () => {
       document.body.style.pointerEvents = "";
-      onSelectHistoryRef.current(null);
     };
   }, []);
 

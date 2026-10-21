@@ -1,6 +1,36 @@
+import { AxiosError } from "axios";
 import { MemberRole, MemberStatus } from "@/models/api/member/index.type";
 
 type SettingsTranslator = (key: string) => string;
+
+// API error codes from the member endpoints that get a dedicated message (settings.memberErrors.*).
+const MEMBER_ERROR_KEYS: Record<string, string> = {
+  ONLY_OWNER_CAN_ACCESS: "memberErrors.onlyOwner",
+  ONLY_OWNER_OR_ADMIN_CAN_ACCESS: "memberErrors.onlyOwnerOrAdmin",
+  INVALID_ROLE: "memberErrors.invalidRole",
+  OWNER_ALREADY_EXISTS: "memberErrors.invalidRole",
+  MEMBER_NOT_FOUND: "memberErrors.memberNotFound",
+};
+
+export function isMemberForbiddenError(error: unknown) {
+  return error instanceof AxiosError && error.response?.status === 403;
+}
+
+/**
+ * Friendly message for a failed invite / edit / resend / remove request, or the raw error so
+ * showToast can fall back to its generic API code translation.
+ */
+export function getMemberActionErrorMessage(
+  error: unknown,
+  t: SettingsTranslator
+): unknown {
+  if (!(error instanceof AxiosError)) return error;
+  const code = error.response?.data?.responseMessage;
+  const key = typeof code === "string" ? MEMBER_ERROR_KEYS[code] : undefined;
+  if (key) return t(key);
+  if (isMemberForbiddenError(error)) return t("memberErrors.forbidden");
+  return error;
+}
 
 export const ROLE_OPTIONS: Array<{
   value: Exclude<MemberRole, "Owner">;

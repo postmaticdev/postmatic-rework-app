@@ -8,7 +8,7 @@ import {
   Clapperboard,
   Download,
   Loader2,
-  Maximize,
+  Maximize2,
   Pause,
   Play,
   Repeat,
@@ -39,6 +39,7 @@ import { StoryboardPreview } from "./storyboard-preview";
 import { VideoStoryboard } from "@/models/api/content/video.type";
 import { getDragKind, readDraggedVideo } from "./use-media-import";
 import type { AttachedVideo } from "./use-video-generator";
+import { VideoFlowStep, VideoFlowSteps } from "./video-flow-steps";
 
 const SEQUENCE_HEIGHT_STORAGE_KEY = "postmatic.videoGenerator.sequenceHeight";
 // The preview never shrinks below this while the sequence grows.
@@ -47,16 +48,25 @@ const MIN_STAGE_HEIGHT = 180;
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
+// scheduleDate comes from the content scheduler as YYYY-MM-DD.
+export const formatScheduleDate = (scheduleDate: string, locale: string) =>
+  new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${scheduleDate}T00:00:00`));
+
 type VideoPlayerPanelProps = {
   project: VideoProject | null;
   playback: VideoPlaybackState;
   selectedSceneId: string | null;
   // undefined = nothing pending, null = whole video, string = that scene.
   updatingSceneId: string | null | undefined;
-  // Progress of the first generation, while there is no project yet.
   // Drafting the storyboard or rendering the video, while there is no
   // project yet.
   generating: { progress: number; label: string } | null;
+  // Step of the AI path; null when the user started from their own videos.
+  flowStep: VideoFlowStep | null;
   // Shown for review until it is approved and rendered.
   storyboard: VideoStoryboard | null;
   isStoryboardRevising: boolean;
@@ -87,6 +97,7 @@ export function VideoPlayerPanel({
   selectedSceneId,
   updatingSceneId,
   generating,
+  flowStep,
   storyboard,
   isStoryboardRevising,
   onEditStoryboard,
@@ -250,11 +261,7 @@ export function VideoPlayerPanel({
         : undefined;
 
   const formattedScheduleDate = scheduleDate
-    ? new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }).format(new Date(`${scheduleDate}T00:00:00`))
+    ? formatScheduleDate(scheduleDate, locale)
     : null;
 
   const toggleFullscreen = () => {
@@ -290,6 +297,13 @@ export function VideoPlayerPanel({
             </p>
           )}
         </div>
+
+        {flowStep && (
+          <VideoFlowSteps
+            current={flowStep}
+            className="order-last w-full justify-center sm:order-none sm:w-auto"
+          />
+        )}
 
         <div className="flex items-center gap-2">
           <Button
@@ -510,7 +524,7 @@ export function VideoPlayerPanel({
                 title={t("fullscreen")}
                 aria-label={t("fullscreen")}
               >
-                <Maximize className="h-4 w-4" />
+                <Maximize2 className="h-4 w-4" />
               </Button>
             </div>
           </div>

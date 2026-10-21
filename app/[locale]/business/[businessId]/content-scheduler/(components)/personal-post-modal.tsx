@@ -13,7 +13,7 @@ import { UploadPhoto } from "@/components/forms/upload-photo";
 import { TextField } from "@/components/forms/text-field";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useContentCaptionEnhance } from "@/services/content/content.api";
 import { showToast } from "@/helper/show-toast";
 import { useParams } from "next/navigation";
@@ -113,8 +113,10 @@ export function PersonalPostModal({
               onClick={handleGenerateCaption}
               disabled={mEnhanceCaption.isPending}
             >
-              {mEnhanceCaption.isPending && (
+              {mEnhanceCaption.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
               )}
               {t("generateCaption")}
             </Button>

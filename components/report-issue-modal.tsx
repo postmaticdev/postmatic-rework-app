@@ -8,6 +8,7 @@ import { useNotification } from "@/contexts/notification-context";
 import { SearchableCountrySelect } from "@/app/[locale]/profile/(components)/searchable-select-content";
 import { UploadPhoto } from "@/components/forms/upload-photo";
 import { Button } from "@/components/ui/button";
+import { Send } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -383,6 +384,7 @@ export function ReportIssueModal({
             form="report-issue-form"
             disabled={mCreateTicket.isPending || isCategoryLoading}
           >
+            <Send className="h-4 w-4" />
             {mCreateTicket.isPending ? t("submitting") : t("submit")}
           </Button>
         </DialogFooter>

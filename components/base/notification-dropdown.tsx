@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Bell, ChevronRight, Loader2, MessageSquare } from "lucide-react";
+import { Bell, CheckCheck, ChevronRight, Loader2, MessageSquare } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -81,8 +81,9 @@ export function NotificationDropdown({ businessId }: NotificationDropdownProps) 
             <button
               type="button"
               onClick={markAllAsRead}
-              className="text-xs font-medium text-blue-600 hover:text-blue-700"
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
             >
+              <CheckCheck className="h-3.5 w-3.5" />
               {t("markAllRead")}
             </button>
           )}

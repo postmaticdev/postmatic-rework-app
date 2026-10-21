@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { showToast } from "@/helper/show-toast";
 import { DEFAULT_PLACEHOLDER_IMAGE, MAX_CAROUSEL_IMAGES, SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
@@ -32,6 +31,7 @@ import { useRouter } from "@/i18n/navigation";
 import {
   AlertCircle,
   Bot,
+  CalendarClock,
   Check,
   Copy,
   CreditCard,
@@ -40,7 +40,6 @@ import {
   Plus,
   RefreshCw,
   Trash2,
-  WandSparkles,
   X,
 } from "lucide-react";
 import { GenerateFormBasic } from "./generate-form-basic";
@@ -54,6 +53,7 @@ import {
 } from "@/models/api/content/ai-model";
 import { AiModelLogo } from "@/components/forms/ai-model-select";
 import { GridResultTiles } from "./grid-result-tiles";
+import { GenerationStatusText } from "./generation-status-text";
 
 export function GenerationPanel() {
   const { businessId } = useParams() as { businessId: string };
@@ -355,6 +355,28 @@ export function GenerationPanel() {
     }
   };
 
+  // Fills the viewport so any click, on the image or around it, closes the preview.
+  const promptImagePreviewDialog = (
+    <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
+      <DialogContent className="h-dvh max-h-none w-screen max-w-none overflow-hidden rounded-none border-none bg-transparent p-0 shadow-none sm:max-h-none dark:bg-transparent [&>button]:hidden">
+        <DialogTitle className="sr-only">{t("imagePreview")}</DialogTitle>
+        {previewPromptImage && (
+          <div
+            className="flex h-full w-full cursor-zoom-out items-center justify-center p-4 sm:p-8"
+            onClick={() => setPreviewPromptImage(null)}
+          >
+            <ProtectedImage
+              src={previewPromptImage}
+              alt={t("promptPreviewAlt")}
+              fit="contain"
+              className="h-full w-full rounded-md"
+            />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+
   if (mode === "regenerate" && selectedHistory) {
     return (
       <>
@@ -426,12 +448,13 @@ export function GenerationPanel() {
                         </div>
                       ) : null}
                       {job.input.prompt ? (
-                        <div className="flex max-w-full min-w-0 items-end gap-2 self-end">
+                        <div className="group/prompt flex max-w-full min-w-0 items-end gap-2 self-end">
+                          {/* Shown on hover; touch screens have no hover, so it stays visible there. */}
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            className="shrink-0 rounded-full border border-input bg-card/90 hover:bg-muted"
+                            className="shrink-0 rounded-full border border-input bg-card/90 transition-opacity hover:bg-muted [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/prompt:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                             onClick={() => handleCopyPrompt(job.input.prompt || "")}
                             title={t("copyPrompt")}
                             aria-label={t("copyPrompt")}
@@ -528,7 +551,7 @@ export function GenerationPanel() {
                         const modelDisplayName = modelObj ? getAiModelDisplayName(modelObj) : (getAiModelDisplayName(job.input.model) || t("generatedResult"));
 
                         return (
-                          <div className="w-full max-w-[82%] space-y-2 sm:max-w-[420px]">
+                          <div className="w-full max-w-[69%] space-y-2 sm:max-w-[390px]">
                             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                               <AiModelLogo size="sm" imageUrl={modelObj?.image} />
                               {modelDisplayName}
@@ -548,6 +571,17 @@ export function GenerationPanel() {
                               showSelectionOrder={isCarouselSelection}
                               isEditing={(image) => Boolean(selectedEditReferenceImage) && selectedEditReferenceImage === image}
                               onUse={(image) => {
+                                // A finished grid auto-selects its first tile. Picking another tile of the
+                                // same grid replaces it: scheduling publishes the single selected image, so
+                                // adding it would preview a carousel but still publish the first tile.
+                                if (
+                                  !selectedContentImages.includes(image) &&
+                                  selectedContentImages.length === 1 &&
+                                  result.images.includes(selectedContentImages[0])
+                                ) {
+                                  onSelectGeneratedImage(job, image);
+                                  return;
+                                }
                                 if (
                                   !selectedContentImages.includes(image) &&
                                   selectedContentImages.length >= MAX_CAROUSEL_IMAGES
@@ -563,6 +597,7 @@ export function GenerationPanel() {
                               labels={{
                                 edit: t("edit"),
                                 useContent: t("useContent"),
+                                selectContent: t("selectContent"),
                                 contentUsed: t("contentUsed"),
                                 imageAlt: (index) => t("generatedImageAlt", { index }),
                               }}
@@ -573,9 +608,6 @@ export function GenerationPanel() {
                                 onSelectGeneratedImage(job, image, { attachForEdit: true });
                               }}
                             />
-                            <p className="text-xs text-muted-foreground">
-                              {t("gridVariationHint")}
-                            </p>
                           </div>
                         );
                       })()
@@ -600,21 +632,20 @@ export function GenerationPanel() {
                               <AiModelLogo size="sm" imageUrl={modelObj?.image} />
                               {modelDisplayName}
                             </div>
-                            <div className="relative group max-w-[270px]">
+                            {/* Same card as the grid's active variation: actions sit on the image. */}
+                            <div className="relative max-w-[270px] overflow-hidden rounded-[1.3rem] border">
                               <GeneratedImageViewer
                                 imageUrl={imageUrl}
                                 imageItemId={job.result?.imageItemIds?.[index]}
                                 alt={t("generatedImageAlt", { index: index + 1 })}
                                 protectFromContextMenu
-                                className="w-full cursor-zoom-in rounded-lg border object-cover"
+                                className="w-full cursor-zoom-in object-cover"
                                 style={{ aspectRatio: job.result?.ratio ? job.result.ratio.replace(":", "/") : "1/1" }}
                               />
                               {!isEditingThisImage && (
-                                <Button
+                                <button
                                   type="button"
-                                  variant="secondary"
-                                  size="sm"
-                                  className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background/100 backdrop-blur-sm shadow-sm opacity-90 hover:opacity-100"
+                                  className="absolute bottom-2 left-2 z-20 inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-semibold bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -627,21 +658,23 @@ export function GenerationPanel() {
                                     });
                                   }}
                                 >
-                                  <Pencil className="h-3.5 w-3.5 mr-1" />
+                                  <Pencil className="h-3 w-3" />
                                   {t("edit")}
-                                </Button>
+                                </button>
                               )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
+                              <button
                                 type="button"
-                                size="sm"
-                                className={
+                                className={cn(
+                                  "absolute bottom-2 right-2 z-20 inline-flex h-8 items-center gap-1.5 rounded-full pl-2 pr-3 text-xs font-semibold",
                                   isSelected
-                                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                                    : "border border-input bg-muted text-foreground hover:bg-muted/80"
-                                }
-                                onClick={() => {
+                                    ? "bg-blue-600 text-white shadow-lg transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                                    : "bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                                )}
+                                title={isSelected ? t("contentUsed") : t("useContent")}
+                                aria-pressed={isSelected}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
                                   if (
                                     !isSelected &&
                                     selectedContentImages.length >= MAX_CAROUSEL_IMAGES
@@ -657,48 +690,71 @@ export function GenerationPanel() {
                                   onToggleContentImage(job, image);
                                 }}
                               >
-                                {isSelected && isCarouselSelection ? (
+                                {isSelected ? (
                                   <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-semibold leading-none text-blue-600">
-                                    {selectionIndex + 1}
+                                    {isCarouselSelection ? selectionIndex + 1 : <Check className="h-2.5 w-2.5" />}
                                   </span>
-                                ) : isSelected ? (
-                                  <Check className="h-3.5 w-3.5" />
-                                ) : null}
-                                {isSelected ? t("contentUsed") : t("useContent")}
-                              </Button>
-                              {isSelected && isCarouselSelection ? (
-                                <span className="text-xs text-muted-foreground">
-                                  {t("carouselSlideLabel", {
-                                    index: selectionIndex + 1,
-                                    total: selectedContentImages.length,
-                                  })}
-                                </span>
-                              ) : null}
+                                ) : (
+                                  <span aria-hidden className="h-4 w-4 rounded-full border-2 border-white" />
+                                )}
+                                {isSelected ? t("contentUsed") : t("selectContent")}
+                              </button>
                             </div>
+                            {isSelected && isCarouselSelection ? (
+                              <span className="text-xs text-muted-foreground">
+                                {t("carouselSlideLabel", {
+                                  index: selectionIndex + 1,
+                                  total: selectedContentImages.length,
+                                })}
+                              </span>
+                            ) : null}
                           </div>
                         );
                       })
                     ) : (
-                      <div className="w-full max-w-[82%] overflow-hidden rounded-2xl border bg-background-secondary sm:max-w-[270px]">
-                        <div className="relative flex min-h-48 items-center justify-center bg-card/40 p-6">
-                          <LogoLoader
-                            hideContentBackground={false}
-                            className="relative z-10"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-                        </div>
-                        <div className="space-y-3 border-t bg-background px-4 py-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm font-medium text-foreground">
-                              {t("generatingImage")}
-                            </div>
-                            <div className="text-xs font-medium text-muted-foreground">
-                              {Math.max(0, Math.min(100, job.progress ?? 0))}%
+                      (() => {
+                        // A follow-up edits the attached tile or upload; the bubble shows that image being worked on.
+                        const editSourceImage = isInitialSchedulerBubble
+                          ? null
+                          : job.input.referenceImage || additionalPromptImages[0] || null;
+                        // Chat jobs report the backend pipeline step; other jobs fall back to the generic copy.
+                        const stepKey = `progressSteps.${job.progressStep || job.stage}`;
+                        const modelObj = aiModels.models.find(m => m.name === job.input.model || String(m.id) === String(job.input.model));
+                        const statusText = t.has(stepKey)
+                          ? t(stepKey, {
+                              model: modelObj ? getAiModelDisplayName(modelObj) : (getAiModelDisplayName(job.input.model) || "AI"),
+                            })
+                          : t("generatingImage");
+
+                        return (
+                          // Same loading look as the preview: the image being edited, dimmed and blurred,
+                          // under the Postmatic loader, with the process step below it.
+                          <div
+                            className="relative w-full max-w-[82%] overflow-hidden rounded-[1.3rem] border bg-background-secondary sm:max-w-[270px]"
+                            style={{ aspectRatio: job.input.ratio ? job.input.ratio.replace(":", "/") : "1/1" }}
+                          >
+                            {editSourceImage ? (
+                              <>
+                                <ProtectedImage
+                                  src={editSourceImage}
+                                  alt=""
+                                  className="absolute inset-0 h-full w-full scale-110 blur-sm"
+                                />
+                                <div className="absolute inset-0 bg-black/50" />
+                              </>
+                            ) : (
+                              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+                            )}
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-5 text-center">
+                              <LogoLoader hideContentBackground={false} size={80} />
+                              <GenerationStatusText
+                                text={statusText}
+                                className={editSourceImage ? "gen-status-inverse text-white" : undefined}
+                              />
                             </div>
                           </div>
-                          <Progress value={Math.max(0, Math.min(100, job.progress ?? 0))} />
-                        </div>
-                      </div>
+                        );
+                      })()
                     )}
                   </div>
                 </div>
@@ -801,7 +857,7 @@ export function GenerationPanel() {
                   disabled={isLoading || !selectedHistory}
                   onClick={handleOpenScheduleSummary}
                 >
-                  <WandSparkles className="h-4 w-4" />
+                  <CalendarClock className="h-4 w-4" />
                   {schedulerT("schedulePost")}
                 </Button>
               )}
@@ -827,21 +883,7 @@ export function GenerationPanel() {
           isLoadingAvatars={isLoadingBusinessAvatars}
           isLoadingMoreAvatars={isLoadingAppAvatars}
         />
-        <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
-          <DialogContent className="max-w-max p-0 bg-transparent border-none shadow-none [&>button]:hidden">
-            <DialogTitle className="sr-only">{t("imagePreview")}</DialogTitle>
-            {previewPromptImage && (
-              <div className="relative h-[95dvh] w-[95vw]">
-                <ProtectedImage
-                  src={previewPromptImage}
-                  alt={t("promptPreviewAlt")}
-                  fit="contain"
-                  className="h-full w-full rounded-md"
-                />
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        {promptImagePreviewDialog}
       </>
     );
   }
@@ -886,21 +928,7 @@ export function GenerationPanel() {
         cancelText={canPurchase ? modelRestrictionCopy.useDefault : t("cancel")}
       />
 
-      <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
-        <DialogContent className="max-w-max p-0 bg-transparent border-none shadow-none [&>button]:hidden">
-          <DialogTitle className="sr-only">{t("imagePreview")}</DialogTitle>
-          {previewPromptImage && (
-            <div className="relative h-[95dvh] w-[95vw]">
-              <ProtectedImage
-                src={previewPromptImage}
-                alt={t("promptPreviewAlt")}
-                fit="contain"
-                className="h-full w-full rounded-md"
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {promptImagePreviewDialog}
       
       {flyingImage && (
         <div 

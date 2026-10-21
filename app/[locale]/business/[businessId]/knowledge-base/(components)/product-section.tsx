@@ -8,7 +8,7 @@ import {
   MoreVertical,
   Plus,
   Search,
-  Edit,
+  Pencil,
   Trash2,
   ShoppingBag,
 } from "lucide-react";
@@ -280,6 +280,7 @@ export function ProductSection() {
                                   variant="ghost"
                                   size="icon-sm"
                                   className="-mr-2 -mt-1.5 shrink-0"
+                                  aria-label={t("businessCard.moreActions")}
                                 >
                                   <MoreVertical className="w-4 h-4" />
                                 </Button>
@@ -288,7 +289,7 @@ export function ProductSection() {
                                 <DropdownMenuItem
                                   onClick={() => handleEditProduct(product)}
                                 >
-                                  <Edit className="w-4 h-4 mr-2" />
+                                  <Pencil className="w-4 h-4 mr-2" />
                                   {p("edit")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -360,6 +361,7 @@ export function ProductSection() {
                             <Button
                               variant="ghost"
                               size="icon-sm"
+                              aria-label={t("businessCard.moreActions")}
                             >
                               <MoreVertical className="w-4 h-4" />
                             </Button>
@@ -368,7 +370,7 @@ export function ProductSection() {
                             <DropdownMenuItem
                               onClick={() => handleEditProduct(product)}
                             >
-                              <Edit className="w-4 h-4 mr-2" />
+                              <Pencil className="w-4 h-4 mr-2" />
                               {p("edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem

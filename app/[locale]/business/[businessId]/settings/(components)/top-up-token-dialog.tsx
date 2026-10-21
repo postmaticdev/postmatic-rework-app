@@ -500,7 +500,7 @@ export function TopUpTokenDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="scrollbar-hidden">
         <DialogHeader>
           <DialogTitle >
             {checkoutResult
@@ -509,7 +509,7 @@ export function TopUpTokenDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:space-y-6 sm:p-6">
+        <div className="scrollbar-hidden flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:space-y-6 sm:p-6">
           {!checkoutResult ? (
             <>
               <div className="grid gap-4">

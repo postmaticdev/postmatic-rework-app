@@ -50,6 +50,10 @@ export function usePublishFeedback() {
     ): PublishFeedbackResult => {
       const results = data?.publishResults;
       if (!results?.length) {
+        if (fallbackMessage === "PARTIAL_SUCCESS_DIRECT_POST_IMAGE_POST") {
+          showToast("warning", fallbackMessage);
+          return "partial";
+        }
         showToast("success", fallbackMessage || t("publishSuccess"));
         return "success";
       }
@@ -120,8 +124,12 @@ export function usePublishFeedback() {
       const responseMessage = response?.data?.responseMessage;
 
       // 422: every platform failed; the per-platform results come as error data.
-      if (responseMessage === "DIRECT_POST_ALL_PLATFORMS_FAILED" && response?.data?.data) {
-        return reportResults(response.data.data);
+      if (responseMessage === "DIRECT_POST_ALL_PLATFORMS_FAILED") {
+        if (response?.data?.data?.publishResults?.length) {
+          return reportResults(response.data.data);
+        }
+        showToast("error", responseMessage);
+        return "failed";
       }
 
       // 409: another request is already publishing this post.

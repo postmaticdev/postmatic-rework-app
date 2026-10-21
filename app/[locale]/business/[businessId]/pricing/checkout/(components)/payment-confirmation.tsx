@@ -14,6 +14,7 @@ import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { showToast } from "@/helper/show-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Copy, Download, ExternalLink, Maximize2, RefreshCw, X } from "lucide-react";
 import {
   PaymentAction as CheckoutPaymentAction,
 } from "@/models/api/purchase/checkout.type";
@@ -298,12 +299,14 @@ export function PaymentConfirmation({
                     onClick={() => setZoomImageIndex(index)}
                     className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                   >
+                    <Maximize2 className="h-4 w-4" />
                     {t("checkout.Instructions.qris.zoom")}
                   </Button>
                   <Button
                     onClick={() => handleDownloadImage(item.value)}
                     className="bg-blue-600 text-white hover:bg-blue-700"
                   >
+                    <Download className="h-4 w-4" />
                     {t("checkout.Instructions.qris.downloadQR")}
                   </Button>
                 </div>
@@ -337,6 +340,7 @@ export function PaymentConfirmation({
                       onClick={() => setZoomImageIndex(null)}
                       className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
                     >
+                      <X className="h-4 w-4" />
                       {t("modal.close")}
                     </Button>
                   </div>
@@ -353,6 +357,7 @@ export function PaymentConfirmation({
                       onClick={() => handleDownloadImage(item.value)}
                       className="bg-blue-600 text-white hover:bg-blue-700"
                     >
+                      <Download className="h-4 w-4" />
                       {t("checkout.Instructions.qris.downloadQR")}
                     </Button>
                   </div>
@@ -381,6 +386,7 @@ export function PaymentConfirmation({
                     onClick={() => handleOpenDeeplink(item.value)}
                     className="bg-blue-600 text-white hover:bg-blue-700"
                   >
+                    <ExternalLink className="h-4 w-4" />
                     {t("checkout.Instructions.redirect.openApplication")}
                   </Button>
                   <Button
@@ -388,6 +394,7 @@ export function PaymentConfirmation({
                     onClick={() => handleCopy(item.value)}
                     className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                   >
+                    <Copy className="h-4 w-4" />
                     {t("checkout.Instructions.redirect.copyLink")}
                   </Button>
                 </div>
@@ -456,6 +463,7 @@ export function PaymentConfirmation({
             : "bg-blue-600 dark:bg-blue-500"
         )}
       >
+        <RefreshCw className={cn("h-4 w-4", isChecking && "animate-spin")} />
         {isChecking ? t("checkout.checking") : t("checkout.checkPaymentStatus")}
       </Button>
 
@@ -501,20 +509,9 @@ function IconButton({
       onClick={onClick}
       className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 flex-shrink-0"
       title={title}
+      aria-label={title}
     >
-      <svg
-        className="w-4 h-4 sm:w-5 sm:h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-        />
-      </svg>
+      <Copy className="w-4 h-4 sm:w-5 sm:h-5" />
     </Button>
   );
 }

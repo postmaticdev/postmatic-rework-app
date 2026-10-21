@@ -176,6 +176,18 @@ export function PaymentInstructionCard({
               </p>
             ) : null}
           </div>
+          {isPending && onRefresh ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="mt-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:hover:text-blue-200"
+            >
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              {t("checkPaymentStatus")}
+            </Button>
+          ) : null}
         </div>
 
         {shouldShowPaymentInstruction ? (
@@ -249,18 +261,6 @@ export function PaymentInstructionCard({
         />
       ) : null}
 
-      {isPending && onRefresh ? (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="w-full border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:hover:text-blue-200"
-        >
-          <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-          {t("checkPaymentStatus")}
-        </Button>
-      ) : null}
     </div>
   );
 }

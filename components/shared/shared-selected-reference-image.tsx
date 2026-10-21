@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
-import { Trash2 } from "lucide-react";
+import { X } from "lucide-react";
 import { SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
 
 interface SharedSelectedReferenceImageProps {
@@ -71,7 +71,7 @@ export const SharedSelectedReferenceImage = ({
               aria-label={t("removeSelectedReference")}
               disabled={isLoading}
             >
-              <Trash2 className="w-5 h-5" />
+              <X className="w-5 h-5" />
             </Button>
           </div>
         </div>

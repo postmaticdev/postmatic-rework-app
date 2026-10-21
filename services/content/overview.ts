@@ -75,11 +75,16 @@ const mapScheduledPost = (item: NewScheduledPost): UpcomingPostRes => ({
 
 const isVisibleScheduledPost = (
   item: NewScheduledPost,
-  includeDrafts = true
+  includeDrafts = true,
+  includeFailed = false
 ) => {
   const status = item.status?.toLowerCase();
   return (
     status === "ready" ||
+    // A schedule can fail before any publishing job exists (platform
+    // disconnected, missing caption/image), so upload-history never lists it.
+    (includeFailed &&
+      (status === "failed" || status === "partial_published")) ||
     (includeDrafts &&
       status === "draft" &&
       (Boolean(item.imageUrl) ||
@@ -216,7 +221,10 @@ const overviewService = {
             data: (res.data.data?.days || [])
               .flatMap((day) => day.items || [])
               .filter((item) => isWithinDateRange(item, dateStart, dateEnd))
-              .filter((item) => isVisibleScheduledPost(item, includeDrafts))
+              // Only the calendar (includeDrafts) shows failed schedules.
+              .filter((item) =>
+                isVisibleScheduledPost(item, includeDrafts, includeDrafts)
+              )
               .map(mapScheduledPost),
           },
         })) as unknown as ReturnType<

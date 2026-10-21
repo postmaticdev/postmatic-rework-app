@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   MoreVertical,
   Plus,
-  Edit,
+  Pencil,
   Trash2,
   Search,
   TrendingUp,
@@ -178,6 +178,7 @@ export function RSSTrendSection({
 
   const e = useTranslations("errors");
   const r = useTranslations("rssKnowledge");
+  const tCard = useTranslations("businessCard");
   const rssKnowledgeSchema = useMemo(
     () =>
       z.object({
@@ -394,6 +395,7 @@ export function RSSTrendSection({
                                     <Button
                                       variant="ghost"
                                       size="icon-sm"
+                                      aria-label={tCard("moreActions")}
                                     >
                                       <MoreVertical className="w-4 h-4" />
                                     </Button>
@@ -407,7 +409,7 @@ export function RSSTrendSection({
                                         })
                                       }
                                     >
-                                      <Edit className="w-4 h-4 mr-2" />
+                                      <Pencil className="w-4 h-4 mr-2" />
                                       {r("editRSS")}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
@@ -500,6 +502,7 @@ export function RSSTrendSection({
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
+                                aria-label={tCard("moreActions")}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </Button>
@@ -513,7 +516,7 @@ export function RSSTrendSection({
                                   })
                                 }
                               >
-                                <Edit className="w-4 h-4 mr-2" />
+                                <Pencil className="w-4 h-4 mr-2" />
                                 {r("editRSS")}
                               </DropdownMenuItem>
                               <DropdownMenuItem

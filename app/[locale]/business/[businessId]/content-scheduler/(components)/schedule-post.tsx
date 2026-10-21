@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Edit, Trash2, ClipboardClock } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, ClipboardClock } from "lucide-react";
 import { CreatePostModal } from "./create-post-modal";
 import { useContentOverviewGetUpcoming } from "@/services/content/overview";
 import { useParams } from "next/navigation";
@@ -358,7 +358,11 @@ export function SchedulePost({
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-sm">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={tToast("contentScheduler.scheduledHistoryActions")}
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -367,7 +371,7 @@ export function SchedulePost({
                             <DropdownMenuItem
                               onClick={() => handleEditPost(post)}
                             >
-                              <Edit className="h-4 w-4 mr-2" />
+                              <Pencil className="h-4 w-4 mr-2" />
                               {t("edit")}
                             </DropdownMenuItem>
                           )}
