@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import {
-  Loader2,
   MoreVertical,
   Pencil,
   Plus,
@@ -39,11 +38,17 @@ import {
 import {
   useBusinessAvatarCreate,
   useBusinessAvatarDelete,
-  useBusinessAvatarGetAll,
+  useBusinessAvatarInfinite,
   useBusinessAvatarUpdate,
 } from "@/services/knowledge.api";
 import { useAvatarKnowledgeSchema } from "@/validator/new-business";
+import { useDebounce } from "@/hooks/use-debounce";
 import { AvatarModal } from "./avatar-modal";
+import {
+  KnowledgeListError,
+  KnowledgeListLoadMore,
+  KnowledgeListLoading,
+} from "./knowledge-list-states";
 
 const initialAvatar: BusinessAvatarPld & { id?: string } = {
   name: "",
@@ -59,6 +64,8 @@ const AVATAR_VALIDATION_FIELD_MAP = {
 export function AvatarSection() {
   const { businessId } = useParams() as { businessId: string };
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useDebounce(() => setDebouncedSearch(searchQuery.trim()), 400, [searchQuery]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [selectedAvatar, setSelectedAvatar] = useState<
@@ -75,12 +82,19 @@ export function AvatarSection() {
   const { access } = useRole();
   const { businessKnowledge } = access;
 
-  const { data, isLoading, isError } = useBusinessAvatarGetAll(businessId, {
-    limit: 100,
-    page: 1,
+  const {
+    data,
+    isLoading,
+    isError,
+    isRefetching,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useBusinessAvatarInfinite(businessId, {
     sortBy: "name",
     sort: "asc",
-    search: searchQuery,
+    search: debouncedSearch,
   });
 
   const mBusinessAvatarCreate = useBusinessAvatarCreate();
@@ -89,7 +103,7 @@ export function AvatarSection() {
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
 
-  const avatars = data?.data.data || [];
+  const avatars = data?.pages.flatMap((page) => page.data.data) ?? [];
 
   const handleAddAvatar = () => {
     setModalMode("add");
@@ -228,17 +242,13 @@ export function AvatarSection() {
             </div>
 
             {isLoading ? (
-              <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{t("loading")}</span>
-              </div>
-            ) : isError ? (
-              <NoContent
-                icon={UserRound}
-                title={t("errorTitle")}
-                titleDescription={t("errorDescription")}
+              <KnowledgeListLoading label={t("loading")} />
+            ) : isError && avatars.length === 0 ? (
+              <KnowledgeListError
+                onRetry={() => refetch()}
+                isRetrying={isRefetching}
               />
-            ) : avatars.length === 0 && searchQuery === "" ? (
+            ) : avatars.length === 0 && debouncedSearch === "" ? (
               <NoContent
                 icon={UserRound}
                 title={t("notAvailable")}
@@ -314,6 +324,12 @@ export function AvatarSection() {
                     </CardContent>
                   </Card>
                 ))}
+                {hasNextPage && (
+                  <KnowledgeListLoadMore
+                    onLoadMore={() => fetchNextPage()}
+                    isLoading={isFetchingNextPage}
+                  />
+                )}
               </div>
             )}
           </div>

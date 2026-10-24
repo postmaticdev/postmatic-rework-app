@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Globe, Pencil, Phone } from "lucide-react";
 import Image from "next/image";
 import { EditKnowledgeModal } from "./edit-knowledge-modal";
@@ -17,7 +18,7 @@ import { useTranslations } from "next-intl";
 export function BusinessKnowledgeSection() {
   const { businessId } = useParams() as { businessId: string };
   const { data: businessData } = useBusinessGetById(businessId);
-  const { data: businessKnowledgeData } =
+  const { data: businessKnowledgeData, isLoading } =
     useBusinessKnowledgeGetById(businessId);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { access } = useRole();
@@ -74,6 +75,7 @@ export function BusinessKnowledgeSection() {
                 }
                 alt={b("logoBrand")}
                 fill
+                sizes="(min-width: 768px) 25vw, 144px"
                 className="object-contain"
               />
             </div>
@@ -82,12 +84,21 @@ export function BusinessKnowledgeSection() {
                 deskripsi & warna tone selebar card mulai dari kiri (bawah logo) */}
             <div className="min-w-0 md:col-span-2 max-md:contents">
               <div className="min-w-0">
-              <h3 className="mb-2 break-words font-semibold text-foreground">
-                {businessKnowledgeDetail?.name || b("notAvailable")}
-              </h3>
-              <p className="mb-3 text-sm text-muted-foreground">
-                {businessKnowledgeDetail?.category}
-              </p>
+              {isLoading ? (
+                <div className="mb-3 space-y-2">
+                  <Skeleton className="h-5 w-40 max-w-full" />
+                  <Skeleton className="h-4 w-28 max-w-full" />
+                </div>
+              ) : (
+                <>
+                  <h3 className="mb-2 break-words font-semibold text-foreground">
+                    {businessKnowledgeDetail?.name || b("notAvailable")}
+                  </h3>
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    {businessKnowledgeDetail?.category}
+                  </p>
+                </>
+              )}
 
               <div className="mb-3 flex flex-wrap gap-2 max-md:mb-0">
                 <Button
@@ -109,9 +120,16 @@ export function BusinessKnowledgeSection() {
               </div>
               </div>
 
-              <p className="mb-3 text-sm text-muted-foreground line-clamp-4 max-md:col-span-2 max-md:mb-0 max-md:text-justify">
-                {businessKnowledgeDetail?.description || b("notAvailable")}
-              </p>
+              {isLoading ? (
+                <div className="mb-3 space-y-2 max-md:col-span-2 max-md:mb-0">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              ) : (
+                <p className="mb-3 text-sm text-muted-foreground line-clamp-4 max-md:col-span-2 max-md:mb-0 max-md:text-justify">
+                  {businessKnowledgeDetail?.description || b("notAvailable")}
+                </p>
+              )}
 
               <div className="space-y-4 max-md:col-span-2">
                 <div>

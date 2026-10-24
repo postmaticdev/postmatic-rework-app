@@ -31,8 +31,12 @@ import {
   useContentImageWatermarkGet,
   useContentSchedulerManualAddToQueue,
   useContentSchedulerManualEditQueue,
+  useContentSchedulerTimezoneGetTimezone,
 } from "@/services/content/content.api";
-import { useBusinessGetById } from "@/services/business.api";
+import {
+  useBusinessAccessManagementGet,
+  useBusinessGetById,
+} from "@/services/business.api";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { useParams, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -47,12 +51,40 @@ import {
 } from "lucide-react";
 import { showToast } from "@/helper/show-toast";
 import { useRole } from "@/contexts/role-context";
-import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
+import {
+  getCurrentScheduleInput,
+  getNextSchedulableDate,
+  toBusinessWallDate,
+} from "@/lib/schedule-date-time";
+import { dateManipulation } from "@/helper/date-manipulation";
+import { isAxiosError } from "axios";
 import { ImageWatermarkRes } from "@/models/api/content/image.type";
 
 const WATERMARK_POLL_INTERVAL_MS = 2000;
 const WATERMARK_POLL_TIMEOUT_MS = 60000;
-const WATERMARK_SCHEDULE_TIMEOUT_MS = 90000;
+// Stops background watermark polling when the backend never produces one.
+const WATERMARK_POLL_MAX_DURATION_MS = 5 * 60000;
+// The backend rejects a publishAt already past when the request lands, so a
+// schedule needs some lead time (also absorbs small client clock drift).
+const SCHEDULE_MIN_LEAD_MS = 30000;
+// The backend's zone when a business has none stored.
+const DEFAULT_BUSINESS_TIME_ZONE = "Asia/Jakarta";
+
+// toBusinessWallDate is minute precision; add the seconds back.
+const getBusinessWallNowMs = (timeZone?: string) => {
+  const now = new Date();
+  return (
+    toBusinessWallDate(now, timeZone).getTime() +
+    now.getSeconds() * 1000 +
+    now.getMilliseconds()
+  );
+};
+
+const isTooSoonToSchedule = (scheduledAt: Date, timeZone?: string) =>
+  scheduledAt.getTime() - getBusinessWallNowMs(timeZone) < SCHEDULE_MIN_LEAD_MS;
+
+const getSchedulableInput = (timeZone?: string) =>
+  getCurrentScheduleInput(new Date(Date.now() + SCHEDULE_MIN_LEAD_MS), timeZone);
 
 const getPaddingBottomStyle = (ratio?: string) => {
   switch (ratio) {
@@ -99,6 +131,13 @@ export function PreviewPanel() {
   const locale = useLocale();
   const searchParams = useSearchParams();
   const { businessId } = useParams() as { businessId: string };
+  // Schedule inputs and publishAt are wall time in the business time zone,
+  // which is how the backend reads publishAt.
+  const { data: timezoneRes, isError: isTimezoneError } =
+    useContentSchedulerTimezoneGetTimezone(businessId);
+  const businessTimeZone =
+    timezoneRes?.data?.data?.timezone ||
+    (isTimezoneError ? DEFAULT_BUSINESS_TIME_ZONE : undefined);
   const {
     mode,
     form,
@@ -115,6 +154,11 @@ export function PreviewPanel() {
   } = useContentGenerate();
   const { data: businessData } = useBusinessGetById(businessId);
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
+  const { data: businessAccessRes } = useBusinessAccessManagementGet(businessId);
+  // The backend shares the post regardless when the plan requires it.
+  const isMustShareContent =
+    businessAccessRes?.data?.data?.isMustShareContent === true;
+  const [shareAsReference, setShareAsReference] = useState(true);
   const businessName = businessData?.data?.data?.name;
   const businessLogo = businessData?.data?.data?.logo;
   const t = useTranslations("previewPanel");
@@ -195,8 +239,8 @@ export function PreviewPanel() {
   );
   const isCarouselPreview = carouselPreviewImages.length > 1;
 
-  const [date, setDate] = useState(() => getCurrentScheduleInput().date);
-  const [time, setTime] = useState(() => getCurrentScheduleInput().time);
+  const [date, setDate] = useState(() => getSchedulableInput(businessTimeZone).date);
+  const [time, setTime] = useState(() => getSchedulableInput(businessTimeZone).time);
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isScheduleNowConfirmOpen, setIsScheduleNowConfirmOpen] =
@@ -212,12 +256,12 @@ export function PreviewPanel() {
   useEffect(() => {
     if (isScheduleTouched) return;
     const intervalId = setInterval(() => {
-      const nextSchedule = getCurrentScheduleInput();
+      const nextSchedule = getSchedulableInput(businessTimeZone);
       setDate((prev) => (prev !== nextSchedule.date ? nextSchedule.date : prev));
       setTime((prev) => (prev !== nextSchedule.time ? nextSchedule.time : prev));
     }, 1000);
     return () => clearInterval(intervalId);
-  }, [isScheduleTouched]);
+  }, [businessTimeZone, isScheduleTouched]);
 
   const handleDateChange = (d: string) => {
     setDate(d);
@@ -371,9 +415,10 @@ export function PreviewPanel() {
     }
 
     let isCancelled = false;
+    const deadline = Date.now() + WATERMARK_POLL_MAX_DURATION_MS;
 
     const keepTryingWatermark = async () => {
-      while (!isCancelled) {
+      while (!isCancelled && Date.now() < deadline) {
         const watermarkUrl = await resolvePreviewWatermarkUrl();
 
         if (isCancelled) {
@@ -406,25 +451,29 @@ export function PreviewPanel() {
 
   const platformOptions = useMemo(
     () =>
-      SOCIAL_MEDIA_PLATFORMS.map((platform) => ({
-        platform,
-        isConnected: (platformData?.data.data || []).some(
+      SOCIAL_MEDIA_PLATFORMS.map((platform) => {
+        const connected = (platformData?.data.data || []).find(
           (item) => item.platform === platform && item.status === "connected"
-        ),
-      })),
+        );
+        return {
+          platform,
+          isConnected: Boolean(connected),
+          requiresReconnect: Boolean(connected?.requiresReconnect),
+        };
+      }),
     [platformData?.data.data]
   );
+  // A platform needing reconnection would only fail at publish time.
   const connectedPlatforms = useMemo(
     () =>
       platformOptions
-        .filter((platform) => platform.isConnected)
+        .filter((platform) => platform.isConnected && !platform.requiresReconnect)
         .map((platform) => platform.platform),
     [platformOptions]
   );
   const isFirstGenerateFlow =
     !selectedHistory || selectedHistory.id.startsWith("chat-scheduled-");
-  const currentScheduleInput = getCurrentScheduleInput();
-  const minDate = currentScheduleInput.date;
+  const minDate = getCurrentScheduleInput(new Date(), businessTimeZone).date;
   const isEnhanceCaptionLoading =
     mEnhanceCaption.isPending &&
     (!isAutoEnhancingCaption || !form.basic.caption.trim());
@@ -492,25 +541,17 @@ export function PreviewPanel() {
     router.push(`/business/${businessId}/settings?tab=billing&topUp=token`);
   };
 
-  const resolveScheduleImageUrl = useCallback(async () => {
-    if (!selectedImageUrl) {
-      return null;
-    }
-
-    if (!aiModels.isFreeUser) {
-      return selectedImageUrl;
-    }
-
-    const watermarkUrl = await resolvePreviewWatermarkUrl({
-      timeoutMs: WATERMARK_SCHEDULE_TIMEOUT_MS,
-    });
-
-    if (watermarkUrl) {
-      return watermarkUrl;
-    }
-
-    throw new Error("WATERMARK_REQUIRED_FOR_FREE_USER");
-  }, [aiModels.isFreeUser, resolvePreviewWatermarkUrl, selectedImageUrl]);
+  // Always the original image: at publish time the backend swaps a grid tile
+  // for its upscaled version and watermarks it for free businesses. A
+  // watermarked URL here would get a second watermark and skip the upscale.
+  // The backend publishes a single image, so a carousel publishes its cover
+  // (the primary image can sit outside the carousel after a new generation).
+  const scheduleImageSourceUrl =
+    selectedContentImages.length > 1 ? selectedContentImages[0] : selectedImageUrl;
+  const resolveScheduleImageUrl = useCallback(
+    async () => scheduleImageSourceUrl || null,
+    [scheduleImageSourceUrl]
+  );
 
   const persistCaptionToSchedulerDraft = useCallback(
     async (nextCaption: string) => {
@@ -528,7 +569,7 @@ export function PreviewPanel() {
       );
       const draftDate = currentDraftMarker?.date || scheduleDate || date;
       const draftTime =
-        currentDraftMarker?.time || scheduleTime || time || getCurrentScheduleInput().time;
+        currentDraftMarker?.time || scheduleTime || time || getCurrentScheduleInput(new Date(), businessTimeZone).time;
 
       if (draftDate) {
         upsertSchedulerDraftMarker(businessId, {
@@ -565,7 +606,17 @@ export function PreviewPanel() {
           imageUrl: scheduleImageUrl,
           caption: nextCaption,
           platforms: [],
-          dateTime: new Date(`${draftDate}T${draftTime}`).toISOString(),
+          // The backend rejects a past publishAt, drafts included.
+          dateTime: (() => {
+            const draftAt = new Date(`${draftDate}T${draftTime}`);
+            return Number.isNaN(draftAt.getTime()) ||
+              isTooSoonToSchedule(draftAt, businessTimeZone)
+              ? getNextSchedulableDate(
+                  new Date(Date.now() + SCHEDULE_MIN_LEAD_MS),
+                  businessTimeZone
+                ).toISOString()
+              : draftAt.toISOString();
+          })(),
           status: "draft",
           withChatAI: true,
           shareAsReference: true,
@@ -579,6 +630,7 @@ export function PreviewPanel() {
     },
     [
       businessId,
+      businessTimeZone,
       date,
       form.basic.productImage,
       form.basic.referenceImage,
@@ -644,6 +696,8 @@ export function PreviewPanel() {
       mEnhanceCaption,
       persistCaptionToSchedulerDraft,
       schedulerT,
+      selectedHistory?.input?.productKnowledgeId,
+      selectedHistory?.result?.productKnowledgeId,
       selectedImageUrl,
       t,
     ]
@@ -750,11 +804,11 @@ export function PreviewPanel() {
       return;
     }
 
-    const now = new Date();
-    if (scheduledAt <= now) {
-      now.setMinutes(now.getMinutes() + 1);
-      now.setSeconds(0, 0);
-      scheduledAt = now;
+    if (isTooSoonToSchedule(scheduledAt, businessTimeZone)) {
+      scheduledAt = getNextSchedulableDate(
+        new Date(Date.now() + SCHEDULE_MIN_LEAD_MS),
+        businessTimeZone
+      );
     }
 
     const connectedSelectedPlatforms = selectedPlatforms.filter((platform) =>
@@ -773,14 +827,26 @@ export function PreviewPanel() {
         return;
       }
 
+      const caption = form.basic.caption || selectedHistory.result.caption || "";
+      // The backend rejects a "ready" post without a caption.
+      if (!caption.trim()) {
+        showToast("error", schedulerT("captionRequired"));
+        return;
+      }
+
+      const existingPostId =
+        schedulerDraftPost?.id ??
+        (editSchedulerManualPostingId ? Number(editSchedulerManualPostingId) : null);
       const formData = {
         imageUrl: scheduleImageUrl,
-        caption: form.basic.caption || selectedHistory.result.caption || "",
+        caption,
         platforms: connectedSelectedPlatforms,
         dateTime: scheduledAt.toISOString(),
         status: "ready" as const,
-        withChatAI: true,
-        shareAsReference: true,
+        // A new post can't open a chat: the backend allows withChatAI only on
+        // drafts. Existing posts keep their chat (the update ignores it).
+        withChatAI: existingPostId !== null,
+        shareAsReference: isMustShareContent || shareAsReference,
         businessProductId: selectedHistory.input.productKnowledgeId,
         chatSessionId: schedulerDraftPost?.chatSessionId || undefined,
       };
@@ -806,11 +872,13 @@ export function PreviewPanel() {
 
       setIsSummaryOpen(false);
       setIsScheduleNowConfirmOpen(false);
-      if (schedulerDraftPost) {
-        removeSchedulerDraftMarker(businessId, String(schedulerDraftPost.id));
+      if (existingPostId !== null) {
+        removeSchedulerDraftMarker(businessId, String(existingPostId));
       }
+      showToast("success", schedulerT("postScheduledSuccess"));
+      // scheduledAt may have moved past midnight when bumped forward.
       router.push(
-        `/business/${businessId}/content-scheduler?selectedDate=${scheduleDate}`
+        `/business/${businessId}/content-scheduler?selectedDate=${dateManipulation.ymd(scheduledAt)}`
       );
     } catch (error) {
       if (
@@ -821,7 +889,10 @@ export function PreviewPanel() {
         return;
       }
 
-      showToast("error", error);
+      // Failed requests are already toasted by the global mutation onError.
+      if (!isAxiosError(error)) {
+        showToast("error", error);
+      }
     }
   };
 
@@ -831,7 +902,7 @@ export function PreviewPanel() {
       showToast("error", schedulerT("selectDateTime"));
       return;
     }
-    if (scheduledAt <= new Date()) {
+    if (isTooSoonToSchedule(scheduledAt, businessTimeZone)) {
       setIsScheduleNowConfirmOpen(true);
       return;
     }
@@ -840,7 +911,7 @@ export function PreviewPanel() {
   };
 
   const handleScheduleNow = async () => {
-    const nextSchedule = getCurrentScheduleInput();
+    const nextSchedule = getSchedulableInput(businessTimeZone);
     setDate(nextSchedule.date);
     setTime(nextSchedule.time);
     await submitSchedule(nextSchedule.date, nextSchedule.time);
@@ -1052,9 +1123,13 @@ export function PreviewPanel() {
         date={date}
         time={time}
         minDate={minDate}
+        timeZone={businessTimeZone}
         selectedPlatforms={selectedPlatforms}
         platforms={platformOptions}
         isLoading={isScheduling || mEnhanceCaption.isPending}
+        shareAsReference={shareAsReference}
+        onShareAsReferenceChange={setShareAsReference}
+        isShareAsReferenceLocked={isMustShareContent}
         onClose={() => setIsSummaryOpen(false)}
         onCaptionChange={(value) =>
           form.setBasic({ ...form.basic, caption: value })

@@ -10,6 +10,8 @@ interface ScheduleTimeInputProps {
   onValueChange: (value: string) => void;
   className?: string;
   disabled?: boolean;
+  // Business time zone: the minimum time is "now" in that zone.
+  timeZone?: string | null;
 }
 
 export function ScheduleTimeInput({
@@ -18,17 +20,20 @@ export function ScheduleTimeInput({
   onValueChange,
   className,
   disabled,
+  timeZone,
 }: ScheduleTimeInputProps) {
   const [currentMinimum, setCurrentMinimum] = useState(() =>
-    getCurrentScheduleInput()
+    getCurrentScheduleInput(new Date(), timeZone)
   );
 
   useEffect(() => {
-    const updateMinimum = () => setCurrentMinimum(getCurrentScheduleInput());
+    const updateMinimum = () =>
+      setCurrentMinimum(getCurrentScheduleInput(new Date(), timeZone));
+    updateMinimum();
     const intervalId = window.setInterval(updateMinimum, 30_000);
 
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [timeZone]);
 
   const minTime = useMemo(
     () => (date === currentMinimum.date ? currentMinimum.time : undefined),

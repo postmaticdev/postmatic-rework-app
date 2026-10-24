@@ -6,12 +6,20 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { cn } from "@/lib/utils";
 import { PlatformModal } from "./platform-modal";
 import { useRole } from "@/contexts/role-context";
 import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
+
+const PLATFORM_URL_FLAGS = [
+  "platformTempCode",
+  "tempCode",
+  "connectedPlatformTempCode",
+  "reconnectPlatform",
+];
 
 export function MediaSocialSection() {
   const { businessId } = useParams() as { businessId: string };
@@ -22,7 +30,8 @@ export function MediaSocialSection() {
     searchParams.has("connectedPlatformTempCode");
   // Set by the scheduler's "Reconnect" action.
   const wantsReconnect = searchParams.has("reconnectPlatform");
-  const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
+  const { data: platformData, isLoading } =
+    usePlatformKnowledgeGetAll(businessId);
   const platforms = platformData?.data.data ?? [];
   const [isPlatformModalOpen, setIsPlatformModalOpen] =
     useState(hasPendingPlatform);
@@ -42,6 +51,16 @@ export function MediaSocialSection() {
       setIsPlatformModalOpen(true);
     }
   }, [platformKnowledge.write, wantsReconnect]);
+
+  // Drop the one-shot connect/reconnect flags so a refresh does not reopen
+  // the modal.
+  const handleClosePlatformModal = () => {
+    setIsPlatformModalOpen(false);
+    if (!hasPendingPlatform && !wantsReconnect) return;
+    const url = new URL(window.location.href);
+    PLATFORM_URL_FLAGS.forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState(null, "", url.toString());
+  };
 
   return (
     <div className="h-full">
@@ -68,7 +87,7 @@ export function MediaSocialSection() {
               const platform = platforms.find(
                 (item) => item.platform === platformId
               );
-              const isConnected = platform?.status === "connected";
+              const isConnected = !isLoading && platform?.status === "connected";
               const needsReconnect = isConnected && Boolean(platform?.requiresReconnect);
 
               return (
@@ -101,11 +120,15 @@ export function MediaSocialSection() {
                     <p className="text-sm font-normal text-muted-foreground">
                       {mapEnumPlatform.getPlatformLabel(platformId)}
                     </p>
-                    <p className="text-md truncate leading-tight">
-                      {isConnected
-                        ? platform?.accountDisplayName || platform?.name
-                        : b("notConnected")}
-                    </p>
+                    {isLoading ? (
+                      <Skeleton className="mt-1 h-4 w-24" />
+                    ) : (
+                      <p className="text-md truncate leading-tight">
+                        {isConnected
+                          ? platform?.accountDisplayName || platform?.name
+                          : b("notConnected")}
+                      </p>
+                    )}
                     {needsReconnect && (
                       <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
                         <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -122,7 +145,7 @@ export function MediaSocialSection() {
 
       <PlatformModal
         isOpen={isPlatformModalOpen}
-        onClose={() => setIsPlatformModalOpen(false)}
+        onClose={handleClosePlatformModal}
       />
     </div>
   );

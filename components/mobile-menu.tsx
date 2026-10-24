@@ -2,7 +2,7 @@
 
 import { getMemberRoleLabel } from "@/helper/member-role";
 import { useState, useEffect } from "react";
-import { useRouter, usePathname } from "@/i18n/navigation";
+import { useRouter, usePathname, Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 
 import { useTheme } from "next-themes";
@@ -24,54 +24,52 @@ import {
 import { useNotification } from "@/contexts/notification-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import {
-  useAuthProfileGetProfile,
-  useAuthProfileLogout,
-  useAuthProfileGetCurrentSession,
-} from "@/services/auth.api";
+import { useAuthProfileGetProfile } from "@/services/auth.api";
 import { DEFAULT_USER_AVATAR } from "@/constants";
-import { logoutAndRedirect } from "@/config/api";
-import { showLogoutOverlay } from "@/lib/logout-overlay";
-import { useBusinessGetAll } from "@/services/business.api";
-import { showToast } from "@/helper/show-toast";
+import {
+  BUSINESS_SWITCHER_FILTER,
+  useBusinessGetAll,
+} from "@/services/business.api";
 import { useLocale, useTranslations } from "next-intl";
 import { useTokenGetTokenUsage } from "@/services/tier/token.api";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
 import { useDateFormat } from "@/hooks/use-date-format";
+import { useLogout } from "@/hooks/use-logout";
 import { ReportIssueModal } from "@/components/report-issue-modal";
 import { useRole } from "@/contexts/role-context";
 
 export function MobileMenu() {
   const router = useRouter();
-  const { access } = useRole();
+  const { access, role: userRole } = useRole();
   const pathname = usePathname();
   const { formatDate } = useDateFormat();
-  const { theme, setTheme } = useTheme();
-  const [isOpen, setIsOpen] = useState(false);
+  const { setTheme, resolvedTheme } = useTheme();
+  // Menu terbuka hanya untuk path tempat ia dibuka, jadi otomatis tertutup
+  // saat pindah halaman (termasuk tombol back browser).
+  const [openedAtPath, setOpenedAtPath] = useState<string | null>(null);
+  const isOpen = openedAtPath === pathname;
+  const closeMenu = () => setOpenedAtPath(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(theme === "dark");
   const { data: profileData } = useAuthProfileGetProfile();
   const profile = profileData?.data?.data;
-  const { data: businessesData } = useBusinessGetAll();
+  // Same filter as the header switcher, so this reuses its cached request.
+  const { data: businessesData } = useBusinessGetAll(BUSINESS_SWITCHER_FILTER);
   const businesses = businessesData?.data?.data || [];
   const { businessId } = useParams() as { businessId?: string };
-  const currentBusiness =
-  businesses.find((business) => business.id === businessId) || null;
-  const userRole = currentBusiness?.userPosition?.role;
   const tSideBar = useTranslations("sideBar");
   const tRole = useTranslations("memberRole");
   const { unreadCount } = useNotification();
   const notificationBusinessId = businessId || businesses[0]?.id;
   const isNotificationActive = pathname.endsWith("/notifications");
+  const isDarkMode = resolvedTheme === "dark";
+  const handleLogout = useLogout();
 
   const handleNotificationClick = () => {
-    router.push(
-      notificationBusinessId
-        ? `/business/${notificationBusinessId}/notifications`
-        : "/notifications"
-    );
-    setIsOpen(false);
+    if (!notificationBusinessId) return;
+    router.push(`/business/${notificationBusinessId}/notifications`);
+    closeMenu();
   };
   const navigationItems = [
     {
@@ -90,88 +88,48 @@ export function MobileMenu() {
       icon: Settings,
     },
   ];
-  
+
   // Get subscription data
   const { data: subscriptionData } = useSubscribtionGetSubscription(
     businessId ?? ""
   );
   const subscription = subscriptionData?.data?.data ?? null;
-  
+
   // Get token usage data
-  const { data: tokenUsageData } = useTokenGetTokenUsage(businessId ?? "");
+  const { data: tokenUsageData, isLoading: isLoadingTokenUsage } =
+    useTokenGetTokenUsage(businessId ?? "");
   // Tampilan token minimal 0 walaupun saldo sebenarnya minus
   const credits = Math.max(0, tokenUsageData?.data?.data?.availableToken ?? 0);
   const locale = useLocale();
   // Handle escape key to close menu
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        setIsOpen(false);
-      }
+      if (e.key === "Escape") setOpenedAtPath(null);
     };
 
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      // Prevent body scroll when menu is open
-      document.body.style.overflow = "hidden";
-    }
+    document.addEventListener("keydown", handleEscape);
+    // Prevent body scroll when menu is open
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
 
   const handleThemeToggle = (checked: boolean) => {
-    setIsDarkMode(checked);
     setTheme(checked ? "dark" : "light");
   };
 
-  const mLogout = useAuthProfileLogout();
-  const { data: currentSessionData } = useAuthProfileGetCurrentSession();
-  const currentSessionId = currentSessionData?.data?.data?.session?.id;
-  const tToast = useTranslations();
-  
-  const handleLogout = async () => {
-    // Layar loading langsung tampil, tidak menunggu request logout selesai.
-    showLogoutOverlay();
-    try {
-      if (currentSessionId) {
-        await mLogout.mutateAsync(currentSessionId);
-      } else {
-        await mLogout.mutateAsync(undefined);
-      }
-    } catch {
-    } finally {
-      showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
-      await logoutAndRedirect();
-    }
-  };
-
-  // Check if we're currently inside a business context
-  const isInBusinessContext = () => {
-    const pathSegments = pathname.split("/").filter(Boolean);
-    // We're in business context if we have at least 2 segments and first one is not a known root page
-    return (
-      pathSegments.length >= 2 &&
-      !["profile", "pricing", "checkout", "newbusiness"].includes(
-        pathSegments[0]
-      )
-    );
-  };
-
-  // Get filtered navigation items based on context
-  // Profile diakses lewat foto profil di kartu atas, bukan item navigasi
-  const filteredNavigationItems = isInBusinessContext() ? navigationItems : [];
-
-  const handleNavigation = (href: string) => {
-    router.push(`/business/${businessId}/${href}`);
-    setIsOpen(false);
-  };
+  // Navigasi bisnis hanya ada di halaman yang punya businessId.
+  const filteredNavigationItems = businessId ? navigationItems : [];
 
   const handleProfileClick = () => {
     router.push("/profile");
-    setIsOpen(false);
+    closeMenu();
   };
 
   return (
@@ -180,7 +138,7 @@ export function MobileMenu() {
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => setIsOpen(true)}
+        onClick={() => setOpenedAtPath(pathname)}
         className="relative md:hidden hover:bg-muted"
         aria-label={tSideBar("openMenu")}
       >
@@ -204,7 +162,7 @@ export function MobileMenu() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsOpen(false)}
+              onClick={closeMenu}
               aria-label={tSideBar("closeMenu")}
               className="-mr-2 size-12 rounded-full"
             >
@@ -264,6 +222,7 @@ export function MobileMenu() {
                     variant="outline"
                     size="icon"
                     onClick={handleNotificationClick}
+                    disabled={!notificationBusinessId}
                     className={cn(
                       "relative shrink-0 rounded-full",
                       isNotificationActive && "border-primary/40 bg-primary/10 text-primary"
@@ -273,7 +232,7 @@ export function MobileMenu() {
                     <Bell className="h-4 w-4" />
                     {unreadCount > 0 && (
                       <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-card">
-                        {unreadCount}
+                        {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     )}
                   </Button>
@@ -288,9 +247,13 @@ export function MobileMenu() {
                       {subscription?.subscription?.productName || tSideBar("freePlan")}
                     </span>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xl font-bold text-primary">
-                        {credits.toLocaleString(locale)}
-                      </span>
+                      {isLoadingTokenUsage ? (
+                        <Skeleton className="h-7 w-16" />
+                      ) : (
+                        <span className="text-xl font-bold text-primary">
+                          {credits.toLocaleString(locale)}
+                        </span>
+                      )}
                       <Zap className="h-4 w-4 text-primary" strokeWidth={1.5} />
                       <span className="text-xs text-muted-foreground">{tSideBar("token")}</span>
                     </div>
@@ -304,18 +267,17 @@ export function MobileMenu() {
                   </div>
                   {access.purchase.write && (
                     <Button
-                      type="button"
+                      asChild
                       size="icon"
-                      onClick={() => {
-                        router.push(
-                          `/business/${businessId}/settings?tab=billing&topUp=token`
-                        );
-                        setIsOpen(false);
-                      }}
                       className="shrink-0 rounded-full"
-                      aria-label={tSideBar("topUpToken")}
                     >
-                      <CreditCard className="h-5 w-5 text-white" />
+                      <Link
+                        href={`/business/${businessId}/settings?tab=billing&topUp=token`}
+                        onClick={closeMenu}
+                        aria-label={tSideBar("topUpToken")}
+                      >
+                        <CreditCard className="h-5 w-5 text-white" />
+                      </Link>
                     </Button>
                   )}
                 </div>
@@ -333,9 +295,11 @@ export function MobileMenu() {
                       const Icon = item.icon;
 
                       return (
-                        <button
+                        <Link
                           key={item.name}
-                          onClick={() => handleNavigation(item.href)}
+                          href={`/business/${businessId}/${item.href}`}
+                          onClick={closeMenu}
+                          aria-current={isActive ? "page" : undefined}
                           className={cn(
                             "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors",
                             isActive
@@ -353,7 +317,7 @@ export function MobileMenu() {
                             {item.name}
                           </span>
                           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
-                        </button>
+                        </Link>
                       );
                     })}
                   </div>
@@ -368,7 +332,7 @@ export function MobileMenu() {
             <Button
               variant="outline"
               onClick={() => {
-                setIsOpen(false);
+                closeMenu();
                 setIsReportModalOpen(true);
               }}
               className="w-full text-orange-600 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-950/20"

@@ -62,7 +62,9 @@ export interface WebsiteTicketDetail {
 }
 
 export interface ReplyWebsiteTicketPld {
+  /** Wajib diisi (backend: validate:"required"). */
   body: string;
   quotedWebMessageId?: number;
-  attachments?: string[];
+  /** Id aset dari /app/asset-uploader/upload; backend tidak menerima URL lampiran. */
+  uploadedAssetIds?: number[];
 }

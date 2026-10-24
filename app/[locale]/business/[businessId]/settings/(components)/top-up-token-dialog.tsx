@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ReceiptText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +37,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { PaymentInstructionCard } from "./payment-instruction-card";
+import { OrderInvoiceCard } from "./order-invoice-card";
 
 interface TopUpTokenDialogProps {
   isOpen: boolean;
@@ -59,12 +59,6 @@ type PaymentStatusKey =
   | "refunded"
   | "denied"
   | "pending";
-
-type DetailRow = {
-  label: string;
-  value: string;
-  isStatus?: boolean;
-};
 
 const DEFAULT_TOKEN_AMOUNT = "200000";
 const MAX_TOKEN_AMOUNT = 1_000_000_000;
@@ -107,23 +101,6 @@ const getPaymentStatusKey = (status?: string): PaymentStatusKey => {
   }
 };
 
-const getPaymentStatusClassName = (status?: string) => {
-  switch (status) {
-    case "Success":
-      return "border-green-200 bg-green-50 text-green-700";
-    case "Failed":
-    case "Denied":
-      return "border-red-200 bg-red-50 text-red-700";
-    case "Canceled":
-    case "Expired":
-    case "Refunded":
-      return "border-gray-200 bg-gray-50 text-gray-700";
-    case "Pending":
-    default:
-      return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-};
-
 export function TopUpTokenDialog({
   isOpen,
   onClose,
@@ -159,9 +136,10 @@ export function TopUpTokenDialog({
   useDebounce(() => setDebouncedTokenAmount(tokenAmount), 500, [tokenAmount]);
   const isTokenAmountSettling = tokenAmount !== debouncedTokenAmount;
 
+  // The dialog stays mounted on the billing tab; only load pricing while it's open.
   const productDetail = useAppProductGetProductDetail({
     rootBusinessId: businessId,
-    productId: debouncedTokenAmount ? String(debouncedTokenAmount) : "",
+    productId: isOpen && debouncedTokenAmount ? String(debouncedTokenAmount) : "",
     type: "token",
   });
 
@@ -222,11 +200,16 @@ export function TopUpTokenDialog({
     }
   }, [methodOptions, paymentMethod]);
 
+  // The countdown is the only thing that needs a ticking clock.
+  const hasPendingCountdown =
+    !!checkoutResult?.expiredAt &&
+    (!checkoutResult.status || checkoutResult.status === "Pending");
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !hasPendingCountdown) return;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [isOpen]);
+  }, [isOpen, hasPendingCountdown]);
 
   usePaymentRealtime({
     businessId,
@@ -456,48 +439,6 @@ export function TopUpTokenDialog({
     ? tDialog("pendingDescription")
     : tDialog("processedDescription");
 
-  const detailRows: DetailRow[] = checkoutResult
-    ? [
-      {
-        label: tDialog("reference"),
-        value:
-          checkoutResult.paymentCode ||
-          checkoutResult.orderId ||
-          checkoutResult.id,
-      },
-      {
-        label: tDialog("createdAt"),
-        value: formatDateTime(checkoutResult.createdAt),
-      },
-      {
-        label: tDialog("updatedAt"),
-        value: formatDateTime(checkoutResult.updatedAt),
-      },
-      { label: tDialog("product"), value: checkoutResult.productName },
-      {
-        label: tDialog("method"),
-        value: checkoutResult.method?.toUpperCase() || "-",
-      },
-      ...checkoutResult.paymentDetails.map((detail) => ({
-        label: detail.name,
-        value: formatIdr(detail.price),
-      })),
-      {
-        label: tDialog("total"),
-        value: formatIdr(checkoutResult.totalAmount),
-      },
-      {
-        label: tDialog("paymentStatus"),
-        value: statusLabel,
-        isStatus: true,
-      },
-      {
-        label: tDialog("affiliateCode"),
-        value: checkoutResult.discountCode || "-",
-      },
-    ]
-    : [];
-
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="scrollbar-hidden">
@@ -617,26 +558,22 @@ export function TopUpTokenDialog({
                 onCopy={handleCopy}
               />
 
-              <div className="rounded-lg border bg-background p-4 sm:p-5">
-                <div className="mb-4 flex items-center gap-3 border-b pb-4 sm:mb-5">
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
-                    <ReceiptText className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-lg font-semibold">
-                    {tDialog("orderDetails")}
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  {detailRows.map((row) => (
-                    <DetailOrderRow
-                      key={row.label}
-                      label={row.label}
-                      value={row.value}
-                      status={row.isStatus ? checkoutResult.status : undefined}
-                    />
-                  ))}
-                </div>
-              </div>
+              <OrderInvoiceCard
+                reference={
+                  checkoutResult.paymentCode ||
+                  checkoutResult.orderId ||
+                  checkoutResult.id
+                }
+                createdAt={formatDateTime(checkoutResult.createdAt)}
+                updatedAt={formatDateTime(checkoutResult.updatedAt)}
+                productName={checkoutResult.productName}
+                productType={checkoutResult.productType}
+                method={checkoutResult.method}
+                paymentDetails={checkoutResult.paymentDetails}
+                totalAmount={checkoutResult.totalAmount}
+                affiliateCode={checkoutResult.discountCode ?? null}
+                status={{ value: checkoutResult.status, label: statusLabel }}
+              />
             </>
           )}
         </div>
@@ -683,33 +620,4 @@ function mergeCheckoutWithPurchaseDetail(
       ? detail.paymentDetails
       : checkout.paymentDetails,
   };
-}
-
-
-function DetailOrderRow({
-  label,
-  value,
-  status,
-}: {
-  label: string;
-  value: string;
-  status?: string;
-}) {
-  return (
-    <div className="grid grid-cols-[120px_1fr] items-start gap-3 text-sm sm:gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      {status ? (
-        <span
-          className={cn(
-            "w-fit rounded-md border px-2 py-1 text-sm font-medium",
-            getPaymentStatusClassName(status)
-          )}
-        >
-          {value}
-        </span>
-      ) : (
-        <span className="break-words font-medium text-foreground">{value}</span>
-      )}
-    </div>
-  );
 }

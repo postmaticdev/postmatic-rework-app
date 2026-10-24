@@ -26,6 +26,8 @@ interface ConfirmationModalProps {
   detailLabel?: string;
   detailValue?: string;
   variant?: "primary" | "danger" | "warning" | "default";
+  /** Ikon tombol konfirmasi; default mengikuti variant. */
+  confirmIcon?: React.ReactNode;
 }
 
 export function ConfirmationModal({
@@ -41,6 +43,7 @@ export function ConfirmationModal({
   detailLabel,
   detailValue,
   variant = "primary",
+  confirmIcon,
 }: ConfirmationModalProps) {
   const isDanger = variant === "danger";
 
@@ -129,11 +132,12 @@ export function ConfirmationModal({
               </div>
             ) : (
               <div className="flex items-center gap-2 text-white">
-                {isDanger ? (
-                  <LogOut className="h-4 w-4" />
-                ) : (
-                  <Check className="h-4 w-4" />
-                )}
+                {confirmIcon ??
+                  (isDanger ? (
+                    <LogOut className="h-4 w-4" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  ))}
                 <span>{confirmText}</span>
               </div>
             )}

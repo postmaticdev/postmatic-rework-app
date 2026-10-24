@@ -27,15 +27,21 @@ export interface ProfileRes {
   image: string | null;
   createdAt: string;
   updatedAt: string;
-  users: User[];
-  sessions: Session[];
-  discountCodes: DiscountCode[];
+  // GET /account/profile mengirim status login per provider, bukan daftar users.
+  credential?: CredentialUser;
+  google?: GoogleUser;
+  sessions?: Session[];
+  discountCodes?: DiscountCode[];
 }
 
-export interface User {
-  id: string;
-  email: string;
-  provider: string;
+export interface CredentialUser {
+  isPasswordSet: boolean;
+  verifiedAt: string | null;
+}
+
+export interface GoogleUser {
+  isConnected: boolean;
+  verifiedAt: string | null;
 }
 
 export interface Session {

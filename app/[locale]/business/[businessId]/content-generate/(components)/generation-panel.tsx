@@ -9,7 +9,10 @@ import { LogoLoader } from "@/components/base/logo-loader";
 import { showToast } from "@/helper/show-toast";
 import { DEFAULT_PLACEHOLDER_IMAGE, MAX_CAROUSEL_IMAGES, SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
 import { cn } from "@/lib/utils";
-import { useContentGenerate } from "@/contexts/content-generate-context";
+import {
+  MAX_CHAT_ADDITIONAL_IMAGES,
+  useContentGenerate,
+} from "@/contexts/content-generate-context";
 import { helperService, validateUploadImageFile } from "@/services/helper.api";
 import { useRole } from "@/contexts/role-context";
 import { useAppAvatarGetAll } from "@/services/app-avatar.api";
@@ -52,6 +55,7 @@ import {
   isAiModelRestrictedForFreeUser,
 } from "@/models/api/content/ai-model";
 import { AiModelLogo } from "@/components/forms/ai-model-select";
+import { usePremiumModelGuard } from "./use-premium-model-guard";
 import { GridResultTiles } from "./grid-result-tiles";
 import { GenerationStatusText } from "./generation-status-text";
 
@@ -74,7 +78,6 @@ export function GenerationPanel() {
     onSelectAiModel,
     onSelectGeneratedImage,
     onToggleContentImage,
-    onSelectHistory,
     onSubmitGenerate,
   } = useContentGenerate();
   const t = useTranslations("generationPanel");
@@ -86,6 +89,7 @@ export function GenerationPanel() {
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
   const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
     useState(false);
+  const { selectModel, premiumModelModal } = usePremiumModelGuard();
   const [previewPromptImage, setPreviewPromptImage] = useState<string | null>(null);
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
@@ -121,12 +125,16 @@ export function GenerationPanel() {
     Boolean(businessId)
   );
   const { data: businessAvatarData, isLoading: isLoadingBusinessAvatars } =
-    useBusinessAvatarGetAll(businessId, {
-      limit: 100,
-      page: 1,
-      sortBy: "name",
-      sort: "asc",
-    });
+    useBusinessAvatarGetAll(
+      businessId,
+      {
+        limit: 100,
+        page: 1,
+        sortBy: "name",
+        sort: "asc",
+      },
+      isKnowledgeDialogOpen
+    );
   const { data: appAvatarData, isLoading: isLoadingAppAvatars } =
     useAppAvatarGetAll(
       {
@@ -143,6 +151,13 @@ export function GenerationPanel() {
       setIsTrendDialogOpen(false);
     }
   }, [form.rss, isTrendDialogOpen]);
+
+  // The panel stays mounted across chats; unsent attachments belong to the
+  // chat they were added in.
+  const activeChatSessionId = selectedHistory?.input.chatSessionId ?? null;
+  useEffect(() => {
+    setAttachedImages([]);
+  }, [activeChatSessionId]);
 
   const currentThread = useMemo(() => {
     if (!selectedHistory) return [];
@@ -242,8 +257,14 @@ export function GenerationPanel() {
       return;
     }
 
-    onSubmitGenerate({ mode: "regenerate", additionalImages: attachedImages });
-    setAttachedImages([]);
+    if (isUploadingAttachment) return;
+    // Attachments are kept when the send is rejected, so the user can retry.
+    void onSubmitGenerate({
+      mode: "regenerate",
+      additionalImages: attachedImages,
+    }).then((sent) => {
+      if (sent) setAttachedImages([]);
+    });
   };
 
   const handleUseFreeUserAllowedModel = () => {
@@ -268,8 +289,9 @@ export function GenerationPanel() {
       model: allowedModel.name,
       ratio: nextRatio as "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9",
       imageSize: allowedModel.imageSizes?.[0] || null,
+    }).then((sent) => {
+      if (sent) setAttachedImages([]);
     });
-    setAttachedImages([]);
   };
 
   const handleTopUpNow = () => {
@@ -296,6 +318,15 @@ export function GenerationPanel() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (attachedImages.length >= MAX_CHAT_ADDITIONAL_IMAGES) {
+      showToast(
+        "error",
+        schedulerT("tooManyReferenceImages", { max: MAX_CHAT_ADDITIONAL_IMAGES })
+      );
+      if (attachInputRef.current) attachInputRef.current.value = "";
+      return;
+    }
+
     const invalidReason = validateUploadImageFile(file);
     if (invalidReason) {
       showToast("error", tRoot(`toast.content.${invalidReason}`));
@@ -321,9 +352,14 @@ export function GenerationPanel() {
 
   const handleAttachFromKnowledge = (images: string[]) => {
     if (images.length === 0) return;
-    setAttachedImages((current) =>
-      Array.from(new Set([...current, ...images]))
-    );
+    const merged = Array.from(new Set([...attachedImages, ...images]));
+    if (merged.length > MAX_CHAT_ADDITIONAL_IMAGES) {
+      showToast(
+        "error",
+        schedulerT("tooManyReferenceImages", { max: MAX_CHAT_ADDITIONAL_IMAGES })
+      );
+    }
+    setAttachedImages(merged.slice(0, MAX_CHAT_ADDITIONAL_IMAGES));
     setIsKnowledgeDialogOpen(false);
   };
 
@@ -376,6 +412,56 @@ export function GenerationPanel() {
       </DialogContent>
     </Dialog>
   );
+
+  // Rendered in both branches: the chat composer opens the model restriction
+  // modal and starts the fly-to-composer animation.
+  const restrictedModelModal = (
+    <ConfirmationModal
+      isOpen={isRestrictedModelModalOpen}
+      onClose={() => setIsRestrictedModelModalOpen(false)}
+      onCancel={canPurchase ? handleUseFreeUserAllowedModel : undefined}
+      onConfirm={canPurchase ? handleTopUpNow : handleUseFreeUserAllowedModel}
+      title={modelRestrictionCopy.title}
+      description={modelRestrictionCopy.description}
+      confirmText={
+        canPurchase ? modelRestrictionCopy.topUp : modelRestrictionCopy.useDefault
+      }
+      cancelText={canPurchase ? modelRestrictionCopy.useDefault : t("cancel")}
+    />
+  );
+
+  const flyingImageOverlay = flyingImage ? (
+    <div 
+      className="fixed z-50 pointer-events-none"
+      style={
+        flyingImage.isFlying 
+        ? {
+            left: flyingImage.endX, 
+            top: flyingImage.endY,
+            width: 64, 
+            height: 64,
+            opacity: 0.3,
+            transform: "scale(0.75)",
+            transition: "all 1.8s cubic-bezier(0.25, 1, 0.5, 1)"
+          } 
+        : {
+            left: flyingImage.rect.left,
+            top: flyingImage.rect.top,
+            width: flyingImage.rect.width,
+            height: flyingImage.rect.height,
+            opacity: 1,
+            transform: "scale(1)",
+            transition: "none"
+          }
+      }
+    >
+      <ProtectedImage
+        src={flyingImage.url}
+        alt=""
+        className="w-full h-full rounded-lg shadow-lg"
+      />
+    </div>
+  ) : null;
 
   if (mode === "regenerate" && selectedHistory) {
     return (
@@ -495,33 +581,41 @@ export function GenerationPanel() {
                                 variant="ghost"
                                 size="icon-sm"
                                 className="text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-900/50"
+                                disabled={isLoading}
                                 onClick={() => {
-                                  onSelectHistory(job);
-                                  setTimeout(() => {
-                                    const allowedModel = aiModels.freeUserAllowedModel;
-                                    if (
-                                      aiModels.isFreeUser &&
-                                      allowedModel &&
-                                      isAiModelRestrictedForFreeUser(aiModels.models, job.input.model)
-                                    ) {
-                                      const allowedRatios = allowedModel.validRatios.length
-                                        ? allowedModel.validRatios
-                                        : aiModels.validRatios;
-                                      const nextRatio = allowedRatios.includes(form.basic.ratio)
-                                        ? form.basic.ratio
-                                        : (allowedRatios[0] || aiModels.validRatios[0] || "1:1");
+                                  // Resends the failed message in the same chat: its prompt,
+                                  // model and ratio (not the now-empty composer).
+                                  const retryRatio = job.input.ratio as
+                                    | "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9";
+                                  const allowedModel = aiModels.freeUserAllowedModel;
+                                  if (
+                                    aiModels.isFreeUser &&
+                                    allowedModel &&
+                                    isAiModelRestrictedForFreeUser(aiModels.models, job.input.model)
+                                  ) {
+                                    const allowedRatios = allowedModel.validRatios.length
+                                      ? allowedModel.validRatios
+                                      : aiModels.validRatios;
+                                    const nextRatio = allowedRatios.includes(retryRatio)
+                                      ? retryRatio
+                                      : (allowedRatios[0] || aiModels.validRatios[0] || "1:1");
 
-                                      onSelectAiModel(allowedModel);
-                                      void onSubmitGenerate({
-                                        mode: "regenerate",
-                                        model: allowedModel.name,
-                                        ratio: nextRatio as "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9",
-                                        imageSize: allowedModel.imageSizes?.[0] || null,
-                                      });
-                                    } else {
-                                      void onSubmitGenerate({ mode: "regenerate" });
-                                    }
-                                  }, 100);
+                                    onSelectAiModel(allowedModel);
+                                    void onSubmitGenerate({
+                                      mode: "regenerate",
+                                      prompt: job.input.prompt || undefined,
+                                      model: allowedModel.name,
+                                      ratio: nextRatio as "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9",
+                                      imageSize: allowedModel.imageSizes?.[0] || null,
+                                    });
+                                  } else {
+                                    void onSubmitGenerate({
+                                      mode: "regenerate",
+                                      prompt: job.input.prompt || undefined,
+                                      model: job.input.model || undefined,
+                                      ratio: retryRatio || undefined,
+                                    });
+                                  }
                                 }}
                                 title={t("retryGeneration")}
                                 aria-label={t("retryGeneration")}
@@ -837,13 +931,15 @@ export function GenerationPanel() {
                     isLoadingModels={aiModels.isLoading}
                     models={aiModels.models}
                     selectedModel={form.basic.model || ""}
-                    canSubmit={Boolean(form.basic.prompt?.trim())}
+                    canSubmit={
+                      Boolean(form.basic.prompt?.trim()) && !isUploadingAttachment
+                    }
                     onSubmit={handleRegenerate}
                     onSelectModel={(modelName) => {
                       const selectedModel = aiModels.models.find(
                         (model) => model.name === modelName
                       );
-                      if (selectedModel) onSelectAiModel(selectedModel);
+                      if (selectedModel) selectModel(selectedModel);
                     }}
                     onAttachGallery={() => attachInputRef.current?.click()}
                     onAttachKnowledge={handleOpenKnowledgeDialog}
@@ -884,6 +980,9 @@ export function GenerationPanel() {
           isLoadingMoreAvatars={isLoadingAppAvatars}
         />
         {promptImagePreviewDialog}
+        {restrictedModelModal}
+        {premiumModelModal}
+        {flyingImageOverlay}
       </>
     );
   }
@@ -915,53 +1014,11 @@ export function GenerationPanel() {
         filterQuery={rss.filterQuery}
         setFilterQuery={rss.setFilterQuery}
       />
-      <ConfirmationModal
-        isOpen={isRestrictedModelModalOpen}
-        onClose={() => setIsRestrictedModelModalOpen(false)}
-        onCancel={canPurchase ? handleUseFreeUserAllowedModel : undefined}
-        onConfirm={canPurchase ? handleTopUpNow : handleUseFreeUserAllowedModel}
-        title={modelRestrictionCopy.title}
-        description={modelRestrictionCopy.description}
-        confirmText={
-          canPurchase ? modelRestrictionCopy.topUp : modelRestrictionCopy.useDefault
-        }
-        cancelText={canPurchase ? modelRestrictionCopy.useDefault : t("cancel")}
-      />
+      {restrictedModelModal}
 
       {promptImagePreviewDialog}
       
-      {flyingImage && (
-        <div 
-          className="fixed z-50 pointer-events-none"
-          style={
-            flyingImage.isFlying 
-            ? {
-                left: flyingImage.endX, 
-                top: flyingImage.endY,
-                width: 64, 
-                height: 64,
-                opacity: 0.3,
-                transform: "scale(0.75)",
-                transition: "all 1.8s cubic-bezier(0.25, 1, 0.5, 1)"
-              } 
-            : {
-                left: flyingImage.rect.left,
-                top: flyingImage.rect.top,
-                width: flyingImage.rect.width,
-                height: flyingImage.rect.height,
-                opacity: 1,
-                transform: "scale(1)",
-                transition: "none"
-              }
-          }
-        >
-          <ProtectedImage
-            src={flyingImage.url}
-            alt=""
-            className="w-full h-full rounded-lg shadow-lg"
-          />
-        </div>
-      )}
+      {flyingImageOverlay}
     </>
   );
 }

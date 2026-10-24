@@ -10,9 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { ConnectedPlatformForm } from "@/app/[locale]/business/[businessId]/knowledge-base/(components)/(form)/connected-platform-form";
 import { Link } from "@/i18n/navigation";
-import { DOCUMENTATION_PAGE_URL, LANDING_PAGE_URL } from "@/constants";
+import { DOCUMENTATION_PAGE_URL } from "@/constants";
 import { useTranslations } from "next-intl";
-import { useParams } from "next/navigation";
 
 interface PlatformModalProps {
   isOpen: boolean;
@@ -21,8 +20,6 @@ interface PlatformModalProps {
 
 export function PlatformModal({ isOpen, onClose }: PlatformModalProps) {
   const m = useTranslations("modal");
-  const params = useParams();
-  const locale = params.locale;
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>

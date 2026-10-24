@@ -263,7 +263,11 @@ export function AutoGenerateProvider({
   // Set default AI model when models are loaded
   useEffect(() => {
     if (repetitionAiModels.length > 0 && !selectedAiModel) {
-      const defaultModel = repetitionAiModels[0];
+      // Keep the model already in the form (an edited schedule opened before
+      // the models finished loading) instead of replacing it with the first.
+      const defaultModel =
+        repetitionAiModels.find((model) => model.name === formBasic.model) ||
+        repetitionAiModels[0];
       const defaultModelRatios = normalizeValidRatios(defaultModel.validRatios);
       setSelectedAiModel(defaultModel);
       setFormBasic(prev => ({
@@ -273,7 +277,7 @@ export function AutoGenerateProvider({
         imageSize: defaultModel.imageSizes?.[0] || null,
       }));
     }
-  }, [repetitionAiModels, selectedAiModel]);
+  }, [formBasic.model, repetitionAiModels, selectedAiModel]);
 
   // Get valid ratios from selected model
   const validRatios = useMemo(() => {

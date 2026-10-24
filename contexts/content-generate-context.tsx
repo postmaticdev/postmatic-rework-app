@@ -3,12 +3,12 @@
 import {
   ACCESS_TOKEN_KEY,
   MAX_CAROUSEL_IMAGES,
-  NEXT_PUBLIC_API_ORIGIN,
   NEXT_PUBLIC_ENABLE_CONTENT_FEATURES,
   NEXT_PUBLIC_ENABLE_SOCKET,
   SELECTED_IMAGE_REFERENCE_NAME,
 } from "@/constants";
 import { showToast } from "@/helper/show-toast";
+import { isAxiosError } from "axios";
 import { haptic } from "@/lib/haptics";
 import { useTranslations } from "next-intl";
 import {
@@ -19,7 +19,11 @@ import {
   getSchedulerDraftMarkers,
   upsertSchedulerDraftMarker,
 } from "@/lib/scheduler-draft-markers";
-import { getNextSchedulableDate } from "@/lib/schedule-date-time";
+import {
+  formatScheduleTimeInput,
+  getNextSchedulableDate,
+  toBusinessWallDate,
+} from "@/lib/schedule-date-time";
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import {
   AdvancedGenerate,
@@ -51,14 +55,11 @@ import {
   imagePostChatService,
   useContentDraftSaveDraftContent,
   useContentImagePostChatGetById,
-  useContentImagePostChatSendImageMessage,
   useContentJobGetAllJob,
-  useContentJobKnowledgeOnJob,
-  useContentJobMaskOnJob,
-  useContentJobRssOnJob,
   useContentAiModelGetAiModels,
   useContentSchedulerManualAddToQueue,
   useContentSchedulerManualEditQueue,
+  useContentSchedulerTimezoneGetTimezone,
 } from "@/services/content/content.api";
 import {
   useProductKnowledgeGetAll,
@@ -258,13 +259,15 @@ interface ContentGenerateContext {
     template?: Template
   ) => void;
   onSubmitGenerate: (overrides?: {
+    /** Resends this prompt instead of the composer's (retry of a failed message). */
+    prompt?: string;
     mode?: ContentMode;
     maskUrl?: string;
     additionalImages?: string[];
     model?: string;
     ratio?: ValidRatio;
     imageSize?: string | null;
-  }) => Promise<void>;
+  }) => Promise<boolean>; // true once the message was sent
   onSaveDraft: () => void;
   onResetAdvance: () => void;
   onSelectAiModel: (model: AiModelRes) => void;
@@ -353,44 +356,6 @@ const initialPagination: Pagination = {
 
 const fallbackRatios = [...VALID_RATIOS];
 
-type CreatorImageCategory = {
-  id: string | number;
-  name: string;
-};
-
-type CreatorImageReference = {
-  id: string | number;
-  name: string;
-  imageUrl: string | null;
-  publisher: {
-    id: string;
-    name: string;
-    image: string | null;
-  } | null;
-  typeCategories?: CreatorImageCategory[];
-  productCategories?: CreatorImageCategory[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-const mapCreatorImageReference = (item: CreatorImageReference): Template => ({
-  id: String(item.id),
-  name: item.name,
-  imageUrl: item.imageUrl || "",
-  categories: item.typeCategories?.map((category) => category.name) || [],
-  productCategories:
-    item.productCategories?.map((category) => category.name) || [],
-  publisher: item.publisher || {
-    id: "",
-    name: "Postmatic",
-    image: null,
-  },
-  createdAt: item.createdAt,
-  updatedAt: item.updatedAt,
-  price: 0,
-  type: "published",
-});
-
 const getBrowserAccessToken = () => {
   if (typeof window === "undefined") return null;
 
@@ -402,14 +367,6 @@ const getBrowserAccessToken = () => {
   return cookieToken
     ? decodeURIComponent(cookieToken)
     : localStorage.getItem(ACCESS_TOKEN_KEY);
-};
-
-const getBackendApiUrl = (path: string) => {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-
-  if (!NEXT_PUBLIC_API_ORIGIN) return `/api${normalizedPath}`;
-
-  return new URL(`/api${normalizedPath}`, NEXT_PUBLIC_API_ORIGIN).toString();
 };
 
 const pickPreferredAiModel = (models: AiModelRes[], isFreeUser: boolean) =>
@@ -435,27 +392,43 @@ const sleep = (ms: number) =>
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
+// Backend limit on manual `additionalImages` per chat message (avatar excluded).
+export const MAX_CHAT_ADDITIONAL_IMAGES = 5;
+
 const REALTIME_IMAGE_ITEM_HYDRATION_ATTEMPTS = 5;
 const REALTIME_IMAGE_ITEM_HYDRATION_INTERVAL_MS = 1500;
 
-function formatCurrentTimeInput() {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() + 1);
-  now.setSeconds(0, 0);
-
-  const hour = now.getHours().toString().padStart(2, "0");
-  const minute = now.getMinutes().toString().padStart(2, "0");
-  return `${hour}:${minute}`;
+function formatCurrentTimeInput(businessTimeZone?: string | null) {
+  return formatScheduleTimeInput(
+    getNextSchedulableDate(new Date(), businessTimeZone)
+  );
 }
 
-// The backend rejects a publishAt in the past, so background draft edits get
-// the same "next minute" adjustment as draft creation.
-function resolveSchedulerDraftDateTime(date: string, time: string) {
-  const scheduledAt = new Date(`${date}T${time}`);
-  if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
-    return getNextSchedulableDate().toISOString();
+// The backend reads publishAt as wall time in the business time zone and
+// rejects one in the past, so `date`/`time` (wall time in that zone) fall back
+// to the next schedulable minute there. Returns a wall-time Date.
+function resolveSchedulerDraftDate(
+  date: string | null,
+  time: string,
+  businessTimeZone?: string | null
+) {
+  const scheduledAt = date ? new Date(`${date}T${time}`) : null;
+  if (
+    !scheduledAt ||
+    Number.isNaN(scheduledAt.getTime()) ||
+    scheduledAt <= toBusinessWallDate(new Date(), businessTimeZone)
+  ) {
+    return getNextSchedulableDate(new Date(), businessTimeZone);
   }
-  return scheduledAt.toISOString();
+  return scheduledAt;
+}
+
+function resolveSchedulerDraftDateTime(
+  date: string,
+  time: string,
+  businessTimeZone?: string | null
+) {
+  return resolveSchedulerDraftDate(date, time, businessTimeZone).toISOString();
 }
 
 type RealtimeGenerativeChatProgressData = {
@@ -1072,6 +1045,12 @@ export const ContentGenerateProvider = ({
   const contentFeaturesEnabled =
     NEXT_PUBLIC_ENABLE_CONTENT_FEATURES && isContentGenerateRoute;
   const contentGenerateFormDataEnabled = isContentGenerateRoute;
+  // The provider wraps every page, so the paid-user check (a large billing
+  // history request) only runs on the pages that read aiModels.isFreeUser.
+  const freeUserCheckEnabled =
+    isContentGenerateRoute ||
+    pathname.includes("video-generator") ||
+    browserPathname.includes("video-generator");
   const scheduleDateParam = searchParams.get("scheduleDate");
   const scheduleTimeParam = searchParams.get("scheduleTime");
   const selectedHistoryRouteId = searchParams.get("selectedHistoryId");
@@ -1124,7 +1103,17 @@ export const ContentGenerateProvider = ({
     data: billingHistoryRes,
     isLoading: isLoadingBillingHistory,
     isFetching: isFetchingBillingHistory,
-  } = useBusinessPurchaseGetHistory(businessId, billingHistoryFilterQuery);
+  } = useBusinessPurchaseGetHistory(
+    businessId,
+    billingHistoryFilterQuery,
+    freeUserCheckEnabled
+  );
+  const { data: timezoneRes } = useContentSchedulerTimezoneGetTimezone(
+    businessId,
+    contentGenerateFormDataEnabled
+  );
+  // Schedule params and publishAt are wall time in the business time zone.
+  const businessTimeZone = timezoneRes?.data?.data?.timezone;
   const { refetch: refetchRouteChat } = useContentImagePostChatGetById(
     businessId,
     routeChatSessionId,
@@ -1167,15 +1156,6 @@ export const ContentGenerateProvider = ({
   const [histories, setHistories] = useState<GetAllJob[]>([]);
   const lastHistoryRouteRefetchKeyRef = useRef<string | null>(null);
   const lastAppliedHistoryRouteKeyRef = useRef<string | null>(null);
-
-  //DEBUG
-  const flattenedHistories = useMemo(() => {
-    return histories.flatMap((item) => item.jobs);
-  }, [histories]);
-  const findMaskGenerated = useMemo(() => {
-    return flattenedHistories.find((item) => item.type === "mask");
-  }, [flattenedHistories]);
-  console.log("findMaskGenerated", findMaskGenerated);
 
   useEffect(() => {
     if (historiesRes) {
@@ -1245,12 +1225,11 @@ export const ContentGenerateProvider = ({
     schedulerDraftPostRef.current = schedulerDraftPost;
   }, [schedulerDraftPost]);
 
-  useEffect(() => {
-    setSchedulerDraftPost(null);
-    setSchedulerChatSeed(null);
-    syncedSchedulerImageRef.current = null;
-  }, [scheduleDateParam]);
-  
+  // The draft is not reset when scheduleDate changes: the preview panel
+  // writes the date picked in the summary back to the URL, and dropping the
+  // draft then would schedule a new post and orphan the draft and its chat.
+  // Leaving the generator route resets it (see onSelectHistoryRef below).
+
   // AI Models state
   const [selectedAiModel, setSelectedAiModel] = useState<AiModelRes | null>(null);
   const hasManualAiModelSelectionRef = useRef(false);
@@ -1607,11 +1586,10 @@ export const ContentGenerateProvider = ({
   const onRssSelect = (item: GenerateContentRssBase | null) => {
     setSelectedJobId(null);
     setFormRss(item);
-    setFormBasic({
-      ...formBasic,
-    });
-    setMode("rss");
-    setTab("rss");
+    // Clearing the (optional) trend must not leave the form in RSS mode,
+    // which would require an article before generating.
+    setMode(item ? "rss" : "knowledge");
+    setTab(item ? "rss" : "knowledge");
   };
 
   /**
@@ -2144,7 +2122,6 @@ export const ContentGenerateProvider = ({
    * PUBLISHED
    *
    */
-  const [, setPublishedPagination] = useState<Pagination>(initialPagination);
   const [publishedQuery, setPublishedQuery] = useState<Partial<FilterQuery>>({
     limit: 10,
     page: 1,
@@ -2152,93 +2129,37 @@ export const ContentGenerateProvider = ({
     sortBy: "createdAt",
     sort: "desc",
   });
-  
+
   // Fetch all published references so client-side hiding of saved items
-  // still keeps each page filled correctly.
-  const publishedApiQuery = useMemo(() => {
-    return {
-      ...publishedQuery,
+  // still keeps each page filled correctly. page/limit only drive the
+  // client-side slice, so they stay out of the request (and its query key):
+  // otherwise every infinite-scroll step would refetch the whole list.
+  const publishedApiQuery = useMemo(
+    () => ({
+      search: publishedQuery.search,
+      sortBy: publishedQuery.sortBy,
+      sort: publishedQuery.sort,
+      category: publishedQuery.category,
+      productCategory: publishedQuery.productCategory,
       limit: 999,
       page: 1,
-    };
-  }, [publishedQuery]);
+    }),
+    [
+      publishedQuery.search,
+      publishedQuery.sortBy,
+      publishedQuery.sort,
+      publishedQuery.category,
+      publishedQuery.productCategory,
+    ]
+  );
   
   const { data: publishedRes, isLoading: isLoadingPublished } =
     useCreatorImageTemplates(publishedApiQuery, contentFeaturesEnabled);
-  const [publishedFallback, setPublishedFallback] = useState<{
-    contents: Template[];
-    pagination: Pagination | null;
-  }>({
-    contents: [],
-    pagination: null,
-  });
+  const publishedData: Template[] = useMemo(
+    () => publishedRes?.data?.data || [],
+    [publishedRes?.data?.data]
+  );
 
-  useEffect(() => {
-    if (!contentFeaturesEnabled) return;
-
-    const controller = new AbortController();
-    const { productCategory, category, ...rest } = publishedApiQuery;
-    const params = new URLSearchParams();
-
-    Object.entries(rest).forEach(([key, value]) => {
-      if (value === undefined || value === null) return;
-      params.set(key, String(value));
-    });
-    if (productCategory) params.set("category", String(productCategory));
-    if (category) params.set("typeCategoryId", String(category));
-
-    const token = getBrowserAccessToken();
-
-    fetch(getBackendApiUrl(`/creator/library?${params.toString()}`), {
-      signal: controller.signal,
-      headers: token ? { "X-Postmatic-AccessToken": token } : undefined,
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error(`creator/library ${response.status}`);
-        return response.json();
-      })
-      .then((body) => {
-        if (controller.signal.aborted) return;
-        const rawData = Array.isArray(body?.data) ? body.data : [];
-        setPublishedFallback({
-          contents: rawData.map(mapCreatorImageReference),
-          pagination: body?.pagination || null,
-        });
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        console.error("Failed to load creator image references", error);
-      });
-
-    return () => controller.abort();
-  }, [contentFeaturesEnabled, publishedApiQuery]);
-
-  useEffect(() => {
-    const publishedResData = publishedRes?.data?.data || [];
-    const fallbackTotal = publishedFallback.contents.length;
-
-    if (!publishedRes && !publishedFallback.pagination && fallbackTotal === 0) {
-      return;
-    }
-
-    setPublishedPagination(
-      publishedRes?.data?.pagination ||
-        publishedFallback.pagination || {
-          ...initialPagination,
-          limit: Number(publishedQuery.limit) || initialPagination.limit,
-          page: Number(publishedQuery.page) || initialPagination.page,
-          total: publishedResData.length || fallbackTotal,
-          totalPages: publishedResData.length || fallbackTotal ? 1 : 0,
-        }
-    );
-  }, [publishedFallback, publishedQuery.limit, publishedQuery.page, publishedRes]);
-  const publishedData: Template[] =
-    publishedRes?.data.data?.length
-      ? publishedRes.data.data
-      : publishedFallback.contents;
-
-  const [savedPagination, setSavedPagination] =
-    useState<Pagination>(initialPagination);
   const [savedQuery, setSavedQuery] = useState<Partial<FilterQuery>>({
     limit: 10,
     page: 1,
@@ -2246,22 +2167,29 @@ export const ContentGenerateProvider = ({
     sort: "desc",
   });
 
-  const savedApiQuery = useMemo(() => {
-    return {
-      ...savedQuery,
+  // Same as publishedApiQuery: page/limit are applied client-side.
+  const savedApiQuery = useMemo(
+    () => ({
+      search: savedQuery.search,
+      sortBy: savedQuery.sortBy,
+      sort: savedQuery.sort,
+      category: savedQuery.category,
+      productCategory: savedQuery.productCategory,
       limit: 999,
       page: 1,
-    };
-  }, [savedQuery]);
+    }),
+    [
+      savedQuery.search,
+      savedQuery.sortBy,
+      savedQuery.sort,
+      savedQuery.category,
+      savedQuery.productCategory,
+    ]
+  );
 
   const { data: savedRes, isLoading: isLoadingSaved } =
     useLibraryTemplateGetSaved(businessId, savedApiQuery, contentFeaturesEnabled);
-  useEffect(() => {
-    if (savedRes) {
-      setSavedPagination(savedRes?.data?.pagination);
-    }
-  }, [savedRes]);
-  const savedData: Template[] = (savedRes?.data.data || []).map((item) => {
+  const savedData: Template[] = useMemo(() => (savedRes?.data.data || []).map((item) => {
     return {
       id: item?.templateImageContent?.id,
       name: item?.name,
@@ -2283,7 +2211,7 @@ export const ContentGenerateProvider = ({
       createdAt: item?.createdAt,
       updatedAt: item?.updatedAt,
     };
-  });
+  }), [savedRes?.data.data]);
   const savedTemplateIds = useMemo(
     () => new Set(savedData.map((template) => template.id)),
     [savedData]
@@ -2637,7 +2565,11 @@ export const ContentGenerateProvider = ({
     setFormBasic((prev) => ({
       ...prev,
       model: model.name,
-      ratio: modelRatios[0], // Set to first valid ratio
+      // Keep the current ratio when the new model supports it (the chat
+      // composer has no ratio control).
+      ratio: modelRatios.includes(prev.ratio)
+        ? prev.ratio
+        : ((modelRatios[0] || prev.ratio) as ValidRatio),
       imageSize: model.imageSizes?.[0] || null,
     }));
   };
@@ -2647,23 +2579,20 @@ export const ContentGenerateProvider = ({
    * HANDLER GENERATE
    *
    */
-  const mGenerateKnowledge = useContentJobKnowledgeOnJob();
-  const mGenerateRss = useContentJobRssOnJob();
-  const mGenerateMask = useContentJobMaskOnJob();
   const mCreateScheduledPost = useContentSchedulerManualAddToQueue();
   const mEditScheduledPost = useContentSchedulerManualEditQueue();
-  const mSendImageChatMessage = useContentImagePostChatSendImageMessage();
   const { refetch: refetchSchedulerChat } = useContentImagePostChatGetById(
     businessId,
     schedulerDraftPost?.chatSessionId,
     false
   );
 
+  // Sent through the service rather than a mutation hook: the global mutation
+  // onError would toast every retried attempt; the caller toasts once.
+  const submitInFlightRef = useRef(false);
   const sendSchedulerChatMessageWithRetry = async (
     chatSessionId: string | number,
-    formData: Parameters<
-      typeof mSendImageChatMessage.mutateAsync
-    >[0]["formData"]
+    formData: Parameters<typeof imagePostChatService.sendImageMessage>[2]
   ) => {
     // Sending a message starts a PAID generation, so only retry when the
     // server explicitly said the chat isn't ready yet (404/425). A 409 or any
@@ -2717,7 +2646,7 @@ export const ContentGenerateProvider = ({
             processState: "processing",
           },
         },
-      } as Awaited<ReturnType<typeof mSendImageChatMessage.mutateAsync>>;
+      } as Awaited<ReturnType<typeof imagePostChatService.sendImageMessage>>;
     };
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -2726,11 +2655,11 @@ export const ContentGenerateProvider = ({
           await sleep(1000 * attempt);
         }
 
-        return await mSendImageChatMessage.mutateAsync({
+        return await imagePostChatService.sendImageMessage(
           businessId,
           chatSessionId,
-          formData,
-        });
+          formData
+        );
       } catch (error) {
         lastError = error;
         const status =
@@ -2770,43 +2699,75 @@ export const ContentGenerateProvider = ({
       model?: string;
       ratio?: ValidRatio;
       imageSize?: string | null;
+      prompt?: string;
     }
   ) => {
     const scheduleDate = searchParams.get("scheduleDate");
-    const scheduleTime = searchParams.get("scheduleTime") || formatCurrentTimeInput();
+    const scheduleTime =
+      searchParams.get("scheduleTime") || formatCurrentTimeInput(businessTimeZone);
 
-    let scheduledAt: Date;
-    if (scheduleDate) {
-      scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
-      if (Number.isNaN(scheduledAt.getTime())) {
-        showToast("error", t("contentGenerateScheduler.scheduleTimePassed"));
-        return true;
-      }
-    } else {
-      scheduledAt = new Date();
+    if (
+      scheduleDate &&
+      Number.isNaN(new Date(`${scheduleDate}T${scheduleTime}`).getTime())
+    ) {
+      showToast("error", t("contentGenerateScheduler.scheduleTimePassed"));
+      return false;
     }
-    
-    const currentDate = new Date();
-    if (scheduledAt <= currentDate) {
-      currentDate.setMinutes(currentDate.getMinutes() + 1);
-      currentDate.setSeconds(0, 0);
-      scheduledAt = currentDate;
-    }
+    const scheduledAt = resolveSchedulerDraftDate(
+      scheduleDate,
+      scheduleTime,
+      businessTimeZone
+    );
 
     if (!form.basic.productKnowledgeId) {
       showToast("error", t("toast.validation.selectProduct"));
-      return true;
+      return false;
     }
 
-    const isFirstSchedulerBubble = !selectedHistory;
+    // Only a job of the active draft's chat continues that chat. Any other
+    // selection (e.g. a job picked from history, which clears the draft)
+    // starts a new draft chat seeded with the form's images.
+    const continuedChatSessionId =
+      schedulerDraftPost?.chatSessionId != null &&
+      selectedHistory?.input.chatSessionId === schedulerDraftPost.chatSessionId
+        ? schedulerDraftPost.chatSessionId
+        : null;
+    // Like the backend, a chat without a successful result is still on its
+    // first message, so a retry after a failed first send keeps the product,
+    // reference, avatar and trend context.
+    const isFirstSchedulerBubble =
+      continuedChatSessionId === null ||
+      !findLatestChatResult(histories, continuedChatSessionId);
 
     if (effMode === "rss" && !form.rss && isFirstSchedulerBubble) {
       showToast("error", t("toast.validation.selectRSS"));
-      return true;
+      return false;
+    }
+
+    // The backend accepts at most 5 manual additional images per message;
+    // checked before a draft is created so a rejected send leaves no draft.
+    const pendingAdditionalImages = new Set(
+      (isFirstSchedulerBubble
+        ? [
+            form.basic.referenceImage,
+            ...form.basic.selectedAvatars.slice(1).map((avatar) => avatar.imageUrl),
+            ...additionalImages,
+          ]
+        : additionalImages
+      ).filter(Boolean)
+    );
+    if (pendingAdditionalImages.size > MAX_CHAT_ADDITIONAL_IMAGES) {
+      showToast(
+        "error",
+        t("contentGenerateScheduler.tooManyReferenceImages", {
+          max: MAX_CHAT_ADDITIONAL_IMAGES,
+        })
+      );
+      return false;
     }
 
     const draft =
-      !isFirstSchedulerBubble && schedulerDraftPost
+      continuedChatSessionId !== null && schedulerDraftPost
         ? schedulerDraftPost
         :
       (
@@ -2827,7 +2788,7 @@ export const ContentGenerateProvider = ({
     const chatSessionId = draft.chatSessionId;
     if (!chatSessionId) {
       showToast("error", t("contentGenerateScheduler.chatSessionUnavailable"));
-      return true;
+      return false;
     }
 
     const pendingJobId = `chat-pending-${draft.id}-${Date.now()}`;
@@ -2839,10 +2800,11 @@ export const ContentGenerateProvider = ({
         ? overrides.imageSize
         : form.basic.imageSize;
     const firstPrompt =
-      form.basic.prompt?.trim() ||
+      (overrides?.prompt ?? form.basic.prompt)?.trim() ||
       (isFirstSchedulerBubble ? t("contentGenerateScheduler.firstGeneratePrompt") : "");
-    const firstRss =
-      isFirstSchedulerBubble && effMode === "rss" ? form.rss : null;
+    // A selected trend always belongs to the first message (onRssSelect keeps
+    // the mode in sync), including a retry after that message failed.
+    const firstRss = isFirstSchedulerBubble ? form.rss : null;
     // The image attached for editing is what the composer shows, so it decides the reply. The
     // selected job can move on without it (a running job's realtime progress selects that job), so
     // the replied bubble is the job that owns the attached image.
@@ -2880,7 +2842,7 @@ export const ContentGenerateProvider = ({
         : findLatestChatResult(histories, chatSessionId);
       if (isGridResult(replyResult) && !replyImageItemId) {
         showToast("error", t("contentGenerateScheduler.gridTileRequired"));
-        return true;
+        return false;
       }
     }
     const selectedAvatarImages = form.basic.selectedAvatars.map(
@@ -3011,8 +2973,6 @@ export const ContentGenerateProvider = ({
     setSelectedGeneratedImageUrl(null);
     setMode("regenerate");
 
-    await sleep(500);
-
     const chatPayload = {
       model: effectiveModel,
       avatarImageUrl: primaryAvatarImage,
@@ -3021,10 +2981,7 @@ export const ContentGenerateProvider = ({
       ratio: effectiveRatio,
       bubbleChatId: replyBubbleChatId,
       generatedImagePostItemId: replyImageItemId,
-      rss:
-        isFirstSchedulerBubble && effMode === "rss"
-          ? form.rss || undefined
-          : undefined,
+      rss: firstRss || undefined,
     };
 
     let chatRes: Awaited<ReturnType<typeof sendSchedulerChatMessageWithRetry>>;
@@ -3055,7 +3012,7 @@ export const ContentGenerateProvider = ({
         })
       );
       showToast("error", error);
-      return true;
+      return false;
     }
 
     const systemBubble = chatRes.data.data.systemBubble;
@@ -3147,6 +3104,7 @@ export const ContentGenerateProvider = ({
   };
 
   const onSubmitGenerate = async (overrides?: {
+    prompt?: string;
     mode?: ContentMode;
     maskUrl?: string;
     additionalImages?: string[];
@@ -3154,8 +3112,11 @@ export const ContentGenerateProvider = ({
     ratio?: ValidRatio;
     imageSize?: string | null;
   }) => {
+    // The ref also blocks a second click in the same render, before
+    // isLoading updates: each send is a paid generation.
+    if (isLoading || submitInFlightRef.current) return false;
+    submitInFlightRef.current = true;
     try {
-      if (isLoading) return; // tetap cegah spam
       setIsLoading(true);
 
       const effMode = overrides?.mode ?? mode;
@@ -3165,56 +3126,27 @@ export const ContentGenerateProvider = ({
         overrides?.imageSize !== undefined
           ? overrides.imageSize
           : form.basic.imageSize;
-      const selectedAvatarImages = form.basic.selectedAvatars.map(
-        (avatar) => avatar.imageUrl
-      );
-      await submitSchedulerChatGenerate(
+      return await submitSchedulerChatGenerate(
         effMode,
         overrides?.additionalImages || [],
         {
           model: effectiveModel,
           ratio: effectiveRatio,
           imageSize: effectiveImageSize,
+          prompt: overrides?.prompt,
         }
       );
     } catch (error) {
       console.error(error);
-      showToast("error", t("toast.contentGeneration.failed"));
+      // Failed draft create/update requests are already toasted by the
+      // global mutation onError.
+      if (!isAxiosError(error)) {
+        showToast("error", t("toast.contentGeneration.failed"));
+      }
+      return false;
     } finally {
+      submitInFlightRef.current = false;
       setIsLoading(false);
-    }
-  };
-
-  const afterSubmitGenerate = async (
-    jobId: string,
-    optimisticJob?: JobData
-  ) => {
-    if (optimisticJob) {
-      setHistories((prev) =>
-        upsertJobIntoHistory(prev, optimisticJob)
-      );
-      setSelectedJobId(optimisticJob.id);
-      setSelectedGeneratedImageUrl(null);
-      setMode("regenerate");
-      setTab("knowledge");
-    }
-
-    const refetchHistoriesRes = await refetchHistories();
-    const flattenedHistories = refetchHistoriesRes.data?.data?.data?.flatMap(
-      (item) => item.jobs
-    );
-    const findJob: JobData | undefined = flattenedHistories?.find(
-      (job) => job.id === jobId
-    );
-    if (findJob) {
-      setSelectedJobId(findJob.id);
-      setSelectedGeneratedImageUrl(findJob.result?.images[0] || null);
-      setMode("regenerate");
-      setTab("knowledge");
-      setIsDraftSaved(false); // Reset draft saved state when new content is generated
-    } else if (optimisticJob) {
-      setHistories((prev) => upsertJobIntoHistory(prev, optimisticJob));
-      setIsDraftSaved(false);
     }
   };
 
@@ -3576,7 +3508,7 @@ export const ContentGenerateProvider = ({
         draftId: String(activeSchedulerDraftPost.id),
         jobId: nextResolvedJob.id,
         date: scheduleDateParam,
-        time: scheduleTimeParam || formatCurrentTimeInput(),
+        time: scheduleTimeParam || formatCurrentTimeInput(businessTimeZone),
         image: latestImage,
         caption: persistedCaption,
         productImage:
@@ -3608,7 +3540,8 @@ export const ContentGenerateProvider = ({
             platforms: [],
             dateTime: resolveSchedulerDraftDateTime(
               scheduleDateParam,
-              scheduleTimeParam || formatCurrentTimeInput()
+              scheduleTimeParam || formatCurrentTimeInput(businessTimeZone),
+              businessTimeZone
             ),
             status: "draft",
             withChatAI: true,
@@ -3621,6 +3554,7 @@ export const ContentGenerateProvider = ({
     },
     [
       businessId,
+      businessTimeZone,
       getModelGridSize,
       productImageById,
       mEditScheduledPost,
@@ -3895,7 +3829,7 @@ export const ContentGenerateProvider = ({
             draftId: String(activeSchedulerDraftPost.id),
             jobId: latestJob.id,
             date: scheduleDateParam,
-            time: scheduleTimeParam || formatCurrentTimeInput(),
+            time: scheduleTimeParam || formatCurrentTimeInput(businessTimeZone),
             image: latestImage,
             caption: persistedCaption,
             productImage:
@@ -3933,7 +3867,8 @@ export const ContentGenerateProvider = ({
                 platforms: [],
                 dateTime: resolveSchedulerDraftDateTime(
                   scheduleDateParam,
-                  scheduleTimeParam || formatCurrentTimeInput()
+                  scheduleTimeParam || formatCurrentTimeInput(businessTimeZone),
+                  businessTimeZone
                 ),
                 status: "draft",
                 withChatAI: true,
@@ -3979,6 +3914,7 @@ export const ContentGenerateProvider = ({
     contentFeaturesEnabled,
     isConnected,
     businessId,
+    businessTimeZone,
     mEditScheduledPost,
     productImageById,
     refetchHistories,

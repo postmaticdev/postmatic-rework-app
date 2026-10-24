@@ -30,8 +30,19 @@ export const validateUploadImageFile = (
   return null;
 };
 
+export interface UploadedImageAsset {
+  /** Uploaded asset id (null when the backend did not return one). */
+  id: number | null;
+  url: string;
+}
+
 export const helperService = {
   uploadSingleImage: async (data: UploadSingleImagePld): Promise<string> => {
+    const asset = await helperService.uploadImageAsset(data);
+    return asset.url;
+  },
+  /** Same as uploadSingleImage, but also returns the asset id (needed by `uploadedAssetIds`). */
+  uploadImageAsset: async (data: UploadSingleImagePld): Promise<UploadedImageAsset> => {
     try {
       const formData = new FormData();
       formData.append("asset", data.image);
@@ -39,25 +50,31 @@ export const helperService = {
       // The api instance defaults to application/json (which would make axios
       // serialize FormData to JSON); override it for this request only. In the
       // browser axios then drops the header so the multipart boundary is set.
-      const response = await api.post<BaseResponse<{ assetUrl: string } | string | { imageUrl: string }>>(
+      const response = await api.post<
+        BaseResponse<{ id?: number; assetUrl: string } | string | { imageUrl: string }>
+      >(
         "/app/asset-uploader/upload",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
-      
+
       if (response.data.metaData.code !== 200) {
         throw new Error(
           response.data.responseMessage || translateApiResponseMessage("UPLOAD_IMAGE_FAILED")
         );
       }
-      
-      if (typeof response.data.data === "string") {
-        return response.data.data;
+
+      const payload = response.data.data;
+      if (typeof payload === "string") {
+        return { id: null, url: payload };
       }
-      if (response.data.data && "assetUrl" in response.data.data) {
-        return response.data.data.assetUrl;
+      if (payload && "assetUrl" in payload) {
+        return {
+          id: typeof payload.id === "number" ? payload.id : null,
+          url: payload.assetUrl,
+        };
       }
-      return (response.data.data as Record<string, string>).imageUrl;
+      return { id: null, url: (payload as Record<string, string>).imageUrl };
     } catch (error) {
       console.error("Error uploading image:", error);
       // Surface the server's message (e.g. size/type rejection) when present.

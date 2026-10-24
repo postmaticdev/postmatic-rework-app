@@ -40,6 +40,11 @@ export const ROLE_OPTIONS: Array<{
   { value: "Member", translationKey: "member" },
 ];
 
+// A pending invitee can have an empty profile name; fall back to the email.
+export function getMemberInitial(profile: { name?: string; email?: string }) {
+  return (profile.name?.trim() || profile.email || "?").charAt(0).toUpperCase();
+}
+
 export function getMemberRoleLabel(
   role: MemberRole,
   t: SettingsTranslator

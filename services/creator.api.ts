@@ -167,6 +167,10 @@ export const useCreatorDesignCreate = () => {
     onSuccess: () => {
       invalidateCreatorImageQueries(queryClient);
     },
+    // CreatorDesignProvider menampilkan toast error sendiri.
+    onError: (error) => {
+      throw error;
+    },
   });
 };
 
@@ -183,6 +187,10 @@ export const useCreatorDesignUpdate = () => {
     onSuccess: () => {
       invalidateCreatorImageQueries(queryClient);
     },
+    // CreatorDesignProvider menampilkan toast error sendiri.
+    onError: (error) => {
+      throw error;
+    },
   });
 };
 
@@ -193,6 +201,10 @@ export const useCreatorDesignDelete = () => {
       creatorDesignService.deleteDesign(templateImageContentId),
     onSuccess: () => {
       invalidateCreatorImageQueries(queryClient);
+    },
+    // CreatorDesignProvider menampilkan toast error sendiri.
+    onError: (error) => {
+      throw error;
     },
   });
 };

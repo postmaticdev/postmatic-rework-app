@@ -153,7 +153,11 @@ export function AutoGenerateModal({
     }
   }, [modalSelectedPlatforms, activePreviewPlatform]);
 
+  const isSaving = mCreateSchedule.isPending || mUpdateSchedule.isPending;
+
   const handleSave = async () => {
+    // A double click would otherwise send two create requests.
+    if (isSaving) return;
     if (!basic?.productKnowledgeId) {
       showToast("error", t("pleaseSelectProduct"));
       return;
@@ -723,6 +727,7 @@ export function AutoGenerateModal({
             <Button
               type="button"
               onClick={handleSave}
+              disabled={isSaving}
               className="flex-1 bg-primary text-white hover:bg-blue-700"
             >
               <Save className="h-4 w-4" />
@@ -733,7 +738,7 @@ export function AutoGenerateModal({
           <DialogFooterWithButton
             buttonMessage={t("saveSchedule")}
             onClick={handleSave}
-            disabled={isLoading || !basic?.productKnowledgeId}
+            disabled={isLoading || isSaving || !basic?.productKnowledgeId}
           />
         )}
       </DialogContent>

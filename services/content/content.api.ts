@@ -9,6 +9,7 @@ import {
   GenerateContentMaskPld,
   GenerateContentRegeneratePld,
   GenerateContentRssPld,
+  GenerateContentRssBase,
   ImageContentRes,
   PostedImageRes,
   RepostContentPld,
@@ -871,6 +872,25 @@ export const useContentCaptionEnhance = () => {
 };
 
 // ============================== IMAGE POST AI CHAT ==============================
+const getUrlHostname = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+};
+
+// The backend reads the article image from `thumbnail` and requires a
+// non-empty summary and publisher, which some feeds leave blank.
+const toChatRssPayload = (rss: GenerateContentRssBase) => ({
+  title: rss.title,
+  url: rss.url,
+  publishedAt: rss.publishedAt,
+  thumbnail: rss.imageUrl || undefined,
+  summary: rss.summary?.trim() || rss.title,
+  publisher: rss.publisher?.trim() || getUrlHostname(rss.url) || rss.title,
+});
+
 export const imagePostChatService = {
   getAllChats: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     return api.get<BaseResponse<ImagePostChatSessionRes[]>>(
@@ -901,7 +921,7 @@ export const imagePostChatService = {
         imageRatio: formData.ratio || undefined,
         bubbleChatId: formData.bubbleChatId || undefined,
         generatedImagePostItemId: formData.generatedImagePostItemId || undefined,
-        rss: formData.rss || undefined,
+        rss: formData.rss ? toChatRssPayload(formData.rss) : undefined,
       }
     );
   },
@@ -983,27 +1003,63 @@ export const useContentImageWatermarkGet = () => {
 
 // ============================== POSTED ==============================
 
+const getPostedImagePage = (
+  businessId: string,
+  filterQuery?: Partial<FilterQuery>
+) => {
+  return api
+    .get<BaseResponseFiltered<NewImagePostUploadHistory[]>>(
+      `/generative-content/image-post-common/${businessId}/upload-history`,
+      { params: filterQuery }
+    )
+    .then((res) => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: (res.data.data || []).map((item) =>
+          mapUploadHistoryToPostedContent(item, businessId)
+        ),
+      },
+    })) as unknown as ReturnType<
+    typeof api.get<BaseResponseFiltered<PostedImageRes[]>>
+  >;
+};
+
 const postedService = {
-  getAllPostedImage: (
+  getAllPostedImage: getPostedImagePage,
+  // The backend caps a page at 50 rows, so a calendar month with more posts
+  // needs every page instead of one oversized request.
+  getAllPostedImagePages: async (
     businessId: string,
     filterQuery?: Partial<FilterQuery>
   ) => {
-    return api
-      .get<BaseResponseFiltered<NewImagePostUploadHistory[]>>(
-        `/generative-content/image-post-common/${businessId}/upload-history`,
-        { params: filterQuery }
+    const limit = 50;
+    const maxPages = 20;
+    const first = await getPostedImagePage(businessId, {
+      ...filterQuery,
+      page: 1,
+      limit,
+    });
+    const total = first.data.pagination?.total ?? first.data.data.length;
+    const pageCount = Math.min(Math.ceil(total / limit), maxPages);
+    if (pageCount <= 1) return first;
+
+    const rest = await Promise.all(
+      Array.from({ length: pageCount - 1 }, (_, index) =>
+        getPostedImagePage(businessId, {
+          ...filterQuery,
+          page: index + 2,
+          limit,
+        })
       )
-      .then((res) => ({
-        ...res,
-        data: {
-          ...res.data,
-          data: (res.data.data || []).map((item) =>
-            mapUploadHistoryToPostedContent(item, businessId)
-          ),
-        },
-      })) as unknown as ReturnType<
-      typeof api.get<BaseResponseFiltered<PostedImageRes[]>>
-    >;
+    );
+    return {
+      ...first,
+      data: {
+        ...first.data,
+        data: [first.data.data, ...rest.map((res) => res.data.data)].flat(),
+      },
+    };
   },
   repost: (businessId: string, formData: RepostContentPld) => {
     return api.post<BaseResponse<DirectPostResultRes>>(
@@ -1018,11 +1074,15 @@ const postedService = {
 
 export const useContentPostedGetAllPostedImage = (
   businessId: string,
-  filterQuery?: Partial<FilterQuery>
+  filterQuery?: Partial<FilterQuery>,
+  allPages = false
 ) => {
   return useQuery({
-    queryKey: ["contentPostedGetAllPostedImage", businessId, filterQuery],
-    queryFn: () => postedService.getAllPostedImage(businessId, filterQuery),
+    queryKey: ["contentPostedGetAllPostedImage", businessId, filterQuery, allPages],
+    queryFn: () =>
+      allPages
+        ? postedService.getAllPostedImagePages(businessId, filterQuery)
+        : postedService.getAllPostedImage(businessId, filterQuery),
     enabled: !!businessId,
     // Poll only while a publish is still running; react-query skips the
     // interval while the tab is hidden (refetchIntervalInBackground: false).
@@ -1248,6 +1308,7 @@ export const useContentSchedulerManualGetAllQueue = (businessId: string) => {
   return useQuery({
     queryKey: ["contentSchedulerManualGetAllQueue", businessId],
     queryFn: () => schedulerManualService.getAllQueue(businessId),
+    enabled: !!businessId,
   });
 };
 
@@ -1353,10 +1414,14 @@ export const timezoneSchedulerService = {
   },
 };
 
-export const useContentSchedulerTimezoneGetTimezone = (businessId: string) => {
+export const useContentSchedulerTimezoneGetTimezone = (
+  businessId: string,
+  enabled = true
+) => {
   return useQuery({
     queryKey: ["contentSchedulerTimezoneGetTimezone", businessId],
     queryFn: () => timezoneSchedulerService.getTimezone(businessId),
+    enabled: enabled && !!businessId,
   });
 };
 
@@ -1370,9 +1435,16 @@ export const useContentSchedulerTimezoneUpsertTimezone = () => {
       businessId: string;
       formData: TimezoneSettingPld;
     }) => timezoneSchedulerService.upsertTimezone(businessId, formData),
-    onSuccess: () => {
+    onSuccess: (_, { businessId }) => {
       queryClient.invalidateQueries({
         queryKey: ["contentSchedulerTimezoneGetTimezone"],
+      });
+      // The calendar groups schedules by day in the business time zone.
+      queryClient.invalidateQueries({
+        queryKey: ["contentOverviewUpcoming", businessId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["contentPostCommonOverview", businessId],
       });
     },
   });
@@ -1756,11 +1828,15 @@ export const useContentAutoGenerateDeleteSchedule = () => {
   });
 };
 
-export const useContentAutoGenerateGetHistories = (businessId: string, query?: AutoGenerateHistoriesQuery) => {
+export const useContentAutoGenerateGetHistories = (
+  businessId: string,
+  query?: AutoGenerateHistoriesQuery,
+  enabled = true
+) => {
   return useQuery({
     queryKey: ["contentAutoGenerateGetHistories", businessId, query],
     queryFn: () => autoGenerateService.getHistories(businessId, query),
-    enabled: !!businessId,
+    enabled: enabled && !!businessId,
   });
 };
 

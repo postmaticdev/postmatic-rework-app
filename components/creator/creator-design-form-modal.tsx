@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,13 +31,15 @@ export function CreatorDesignFormModal() {
     handleUpdateDesign,
     closeCreateModal,
     closeEditModal,
+    isSubmitting,
   } = useCreatorDesign();
 
   const t = useTranslations("creatorDesign");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const isOpen = isCreateModalOpen || isEditModalOpen;
   const isEdit = isEditModalOpen && editingDesign;
-  const isLoading = false; // You can add loading state from mutations
+  const isLoading = isSubmitting || isUploadingImage;
 
   const handleClose = () => {
     if (isCreateModalOpen) {
@@ -82,6 +85,7 @@ export function CreatorDesignFormModal() {
             }
             currentImage={formData.imageUrl}
             error={errors.imageUrl}
+            onUploadingChange={setIsUploadingImage}
           />
 
           {/* Design Name */}

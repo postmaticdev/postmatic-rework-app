@@ -16,23 +16,33 @@ export function RoleKnowledgeForm() {
     key: keyof RoleKnowledgePld,
     value: RoleKnowledgePld[keyof RoleKnowledgePld]
   ) => {
-    setFormKnowledge({
-      ...formKnowledge,
-      role: { ...formKnowledge.role, [key]: value },
-    });
+    setFormKnowledge((prev) => ({
+      ...prev,
+      role: { ...prev.role, [key]: value },
+    }));
   };
 
   const [currentHashtag, setCurrentHashtag] = useState("");
 
+  // Accepts pasted lists like "#a, #b c" and skips duplicates.
   const addHashtag = () => {
-    if (currentHashtag.trim()) {
-      let hashtag = currentHashtag.trim();
-      if (hashtag?.startsWith("#")) {
-        hashtag = hashtag.slice(1);
-      }
-      updateField("hashtags", [...formKnowledge.role.hashtags, hashtag]);
-      setCurrentHashtag("");
+    const existing = new Set(
+      formKnowledge.role.hashtags.map((hashtag) => hashtag.toLowerCase())
+    );
+    const newHashtags: string[] = [];
+    currentHashtag
+      .split(/[s,]+/)
+      .map((hashtag) => hashtag.replace(/^#+/, "").trim())
+      .filter(Boolean)
+      .forEach((hashtag) => {
+        if (existing.has(hashtag.toLowerCase())) return;
+        existing.add(hashtag.toLowerCase());
+        newHashtags.push(hashtag);
+      });
+    if (newHashtags.length) {
+      updateField("hashtags", [...formKnowledge.role.hashtags, ...newHashtags]);
     }
+    setCurrentHashtag("");
   };
 
   const removeHashtag = (index: number) => {
@@ -102,7 +112,7 @@ export function RoleKnowledgeForm() {
         <div className="flex flex-wrap gap-2">
           {formKnowledge.role.hashtags.map((hashtag, index) => (
             <span
-              key={index}
+              key={`${hashtag}-${index}`}
               className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm flex items-center gap-1"
             >
               #{hashtag}

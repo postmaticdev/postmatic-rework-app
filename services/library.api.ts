@@ -360,10 +360,14 @@ export const useLibraryRSSArticle = (
   });
 };
 
-export const useLibraryRSSData = (filterQuery?: Partial<FilterQuery>) => {
+export const useLibraryRSSData = (
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
+) => {
   return useQuery({
     queryKey: ["libraryRSSData", filterQuery],
     queryFn: () => libraryService.RSSData(filterQuery),
+    enabled,
   });
 };
 
@@ -375,10 +379,14 @@ export const useAllLibraryRSSData = () => {
   });
 };
 
-export const useLibraryRSSCategory = (filterQuery?: Partial<FilterQuery>) => {
+export const useLibraryRSSCategory = (
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
+) => {
   return useQuery({
     queryKey: ["libraryRSSCategory", filterQuery],
     queryFn: () => libraryService.RSSCategory(filterQuery),
+    enabled,
   });
 };
 export const useLibraryTime = () => {

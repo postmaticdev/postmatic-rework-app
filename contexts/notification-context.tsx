@@ -30,6 +30,7 @@ import type {
 } from "@/models/api/notification.type";
 import type {
   WebsiteTicket,
+  WebsiteTicketDetail,
   WebsiteTicketMessage,
 } from "@/models/api/ticket.type";
 import notificationService, {
@@ -46,6 +47,8 @@ export type NotificationAttachment = {
   type: "photo" | "file" | "video";
   name: string;
   url?: string;
+  /** Id aset hasil upload; wajib untuk mengirim lampiran balasan tiket. */
+  assetId?: number;
 };
 
 export interface NotificationItem {
@@ -99,6 +102,8 @@ interface NotificationContextProps {
   ticketUnreadCount: number;
   isNotificationLoading: boolean;
   isTicketLoading: boolean;
+  /** True once the ticket list query (enabled on the Ticket tab) has finished its first load. */
+  isTicketListSettled: boolean;
   notificationError: string | null;
   ticketError: string | null;
   markAsRead: (id: string) => void;
@@ -116,7 +121,7 @@ interface NotificationContextProps {
     ticketId: string,
     text: string,
     attachments?: NotificationAttachment[]
-  ) => void;
+  ) => Promise<void>;
   loadTicketMessages: (ticketId: number) => Promise<void>;
 }
 
@@ -283,7 +288,9 @@ function mapAttachments(
     (mappedAttachments, attachment, index) => {
       if (!attachment) return mappedAttachments;
 
+      // URL lampiran dipakai sebagai src/href; tolak skema selain http(s).
       if (typeof attachment === "string") {
+        if (!isHttpUrl(attachment)) return mappedAttachments;
         mappedAttachments.push({
           type: attachmentType(attachment),
           name: attachmentName(attachment, fmt.t("attachmentFallback", { index: index + 1 })),
@@ -293,7 +300,7 @@ function mapAttachments(
       }
 
       const url = attachment.url ?? "";
-      if (!url) return mappedAttachments;
+      if (!url || !isHttpUrl(url)) return mappedAttachments;
 
       mappedAttachments.push({
         type: attachmentType(
@@ -333,12 +340,14 @@ function mapNotificationUnreadSummary(
   };
 }
 
-function getPublicAttachmentUrls(
-  attachments?: NotificationAttachment[]
-) {
+function isHttpUrl(url: string) {
+  return /^https?:\/\//i.test(url.trim());
+}
+
+function getUploadedAssetIds(attachments?: NotificationAttachment[]) {
   return (attachments ?? [])
-    .map((attachment) => attachment.url)
-    .filter((url): url is string => Boolean(url && /^https?:\/\//i.test(url)));
+    .map((attachment) => attachment.assetId)
+    .filter((id): id is number => typeof id === "number" && id > 0);
 }
 
 function plainTextFromRichText(value?: string | null) {
@@ -471,25 +480,80 @@ async function getTicketCategoryNameById(queryClient: QueryClient) {
   return new Map(categories.map((category) => [category.id, category.name]));
 }
 
-async function getWebsiteTicketRooms(queryClient: QueryClient, fmt: NotificationFormatter) {
-  const [response, categoryNameById] = await Promise.all([
+/** Replaces a ticket's conversation with the messages from its detail endpoint. */
+function applyTicketDetail(
+  ticket: TicketItem,
+  detail: WebsiteTicketDetail,
+  fmt: NotificationFormatter
+): TicketItem {
+  const initialMessage = ticket.messages.find((message) => message.isInitialReport);
+  const mappedMessages = (detail.messages ?? []).map((message) =>
+    mapWebsiteMessage(message, fmt)
+  );
+  const allMessages = [
+    ...(initialMessage ? [initialMessage] : []),
+    ...mappedMessages,
+  ].sort((a, b) => timestampOf(a.createdAt) - timestampOf(b.createdAt));
+  const lastMessage = allMessages[allMessages.length - 1];
+  const lastActivityAt =
+    lastMessage?.createdAt ?? detail.ticket.updatedAt ?? detail.ticket.createdAt;
+
+  return {
+    ...ticket,
+    status: statusToLabel(detail.ticket.slaStatus),
+    rawStatus: detail.ticket.slaStatus ?? null,
+    updatedAt: detail.ticket.updatedAt ?? detail.ticket.createdAt,
+    lastActivityAt,
+    lastActivityTime: formatDateTime(lastActivityAt, fmt),
+    // Membuka detail me-reset unread di backend (async).
+    unreadMessages: 0,
+    messages: allMessages,
+  };
+}
+
+async function getWebsiteTicketRooms(
+  queryClient: QueryClient,
+  fmt: NotificationFormatter,
+  activeTicketId: number | null,
+  onActiveTicketRead: (unreadMessages: number) => void
+) {
+  const [response, categoryNameById, activeDetail] = await Promise.all([
     ticketService.getWebsiteTickets(),
     getTicketCategoryNameById(queryClient).catch(() => new Map<number, string>()),
+    // Tiket yang sedang dibuka ikut di-refresh agar balasan baru (polling/realtime) langsung tampil.
+    activeTicketId !== null
+      ? ticketService
+          .getWebsiteTicketDetail(activeTicketId)
+          .then((detailResponse) => detailResponse.data.data ?? null)
+          .catch(() => null)
+      : Promise.resolve(null),
   ]);
   const tickets = response.data.data ?? [];
   const existingData = queryClient.getQueryData<TicketItem[]>(WEBSITE_TICKETS_QUERY_KEY) ?? [];
-  const existingMessagesMap = new Map(existingData.map(t => [t.remoteId, t.messages.slice(1)]));
-
-  return sortTicketsByLatestActivity(
-    tickets.map((ticket) =>
-      mapWebsiteTicket(
-        ticket,
-        (existingMessagesMap.get(ticket.id) as ChatMessage[]) ?? [],
-        categoryNameById,
-        fmt
-      )
-    )
+  const existingMessagesMap = new Map(
+    existingData.map((ticket) => [
+      ticket.remoteId,
+      ticket.messages.filter((message) => !message.isInitialReport),
+    ])
   );
+
+  let activeUnreadMessages = 0;
+  const mappedTickets = tickets.map((ticket) => {
+    const mapped = mapWebsiteTicket(
+      ticket,
+      existingMessagesMap.get(ticket.id) ?? [],
+      categoryNameById,
+      fmt
+    );
+    if (activeDetail && ticket.id === activeTicketId) {
+      activeUnreadMessages = mapped.unreadMessages;
+      return applyTicketDetail(mapped, activeDetail, fmt);
+    }
+    return mapped;
+  });
+
+  if (activeUnreadMessages > 0) onActiveTicketRead(activeUnreadMessages);
+  return sortTicketsByLatestActivity(mappedTickets);
 }
 
 async function getCommonNotifications(fmt: NotificationFormatter) {
@@ -556,15 +620,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const isNotificationsPage = pathname?.endsWith("/notifications") ?? false;
   const profileQuery = useAuthProfileGetProfile();
   const profileId = profileQuery.data?.data?.data?.id;
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationUnreadCounts, setNotificationUnreadCounts] =
     useState<NotificationUnreadSummary>(EMPTY_NOTIFICATION_UNREAD_SUMMARY);
   const [isTicketListEnabled, setTicketListEnabled] = useState(false);
   const shouldLoadWebsiteTickets = isNotificationsPage && isTicketListEnabled;
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
-  const ticketsRef = useRef<TicketItem[]>(tickets);
+  // Tiket yang sedang dibuka di halaman; detailnya ikut di-refresh bersama list.
+  const activeTicketIdRef = useRef<number | null>(null);
+  // Notifikasi yang sedang ditandai dibaca, agar tidak terkirim dua kali.
+  const markingNotificationIdsRef = useRef(new Set<string>());
   const lastRealtimeTicketRefreshAtRef = useRef(0);
   const realtimeTicketRefreshTimeoutRef = useRef<number | null>(null);
+
+  const decrementTicketUnreadCount = useCallback((count: number) => {
+    setNotificationUnreadCounts((prev) => ({
+      ...prev,
+      ticketReplies: Math.max(prev.ticketReplies - count, 0),
+      total: Math.max(prev.total - count, 0),
+    }));
+  }, []);
 
   const notificationsQuery = useQuery({
     queryKey: NOTIFICATIONS_QUERY_KEY,
@@ -590,7 +663,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const websiteTicketsQuery = useQuery({
     queryKey: WEBSITE_TICKETS_QUERY_KEY,
-    queryFn: () => getWebsiteTicketRooms(queryClient, formatterRef.current),
+    queryFn: () =>
+      getWebsiteTicketRooms(
+        queryClient,
+        formatterRef.current,
+        activeTicketIdRef.current,
+        decrementTicketUnreadCount
+      ),
     enabled: shouldLoadWebsiteTickets,
     refetchInterval: NEXT_PUBLIC_ENABLE_SOCKET
       ? SOCKET_SAFETY_REFRESH_INTERVAL_MS
@@ -609,9 +688,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     void queryClient.invalidateQueries({ queryKey: WEBSITE_TICKETS_QUERY_KEY });
   }, [locale, queryClient]);
 
-  useEffect(() => {
-    ticketsRef.current = tickets;
-  }, [tickets]);
+  // List dibaca langsung dari cache query (bukan salinan state) supaya tidak ada
+  // render di mana query sudah selesai tetapi list masih kosong.
+  const notifications = useMemo<NotificationItem[]>(
+    () => notificationsQuery.data ?? [],
+    [notificationsQuery.data]
+  );
+  const tickets = useMemo<TicketItem[]>(
+    () => (shouldLoadWebsiteTickets ? websiteTicketsQuery.data ?? [] : []),
+    [shouldLoadWebsiteTickets, websiteTicketsQuery.data]
+  );
 
   useEffect(() => {
     if (isNotificationsPage) return;
@@ -620,35 +706,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (shouldLoadWebsiteTickets) return;
-    setTickets([]);
+    activeTicketIdRef.current = null;
   }, [shouldLoadWebsiteTickets]);
-
-  useEffect(() => {
-    if (!notificationsQuery.data) return;
-    setNotifications(notificationsQuery.data);
-    if (!notificationUnreadCountQuery.data) {
-      const blast = notificationsQuery.data.filter(
-        (notification) => notification.unread
-      ).length;
-
-      setNotificationUnreadCounts((prev) => ({
-        ...prev,
-        blast,
-        total: blast + prev.ticketReplies,
-      }));
-    }
-  }, [notificationUnreadCountQuery.data, notificationsQuery.data]);
 
   useEffect(() => {
     if (!notificationUnreadCountQuery.data) return;
     setNotificationUnreadCounts(notificationUnreadCountQuery.data);
   }, [notificationUnreadCountQuery.data]);
-
-  useEffect(() => {
-    if (!shouldLoadWebsiteTickets) return;
-    if (!websiteTicketsQuery.data) return;
-    setTickets(sortTicketsByLatestActivity(websiteTicketsQuery.data));
-  }, [shouldLoadWebsiteTickets, websiteTicketsQuery.data]);
 
   const refreshNotifications = useCallback(async () => {
     await Promise.all([
@@ -692,39 +756,28 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }, delay);
   }, [refreshTickets, shouldLoadWebsiteTickets]);
   const loadTicketMessages = useCallback(async (ticketId: number) => {
+    activeTicketIdRef.current = ticketId;
     try {
       const response = await ticketService.getWebsiteTicketDetail(ticketId);
       const detail = response.data.data;
-      if (!detail) return;
+      if (!detail || activeTicketIdRef.current !== ticketId) return;
 
+      let readUnreadMessages = 0;
       queryClient.setQueryData<TicketItem[]>(WEBSITE_TICKETS_QUERY_KEY, (old) => {
         if (!old) return old;
-        return old.map(t => {
-          if (t.remoteId === ticketId) {
-            const initialMessage = t.messages[0];
-            const mappedMessages = (detail.messages ?? []).map((message) =>
-              mapWebsiteMessage(message, formatterRef.current)
-            );
-            const allMessages = [initialMessage, ...mappedMessages].sort(
-              (a, b) => timestampOf(a.createdAt) - timestampOf(b.createdAt)
-            );
-            const lastMessage = allMessages[allMessages.length - 1];
-            const lastActivityAt = lastMessage?.createdAt ?? detail.ticket.updatedAt ?? detail.ticket.createdAt;
-            
-            return {
-              ...t,
-              updatedAt: detail.ticket.updatedAt ?? detail.ticket.createdAt,
-              lastActivityAt,
-              lastActivityTime: formatDateTime(lastActivityAt, formatterRef.current),
-              unreadMessages: toSafeCount(detail.ticket.unreadMessages),
-              messages: allMessages,
-            };
-          }
-          return t;
-        });
+        return sortTicketsByLatestActivity(
+          old.map((ticket) => {
+            if (ticket.remoteId !== ticketId) return ticket;
+            readUnreadMessages = ticket.unreadMessages;
+            return applyTicketDetail(ticket, detail, formatterRef.current);
+          })
+        );
       });
-    } catch {}
-  }, [queryClient]);
+      if (readUnreadMessages > 0) decrementTicketUnreadCount(readUnreadMessages);
+    } catch (error) {
+      showToast("error", error);
+    }
+  }, [decrementTicketUnreadCount, queryClient]);
 
   const ticketTopicKey = useMemo(
     () =>
@@ -843,13 +896,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [unreadCount]);
 
+  const setNotificationsReadInCache = useCallback(
+    (ids: Set<string>) => {
+      queryClient.setQueryData<NotificationItem[]>(NOTIFICATIONS_QUERY_KEY, (old) =>
+        old?.map((item) => (ids.has(item.id) ? { ...item, unread: false } : item))
+      );
+    },
+    [queryClient]
+  );
+
+  // Backend menandai dibaca lewat GET detail secara async (goroutine), jadi list
+  // TIDAK langsung di-refetch: hasilnya bisa masih "unread" dan menimpa update
+  // optimistik. Polling berikutnya yang menyelaraskan data.
   const markAsRead = useCallback(
     (id: string) => {
       const notificationId = Number(id);
+      const marking = markingNotificationIdsRef.current;
+      if (marking.has(id)) return;
+      const target = queryClient
+        .getQueryData<NotificationItem[]>(NOTIFICATIONS_QUERY_KEY)
+        ?.find((item) => item.id === id);
+      if (!target?.unread) return;
 
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
-      );
+      setNotificationsReadInCache(new Set([id]));
       setNotificationUnreadCounts((prev) => ({
         ...prev,
         blast: Math.max(prev.blast - 1, 0),
@@ -858,69 +927,77 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       if (!Number.isFinite(notificationId)) return;
 
+      marking.add(id);
       notificationService
         .getNotification(notificationId)
-        .then((response) => {
-          const notification = response.data.data;
-          if (notification) {
-            const mappedNotification = mapCommonNotification(
-              notification,
-              formatterRef.current
-            );
-            setNotifications((prev) =>
-              prev.map((item) =>
-                item.id === mappedNotification.id ? mappedNotification : item
-              )
-            );
-          }
-          refreshNotifications();
-        })
         .catch((error) => {
           showToast("error", error);
-          refreshNotifications();
+          void refreshNotifications();
+        })
+        .finally(() => {
+          marking.delete(id);
         });
     },
-    [refreshNotifications]
+    [queryClient, refreshNotifications, setNotificationsReadInCache]
   );
 
   const markAllAsRead = useCallback(() => {
-    const unreadNotificationIds = notifications
-      .filter((notification) => notification.unread)
-      .map((notification) => Number(notification.id))
-      .filter((notificationId) => Number.isFinite(notificationId));
+    const marking = markingNotificationIdsRef.current;
+    const unreadIds = notifications
+      .filter((notification) => notification.unread && !marking.has(notification.id))
+      .map((notification) => notification.id);
+    if (!unreadIds.length) return;
 
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    setNotificationsReadInCache(new Set(unreadIds));
     setNotificationUnreadCounts((prev) => ({
       ...prev,
-      blast: Math.max(prev.blast - unreadNotificationIds.length, 0),
-      total: Math.max(prev.total - unreadNotificationIds.length, 0),
+      blast: Math.max(prev.blast - unreadIds.length, 0),
+      total: Math.max(prev.total - unreadIds.length, 0),
     }));
 
-    if (!unreadNotificationIds.length) return;
-
+    // Belum ada endpoint "read all" di backend: tandai satu per satu.
+    unreadIds.forEach((id) => marking.add(id));
     Promise.allSettled(
-      unreadNotificationIds.map((notificationId) =>
-        notificationService.getNotification(notificationId)
-      )
-    )
-      .then(() => refreshNotifications())
-      .catch((error) => {
-        showToast("error", error);
-        refreshNotifications();
-      });
-  }, [notifications, refreshNotifications]);
+      unreadIds.map((id) => notificationService.getNotification(Number(id)))
+    ).then((results) => {
+      unreadIds.forEach((id) => marking.delete(id));
+      const failed = results.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected"
+      );
+      if (failed) {
+        showToast("error", failed.reason);
+        void refreshNotifications();
+      }
+    });
+  }, [notifications, refreshNotifications, setNotificationsReadInCache]);
+
+  const updateTicketInCache = useCallback(
+    (ticketId: string, update: (ticket: TicketItem) => TicketItem) => {
+      queryClient.setQueryData<TicketItem[]>(WEBSITE_TICKETS_QUERY_KEY, (old) =>
+        old
+          ? sortTicketsByLatestActivity(
+              old.map((item) => (item.id === ticketId ? update(item) : item))
+            )
+          : old
+      );
+    },
+    [queryClient]
+  );
 
   const sendChatMessage = useCallback(
-    (
+    async (
       ticketId: string,
       text: string,
       attachments?: NotificationAttachment[]
     ) => {
-      const ticket = ticketsRef.current.find((item) => item.id === ticketId);
+      const ticket = queryClient
+        .getQueryData<TicketItem[]>(WEBSITE_TICKETS_QUERY_KEY)
+        ?.find((item) => item.id === ticketId);
       const body = text.trim();
-      const publicAttachments = getPublicAttachmentUrls(attachments);
+      const uploadedAssetIds = getUploadedAssetIds(attachments);
 
-      if (!ticket?.remoteId || (!body && publicAttachments.length === 0)) return;
+      // Backend mewajibkan body (validate:"required") dan menolak tiket resolved.
+      if (!ticket?.remoteId || !body || ticket.rawStatus === "resolved") return;
 
       const now = new Date().toISOString();
       const optimisticMessage: ChatMessage = {
@@ -932,48 +1009,34 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         attachments,
       };
 
-      setTickets((prev) =>
-        sortTicketsByLatestActivity(
-          prev.map((item) =>
-            item.id === ticketId
-              ? {
-                  ...item,
-                  updatedAt: now,
-                  lastActivityAt: now,
-                  lastActivityTime: formatDateTime(now, formatterRef.current),
-                  messages: [...item.messages, optimisticMessage],
-                }
-              : item
-          )
-        )
-      );
+      // Batalkan refetch yang sedang berjalan agar tidak menimpa pesan optimistik.
+      await queryClient.cancelQueries({ queryKey: WEBSITE_TICKETS_QUERY_KEY });
+      updateTicketInCache(ticketId, (item) => ({
+        ...item,
+        updatedAt: now,
+        lastActivityAt: now,
+        lastActivityTime: formatDateTime(now, formatterRef.current),
+        messages: [...item.messages, optimisticMessage],
+      }));
 
-      ticketService
-        .replyWebsiteTicket(ticket.remoteId, {
+      try {
+        await ticketService.replyWebsiteTicket(ticket.remoteId, {
           body,
-          attachments: publicAttachments,
-        })
-        .then(() => refreshTickets())
-        .catch((error) => {
-          showToast("error", error);
-          // Hapus pesan optimistik: data refetch yang identik tidak memicu
-          // ulang setTickets, sehingga pesan gagal tampak seolah terkirim.
-          setTickets((prev) =>
-            prev.map((item) =>
-              item.id === ticketId
-                ? {
-                    ...item,
-                    messages: item.messages.filter(
-                      (message) => message.id !== optimisticMessage.id
-                    ),
-                  }
-                : item
-            )
-          );
-          refreshTickets();
+          ...(uploadedAssetIds.length > 0 ? { uploadedAssetIds } : {}),
         });
+      } catch (error) {
+        showToast("error", error);
+        updateTicketInCache(ticketId, (item) => ({
+          ...item,
+          messages: item.messages.filter(
+            (message) => message.id !== optimisticMessage.id
+          ),
+        }));
+      }
+      // Refetch list juga memuat ulang detail tiket aktif (pesan dari server).
+      void refreshTickets();
     },
-    [refreshTickets]
+    [queryClient, refreshTickets, updateTicketInCache]
   );
 
   const addTicket = useCallback(
@@ -999,6 +1062,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         ticketUnreadCount,
         isNotificationLoading: notificationsQuery.isLoading,
         isTicketLoading: websiteTicketsQuery.isLoading,
+        isTicketListSettled:
+          shouldLoadWebsiteTickets && !websiteTicketsQuery.isPending,
         notificationError: notificationsQuery.error
           ? errorString(notificationsQuery.error)
           : null,

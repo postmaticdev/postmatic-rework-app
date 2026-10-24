@@ -26,10 +26,13 @@ export function CreatorDesignInformation() {
   // Update search query in context when search changes (with debounce)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      setQuery((prev) => ({
-        ...prev,
-        search: searchQuery || undefined,
-      }));
+      // Kembali ke halaman 1 saat kata kunci berubah, agar hasil tidak kosong
+      // karena masih di halaman lama.
+      setQuery((prev) => {
+        const search = searchQuery || undefined;
+        if (prev.search === search) return prev;
+        return { ...prev, search, page: 1 };
+      });
     }, 500);
 
     return () => clearTimeout(timeoutId);

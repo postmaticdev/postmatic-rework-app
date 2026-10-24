@@ -47,9 +47,11 @@ export function AutoGenerateHistoryModal({
     sort: "desc",
   });
 
+  // The modal is always mounted; fetch only once it is opened.
   const { data: historiesData, isLoading } = useContentAutoGenerateGetHistories(
     businessId,
-    query
+    query,
+    isOpen
   );
 
   const histories = historiesData?.data?.data || [];

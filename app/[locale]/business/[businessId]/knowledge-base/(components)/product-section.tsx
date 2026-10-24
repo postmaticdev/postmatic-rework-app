@@ -24,7 +24,7 @@ import {
 import { useParams } from "next/navigation";
 import {
   useProductKnowledgeCreate,
-  useProductKnowledgeGetAll,
+  useProductKnowledgeInfinite,
   useProductKnowledgeUpdate,
   useProductKnowledgeDelete,
 } from "@/services/knowledge.api";
@@ -44,6 +44,12 @@ import { SearchNotFound } from "@/components/base/search-not-found";
 import { useProductKnowledgeSchema } from "@/validator/new-business/schema-with-i18n";
 import { useRole } from "@/contexts/role-context";
 import { useLocale, useTranslations } from "next-intl";
+import { useDebounce } from "@/hooks/use-debounce";
+import {
+  KnowledgeListError,
+  KnowledgeListLoadMore,
+  KnowledgeListLoading,
+} from "./knowledge-list-states";
 
 const initialProduct: ProductKnowledgePld & { id?: string } = {
   category: "",
@@ -72,6 +78,8 @@ export function ProductSection() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useDebounce(() => setDebouncedSearch(searchQuery.trim()), 400, [searchQuery]);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [selectedProduct, setSelectedProduct] = useState<
     ProductKnowledgePld & { id?: string }
@@ -95,7 +103,6 @@ export function ProductSection() {
     setModalMode("edit");
     setSelectedProduct(product);
     setProductErrors({});
-    console.log("Selected product:", product);
     setIsEditModalOpen(true);
   };
 
@@ -201,10 +208,17 @@ export function ProductSection() {
     }
   };
 
-  const { data: productData } = useProductKnowledgeGetAll(businessId, {
-    search: searchQuery,
-  });
-  const products = productData?.data.data || [];
+  const {
+    data: productData,
+    isLoading: isLoadingProducts,
+    isError: isProductsError,
+    isRefetching: isRefetchingProducts,
+    refetch: refetchProducts,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useProductKnowledgeInfinite(businessId, { search: debouncedSearch });
+  const products = productData?.pages.flatMap((page) => page.data.data) ?? [];
 
   const p = useTranslations("productKnowledge");
 
@@ -238,7 +252,14 @@ export function ProductSection() {
 
 
           {/* Product List */}
-          {products.length === 0 && searchQuery === "" ? (
+          {isLoadingProducts ? (
+            <KnowledgeListLoading />
+          ) : isProductsError && products.length === 0 ? (
+            <KnowledgeListError
+              onRetry={() => refetchProducts()}
+              isRetrying={isRefetchingProducts}
+            />
+          ) : products.length === 0 && debouncedSearch === "" ? (
             <NoContent
               icon={ShoppingBag}
               title={p("notAvailable")}
@@ -326,6 +347,7 @@ export function ProductSection() {
                               src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                               alt={product.name}
                               fill
+                              sizes="80px"
                               className="object-cover"
                             />
                           </div>
@@ -387,6 +409,12 @@ export function ProductSection() {
                   </CardContent>
                 </Card>
               ))}
+              {hasNextPage && (
+                <KnowledgeListLoadMore
+                  onLoadMore={() => fetchNextPage()}
+                  isLoading={isFetchingNextPage}
+                />
+              )}
             </div>
           )}
         </div>

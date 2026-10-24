@@ -14,12 +14,17 @@ export const NOTIFICATION_UNREAD_COUNT_QUERY_KEY = [
   "unread-count",
 ] as const;
 
+// Backend default limit = 10 dan maksimum = 50 (ReqFilterMiddleware).
+export const NOTIFICATIONS_PAGE_LIMIT = 50;
+
 const notificationService = {
   getNotifications: () => {
     return api.get<
       | BaseResponse<CommonNotification[]>
       | BaseResponseFiltered<CommonNotification[]>
-    >("/notification/common");
+    >("/notification/common", {
+      params: { page: 1, limit: NOTIFICATIONS_PAGE_LIMIT },
+    });
   },
   getNotification: (notificationId: number) => {
     return api.get<BaseResponse<CommonNotification>>(

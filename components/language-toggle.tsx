@@ -33,11 +33,11 @@ export function LanguageToggle() {
   const triggerLabel = active?.label ?? locale?.toUpperCase() ?? "ID";
   const triggerFlag = active?.flag ?? "fi fi-xx";
 
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-  const changeLocale = async (next: string) => {
+  const changeLocale = (next: string) => {
     if (!next || next === locale) return;
-    router.replace(pathname, { locale: next });
+    // Bawa query & hash (mis. ?tab=billing) agar halaman tetap di posisi yang sama.
+    const { search, hash } = window.location;
+    router.replace(`${pathname}${search}${hash}`, { locale: next });
   };
 
   return (

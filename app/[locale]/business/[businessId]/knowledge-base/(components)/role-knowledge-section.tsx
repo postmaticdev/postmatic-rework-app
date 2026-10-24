@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Users, MessageCircle, Hash } from "lucide-react";
 import { EditKnowledgeModal } from "./edit-knowledge-modal";
 import { useRoleKnowledgeGetById } from "@/services/knowledge.api";
@@ -13,7 +14,8 @@ import { useTranslations } from "next-intl";
 export function RoleKnowledgeSection() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { businessId } = useParams() as { businessId: string };
-  const { data: roleKnowledgeData } = useRoleKnowledgeGetById(businessId);
+  const { data: roleKnowledgeData, isLoading } =
+    useRoleKnowledgeGetById(businessId);
   const { access } = useRole();
   const { roleKnowledge } = access;
   const r = useTranslations("roleKnowledge");
@@ -64,11 +66,11 @@ export function RoleKnowledgeSection() {
           </div>
 
           <div className="grid flex-1 content-center grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {roleTags.map((tag, index) => {
+            {roleTags.map((tag) => {
               const Icon = tag.icon;
               return (
                 <div
-                  key={index}
+                  key={tag.label}
                   className="flex items-center justify-start gap-4 rounded-md border p-3 text-sm font-medium shadow-sm"
                 >
                   <div
@@ -78,7 +80,11 @@ export function RoleKnowledgeSection() {
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="text-sm font-normal text-muted-foreground">{tag.label}</span>
-                    <span className="text-md truncate">{tag.value}</span>
+                    {isLoading ? (
+                      <Skeleton className="mt-1 h-4 w-24" />
+                    ) : (
+                      <span className="text-md truncate">{tag.value}</span>
+                    )}
                   </div>
                 </div>
               );

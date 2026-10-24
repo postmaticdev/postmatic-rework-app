@@ -1,6 +1,5 @@
 "use client";
 
-import { Header } from "@/components/base/header";
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { ActionBar } from "@/components/base/action-bar";
 import { BusinessGrid } from "@/components/base/business-grid";

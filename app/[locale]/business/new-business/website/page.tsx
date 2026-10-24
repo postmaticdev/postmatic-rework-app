@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
+import { isAxiosError } from "axios";
 
 type FlowPhase = "input" | "loading" | "result";
 
@@ -345,15 +346,35 @@ export default function NewBusinessWebsitePage() {
     id: number,
     session: number
   ): Promise<WebsiteScrapperHistoryItem> => {
-    const maxAttempt = 40;
+    // Worker Go bisa >100 detik (antre slot browser, render + retry, subpage,
+    // AI, finalize), jadi beri batas ~4 menit.
+    const maxAttempt = 120;
     const delayMs = 2000;
+    // Gangguan jaringan/5xx sesaat tidak boleh menggagalkan scan yang masih jalan.
+    const maxConsecutiveErrors = 3;
+    let consecutiveErrors = 0;
 
     for (let attempt = 0; attempt < maxAttempt; attempt += 1) {
       if (pollingSessionRef.current !== session) {
         throw new Error("SCRAPPER_CANCELLED");
       }
 
-      const response = await websiteScrapperService.getHistoryById(id);
+      let response: Awaited<
+        ReturnType<typeof websiteScrapperService.getHistoryById>
+      >;
+      try {
+        response = await websiteScrapperService.getHistoryById(id);
+        consecutiveErrors = 0;
+      } catch (error) {
+        const status = isAxiosError(error) ? error.response?.status : undefined;
+        const isTransient = status === undefined || status >= 500;
+        consecutiveErrors += 1;
+        if (!isTransient || consecutiveErrors > maxConsecutiveErrors) {
+          throw error;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        continue;
+      }
       const item = response.data.data;
       const processState = item.processState?.toLowerCase();
       const status = item.status?.toLowerCase();

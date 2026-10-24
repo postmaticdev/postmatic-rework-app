@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
 import { CreditCard, ExternalLink, Info, Zap } from "lucide-react";
@@ -18,12 +18,26 @@ export function BillingInvoices() {
   const { businessId } = useParams() as { businessId: string };
   const { data: tokenUsageData } = useTokenGetTokenUsage(businessId);
   const availableToken = tokenUsageData?.data?.data?.availableToken ?? 0;
-  const [isDialogOpen, setIsDialogOpen] = useState(
-    searchParams.get("topUp") === "token"
-  );
+  const isTopUpRequested = searchParams.get("topUp") === "token";
+  const [isDialogOpen, setIsDialogOpen] = useState(isTopUpRequested);
   const topUpAmount = searchParams.get("amount") || undefined;
   const { access } = useRole();
   const canPurchase = access.purchase.write;
+
+  // The header "top up" link can land here while this tab is already mounted.
+  useEffect(() => {
+    if (isTopUpRequested) setIsDialogOpen(true);
+  }, [isTopUpRequested]);
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    if (!searchParams.has("topUp") && !searchParams.has("amount")) return;
+    // Drop the one-shot params so a refresh doesn't reopen the dialog.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("topUp");
+    params.delete("amount");
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -90,7 +104,7 @@ export function BillingInvoices() {
 
       <TopUpTokenDialog
         isOpen={canPurchase && isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        onClose={handleCloseDialog}
         initialAmount={topUpAmount}
       />
     </div>

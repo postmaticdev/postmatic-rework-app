@@ -24,12 +24,11 @@ import {
 import {
   useRssKnowledgeCreate,
   useRssKnowledgeDelete,
-  useRssKnowledgeGetById,
+  useRssKnowledgeInfinite,
   useRssKnowledgeUpdate,
 } from "@/services/knowledge.api";
 import { useAllLibraryRSSData } from "@/services/library.api";
-import { useRouter } from "@/i18n/navigation";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { AddRssPld, RssRes } from "@/models/api/knowledge/rss.type";
 import { showToast } from "@/helper/show-toast";
 import {
@@ -43,6 +42,12 @@ import z from "zod";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { useRole } from "@/contexts/role-context";
 import { useTranslations } from "next-intl";
+import { useDebounce } from "@/hooks/use-debounce";
+import {
+  KnowledgeListError,
+  KnowledgeListLoadMore,
+  KnowledgeListLoading,
+} from "./knowledge-list-states";
 
 const initialRSS: AddRssPld & { id?: string } = {
   title: "",
@@ -66,8 +71,6 @@ export function RSSTrendSection({
   openRssModal = false,
 }: RSSTrendSectionProps) {
   const { businessId } = useParams() as { businessId: string };
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [selectedRSS, setSelectedRSS] = useState<
@@ -77,17 +80,28 @@ export function RSSTrendSection({
   const { access } = useRole();
   const { rssKnowledge } = access;
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useDebounce(() => setDebouncedSearch(searchQuery.trim()), 400, [searchQuery]);
   const [rssErrors, setRssErrors] = useState<Record<string, string>>({});
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
-  const { data: rssData } = useRssKnowledgeGetById(businessId, {
-    search: searchQuery,
+  const {
+    data: rssData,
+    isLoading: isLoadingRss,
+    isError: isRssError,
+    isRefetching: isRefetchingRss,
+    refetch: refetchRss,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useRssKnowledgeInfinite(businessId, {
+    search: debouncedSearch,
     sortBy: "title",
     sort: "asc",
   });
   const { data: rssFeedLibraryData } = useAllLibraryRSSData();
 
-  const rss = rssData?.data.data || [];
+  const rss = rssData?.pages.flatMap((page) => page.data.data) ?? [];
   const rssFeedMap = useMemo(
     () =>
       new Map(
@@ -110,16 +124,18 @@ export function RSSTrendSection({
     setIsModalOpen(true);
   };
 
-  // Auto-open modal when openRssModal prop is true
+  // Opened from "add RSS" links elsewhere (?openRssModal=true). Only users who
+  // can write get the modal, and the flag is dropped so a refresh or a later
+  // URL change does not reopen it.
   useEffect(() => {
-    if (openRssModal) {
-      handleAddRSS();
-
-    }
-  }, [openRssModal, searchParams, router]);
+    if (!openRssModal || !rssKnowledge.write) return;
+    handleAddRSS();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("openRssModal");
+    window.history.replaceState(null, "", url.toString());
+  }, [openRssModal, rssKnowledge.write]);
 
   const handleEditRSS = (rss: RssRes) => {
-    console.log("Editing RSS:", rss);
     setModalMode("edit");
     setSelectedRSS({
       isActive: rss.isActive,
@@ -141,7 +157,9 @@ export function RSSTrendSection({
       showToast("success", res.data.responseMessage);
       setIsDeleteModalOpen(false);
       setSelectedRSS(initialRSS); // Reset selectedRSS after deletion
-    } catch { }
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
   const handleOpenDeleteModal = (rss: RssRes) => {
@@ -170,7 +188,8 @@ export function RSSTrendSection({
         });
         showToast("success", res.data.responseMessage);
       }
-    } catch {
+    } catch (error) {
+      showToast("error", error);
     } finally {
       setUpdatingStatusId(null);
     }
@@ -291,12 +310,6 @@ export function RSSTrendSection({
     return trend?.masterRss?.publisher?.toUpperCase() || trend?.title || "-";
   };
 
-  const getSourcePublisher = (trend: RssRes) => {
-    const sourceFeed = getSourceFeed(trend);
-
-    return sourceFeed?.publisher || trend?.masterRss?.publisher || "";
-  };
-
   const getTrendLogo = (trend: RssRes) => {
     const sourceFeed = getSourceFeed(trend);
     return getRssSourceImage(
@@ -344,7 +357,14 @@ export function RSSTrendSection({
               </div>
             </div>
 
-            {rss.length === 0 && searchQuery === "" ? (
+            {isLoadingRss ? (
+              <KnowledgeListLoading />
+            ) : isRssError && rss.length === 0 ? (
+              <KnowledgeListError
+                onRetry={() => refetchRss()}
+                isRetrying={isRefetchingRss}
+              />
+            ) : rss.length === 0 && debouncedSearch === "" ? (
               <NoContent
                 icon={TrendingUp}
                 title={r("notAvailable")}
@@ -440,8 +460,8 @@ export function RSSTrendSection({
                           <Image
                             src={getTrendLogo(trend)}
                             alt={trend.title}
-                            width={40}
-                            height={40}
+                            width={64}
+                            height={64}
                             className="w-full h-full object-cover"
                           />
                         </div>
@@ -534,6 +554,12 @@ export function RSSTrendSection({
                     </CardContent>
                   </Card>
                 ))}
+                {hasNextPage && (
+                  <KnowledgeListLoadMore
+                    onLoadMore={() => fetchNextPage()}
+                    isLoading={isFetchingNextPage}
+                  />
+                )}
               </div>
             )}
           </div>

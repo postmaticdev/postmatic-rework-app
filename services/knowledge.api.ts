@@ -3,6 +3,7 @@ import {
   BaseResponse,
   BaseResponseFiltered,
   FilterQuery,
+  Pagination,
 } from "@/models/api/base-response.type";
 import { AdvancedGenerate } from "@/models/api/content/image.type";
 import {
@@ -32,7 +33,34 @@ import {
   RoleKnowledgeRes,
 } from "@/models/api/knowledge/role.type";
 import { AddRssPld, RssRes } from "@/models/api/knowledge/rss.type";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+// Backend caps list `limit` at 50 (default 10), so knowledge-base lists are paged.
+const KNOWLEDGE_LIST_PAGE_SIZE = 50;
+
+const getNextListPage = (lastPage: { data: { pagination?: Pagination } }) =>
+  lastPage.data.pagination?.hasNextPage
+    ? lastPage.data.pagination.page + 1
+    : undefined;
+
+// Keep showing the previous results while a new search loads, but never
+// carry them over to another business.
+const keepPreviousForBusiness =
+  (businessId: string) =>
+  <T>(previousData: T | undefined, previousQuery?: { queryKey: readonly unknown[] }) =>
+    previousQuery?.queryKey[1] === businessId ? previousData : undefined;
+
+// The knowledge-base components toast their own errors (with field-level
+// validation messages); rethrowing here skips the global mutation toast so the
+// same error is not shown twice.
+const rethrowWithoutGlobalToast = (error: unknown) => {
+  throw error;
+};
 
 type BackendBusinessKnowledgeRes = BusinessKnowledgeRes & {
   primaryLogoUrl?: string | null;
@@ -373,6 +401,25 @@ export const useBusinessAvatarGetAll = (
   });
 };
 
+export const useBusinessAvatarInfinite = (
+  businessId: string,
+  filterQuery?: Partial<FilterQuery>
+) => {
+  return useInfiniteQuery({
+    queryKey: ["businessAvatar", businessId, "infinite", filterQuery],
+    queryFn: ({ pageParam }) =>
+      businessAvatarService.getAll(businessId, {
+        ...filterQuery,
+        page: pageParam,
+        limit: KNOWLEDGE_LIST_PAGE_SIZE,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: getNextListPage,
+    placeholderData: keepPreviousForBusiness(businessId),
+    enabled: !!businessId,
+  });
+};
+
 export const useBusinessAvatarCreate = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -388,6 +435,7 @@ export const useBusinessAvatarCreate = () => {
         queryKey: ["businessAvatar"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -408,6 +456,7 @@ export const useBusinessAvatarUpdate = () => {
         queryKey: ["businessAvatar"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -426,6 +475,7 @@ export const useBusinessAvatarDelete = () => {
         queryKey: ["businessAvatar"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -533,6 +583,25 @@ export const useProductKnowledgeGetAll = (
   });
 };
 
+export const useProductKnowledgeInfinite = (
+  businessId: string,
+  filterQuery?: Partial<FilterQuery>
+) => {
+  return useInfiniteQuery({
+    queryKey: ["productKnowledge", businessId, "infinite", filterQuery],
+    queryFn: ({ pageParam }) =>
+      productKnowledgeService.getAll(businessId, {
+        ...filterQuery,
+        page: pageParam,
+        limit: KNOWLEDGE_LIST_PAGE_SIZE,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: getNextListPage,
+    placeholderData: keepPreviousForBusiness(businessId),
+    enabled: !!businessId,
+  });
+};
+
 export const useProductKnowledgeCreate = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -548,6 +617,7 @@ export const useProductKnowledgeCreate = () => {
         queryKey: ["productKnowledge"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -568,6 +638,7 @@ export const useProductKnowledgeUpdate = () => {
         queryKey: ["productKnowledge"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -586,6 +657,7 @@ export const useProductKnowledgeDelete = () => {
         queryKey: ["productKnowledge"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -639,7 +711,7 @@ export const useRoleKnowledgeUpsert = () => {
 
 const rssKnowledgeService = {
   getById: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
-    return api.get<BaseResponse<RssRes[]>>(
+    return api.get<BaseResponseFiltered<RssRes[]>>(
       `/business/rss-subscription/${businessId}`,
       {
         params: filterQuery,
@@ -698,6 +770,25 @@ export const useRssKnowledgeGetById = (
   });
 };
 
+export const useRssKnowledgeInfinite = (
+  businessId: string,
+  filterQuery?: Partial<FilterQuery>
+) => {
+  return useInfiniteQuery({
+    queryKey: ["rssKnowledge", businessId, "infinite", filterQuery],
+    queryFn: ({ pageParam }) =>
+      rssKnowledgeService.getById(businessId, {
+        ...filterQuery,
+        page: pageParam,
+        limit: KNOWLEDGE_LIST_PAGE_SIZE,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: getNextListPage,
+    placeholderData: keepPreviousForBusiness(businessId),
+    enabled: !!businessId,
+  });
+};
+
 export const useRssKnowledgeCreate = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -716,6 +807,7 @@ export const useRssKnowledgeCreate = () => {
         queryKey: ["libraryRSSArticle"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -739,6 +831,7 @@ export const useRssKnowledgeUpdate = () => {
         queryKey: ["libraryRSSArticle"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -760,6 +853,7 @@ export const useRssKnowledgeDelete = () => {
         queryKey: ["libraryRSSArticle"],
       });
     },
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -845,6 +939,10 @@ export const usePlatformKnowledgeGetAll = (
     queryKey: ["platformKnowledge", businessId],
     queryFn: () => platformService.getAll(businessId),
     enabled: !!businessId,
+    // Connections change outside this tab (OAuth on the auth site, another
+    // owner, token revoked), so recheck when the user comes back to the tab.
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -859,6 +957,7 @@ export const usePlatformKnowledgeGetAuthorizeUrl = () => {
       platform: PlatformEnum;
       from?: string;
     }) => platformService.getAuthorizeUrl(businessId, platform, from),
+    onError: rethrowWithoutGlobalToast,
   });
 };
 
@@ -870,7 +969,20 @@ export const usePlatformKnowledgeGetPendingOauth = (
     queryKey: ["platformKnowledgePendingOauth", businessId, tempCode],
     queryFn: () => platformService.getPendingOauth(businessId, tempCode || ""),
     enabled: !!businessId && !!tempCode,
+    // The temp code is single-use and short-lived: never serve it from cache.
+    gcTime: 0,
   });
+};
+
+// Returned from onSuccess so the mutation stays pending until the list has
+// refetched; otherwise the old state flashes back for a moment. A failed
+// connect/disconnect usually means the list is stale (already connected or
+// disconnected elsewhere), so errors refresh it too.
+const invalidatePlatformQueries = (
+  queryClient: ReturnType<typeof useQueryClient>
+) => {
+  queryClient.invalidateQueries({ queryKey: ["contentAutoGenerateGetSettings"] });
+  return queryClient.invalidateQueries({ queryKey: ["platformKnowledge"] });
 };
 
 export const usePlatformKnowledgeConnectAccount = () => {
@@ -883,13 +995,10 @@ export const usePlatformKnowledgeConnectAccount = () => {
       businessId: string;
       tempCodeAccount: string;
     }) => platformService.connectAccount(businessId, tempCodeAccount),
-    onSuccess: ({}) => {
-      queryClient.invalidateQueries({
-        queryKey: ["platformKnowledge"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["contentAutoGenerateGetSettings"],
-      });
+    onSuccess: () => invalidatePlatformQueries(queryClient),
+    onError: (error) => {
+      invalidatePlatformQueries(queryClient);
+      rethrowWithoutGlobalToast(error);
     },
   });
 };
@@ -904,11 +1013,10 @@ export const usePlatformKnowledgeDisconnect = () => {
       businessId: string;
       platformId: number;
     }) => platformService.disconnect(businessId, platformId),
-    onSuccess: ({}) => {
-      queryClient.invalidateQueries({
-        queryKey: ["platformKnowledge"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["contentAutoGenerateGetSettings"] });
+    onSuccess: () => invalidatePlatformQueries(queryClient),
+    onError: (error) => {
+      invalidatePlatformQueries(queryClient);
+      rethrowWithoutGlobalToast(error);
     },
   });
 };

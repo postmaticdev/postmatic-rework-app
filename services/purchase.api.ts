@@ -11,7 +11,12 @@ import {
   EWalletPld,
 } from "@/models/api/purchase/checkout.type";
 import { UserPurchaseRes } from "@/models/api/purchase/user.type";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 type NewPaymentAction = {
   id?: string;
@@ -244,12 +249,15 @@ export const businessPurchaseService = {
 
 export const useBusinessPurchaseGetHistory = (
   businessId: string,
-  filterQuery: Partial<FilterQuery>
+  filterQuery: Partial<FilterQuery>,
+  enabled = true
 ) => {
   return useQuery({
     queryKey: ["businessPurchaseHistory", businessId, filterQuery],
     queryFn: () => businessPurchaseService.getHistory(businessId, filterQuery),
-    enabled: !!businessId,
+    enabled: enabled && !!businessId,
+    // Keep the current page on screen while the next one loads.
+    placeholderData: keepPreviousData,
   });
 };
 

@@ -40,6 +40,7 @@ import { JOINED_STATUS } from "./members-table";
 import { useTranslations } from "next-intl";
 import {
   getMemberActionErrorMessage,
+  getMemberInitial,
   getMemberRoleLabel,
   getMemberStatusLabel,
   isMemberForbiddenError,
@@ -284,7 +285,7 @@ export function MemberManagementModal({
                           <div className="flex min-w-0 items-center space-x-3">
                             <Avatar className="h-10 w-10 shrink-0">
                               <AvatarFallback className="bg-blue-100 font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                                {member.profile.name.charAt(0).toUpperCase()}
+                                {getMemberInitial(member.profile)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">

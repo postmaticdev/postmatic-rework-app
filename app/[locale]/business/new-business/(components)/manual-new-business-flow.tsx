@@ -227,6 +227,8 @@ export function ManualNewBusinessFlow() {
           src={currentStepData.backgroundImage}
           alt={t("backgroundAlt", { title: currentStepData.title })}
           fill
+          // Panel ini disembunyikan di bawah md; 1px mencegah unduhan gambar besar di mobile.
+          sizes="(min-width: 768px) 60vw, 1px"
           className="object-cover"
           priority
         />

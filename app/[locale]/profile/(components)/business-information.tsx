@@ -2,7 +2,9 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
+import { getMemberRoleLabel } from "@/helper/member-role";
 import { useBusinessGetAll } from "@/services/business.api";
 import { useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
@@ -23,6 +25,7 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
   const businessImage = knowledgeLogo || business.logo || DEFAULT_BUSINESS_IMAGE;
 
   const t = useTranslations("businessInformation");
+  const tRole = useTranslations("memberRole");
 
   return (
     <div className="flex flex-col md:flex-row flex-warp md:items-center justify-between p-3 rounded-lg bg-background-secondary">
@@ -53,7 +56,7 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
           </div>
           <div className="flex items-center gap-2">
             <span className="font-medium text-foreground">
-              {business?.userPosition?.role}
+              {getMemberRoleLabel(business?.userPosition?.role, tRole)}
             </span>
           </div>
         </div>
@@ -74,8 +77,9 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
 }
 
 export function BusinessInformation() {
-  const { data: businessesData } = useBusinessGetAll({
-    limit: 1000,
+  // API membatasi limit maksimal 50 per request (ReqFilterMiddleware).
+  const { data: businessesData, isLoading } = useBusinessGetAll({
+    limit: 50,
     sort: "asc",
     sortBy: "name",
   });
@@ -94,6 +98,10 @@ export function BusinessInformation() {
             businesses.length > 3 ? "max-h-[400px] overflow-y-auto" : ""
           }`}
         >
+          {isLoading && <Skeleton className="h-[72px] w-full rounded-lg" />}
+          {!isLoading && businesses.length === 0 && (
+            <p className="text-sm text-muted-foreground">{t("noBusiness")}</p>
+          )}
           {businesses.map((business) => (
             <BusinessInformationItem key={business.id} business={business} />
           ))}

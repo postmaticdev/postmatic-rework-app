@@ -1,6 +1,5 @@
 "use client";
 
-import { Header } from "@/components/base/header";
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { PersonalInformation } from "@/app/[locale]/profile/(components)/personal-information";
 import { DetailInformation } from "@/app/[locale]/profile/(components)/detail-information";

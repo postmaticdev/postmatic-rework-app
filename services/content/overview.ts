@@ -1,12 +1,16 @@
 import { api } from "@/config/api";
-import { BaseResponse, FilterQuery } from "@/models/api/base-response.type";
+import {
+  BaseResponse,
+  BaseResponseFiltered,
+  FilterQuery,
+} from "@/models/api/base-response.type";
 import {
   CountPostRes,
   PostOverviewRes,
   UpcomingPostRes,
 } from "@/models/api/content/overview";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { dateManipulation } from "@/helper/date-manipulation";
 import { getToastLocale } from "@/helper/api-response-message";
 import { PUBLISH_POLL_INTERVAL_MS } from "@/helper/publish-status";
@@ -123,6 +127,16 @@ const getUpcomingRefetchInterval = (items: UpcomingPostRes[]) => {
   );
 };
 
+// The backend caps list endpoints at 50 rows per page.
+const MAX_LIST_LIMIT = 50;
+
+// The schedule list compares publish_at against dateEnd at 00:00 UTC, so ask for
+// one extra day and let isWithinDateRange trim to the local calendar range.
+const nextDayYmd = (ymd: string) => {
+  const [year, month, day] = ymd.split("-").map(Number);
+  return dateManipulation.ymd(new Date(year, month - 1, day + 1));
+};
+
 const isWithinDateRange = (
   item: NewScheduledPost,
   dateStart?: string,
@@ -143,61 +157,71 @@ const overviewService = {
       `/generative-content/image-post-common/${businessId}/overview`
     );
   },
+  // The total comes from the overview counter (COUNT in SQL, no row limit). The
+  // per-platform breakdown is derived from upload-history and only shown when
+  // that one page holds the whole range, so it never under-reports.
   getCountPosted: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
-    return api
-      .get<BaseResponse<NewImagePostUploadHistory[]>>(
+    const dateParams = {
+      dateStart: filterQuery?.dateStart,
+      dateEnd: filterQuery?.dateEnd,
+    };
+    return Promise.all([
+      api.get<BaseResponse<PostOverviewRes>>(
+        `/generative-content/image-post-common/${businessId}/overview`,
+        { params: dateParams }
+      ),
+      api.get<BaseResponseFiltered<NewImagePostUploadHistory[]>>(
         `/generative-content/image-post-common/${businessId}/upload-history`,
-        {
-          params: {
-            ...filterQuery,
-            page: 1,
-            limit: 1000,
-          },
-        }
-      )
-      .then((res) => {
-        const successfulPosts = (res.data.data || []).filter((item) =>
-          (item.platforms || []).some(
-            (platform) => platform.jobStatus?.toLowerCase() === "success"
-          )
-        );
-        const detail = successfulPosts.reduce<Partial<Record<PlatformEnum, number>>>(
-          (acc, item) => {
+        { params: { ...dateParams, page: 1, limit: MAX_LIST_LIMIT } }
+      ),
+    ]).then(([overviewRes, historyRes]) => {
+      const history = historyRes.data.data || [];
+      const isHistoryComplete =
+        (historyRes.data.pagination?.total ?? history.length) <= history.length;
+      const detail = isHistoryComplete
+        ? history.reduce<Partial<Record<PlatformEnum, number>>>((acc, item) => {
             (item.platforms || []).forEach((platform) => {
               if (platform.jobStatus?.toLowerCase() !== "success") return;
               acc[platform.platformCode] = (acc[platform.platformCode] || 0) + 1;
             });
             return acc;
-          },
-          {}
-        );
+          }, {})
+        : {};
 
-        return {
-          ...res,
-          data: {
-            ...res.data,
-            data: {
-              total: successfulPosts.length,
-              detail,
-            },
-          },
-        };
-      }) as unknown as ReturnType<typeof api.get<BaseResponse<CountPostRes>>>;
-  },
-  getCountUpcoming: (
-    businessId: string,
-    filterQuery?: UpcomingPostFilterQuery
-  ) => {
-    return overviewService.getUpcoming(businessId, filterQuery).then((res) => ({
-      ...res,
-      data: {
-        ...res.data,
+      return {
+        ...overviewRes,
         data: {
-          total: res.data.data.length,
-          detail: {},
+          ...overviewRes.data,
+          data: {
+            total: overviewRes.data.data?.totalSuccessfulPosted ?? 0,
+            detail,
+          },
         },
-      },
-    })) as unknown as ReturnType<typeof api.get<BaseResponse<CountPostRes>>>;
+      };
+    }) as unknown as ReturnType<typeof api.get<BaseResponse<CountPostRes>>>;
+  },
+  // READY schedules whose publish time is still ahead, counted by the backend.
+  getCountUpcoming: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
+    return api
+      .get<BaseResponse<PostOverviewRes>>(
+        `/generative-content/image-post-common/${businessId}/overview`,
+        {
+          params: {
+            dateStart: filterQuery?.dateStart,
+            dateEnd: filterQuery?.dateEnd,
+          },
+        }
+      )
+      .then((res) => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: {
+            total: res.data.data?.totalFutureReadySchedules ?? 0,
+            detail: {},
+          },
+        },
+      })) as unknown as ReturnType<typeof api.get<BaseResponse<CountPostRes>>>;
   },
   getUpcoming: (businessId: string, filterQuery?: UpcomingPostFilterQuery) => {
     const dateStart = filterQuery?.dateStart;
@@ -218,9 +242,15 @@ const overviewService = {
           ...res,
           data: {
             ...res.data,
+            // day.date is the backend's day in the business time zone; the
+            // browser's local date of publishAt can differ near midnight.
             data: (res.data.data?.days || [])
+              .filter(
+                (day) =>
+                  (!dateStart || day.date >= dateStart) &&
+                  (!dateEnd || day.date <= dateEnd)
+              )
               .flatMap((day) => day.items || [])
-              .filter((item) => isWithinDateRange(item, dateStart, dateEnd))
               // Only the calendar (includeDrafts) shows failed schedules.
               .filter((item) =>
                 isVisibleScheduledPost(item, includeDrafts, includeDrafts)
@@ -234,7 +264,20 @@ const overviewService = {
 
     return api
       .get<BaseResponse<NewScheduledPost[]>>(
-        `/generative-content/image-post-scheduled/${businessId}`
+        `/generative-content/image-post-scheduled/${businessId}`,
+        {
+          // Without these the backend returns only its default first page
+          // (10 newest rows), so posts inside the range went missing.
+          params: {
+            dateStart,
+            dateEnd: dateEnd ? nextDayYmd(dateEnd) : undefined,
+            status: includeDrafts ? undefined : "READY",
+            sortBy: "publish_at",
+            sort: "asc",
+            page: 1,
+            limit: MAX_LIST_LIMIT,
+          },
+        }
       )
       .then((res) => {
         const items = (res.data.data || [])
@@ -271,6 +314,7 @@ export const useContentOverviewGetCountPosted = (
     queryKey: ["contentOverviewCountPosted", businessId, filterQuery],
     queryFn: () => overviewService.getCountPosted(businessId, filterQuery),
     enabled: !!businessId,
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -281,6 +325,8 @@ export const useContentOverviewGetCountUpcoming = (
   return useQuery({
     queryKey: ["contentOverviewCountUpcoming", businessId, filterQuery],
     queryFn: () => overviewService.getCountUpcoming(businessId, filterQuery),
+    enabled: !!businessId,
+    placeholderData: keepPreviousData,
   });
 };
 

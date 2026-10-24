@@ -16,7 +16,7 @@ import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { cn } from "@/lib/utils";
 import { CalendarClock, CalendarDays, Loader2, Send, Wand2, Heart, MessageCircle, Bookmark, MoreHorizontal, ThumbsUp, Share2, Globe, Repeat2, Clock, BadgeCheck, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ContentCarouselPreview } from "./content-carousel-preview";
 import { ProtectedImage } from "./protected-image";
 
@@ -32,8 +32,15 @@ interface ScheduleSummaryModalProps {
   date: string;
   time: string;
   minDate?: string;
+  // Business time zone: the minimum schedulable time is "now" in that zone.
+  timeZone?: string | null;
   selectedPlatforms: PlatformEnum[];
-  platforms: { platform: PlatformEnum; isConnected: boolean }[];
+  platforms: {
+    platform: PlatformEnum;
+    isConnected: boolean;
+    // Connected, but the token expired or was revoked: publishing would fail.
+    requiresReconnect?: boolean;
+  }[];
   isLoading: boolean;
   onClose: () => void;
   onCaptionChange: (value: string) => void;
@@ -47,6 +54,11 @@ interface ScheduleSummaryModalProps {
   // class of the platform frame it renders in.
   renderMedia?: (maxHeightClass: string) => React.ReactNode;
   showShareReference?: boolean;
+  // Omit to keep the share checkbox read-only (always shared).
+  shareAsReference?: boolean;
+  onShareAsReferenceChange?: (value: boolean) => void;
+  // The business plan forces sharing, so the checkbox can't be unchecked.
+  isShareAsReferenceLocked?: boolean;
 }
 
 export function ScheduleSummaryModal({
@@ -60,6 +72,7 @@ export function ScheduleSummaryModal({
   date,
   time,
   minDate,
+  timeZone,
   selectedPlatforms,
   platforms,
   isLoading,
@@ -72,17 +85,46 @@ export function ScheduleSummaryModal({
   onConfirm,
   renderMedia,
   showShareReference = true,
+  shareAsReference = true,
+  onShareAsReferenceChange,
+  isShareAsReferenceLocked = false,
 }: ScheduleSummaryModalProps) {
   const t = useTranslations("contentGenerateScheduler");
   const isCarousel = imageUrls.length > 1;
   const carouselAspectRatio = ratio ? ratio.replace(":", "/") : "1/1";
-  const [activePreviewPlatform, setActivePreviewPlatform] = useState<PlatformEnum>("instagram_professional");
+  // Only platforms that will actually be published get a preview tab; a
+  // platform from the URL may be disconnected.
+  const previewPlatforms = useMemo(
+    () =>
+      selectedPlatforms.filter((platform) =>
+        platforms.some(
+          (option) =>
+            option.platform === platform &&
+            option.isConnected &&
+            !option.requiresReconnect
+        )
+      ),
+    [platforms, selectedPlatforms]
+  );
+  const fallbackPreviewPlatform =
+    previewPlatforms[0] ||
+    platforms.find((option) => option.isConnected)?.platform ||
+    "instagram_professional";
+  const [activePreviewPlatform, setActivePreviewPlatform] =
+    useState<PlatformEnum>(fallbackPreviewPlatform);
 
   useEffect(() => {
-    if (selectedPlatforms.length > 0 && !selectedPlatforms.includes(activePreviewPlatform)) {
-      setActivePreviewPlatform(selectedPlatforms[0]);
+    const isActiveValid =
+      previewPlatforms.length > 0
+        ? previewPlatforms.includes(activePreviewPlatform)
+        : activePreviewPlatform === fallbackPreviewPlatform;
+    if (!isActiveValid) {
+      setActivePreviewPlatform(fallbackPreviewPlatform);
     }
-  }, [selectedPlatforms, activePreviewPlatform]);
+  }, [previewPlatforms, activePreviewPlatform, fallbackPreviewPlatform]);
+
+  const canEditShareReference =
+    Boolean(onShareAsReferenceChange) && !isShareAsReferenceLocked && !isLoading;
 
   const renderCaptionArea = (className?: string) => (
     <div className={cn("relative w-full group", className)}>
@@ -353,7 +395,8 @@ export function ScheduleSummaryModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    // Kept open while scheduling so the result (redirect or error) isn't lost.
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isLoading && onClose()}>
       <DialogContent size="xl">
         <DialogHeader>
           <DialogTitle>{t("summaryTitle")}</DialogTitle>
@@ -402,6 +445,7 @@ export function ScheduleSummaryModal({
                     <ScheduleTimeInput
                       date={date}
                       value={time}
+                      timeZone={timeZone}
                       onValueChange={onTimeChange}
                       className="h-full w-full border-0 bg-transparent p-0 text-base outline-none shadow-none sm:text-sm focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden!"
                     />
@@ -412,21 +456,22 @@ export function ScheduleSummaryModal({
               <div className="space-y-4">
                 <div className="text-sm font-medium">{t("choosePlatform")}</div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {platforms.map(({ platform, isConnected }) => {
+                  {platforms.map(({ platform, isConnected, requiresReconnect }) => {
+                    const isAvailable = isConnected && !requiresReconnect;
                     const isSelected =
-                      isConnected && selectedPlatforms.includes(platform);
+                      isAvailable && selectedPlatforms.includes(platform);
                     return (
                       <button
                         key={platform}
                         type="button"
                         onClick={() => onTogglePlatform(platform)}
-                        disabled={!isConnected}
+                        disabled={!isAvailable || isLoading}
                         className={cn(
                           "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
                           isSelected
                             ? "border-primary bg-primary text-white"
                             : "border-border bg-background-secondary",
-                          !isConnected &&
+                          !isAvailable &&
                           "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
                         )}
                       >
@@ -434,15 +479,15 @@ export function ScheduleSummaryModal({
                           platform,
                           isSelected
                             ? "text-white"
-                            : !isConnected
+                            : !isAvailable
                               ? "text-muted-foreground"
                               : ""
                         )}
                         <span className="flex flex-col leading-tight">
                           <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
-                          {!isConnected && (
+                          {!isAvailable && (
                             <span className="text-[11px] font-normal max-sm:text-xs">
-                              {t("notConnected")}
+                              {isConnected ? t("needsReconnect") : t("notConnected")}
                             </span>
                           )}
                         </span>
@@ -453,21 +498,49 @@ export function ScheduleSummaryModal({
               </div>
 
               {showShareReference && (
-                <label className="flex items-start gap-3 text-sm mt-2">
-                  <input type="checkbox" checked readOnly className="mt-1 h-4 w-4 rounded text-primary focus:ring-primary" />
-                  <span>{t("shareReference")}</span>
+                <label
+                  className={cn(
+                    "flex items-start gap-3 text-sm mt-2",
+                    canEditShareReference && "cursor-pointer"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isShareAsReferenceLocked || shareAsReference}
+                    readOnly={!canEditShareReference}
+                    disabled={!canEditShareReference}
+                    onChange={(event) =>
+                      onShareAsReferenceChange?.(event.target.checked)
+                    }
+                    className="mt-1 h-4 w-4 rounded text-primary focus:ring-primary"
+                  />
+                  <span className="flex flex-col gap-1">
+                    <span>{t("shareReference")}</span>
+                    {isShareAsReferenceLocked && (
+                      <span className="text-xs text-muted-foreground">
+                        {t("shareReferenceRequired")}
+                      </span>
+                    )}
+                  </span>
                 </label>
+              )}
+
+              {isCarousel && !renderMedia && (
+                <p className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
+                  {t("carouselCoverOnly")}
+                </p>
               )}
             </div>
 
             {/* Right Section - Social Media Preview */}
             <div className="flex flex-col gap-3">
               {/* Platform Selector for Preview */}
-              {selectedPlatforms.length > 1 && (
+              {previewPlatforms.length > 1 && (
                 <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2 max-sm:flex-wrap max-lg:static max-lg:mt-0">
-                  {selectedPlatforms.map(platform => (
+                  {previewPlatforms.map(platform => (
                     <button
                       key={platform}
+                      type="button"
                       onClick={() => setActivePreviewPlatform(platform)}
                       className={cn(
                         "min-h-10 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors border",

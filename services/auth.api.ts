@@ -86,6 +86,8 @@ export const useAuthProfileGetSessions = () => {
   return useQuery({
     queryKey: AUTH_SESSIONS_QUERY_KEY,
     queryFn: () => authProfileService.getSessions(),
+    // Daftar sesi menyangkut keamanan akun: jangan pakai cache 5 menit default.
+    staleTime: 30_000,
   });
 };
 

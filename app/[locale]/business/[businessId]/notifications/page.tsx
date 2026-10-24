@@ -4,24 +4,21 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DOMPurify from "dompurify";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
-import LinkExtension from "@tiptap/extension-link";
-import OrderedList from "@tiptap/extension-ordered-list";
+import dynamic from "next/dynamic";
 
-import { useNotification, TicketItem } from "@/contexts/notification-context";
+import {
+  useNotification,
+  type NotificationAttachment,
+  type TicketItem,
+} from "@/contexts/notification-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Bell,
   MessageSquare,
-  ImagePlus,
   Check,
   CheckCheck,
-  Send,
   ArrowLeft,
   FileText,
   X,
@@ -30,20 +27,11 @@ import {
   Play,
   Download,
   Loader2,
-  Bold,
-  Italic,
-  Underline as UnderlineIcon,
-  Link as LinkIcon,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  List,
-  ListOrdered,
+  Lock,
 } from "lucide-react";
-import { showToast } from "@/helper/show-toast";
 import { cn } from "@/lib/utils";
-import { helperService } from "@/services/helper.api";
 import { useTranslations } from "next-intl";
+import { htmlToPreviewText } from "./(components)/rich-text-utils";
 
 type MediaViewerState = {
   type: "photo" | "video";
@@ -51,20 +39,20 @@ type MediaViewerState = {
   name: string;
 } | null;
 
-const CustomOrderedList = OrderedList.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      type: {
-        default: "1",
-        parseHTML: (element) => element.getAttribute("type"),
-        renderHTML: (attributes) => ({
-          type: attributes.type,
-        }),
-      },
-    };
-  },
-});
+// Editor Tiptap hanya dibutuhkan di tab Tiket; dimuat terpisah agar halaman ringan.
+const TicketReplyComposer = dynamic(
+  () => import("./(components)/ticket-reply-composer"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="border-t border-border bg-card p-3 shrink-0">
+        <div className="h-[148px] animate-pulse rounded-md border border-border/70 bg-muted/30" />
+      </div>
+    ),
+  }
+);
+
+const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
 
 function escapeHtml(value: string) {
   return value
@@ -128,25 +116,6 @@ function sanitizeRichHtml(value?: string | null) {
     // http(s)/mailto/tel atau URL relatif; skema lain (javascript:, data:, ...) ditolak.
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
   });
-}
-
-function htmlToPreviewText(value?: string | null) {
-  return (value ?? "")
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function isEmptyRichText(value: string) {
-  return !htmlToPreviewText(value).trim();
 }
 
 function RichMessageContent({
@@ -257,6 +226,9 @@ export default function NotificationsPage() {
     ticketUnreadCount,
     isNotificationLoading,
     notificationError,
+    isTicketLoading,
+    isTicketListSettled,
+    ticketError,
     markAsRead,
     markAllAsRead,
     sendChatMessage,
@@ -276,45 +248,13 @@ export default function NotificationsPage() {
   const [notifSearch, setNotifSearch] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
 
-  // Chat Input states
-  const [editorHtml, setEditorHtml] = useState("");
-  const [attachments, setAttachments] = useState<
-    { type: "photo" | "file" | "video"; name: string; url?: string; preview?: string }[]
-  >([]);
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-
   // Mobile view state
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const [mediaViewer, setMediaViewer] = useState<MediaViewerState>(null);
   const [isMounted, setIsMounted] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const previousTicketCountRef = useRef(0);
-
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
-        orderedList: false,
-      }),
-      CustomOrderedList,
-      Underline,
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
-      }),
-      LinkExtension.configure({
-        openOnClick: false,
-      }),
-    ],
-    content: "",
-    onUpdate: ({ editor }) => {
-      setEditorHtml(editor.getHTML());
-    },
-  });
 
   // Filtered lists
   const filteredNotifications = notifications.filter(
@@ -366,23 +306,13 @@ export default function NotificationsPage() {
     }
   }, [selectedTicketId, loadTicketMessages]);
 
-  useEffect(() => {
-    setEditorHtml("");
-    editor?.commands.clearContent();
-    setAttachments((currentAttachments) => {
-      currentAttachments.forEach((attachment) => {
-        if (attachment.preview) URL.revokeObjectURL(attachment.preview);
-      });
-      return [];
-    });
-  }, [editor, selectedTicketId]);
-
-  // Auto-select newest ticket if it appears (from report modal)
+  // Auto-select newest ticket if it appears (from report modal). List yang baru
+  // dimuat (0 -> N, mis. saat pindah tab) tidak boleh menimpa pilihan user.
   useEffect(() => {
     const previousTicketCount = previousTicketCountRef.current;
     previousTicketCountRef.current = tickets.length;
 
-    if (tickets.length > previousTicketCount && tickets[0]) {
+    if (previousTicketCount > 0 && tickets.length > previousTicketCount && tickets[0]) {
       setSelectedTicketId(tickets[0].id);
     }
   }, [tickets]);
@@ -403,10 +333,16 @@ export default function NotificationsPage() {
     if (!requestedTab && !requestedId) return;
 
     const tab = requestedTab === "tickets" ? "tickets" : "notifications";
+    // Tab tiket harus aktif dulu: list tiket baru di-fetch saat tab Ticket dibuka.
+    if (activeTab !== tab) {
+      setActiveTab(tab);
+      return;
+    }
     if (requestedId) {
       const items = tab === "tickets" ? tickets : notifications;
       if (!items.some((item) => item.id === requestedId)) {
-        const isLoading = tab === "notifications" ? isNotificationLoading : tickets.length === 0;
+        const isLoading =
+          tab === "notifications" ? isNotificationLoading : !isTicketListSettled;
         if (isLoading) return;
       } else if (tab === "tickets") {
         setSelectedTicketId(requestedId);
@@ -415,123 +351,44 @@ export default function NotificationsPage() {
       }
     }
 
-    setActiveTab(tab);
     setMobileView(requestedId ? "detail" : "list");
     router.replace(pathname, { scroll: false });
-  }, [searchParams, notifications, tickets, isNotificationLoading, pathname, router]);
+  }, [
+    searchParams,
+    activeTab,
+    notifications,
+    tickets,
+    isNotificationLoading,
+    isTicketListSettled,
+    pathname,
+    router,
+  ]);
 
-  // Auto-mark as read when viewing
+  // Auto-mark as read hanya jika detail benar-benar terlihat: di mobile, item
+  // yang dipilih otomatis berada di balik tampilan list dan belum dibaca user.
   useEffect(() => {
-    if (activeNotification?.unread) {
-      markAsRead(activeNotification.id);
-    }
-  }, [selectedNotifId, activeNotification, markAsRead]);
+    if (!activeNotification?.unread) return;
+    const isDetailVisible =
+      mobileView === "detail" || window.matchMedia(DESKTOP_MEDIA_QUERY).matches;
+    if (isDetailVisible) markAsRead(activeNotification.id);
+  }, [activeNotification, mobileView, markAsRead]);
 
   const handleTabChange = (tab: "notifications" | "tickets") => {
     setActiveTab(tab);
     setMobileView("list");
   };
 
-  const handleSendMessage = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const body = isEmptyRichText(editorHtml) ? "" : editorHtml;
-    if (!body && attachments.length === 0) return;
-    if (isUploadingAttachment) return;
-    if (!selectedTicketId) return;
-
-    sendChatMessage(
-      selectedTicketId,
-      body,
-      attachments.length > 0
-        ? attachments.map((a) => ({ type: a.type, name: a.name, url: a.url }))
-        : undefined
-    );
-
-    setEditorHtml("");
-    editor?.commands.clearContent();
-    attachments.forEach((attachment) => {
-      if (attachment.preview) URL.revokeObjectURL(attachment.preview);
-    });
-    setAttachments([]);
-  };
-
-  const handleLink = () => {
-    const previousUrl = editor?.getAttributes("link").href as string | undefined;
-    const url = window.prompt(t("enterUrl"), previousUrl ?? "https://");
-
-    if (url === null) return;
-    if (!url.trim()) {
-      editor?.chain().focus().unsetLink().run();
-      return;
-    }
-
-    editor?.chain().focus().setLink({ href: url.trim() }).run();
-  };
-
-  // Real file picker handler
-  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-
-    if (files.length > imageFiles.length) {
-      showToast("warning", t("imageAttachmentsOnly"));
-    }
-
-    if (imageFiles.length === 0) {
-      e.target.value = "";
-      return;
-    }
-
-    const uploadingAttachments = imageFiles.map((file) => {
-      const preview = URL.createObjectURL(file);
-      return { type: "photo" as const, name: file.name, preview };
-    });
-
-    setAttachments((prev) => [...prev, ...uploadingAttachments]);
-    setIsUploadingAttachment(true);
-
-    try {
-      const uploadedAttachments = await Promise.all(
-        imageFiles.map(async (file, index) => ({
-          ...uploadingAttachments[index],
-          url: await helperService.uploadSingleImage({ image: file }),
-        }))
+  const handleSendReply = useCallback(
+    (body: string, attachments: NotificationAttachment[]) => {
+      if (!selectedTicketId) return;
+      void sendChatMessage(
+        selectedTicketId,
+        body,
+        attachments.length > 0 ? attachments : undefined
       );
-
-      setAttachments((prev) =>
-        prev.map((attachment) => {
-          const uploaded = uploadedAttachments.find(
-            (item) => item.preview === attachment.preview
-          );
-          return uploaded ?? attachment;
-        })
-      );
-    } catch (error) {
-      uploadingAttachments.forEach((attachment) => {
-        if (attachment.preview) URL.revokeObjectURL(attachment.preview);
-      });
-      setAttachments((prev) =>
-        prev.filter(
-          (attachment) =>
-            !uploadingAttachments.some(
-              (uploading) => uploading.preview === attachment.preview
-            )
-        )
-      );
-      showToast("error", error);
-    } finally {
-      setIsUploadingAttachment(false);
-      e.target.value = "";
-    }
-  }, [t]);
-
-  const removeAttachment = (index: number) => {
-    setAttachments((prev) => {
-      const removed = prev[index];
-      if (removed.preview) URL.revokeObjectURL(removed.preview);
-      return prev.filter((_, i) => i !== index);
-    });
-  };
+    },
+    [selectedTicketId, sendChatMessage]
+  );
 
   const handleAttachmentClick = useCallback(
     (file: { type: "photo" | "file" | "video"; name: string; url?: string }) => {
@@ -623,17 +480,6 @@ export default function NotificationsPage() {
     }
   };
 
-  const canSendReply = !isEmptyRichText(editorHtml) || attachments.length > 0;
-  const toolbarButtonClass = (active?: boolean) =>
-    cn(
-      "h-(--control-h-icon-sm) shrink-0 rounded-md px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-      active && "bg-accent text-accent-foreground"
-    );
-  const toolbarIconClass = (active?: boolean) =>
-    cn(
-      "shrink-0 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-      active && "bg-accent text-accent-foreground"
-    );
 
   return (
     // Mobile: 100dvh (bukan 100vh) agar halaman tidak ikut ter-scroll di balik toolbar browser —
@@ -737,7 +583,7 @@ export default function NotificationsPage() {
                     <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin opacity-60" />
                     <p className="text-sm">{t("loadingNotifications")}</p>
                   </div>
-                ) : notificationError ? (
+                ) : notificationError && notifications.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">{t("loadNotificationsFailed")}</p>
@@ -907,7 +753,17 @@ export default function NotificationsPage() {
               </div>
 
               <div className="overflow-y-auto flex-1 custom-scrollbar">
-                {filteredTickets.length === 0 ? (
+                {isTicketLoading || (!isTicketListSettled && tickets.length === 0) ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin opacity-60" />
+                    <p className="text-sm">{t("loadingTickets")}</p>
+                  </div>
+                ) : ticketError && tickets.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">{t("loadTicketsFailed")}</p>
+                  </div>
+                ) : filteredTickets.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">{t("noTicketsFound")}</p>
@@ -1110,274 +966,14 @@ export default function NotificationsPage() {
                     </div>
                   </div>
 
-                  {/* Attachment preview bar */}
-                  {attachments.length > 0 && (
-                    <div className="px-4 py-2 bg-card border-t border-border flex flex-wrap gap-2 shrink-0">
-                      {attachments.map((att, idx) => (
-                        <div key={idx} className="relative group">
-                          {att.type === "photo" && att.preview ? (
-                            <div className="w-14 h-14 rounded-lg overflow-hidden border border-border">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={att.preview}
-                                alt={att.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ) : att.type === "video" && att.preview ? (
-                            <div className="w-14 h-14 rounded-lg overflow-hidden border border-border bg-black flex items-center justify-center relative">
-                              <video src={att.preview} className="w-full h-full object-cover opacity-70" />
-                              <Play className="absolute w-5 h-5 text-white" />
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 bg-muted text-foreground text-xs px-2.5 py-1.5 rounded-lg border border-border max-w-[140px]">
-                              <FileText className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                              <span className="truncate">{att.name}</span>
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeAttachment(idx)}
-                            aria-label={t("removeAttachment")}
-                            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity max-md:-top-2 max-md:-right-2 max-md:size-6 max-md:opacity-100"
-                          >
-                            <X className="w-2.5 h-2.5" />
-                          </button>
-                          {att.type !== "photo" && att.type !== "video" && (
-                            <span className="sr-only">{att.name}</span>
-                          )}
-                        </div>
-                      ))}
+                  {activeTicket.rawStatus === "resolved" ? (
+                    <div className="flex items-center justify-center gap-2 border-t border-border bg-card px-4 py-4 text-sm text-muted-foreground shrink-0">
+                      <Lock className="h-4 w-4" />
+                      {t("ticketResolvedNotice")}
                     </div>
+                  ) : (
+                    <TicketReplyComposer key={activeTicket.id} onSend={handleSendReply} />
                   )}
-
-                  {/* Hidden file input */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-
-                  {/* Rich Reply Editor */}
-                  <form
-                    onSubmit={handleSendMessage}
-                    className="border-t border-border bg-card p-3 shrink-0"
-                  >
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-1 overflow-x-auto rounded-t-md border border-border/70 bg-muted/40 px-3 py-1.5">
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-                          className={toolbarButtonClass(editor?.isActive("heading", { level: 1 }))}
-                        >
-                          H1
-                        </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                          className={toolbarButtonClass(editor?.isActive("heading", { level: 2 }))}
-                        >
-                          H2
-                        </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-                          className={toolbarButtonClass(editor?.isActive("heading", { level: 3 }))}
-                        >
-                          H3
-                        </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().setParagraph().run()}
-                          className={toolbarButtonClass(editor?.isActive("paragraph"))}
-                        >
-                          {t("paragraph")}
-                        </button>
-
-                        <span className="mx-1 h-4 w-px shrink-0 bg-border" />
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().toggleBold().run()}
-                          aria-label={t("bold")}
-                          className={toolbarIconClass(editor?.isActive("bold"))}
-                        >
-                          <Bold className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().toggleItalic().run()}
-                          aria-label={t("italic")}
-                          className={toolbarIconClass(editor?.isActive("italic"))}
-                        >
-                          <Italic className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().toggleUnderline().run()}
-                          aria-label={t("underline")}
-                          className={toolbarIconClass(editor?.isActive("underline"))}
-                        >
-                          <UnderlineIcon className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={handleLink}
-                          aria-label={t("insertLink")}
-                          className={toolbarIconClass(editor?.isActive("link"))}
-                        >
-                          <LinkIcon className="h-4 w-4" />
-                        </Button>
-
-                        <span className="mx-1 h-4 w-px shrink-0 bg-border" />
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().setTextAlign("left").run()}
-                          aria-label={t("alignLeft")}
-                          className={toolbarIconClass(editor?.isActive({ textAlign: "left" }))}
-                        >
-                          <AlignLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().setTextAlign("center").run()}
-                          aria-label={t("alignCenter")}
-                          className={toolbarIconClass(editor?.isActive({ textAlign: "center" }))}
-                        >
-                          <AlignCenter className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().setTextAlign("right").run()}
-                          aria-label={t("alignRight")}
-                          className={toolbarIconClass(editor?.isActive({ textAlign: "right" }))}
-                        >
-                          <AlignRight className="h-4 w-4" />
-                        </Button>
-
-                        <span className="mx-1 h-4 w-px shrink-0 bg-border" />
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                          aria-label={t("bulletList")}
-                          className={toolbarIconClass(editor?.isActive("bulletList"))}
-                        >
-                          <List className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                          aria-label={t("numberedList")}
-                          className={toolbarIconClass(editor?.isActive("orderedList"))}
-                        >
-                          <ListOrdered className="h-4 w-4" />
-                        </Button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => {
-                            if (editor?.isActive("orderedList", { type: "a" })) {
-                              editor.chain().focus().toggleOrderedList().run();
-                              return;
-                            }
-
-                            editor
-                              ?.chain()
-                              .focus()
-                              .toggleOrderedList()
-                              .updateAttributes("orderedList", { type: "a" })
-                              .run();
-                          }}
-                          className={cn(
-                            toolbarButtonClass(editor?.isActive("orderedList", { type: "a" })),
-                            "gap-1 border border-border px-2"
-                          )}
-                        >
-                          a-b-c
-                        </button>
-
-                        <span className="mx-1 h-4 w-px shrink-0 bg-border" />
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={isUploadingAttachment}
-                          onClick={() => fileInputRef.current?.click()}
-                          aria-label={t("attachImage")}
-                          className={toolbarIconClass(false)}
-                        >
-                          {isUploadingAttachment ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <ImagePlus className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-
-                      <div className="relative rounded-b-md border border-t-0 border-border/70 bg-muted/20">
-                        {editor && editor.isEmpty && (
-                          <div className="pointer-events-none absolute left-4 top-3 select-none text-sm text-muted-foreground/70 max-sm:text-base">
-                            {t("replyPlaceholder")}
-                          </div>
-                        )}
-                        <EditorContent
-                          editor={editor}
-                          className="min-h-[96px] max-h-44 overflow-y-auto px-4 py-3 text-sm max-sm:text-base outline-none focus-within:ring-1 focus-within:ring-primary [&_.ProseMirror]:min-h-[72px] [&_.ProseMirror]:outline-none [&_a]:underline [&_h1]:text-xl [&_h1]:font-bold [&_h2]:text-lg [&_h2]:font-bold [&_h3]:text-base [&_h3]:font-bold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                        />
-                      </div>
-
-                      <div className="flex justify-end">
-                        <Button
-                          type="submit"
-                          disabled={isUploadingAttachment || !canSendReply}
-                        >
-                          {isUploadingAttachment ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Send className="h-4 w-4" />
-                          )}
-                          {t("sendReply")}
-                        </Button>
-                      </div>
-                    </div>
-                  </form>
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">

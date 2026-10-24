@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, BookOpen, CalendarClock, Plus, RefreshCw, Search, Send, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useDebounce } from "@/hooks/use-debounce";
 import { CreatePostModal } from "./create-post-modal";
 import { ViewPostModal } from "./view-post-modal";
@@ -174,7 +175,13 @@ export function ContentLibrary({
     );
   const filteredContentDraft = draftContent?.data.data || [];
 
-  const { data: postedContent, isLoading: isLoadingPosted } =
+  const {
+    data: postedContent,
+    isLoading: isLoadingPosted,
+    isError: isPostedError,
+    refetch: refetchPosted,
+    isFetching: isFetchingPosted,
+  } =
     useContentPostedGetAllPostedImage(businessId, {
       search: debouncedSearch,
       ...historyFilterQuery,
@@ -264,6 +271,21 @@ export function ContentLibrary({
     showToast("success", t("failedUploadHistoryDeleted"));
   };
 
+  // Item History yang menunggu konfirmasi hapus (Ya/Tidak).
+  const [pendingHistoryDelete, setPendingHistoryDelete] = useState<
+    { kind: "job" | "post"; id: string } | null
+  >(null);
+
+  const handleConfirmHistoryDelete = () => {
+    if (!pendingHistoryDelete) return;
+    if (pendingHistoryDelete.kind === "job") {
+      handleDeleteFailedJob(pendingHistoryDelete.id);
+    } else {
+      handleDeleteFailedPost(pendingHistoryDelete.id);
+    }
+    setPendingHistoryDelete(null);
+  };
+
   const handleRetryFailedPost = (content: PostedImageRes) => {
     handleSetFormDataView(content, true);
   };
@@ -303,9 +325,21 @@ export function ContentLibrary({
   const isLoadingContent =
     type === "draft" ? isLoadingDraft : isLoadingPosted;
 
+  // Reset on the debounced value, the one actually sent to the backend.
   useEffect(() => {
     setHistoryFilterQuery((prev) => ({ ...prev, page: 1 }));
-  }, [searchQuery, type]);
+  }, [debouncedSearch, type]);
+
+  // A page emptied by a delete (or a shrinking total) has no pagination
+  // controls; step back so the earlier pages stay reachable.
+  const currentPageItems =
+    type === "draft" ? draftContent?.data.data : postedContent?.data.data;
+  useEffect(() => {
+    const page = historyFilterQuery.page ?? 1;
+    if (page > 1 && currentPageItems && currentPageItems.length === 0) {
+      setHistoryFilterQuery((prev) => ({ ...prev, page: page - 1 }));
+    }
+  }, [currentPageItems, historyFilterQuery.page]);
 
   useEffect(() => {
     if (historyPagination.page === historyFilterQuery.page) return;
@@ -399,7 +433,8 @@ export function ContentLibrary({
     if (mRepostPostedContent.isPending) return;
 
     const imagePostScheduleId = Number(formDataView.data.id);
-    if (!Number.isFinite(imagePostScheduleId)) {
+    // Number("") is 0, which the backend rejects as a missing id.
+    if (!Number.isFinite(imagePostScheduleId) || imagePostScheduleId <= 0) {
       return;
     }
 
@@ -709,7 +744,9 @@ export function ContentLibrary({
                     variant="outline"
                     size="sm"
                     className="flex-1 border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/40"
-                    onClick={() => handleDeleteFailedJob(job.id)}
+                    onClick={() =>
+                      setPendingHistoryDelete({ kind: "job", id: job.id })
+                    }
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
                     {t("delete")}
@@ -829,7 +866,9 @@ export function ContentLibrary({
                       variant="outline"
                       size="sm"
                       className="flex-1 border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/40"
-                      onClick={() => handleDeleteFailedPost(content.id)}
+                      onClick={() =>
+                        setPendingHistoryDelete({ kind: "post", id: content.id })
+                      }
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-1" />
                       {t("delete")}
@@ -947,6 +986,22 @@ export function ContentLibrary({
         </div>
         {isLoadingContent ? (
           <ContentLibrarySkeleton count={8} />
+        ) : type === "posted" && isPostedError ? (
+          // Without this a failed request looked like an empty history.
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <p className="text-sm text-muted-foreground">
+              {t("historyLoadFailed")}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => refetchPosted()}
+              disabled={isFetchingPosted}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {t("retry")}
+            </Button>
+          </div>
         ) : hasNoResults && searchQuery === "" ? (
           <NoContent
             icon={BookOpen}
@@ -1010,6 +1065,18 @@ export function ContentLibrary({
           setFormData={setFormDataView}
           onPostNow={handleRepostNow}
           isPosting={mRepostPostedContent.isPending}
+        />
+
+        <ConfirmationModal
+          isOpen={pendingHistoryDelete !== null}
+          onClose={() => setPendingHistoryDelete(null)}
+          onConfirm={handleConfirmHistoryDelete}
+          title={t("deleteHistoryTitle")}
+          description={t("deleteHistoryDescription")}
+          confirmText={t("deleteHistoryConfirm")}
+          cancelText={t("deleteHistoryCancel")}
+          variant="danger"
+          confirmIcon={<Trash2 className="h-4 w-4" />}
         />
       </CardContent>
     </Card>

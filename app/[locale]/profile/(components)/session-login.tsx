@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import {
   AUTH_CURRENT_SESSION_QUERY_KEY,
@@ -20,7 +21,7 @@ import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { Session } from "@/models/api/auth/profile.type";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut } from "lucide-react";
+import { LogOut, Monitor, Smartphone } from "lucide-react";
 
 interface GroupedSession {
   key: string;
@@ -74,7 +75,17 @@ const mergeSessionDetails = (session: Session, currentSession: Session | null) =
   };
 };
 
-const getSessionGroupKey = (session: Session) => {
+// API mengirim device "Mobile"/"Desktop"; platform dipakai sebagai cadangan.
+const isMobileSession = (session: Session) => {
+  const device = (session.device || "").toLowerCase();
+  if (device.includes("mobile") || device.includes("tablet")) return true;
+  if (device.includes("desktop")) return false;
+  return /iphone|ipad|ios|android|mobile/.test(
+    `${session.platform || ""} ${session.browser || ""}`.toLowerCase()
+  );
+};
+
+const getSessionGroupKey =(session: Session) => {
   const device = (session.device || "").trim().toLowerCase();
   const platform = (session.platform || "").trim().toLowerCase();
   const browser = (session.browser || "").trim().toLowerCase();
@@ -83,7 +94,8 @@ const getSessionGroupKey = (session: Session) => {
 };
 
 export function SessionLogin() {
-  const { data: sessionsData } = useAuthProfileGetSessions();
+  const { data: sessionsData, isLoading: isSessionsLoading } =
+    useAuthProfileGetSessions();
   const { data: currentSessionData } = useAuthProfileGetCurrentSession();
   const queryClient = useQueryClient();
   const { formatDate } = useDateFormat();
@@ -171,9 +183,19 @@ export function SessionLogin() {
     } else {
       const isCurrentSession = logoutTarget.isCurrentSession;
       try {
-        await Promise.allSettled(
+        const results = await Promise.allSettled(
           logoutTarget.sessionIds.map((id) => authProfileService.logout(id))
         );
+        const isAllFailed = results.every(
+          (result) => result.status === "rejected"
+        );
+
+        if (isAllFailed && !isCurrentSession) {
+          showToast("error", t("logoutFailed"));
+          queryClient.invalidateQueries({ queryKey: AUTH_SESSIONS_QUERY_KEY });
+          setIsLoggingOut(false);
+          return;
+        }
 
         showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
 
@@ -223,6 +245,13 @@ export function SessionLogin() {
           </div>
 
           <div className="space-y-4">
+            {isSessionsLoading &&
+              Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-[76px] w-full rounded-lg" />
+              ))}
+            {!isSessionsLoading && sessions.length === 0 && (
+              <p className="text-sm text-muted-foreground">{t("empty")}</p>
+            )}
             {sessions.map((group) => {
               const label = formatSessionLabel(group.primarySession);
               const sessionDate = group.latestDate;
@@ -233,6 +262,14 @@ export function SessionLogin() {
                   key={group.key}
                   className="flex items-center justify-between gap-3 bg-background-secondary p-4 rounded-lg"
                 >
+                  <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground">
+                    {isMobileSession(group.primarySession) ? (
+                      <Smartphone className="h-5 w-5" />
+                    ) : (
+                      <Monitor className="h-5 w-5" />
+                    )}
+                  </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="break-words font-medium text-foreground">
@@ -255,6 +292,7 @@ export function SessionLogin() {
                         </>
                       )}
                     </div>
+                  </div>
                   </div>
 
                   <Button

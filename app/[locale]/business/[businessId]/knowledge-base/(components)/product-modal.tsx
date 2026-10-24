@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { ProductKnowledgePld } from "@/models/api/knowledge/product.type";
 import { UploadPhoto } from "@/components/forms/upload-photo";
 import { TextField } from "@/components/forms/text-field";
@@ -26,7 +24,7 @@ interface ProductModalProps {
   onSave: (productData: ProductKnowledgePld & { id?: string }) => void;
   mode: "add" | "edit";
   formValue: ProductKnowledgePld & { id?: string };
-  onChange: (productData: ProductKnowledgePld & { id?: string }) => void;
+  onChange: Dispatch<SetStateAction<ProductKnowledgePld & { id?: string }>>;
   errors?: Record<string, string>;
   isSubmitting?: boolean;
 }
@@ -41,15 +39,15 @@ export function ProductModal({
   errors = {},
   isSubmitting = false,
 }: ProductModalProps) {
-  const [productAction, setProductAction] = useState<"add" | "edit" | "select">(
-    mode
-  );
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const updateField = (
     key: keyof ProductKnowledgePld,
     value: ProductKnowledgePld[keyof ProductKnowledgePld]
   ) => {
-    onChange({ ...formValue, [key]: value });
+    // Functional update: the photo upload resolves later and must not
+    // overwrite fields edited while it was uploading.
+    onChange((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = () => {
@@ -93,6 +91,7 @@ export function ProductModal({
                 }
                 currentImage={formValue.images?.[0]}
                 error={errors.images}
+                onUploadingChange={setIsUploadingImage}
               />
 
               <div className="w-full space-y-4">
@@ -150,7 +149,7 @@ export function ProductModal({
         <DialogFooterWithButton
           buttonMessage={buttonText}
           onClick={handleSave}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingImage}
         />
       </DialogContent>
     </Dialog>

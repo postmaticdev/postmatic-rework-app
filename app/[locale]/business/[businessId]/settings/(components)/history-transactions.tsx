@@ -8,7 +8,8 @@ import {
   syncPaymentRealtimeCaches,
   usePaymentRealtime,
 } from "@/hooks/use-payment-realtime";
-import { CreditCard, Eye } from "lucide-react";
+import { CreditCard, Eye, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useBusinessPurchaseGetHistory } from "@/services/purchase.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -43,10 +44,17 @@ export function HistoryTransactions() {
     category: "",
     search: "",
   });
-  const { data: transactionsData } = useBusinessPurchaseGetHistory(businessId, filterQuery);
+  const {
+    data: transactionsData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useBusinessPurchaseGetHistory(businessId, filterQuery);
   const transactions = transactionsData?.data?.data || [];
   const queryClient = useQueryClient();
   const t = useTranslations("settings");
+  const d = useTranslations("dashboard");
   const tStatus = useTranslations("checkout.paymentStatusLabel");
   const { formatDate } = useDateFormat();
   const pagination = transactionsData?.data?.pagination || initialPagination;
@@ -84,7 +92,30 @@ export function HistoryTransactions() {
               currData={transactions.length}
               showSort={false}
             /> */}
-            {transactions.length > 0 ? (
+            {isLoading ? (
+              <div className="mt-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Skeleton key={index} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : isError && !transactionsData ? (
+              <div className="mt-6 flex flex-col items-center gap-3 py-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {t("loadFailed")}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+                  />
+                  {d("retry")}
+                </Button>
+              </div>
+            ) : transactions.length > 0 ? (
               <div>
                 {/* Mobile: stacked cards */}
                 <ul className="mt-4 space-y-3 md:hidden">

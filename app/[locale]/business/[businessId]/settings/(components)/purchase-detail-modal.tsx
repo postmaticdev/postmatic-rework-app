@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ReceiptText } from "lucide-react";
 import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { showToast } from "@/helper/show-toast";
 import {
@@ -23,14 +21,10 @@ import { businessPurchaseService } from "@/services/purchase.api";
 import { useParams } from "next/navigation";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import {
-  formatIdrStable,
-  formatProductName,
-  formatProductType,
-} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
+import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { PaymentInstructionCard } from "./payment-instruction-card";
+import { OrderInvoiceCard } from "./order-invoice-card";
 
 interface PurchaseDetailModalProps {
   isOpen: boolean;
@@ -54,9 +48,7 @@ export function PurchaseDetailModal({
   const tStatus = useTranslations("checkout.paymentStatusLabel");
   const tToast = useTranslations();
   const { formatDate } = useDateFormat();
-  const locale = useLocale();
   const tDialog = useTranslations("settings.topUpTokenDialog");
-  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
 
   const paymentDetails = transaction?.paymentDetails ?? [];
 
@@ -79,32 +71,45 @@ export function PurchaseDetailModal({
     },
   });
 
+  // Only a pending payment shows the countdown, so only it needs a ticking clock.
+  const isPendingTransaction = transaction?.status === "Pending";
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isPendingTransaction) return;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [isOpen]);
+  }, [isOpen, isPendingTransaction]);
 
+  // History rows don't carry the payment actions, so load the detail once per
+  // opened transaction. Keyed by id: a settled payment has no actions even after
+  // the detail loads, and re-running on every transaction update looped forever.
+  const fetchedDetailIdRef = useRef<string | null>(null);
+  const openTransactionIdRef = useRef<string | null>(null);
+  const transactionId = transaction?.id;
+  const hasPaymentActions = (transaction?.paymentActions?.length ?? 0) > 0;
   useEffect(() => {
-    if (!isOpen || !transaction) return;
-    if (transaction.paymentActions.length > 0) return;
+    openTransactionIdRef.current = isOpen ? transactionId ?? null : null;
+    if (!isOpen) {
+      fetchedDetailIdRef.current = null;
+      return;
+    }
+    if (!transactionId || hasPaymentActions) return;
+    if (fetchedDetailIdRef.current === transactionId) return;
+    fetchedDetailIdRef.current = transactionId;
 
-    let ignore = false;
+    // Apply the result only if the same transaction is still open.
+    const isStillOpen = () => openTransactionIdRef.current === transactionId;
     businessPurchaseService
-      .getDetail(businessId, transaction.id)
+      .getDetail(businessId, transactionId)
       .then(({ data: res }) => {
-        if (!ignore) setTransaction(res.data);
+        if (isStillOpen()) setTransaction(res.data);
       })
       .catch(() => {
-        if (!ignore) {
+        if (isStillOpen()) {
           showToast("error", tToast("toast.payment.paymentStatusCheckFailed"));
         }
       });
-
-    return () => {
-      ignore = true;
-    };
-  }, [businessId, isOpen, setTransaction, tToast, transaction]);
+  }, [businessId, hasPaymentActions, isOpen, setTransaction, tToast, transactionId]);
 
   if (!transaction) return null;
 
@@ -205,23 +210,6 @@ export function PurchaseDetailModal({
         ? tDialog("failedDescription")
         : tDialog("processedDescription");
 
-  const detailRows = [
-    {
-      label: tDialog("reference"),
-      value: transaction.paymentCode || transaction.orderId || transaction.id,
-    },
-    { label: tDialog("createdAt"), value: formatDateTime(transaction.createdAt) },
-    { label: tDialog("updatedAt"), value: formatDateTime(transaction.updatedAt) },
-    { label: tDialog("product"), value: formatProductName(transaction.productName, locale) },
-    { label: tDialog("type"), value: formatProductType(transaction.productType) },
-    { label: tDialog("method"), value: transaction.method?.toUpperCase() || "-" },
-    ...paymentDetails.map((detail) => ({
-      label: detail.name,
-      value: formatIdr(detail.price),
-    })),
-    { label: tDialog("total"), value: formatIdr(transaction.totalAmount) },
-  ];
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="scrollbar-hidden">
@@ -251,19 +239,17 @@ export function PurchaseDetailModal({
             onCopy={handleCopy}
           />
 
-          <Card className="rounded-lg border bg-background p-4 sm:p-5">
-            <div className="mb-4 flex items-center gap-3 border-b pb-4 sm:mb-5">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
-                <ReceiptText className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg font-semibold">{tDialog("orderDetails")}</h3>
-            </div>
-            <div className="space-y-3">
-              {detailRows.map((row) => (
-                <DetailOrderRow key={row.label} label={row.label} value={row.value} />
-              ))}
-            </div>
-          </Card>
+          <OrderInvoiceCard
+            reference={transaction.paymentCode || transaction.orderId || transaction.id}
+            createdAt={formatDateTime(transaction.createdAt)}
+            updatedAt={formatDateTime(transaction.updatedAt)}
+            productName={transaction.productName}
+            productType={transaction.productType}
+            method={transaction.method}
+            paymentDetails={paymentDetails}
+            totalAmount={transaction.totalAmount}
+            billedTo={transaction.profile}
+          />
         </div>
 
         {/* <DialogFooterWithButton buttonMessage={m("close")} onClick={onClose}>
@@ -275,20 +261,5 @@ export function PurchaseDetailModal({
         </DialogFooterWithButton> */}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DetailOrderRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="grid grid-cols-[120px_1fr] items-start gap-3 text-sm sm:gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="break-words font-medium text-foreground">{value}</span>
-    </div>
   );
 }

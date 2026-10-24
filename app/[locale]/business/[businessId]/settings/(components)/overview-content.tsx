@@ -39,74 +39,50 @@ export function OverviewContent() {
   const { businessId } = useParams() as { businessId: string };
   const [period, setPeriod] = useState<TimePeriod>("30d");
 
-  const periods: Period[] = useMemo(
-    () => [
-      {
-        value: "7d",
-        label: p("weekly"),
-        labelStart: formatDate(
-          new Date(new Date().setDate(new Date().getDate() - 7))
-        ),
-        labelEnd: formatDate(new Date()),
-        filterQuery: {
-          dateStart: dateManipulation.ymd(
-            new Date(new Date().setDate(new Date().getDate() - 7))
-          ),
-          dateEnd: dateManipulation.ymd(new Date()),
-          limit: 1,
-        },
-        futureFilterQuery: {
-          dateStart: dateManipulation.ymd(new Date()),
-          dateEnd: dateManipulation.ymd(
-            new Date(new Date().setDate(new Date().getDate() + 7))
-          ),
-        },
+  const periods: Period[] = useMemo(() => {
+    // Ranges include today, so "7 Days" spans exactly 7 calendar days.
+    const today = new Date();
+    const shiftDays = (days: number) =>
+      new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
+    const lastYearStart = new Date(
+      today.getFullYear() - 1,
+      today.getMonth(),
+      today.getDate() + 1
+    );
+    const nextYearEnd = new Date(
+      today.getFullYear() + 1,
+      today.getMonth(),
+      today.getDate() - 1
+    );
+
+    const buildPeriod = (
+      value: TimePeriod,
+      label: string,
+      start: Date,
+      futureEnd: Date,
+      bucketDays: number
+    ): Period => ({
+      value,
+      label,
+      labelStart: formatDate(start),
+      labelEnd: formatDate(today),
+      filterQuery: {
+        dateStart: dateManipulation.ymd(start),
+        dateEnd: dateManipulation.ymd(today),
+        limit: bucketDays,
       },
-      {
-        value: "30d",
-        label: p("monthly"),
-        labelStart: formatDate(
-          new Date(new Date().setDate(new Date().getDate() - 30))
-        ),
-        labelEnd: formatDate(new Date()),
-        filterQuery: {
-          dateStart: dateManipulation.ymd(
-            new Date(new Date().setDate(new Date().getDate() - 30))
-          ),
-          dateEnd: dateManipulation.ymd(new Date()),
-          limit: 1,
-        },
-        futureFilterQuery: {
-          dateStart: dateManipulation.ymd(new Date()),
-          dateEnd: dateManipulation.ymd(
-            new Date(new Date().setDate(new Date().getDate() + 30))
-          ),
-        },
+      futureFilterQuery: {
+        dateStart: dateManipulation.ymd(today),
+        dateEnd: dateManipulation.ymd(futureEnd),
       },
-      {
-        value: "1y",
-        label: p("yearly"),
-        labelStart: formatDate(
-          new Date(new Date().setFullYear(new Date().getFullYear() - 1))
-        ),
-        labelEnd: formatDate(new Date()),
-        filterQuery: {
-          dateStart: dateManipulation.ymd(
-            new Date(new Date().setFullYear(new Date().getFullYear() - 1))
-          ),
-          dateEnd: dateManipulation.ymd(new Date()),
-          limit: 30,
-        },
-        futureFilterQuery: {
-          dateStart: dateManipulation.ymd(new Date()),
-          dateEnd: dateManipulation.ymd(
-            new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-          ),
-        },
-      },
-    ],
-    [formatDate, p]
-  );
+    });
+
+    return [
+      buildPeriod("7d", p("weekly"), shiftDays(-6), shiftDays(6), 1),
+      buildPeriod("30d", p("monthly"), shiftDays(-29), shiftDays(29), 1),
+      buildPeriod("1y", p("yearly"), lastYearStart, nextYearEnd, 30),
+    ];
+  }, [formatDate, p]);
 
   const selectedPeriod = periods.find((item) => item.value === period) || periods[0];
   const dateRangeLabel = `${selectedPeriod.labelStart} - ${selectedPeriod.labelEnd}`;

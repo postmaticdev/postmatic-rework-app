@@ -6,12 +6,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, ChevronDown, CreditCard, Plus, Users, Zap } from "lucide-react";
 import { ProfileDropdown } from "./profile-dropdown";
 import { NotificationDropdown } from "./notification-dropdown";
 import { MobileMenu } from "../mobile-menu";
 import Image from "next/image";
 import {
+  BUSINESS_SWITCHER_FILTER,
   businessService,
   useBusinessGetAll,
   useBusinessGetById,
@@ -25,10 +27,9 @@ import {
 } from "next/navigation";
 import { useTokenGetTokenUsage } from "@/services/tier/token.api";
 import { useEffect, useMemo, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { LanguageToggle } from "../language-toggle";
 import { useLocale, useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
 import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { BusinessRes } from "@/models/api/business/index.type";
 import { useRole } from "@/contexts/role-context";
@@ -74,25 +75,21 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const { businessId } = useParams() as { businessId?: string };
   const { access } = useRole();
 
-  const { data: businessesData, isLoading: isLoadingBusinesses } =
-    useBusinessGetAll({
-      limit: 40,
-      sort: "asc",
-      sortBy: "name",
-    });
+  const { data: businessesData, isSuccess: isBusinessListLoaded } =
+    useBusinessGetAll(BUSINESS_SWITCHER_FILTER);
 
-  // Panggil usage hanya kalau ada businessId (kalau hook-mu dukung options)
-  const { data: tokenUsageData } = useTokenGetTokenUsage(businessId ?? "");
+  const { data: tokenUsageData, isLoading: isLoadingTokenUsage } =
+    useTokenGetTokenUsage(businessId ?? "");
 
   const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(businessId ?? "");
   const businessKnowledgeDetail = businessKnowledgeData?.data?.data;
   const currentBusinessImage = businessKnowledgeDetail?.primaryLogo || businessKnowledgeDetail?.secondaryLogo;
 
-  const credits = tokenUsageData?.data?.data?.availableToken ?? 0;
+  // Tampilan token minimal 0 walaupun saldo sebenarnya minus (sama dengan menu mobile).
+  const credits = Math.max(0, tokenUsageData?.data?.data?.availableToken ?? 0);
 
   const businesses = useMemo(
     () => businessesData?.data?.data ?? [],
@@ -126,28 +123,18 @@ export function Header() {
     [businesses, currentBusiness?.id]
   );
 
-  // Bangun path yang robust
+  // Pindah bisnis tetap di menu yang sama (settings, content-scheduler, ...),
+  // tetapi segmen lebih dalam dan query dibuang karena menunjuk data bisnis
+  // sebelumnya (id order, id post, flag OAuth). Hanya tab settings yang dibawa.
   const buildBusinessPath = (targetId: string) => {
-    const segments = pathname.split("?")[0].split("/").filter(Boolean);
-    const i = segments.indexOf("business");
+    const segments = pathname.split("/").filter(Boolean);
+    const section =
+      segments[0] === "business" && businessId ? segments[2] : undefined;
+    if (!section) return `/business/${targetId}`;
 
-    if (i === -1 || segments[i + 1] === "new-business") {
-      return `/business/${targetId}`;
-    }
-    if (segments[i + 1]) {
-      segments[i + 1] = targetId;
-    } else {
-      segments.splice(i + 1, 0, targetId);
-    }
-
-    const base = `/${segments.join("/")}`;
-    const q = searchParams.toString();
-    return q ? `${base}?${q}` : base;
-  };
-
-  const onBusinessChange = (targetBusinessId: string) => {
-    router.push(buildBusinessPath(targetBusinessId));
-    router.refresh(); // <- aktifkan kalau perlu refetch RSC
+    const base = `/business/${targetId}/${section}`;
+    const tab = section === "settings" ? searchParams.get("tab") : null;
+    return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
   };
 
   const buildSettingsPath = (
@@ -155,52 +142,30 @@ export function Header() {
     tab: "overview" | "workspace" | "billing"
   ) => `/business/${targetBusinessId}/settings?tab=${tab}`;
 
-  // Cegah redirect otomatis saat di "/business" (tanpa id)
-  // Redirect hanya ketika: path "/business/[id]" TAPI id tidak valid, atau tidak ada bisnis sama sekali.
-  const redirectedRef = useRef(false);
+  // Halaman ber-scope bisnis dengan id yang tidak valid (400/403/404), atau user
+  // tidak punya bisnis sama sekali -> kembali ke halaman pilih bisnis. Daftar
+  // yang gagal dimuat (jaringan/server) tidak dianggap "tidak punya bisnis".
+  // Penanda per path supaya id tidak valid berikutnya tetap diarahkan.
+  const redirectedPathRef = useRef<string | null>(null);
   useEffect(() => {
-    if (redirectedRef.current) return;
-    if (isLoadingBusinesses) return;
-
-    const hasBusinesses = businesses.length > 0;
-
-    // Allow new business flows to proceed unhindered
-    if (pathname.startsWith("/business/new-business")) {
+    if (!businessId) {
+      redirectedPathRef.current = null;
       return;
     }
+    if (redirectedPathRef.current === pathname) return;
 
-    // Kalau bukan halaman ber-scope bisnis, tidak usah apa-apa
-    if (!pathname.startsWith("/business")) return;
-
-    // Jika tepat di "/business" (tanpa id) -> JANGAN auto-redirect
-    if (pathname === "/business") {
-      // Kalau tidak ada bisnis sama sekali, tetap biarkan di halaman ini.
-      return;
-    }
-
-    // Sampai sini: path dimulai "/business/..." (ada segmen setelah "business")
-    // Jika tidak ada bisnis sama sekali -> arahkan ke halaman pilih bisnis
-    if (!hasBusinesses) {
-      redirectedRef.current = true;
+    const hasNoBusiness = isBusinessListLoaded && businesses.length === 0;
+    if (hasNoBusiness || currentBusinessInvalid) {
+      redirectedPathRef.current = pathname;
       router.replace("/business");
-      return;
     }
-
-    // Jika ada businessId tapi tidak valid (403/404 dari get-by-id) -> arahkan ke halaman pilih bisnis
-    if (businessId && currentBusinessInvalid) {
-      redirectedRef.current = true;
-      router.replace("/business");
-      return;
-    }
-    // Kalau valid, tidak melakukan apa-apa
   }, [
-    isLoadingBusinesses,
-    pathname,
     businessId,
-    businesses,
+    pathname,
+    isBusinessListLoaded,
+    businesses.length,
     currentBusinessInvalid,
     router,
-    searchParams,
   ]);
 
   const locale = useLocale();
@@ -209,7 +174,7 @@ export function Header() {
     <header className="flex items-center justify-between w-full px-4 sm:px-6 py-2 bg-card border-b border-border fixed top-0 left-0 right-0 z-50">
       {/* Logo Section */}
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        <Link href="/" className="shrink-0 cursor-pointer">
+        <Link href="/business" className="shrink-0 cursor-pointer">
           <Image
             src="/logoblue.png"
             alt="Postmatic"
@@ -219,7 +184,7 @@ export function Header() {
           />
         </Link>
         <div className="flex min-w-0 items-center gap-1">
-          {currentBusiness && businesses.length > 0 ? (
+          {currentBusiness ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -282,10 +247,7 @@ export function Header() {
                         <Link
                           key={business.id}
                           href={buildBusinessPath(business.id)}
-                          className={cn(
-                            "flex w-full border-b items-center  gap-3 p-2 text-left font-normal text-foreground outline-none transition-colors hover:bg-accent focus:bg-accent",
-                            currentBusiness.id === business.id && "bg-accent"
-                          )}
+                          className="flex w-full border-b items-center  gap-3 p-2 text-left font-normal text-foreground outline-none transition-colors hover:bg-accent focus:bg-accent"
                           >
                           <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-sm bg-muted">
                             <BusinessDropdownLogo
@@ -331,7 +293,11 @@ export function Header() {
           <div className="hidden md:flex items-center gap-2">
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-1">
-                <span className="text-sm font-bold">{credits.toLocaleString(locale)}</span>
+                {isLoadingTokenUsage ? (
+                  <Skeleton className="h-4 w-12" />
+                ) : (
+                  <span className="text-sm font-bold">{credits.toLocaleString(locale)}</span>
+                )}
                 <Zap className="w-4 h-4 text-blue-500" strokeWidth={1.5} />
               </div>
             </div>

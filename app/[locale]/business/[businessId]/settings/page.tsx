@@ -36,9 +36,15 @@ export default function Settings() {
   }, [requestedTab]);
 
   const handleTabChange = (tab: string) => {
-    if (isSettingsTab(tab)) {
-      setActiveTab(tab);
-    }
+    if (!isSettingsTab(tab)) return;
+    setActiveTab(tab);
+    // Keep the tab in the URL so a refresh stays on it; the top-up params are
+    // one-shot and belong to the billing tab only.
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    params.delete("topUp");
+    params.delete("amount");
+    window.history.replaceState(null, "", `?${params.toString()}`);
   };
 
   const renderTabContent = () => {

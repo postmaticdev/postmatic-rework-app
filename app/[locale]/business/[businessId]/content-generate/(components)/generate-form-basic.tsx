@@ -17,6 +17,7 @@ import {
 import { AvatarSelectionModal } from "./avatar-selection-modal";
 import { ProductSelectionModal } from "./product-selection-modal";
 import { AiModelSelect } from "@/components/forms/ai-model-select";
+import { usePremiumModelGuard } from "./use-premium-model-guard";
 import { SelectedAvatars } from "./selected-avatars";
 import {
   Select,
@@ -60,9 +61,9 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
     isLoading,
     selectedHistory,
     aiModels,
-    onSelectAiModel,
     onSelectAvatars,
   } = useContentGenerate();
+  const { selectModel, premiumModelModal } = usePremiumModelGuard();
   const { basic, setBasic } = form;
   const disabled = selectedHistory !== null;
   const t = useTranslations("generationPanel");
@@ -167,7 +168,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             );
 
             if (selectedModel) {
-              onSelectAiModel(selectedModel);
+              selectModel(selectedModel);
             }
           }}
         />
@@ -350,6 +351,7 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
           setIsAvatarModalOpen(false);
         }}
       />
+      {premiumModelModal}
     </div>
   );
 };

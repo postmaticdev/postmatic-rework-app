@@ -24,6 +24,7 @@ import {
   useContentCaptionEnhance,
   useContentSchedulerManualAddToQueue,
   useContentSchedulerManualEditQueue,
+  useContentSchedulerTimezoneGetTimezone,
 } from "@/services/content/content.api";
 import { usePlatformKnowledgeGetAll, useProductKnowledgeGetAll, useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { 
@@ -36,7 +37,10 @@ import { useLocale, useTranslations } from "next-intl";
 import {
   getCurrentScheduleInput,
   getNextSchedulableDate,
+  toBusinessWallDate,
 } from "@/lib/schedule-date-time";
+
+const DEFAULT_SCHEDULE_TIME = "08:00";
 
 interface ContentSchedulerUploadDialogProps {
   isOpen: boolean;
@@ -69,7 +73,11 @@ export function ContentSchedulerUploadDialog({
   const { data: platformsData } = usePlatformKnowledgeGetAll(businessId);
   const { data: productsData } = useProductKnowledgeGetAll(businessId, undefined, isOpen);
   const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(businessId);
-  
+  const { data: timezoneData } = useContentSchedulerTimezoneGetTimezone(businessId);
+  // Date/time inputs are wall time in the business time zone, which is how the
+  // backend reads publishAt.
+  const businessTimeZone = timezoneData?.data.data?.timezone;
+
   const businessName = businessKnowledgeData?.data?.data?.name || tPreview("businessNameFallback");
   const businessLogo = businessKnowledgeData?.data?.data?.primaryLogo || businessKnowledgeData?.data?.data?.primaryLogoUrl || "";
 
@@ -82,7 +90,7 @@ export function ContentSchedulerUploadDialog({
   const image = images[0] ?? null;
   const [caption, setCaption] = useState("");
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("08:00");
+  const [time, setTime] = useState(DEFAULT_SCHEDULE_TIME);
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
   // Draft id and in-flight draft creation are refs so async handlers always
   // see the latest value (avoids creating duplicate/orphan drafts).
@@ -103,14 +111,22 @@ export function ContentSchedulerUploadDialog({
         .toString()
         .padStart(2, "0")}`;
 
+    // A new post on today keeps 08:00 only while it is still ahead.
+    const currentSchedule = getCurrentScheduleInput(new Date(), businessTimeZone);
+    const defaultTime =
+      nextDate === currentSchedule.date &&
+      DEFAULT_SCHEDULE_TIME < currentSchedule.time
+        ? currentSchedule.time
+        : DEFAULT_SCHEDULE_TIME;
+
     setDate(nextDate);
-    setTime(editDraft ? nextTime : "08:00");
+    setTime(editDraft ? nextTime : defaultTime);
     setSelectedPlatforms(editDraft?.platforms || []);
     setImages(editDraft?.image ? [editDraft.image] : []);
     setCaption(editDraft?.caption || "");
     draftScheduleIdRef.current = editDraft?.id || null;
     draftCreationRef.current = null;
-  }, [editDraft, isOpen, selectedDate]);
+  }, [businessTimeZone, editDraft, isOpen, selectedDate]);
 
   useEffect(() => {
     if (selectedPlatforms.length > 0 && !selectedPlatforms.includes(activePreviewPlatform)) {
@@ -177,17 +193,20 @@ export function ContentSchedulerUploadDialog({
 
       setCaption(response.data.data.caption);
       showToast("success", response.data.responseMessage);
-    } catch (error) {
-      showToast("error", error as string);
+    } catch {
+      // The error toast comes from the global mutation onError.
     }
   };
 
-  // Backend rejects a publishAt in the past (e.g. the 08:00 default on today),
-  // so drafts use the same "next minute" fallback as scheduling does.
+  // Backend rejects a publishAt in the past, so drafts fall back to the next
+  // schedulable minute. Compared as wall time in the business time zone.
   const resolveDraftDateTime = () => {
     const candidate = new Date(`${date}T${time}`);
-    if (Number.isNaN(candidate.getTime()) || candidate <= new Date()) {
-      return getNextSchedulableDate().toISOString();
+    if (
+      Number.isNaN(candidate.getTime()) ||
+      candidate <= toBusinessWallDate(new Date(), businessTimeZone)
+    ) {
+      return getNextSchedulableDate(new Date(), businessTimeZone).toISOString();
     }
     return candidate.toISOString();
   };
@@ -210,6 +229,9 @@ export function ContentSchedulerUploadDialog({
     // updates the same draft instead of creating another one.
     const nextImage = nextImages[0] ?? null;
     if (!nextImage || nextImage === previousImage) return;
+    // Editing an existing post is saved only by the schedule button: an
+    // autosave as draft would unschedule a READY post when the dialog is closed.
+    if (editDraft) return;
 
     try {
       const existingDraftId = await waitForPendingDraftCreation();
@@ -256,8 +278,8 @@ export function ContentSchedulerUploadDialog({
           draftCreationRef.current = null;
         }
       }
-    } catch (error) {
-      showToast("error", error as string);
+    } catch {
+      // The error toast comes from the global mutation onError.
     }
   };
 
@@ -274,16 +296,19 @@ export function ContentSchedulerUploadDialog({
       showToast("error", t("selectDateAndTime"));
       return;
     }
-    let scheduledAt = new Date(`${date}T${time}`);
+    const scheduledAt = new Date(`${date}T${time}`);
     if (Number.isNaN(scheduledAt.getTime())) {
       showToast("error", t("selectDateAndTime"));
       return;
     }
-    const now = new Date();
-    if (scheduledAt <= now) {
-      now.setMinutes(now.getMinutes() + 1);
-      now.setSeconds(0, 0);
-      scheduledAt = now;
+    // A passed time is moved to the next minute and shown to the user instead
+    // of silently publishing right away; the next click confirms it.
+    if (scheduledAt <= toBusinessWallDate(new Date(), businessTimeZone)) {
+      const nextSchedule = getCurrentScheduleInput(new Date(), businessTimeZone);
+      setDate(nextSchedule.date);
+      setTime(nextSchedule.time);
+      showToast("warning", tContentGenerate("scheduleTimePassed"));
+      return;
     }
     if (selectedPlatforms.length === 0) {
       if (!hasConnectedPlatforms) {
@@ -320,13 +345,13 @@ export function ContentSchedulerUploadDialog({
 
       showToast("success", t("postScheduledSuccess"));
       onScheduled();
-    } catch (error) {
-      showToast("error", error as string);
+    } catch {
+      // The error toast comes from the global mutation onError.
     }
   };
 
   const isSubmitting = scheduleMutation.isPending || editScheduleMutation.isPending;
-  const minDate = getCurrentScheduleInput().date;
+  const minDate = getCurrentScheduleInput(new Date(), businessTimeZone).date;
 
   const renderCaptionArea = (className?: string) => (
     <div className={cn("relative w-full group", className)}>
@@ -625,6 +650,7 @@ export function ContentSchedulerUploadDialog({
                       date={date}
                       value={time}
                       onValueChange={setTime}
+                      timeZone={businessTimeZone}
                       className="h-full w-full border-0 bg-transparent p-0 outline-none shadow-none focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden!"
                     />
                   </div>

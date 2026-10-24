@@ -2,8 +2,7 @@
 
 import { getMemberRoleLabel } from "@/helper/member-role";
 import { useState, useMemo } from "react";
-import { MoreVertical, UserPlus, Trash2, LogOut } from "lucide-react";
-import { Link } from "@/i18n/navigation";
+import { MoreVertical, UserPlus, Trash2 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,44 +17,41 @@ import {
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { cn } from "@/lib/utils";
-import {
-  useBusinessDelete,
-  useBusinessOutBusiness,
-} from "@/services/business.api";
+import { useBusinessDelete } from "@/services/business.api";
 import { useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { showToast } from "@/helper/show-toast";
 import { BusinessRes } from "@/models/api/business/index.type";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
 import { useTranslations } from "next-intl";
 
 interface BusinessCardProps {
   business: BusinessRes;
   onClickInvite?: () => void;
   variant?: "grid" | "list";
+  priority?: boolean;
 }
+
+// Mengikuti kolom grid di business-grid (1/2/3/4 kolom).
+const GRID_IMAGE_SIZES =
+  "(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw";
+const LIST_IMAGE_SIZES = "56px";
 
 export function BusinessCard({
   business,
   onClickInvite,
   variant = "grid",
+  priority = false,
 }: BusinessCardProps) {
   const router = useRouter();
   const t = useTranslations("businessCard");
   const tRole = useTranslations("memberRole");
   const tModal = useTranslations("modal");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [leaveOpen, setLeaveOpen] = useState(false); // controlled AlertDialog (Keluar)
   const { id, name, description, logo, members, userPosition } = business;
   const role = userPosition?.role || null;
+  // Backend (postmatic-go) hanya menyediakan aksi kartu untuk Owner (undang &
+  // hapus). Belum ada endpoint untuk member keluar dari bisnis, jadi menu
+  // tidak ditampilkan untuk non-owner.
+  const isOwner = role === "Owner";
   const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(id);
   const knowledgeLogo =
     businessKnowledgeData?.data?.data?.primaryLogo ||
@@ -64,7 +60,7 @@ export function BusinessCard({
   const businessImage = knowledgeLogo || logo || DEFAULT_BUSINESS_IMAGE;
 
   // ---- NAV GUARD: jangan navigate kalau ada modal/dialog terbuka
-  const canNavigate = !(leaveOpen || isDeleteModalOpen);
+  const canNavigate = !isDeleteModalOpen;
 
   const handleCardClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
     if (!canNavigate) {
@@ -105,14 +101,6 @@ export function BusinessCard({
     [members]
   );
 
-  const mOutBusiness = useBusinessOutBusiness();
-  const handleOutBusiness = async () => {
-    try {
-      const res = await mOutBusiness.mutateAsync(id);
-      showToast("success", res.data.responseMessage);
-    } catch {}
-  };
-
   return (
     <>
       <Card
@@ -140,8 +128,9 @@ export function BusinessCard({
                   src={businessImage}
                   alt={t("imageAlt")}
                   fill
+                  sizes={LIST_IMAGE_SIZES}
                   className="object-contain p-1.5 sm:object-cover sm:p-0 select-none pointer-events-none"
-                  priority
+                  priority={priority}
                 />
               </div>
 
@@ -176,26 +165,88 @@ export function BusinessCard({
             </div>
 
             {/* Interactive Elements / Dropdown */}
-            <div className="shrink-0" data-no-card-nav>
-              <DropdownMenu modal>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    aria-label={t("moreActions")}
-                    variant="ghost"
-                    size="icon-sm"
-                    className="hover:bg-muted/60 text-muted-foreground hover:text-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                    }}
-                    data-no-card-nav
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
+            {isOwner && (
+              <div className="shrink-0" data-no-card-nav>
+                <DropdownMenu modal>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      aria-label={t("moreActions")}
+                      variant="ghost"
+                      size="icon-sm"
+                      className="hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                      data-no-card-nav
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
 
-                <DropdownMenuContent align="end" data-no-card-nav>
-                  {role === "Owner" ? (
-                    <>
+                  <DropdownMenuContent align="end" data-no-card-nav>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleClickInvite();
+                      }}
+                      data-no-card-nav
+                      className="flex items-center gap-2"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      {t("invite")}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleOpenDeleteModal();
+                      }}
+                      data-no-card-nav
+                      className="flex items-center gap-2 text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {tModal("delete")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </CardContent>
+        ) : (
+          <CardContent className="py-4 md:py-6">
+            {/* Image Section */}
+            <div className="relative aspect-square bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg overflow-hidden">
+              <Image
+                src={businessImage}
+                alt={t("imageAlt")}
+                fill
+                sizes={GRID_IMAGE_SIZES}
+                className="object-cover rounded-xl select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
+                priority={priority}
+              />
+
+              {/* Interactive Elements */}
+              {isOwner && (
+                <div className="absolute top-3 right-3" data-no-card-nav>
+                  <DropdownMenu modal>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        aria-label={t("moreActions")}
+                        variant="ghost"
+                        size="icon-sm"
+                        className="bg-card hover:bg-muted/30"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        data-no-card-nav
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent align="end" data-no-card-nav>
                       <DropdownMenuItem
                         onSelect={(e) => {
                           e.preventDefault();
@@ -216,106 +267,15 @@ export function BusinessCard({
                           handleOpenDeleteModal();
                         }}
                         data-no-card-nav
-                        className="flex items-center gap-2 text-red-600 focus:text-red-600"
+                        className="flex items-center gap-2"
                       >
                         <Trash2 className="w-4 h-4" />
                         {tModal("delete")}
                       </DropdownMenuItem>
-                    </>
-                  ) : (
-                    <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setLeaveOpen(true);
-                      }}
-                      data-no-card-nav
-                      className="flex items-center gap-2 text-red-600 focus:text-red-600"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      {t("leave")}
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </CardContent>
-        ) : (
-          <CardContent className="py-4 md:py-6">
-            {/* Image Section */}
-            <div className="relative aspect-square bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg overflow-hidden">
-              <Image
-                src={businessImage}
-                alt={t("imageAlt")}
-                fill
-                className="object-cover rounded-xl select-none pointer-events-none transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-110"
-                priority
-              />
-
-              {/* Interactive Elements */}
-              <div className="absolute top-3 right-3" data-no-card-nav>
-                <DropdownMenu modal>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      aria-label={t("moreActions")}
-                      variant="ghost"
-                      size="icon-sm"
-                      className="bg-card hover:bg-muted/30"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                      data-no-card-nav
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent align="end" data-no-card-nav>
-                    {role === "Owner" ? (
-                      <>
-                        <DropdownMenuItem
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleClickInvite();
-                          }}
-                          data-no-card-nav
-                          className="flex items-center gap-2"
-                        >
-                          <UserPlus className="w-4 h-4" />
-                          {t("invite")}
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleOpenDeleteModal();
-                          }}
-                          data-no-card-nav
-                          className="flex items-center gap-2"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          {tModal("delete")}
-                        </DropdownMenuItem>
-                      </>
-                    ) : (
-                      <DropdownMenuItem
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setLeaveOpen(true); // buka dialog terkontrol
-                        }}
-                        data-no-card-nav
-                        className="flex items-center gap-2"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        {t("leave")}
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
             </div>
 
             {/* Content Section */}
@@ -342,44 +302,6 @@ export function BusinessCard({
           </CardContent>
         )}
       </Card>
-
-      {/* AlertDialog Keluar (Non-Owner) — DI LUAR DropdownMenuContent */}
-      <AlertDialog open={leaveOpen} onOpenChange={setLeaveOpen}>
-        <AlertDialogContent
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          data-no-card-nav
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("leaveTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("leaveDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={(e) => {
-                e.stopPropagation();
-                setLeaveOpen(false);
-              }}
-              data-no-card-nav
-            >
-              {tModal("cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async (e) => {
-                e.stopPropagation();
-                await handleOutBusiness();
-                setLeaveOpen(false);
-              }}
-              data-no-card-nav
-            >
-              {t("leave")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
        {/* Modal Konfirmasi Hapus (Owner) */}
        <DeleteConfirmationModal

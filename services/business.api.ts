@@ -10,7 +10,12 @@ import {
   BussinessPld,
   MemberRole,
 } from "@/models/api/business/index.type";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 type NewBusinessMember = {
   id?: string | number;
@@ -47,6 +52,13 @@ const sanitizePhone = (phone: string) =>
 const sanitizeCountryCode = (countryCode: string) =>
   countryCode.replace(/[^\d]/g, "") || "62";
 
+// Go mewajibkan colorTone 6-hex. Color picker menampilkan #FAFAFA saat nilai
+// masih kosong tapi tidak mengirim onChange, jadi samakan fallback-nya.
+const sanitizeColorTone = (colorTone?: string) => {
+  const hex = (colorTone ?? "").trim().replace(/^#/, "").toUpperCase();
+  return /^[0-9A-F]{6}$/.test(hex) ? hex : "FAFAFA";
+};
+
 const toCreateBusinessPayload = (formData: BussinessPld) => ({
   businessKnowledge: {
     primaryLogoUrl: formData.businessKnowledge.primaryLogo,
@@ -56,7 +68,7 @@ const toCreateBusinessPayload = (formData: BussinessPld) => ({
     ...(formData.businessKnowledge.website.trim()
       ? { websiteUrl: formData.businessKnowledge.website.trim() }
       : {}),
-    colorTone: formData.businessKnowledge.colorTone,
+    colorTone: sanitizeColorTone(formData.businessKnowledge.colorTone),
     businessPhone: sanitizePhone(formData.businessKnowledge.businessPhone),
     countryCode: sanitizeCountryCode(formData.businessKnowledge.countryCode),
   },
@@ -177,14 +189,12 @@ export const businessService = {
       `/business/information/${idData}`
     );
   },
-  outBusiness: (idData: string) => {
-    return api.delete<BaseResponse<BusinessRes>>(`/business/${idData}/out`);
-  },
 };
 
+// Hanya butuh jumlah total: minta 1 item dan baca total dari pagination.
 export const countBusiness = async () => {
-  const res = await businessService.getAll();
-  return res.data.data.length;
+  const res = await businessService.getAll({ limit: 1 });
+  return res.data.pagination?.total ?? res.data.data.length;
 };
 
 export const useBusinessGetAll = (filterQuery?: Partial<FilterQuery>) =>
@@ -196,13 +206,39 @@ export const useBusinessGetAll = (filterQuery?: Partial<FilterQuery>) =>
         // Use the limit from filterQuery, default to 10 if not provided
         limit: filterQuery?.limit || 10,
       }),
+    // Tetap tampilkan daftar sebelumnya saat pindah halaman/pencarian.
+    placeholderData: keepPreviousData,
   });
+
+// Business switcher list in the header and mobile menu. Both use this exact
+// filter so they share one cached request.
+export const BUSINESS_SWITCHER_FILTER: Partial<FilterQuery> = {
+  limit: 40,
+  sort: "asc",
+  sortBy: "name",
+};
 
 export const useBusinessGetById = (idData: string) =>
   useQuery({
     queryKey: ["business", idData],
     queryFn: () => businessService.getById(idData),
     enabled: !!idData,
+  });
+
+export type BusinessAccessManagementRes = {
+  isMustShareContent: boolean;
+  isWatermarked: boolean;
+  accessPremiumModel: boolean;
+};
+
+export const useBusinessAccessManagementGet = (businessId: string) =>
+  useQuery({
+    queryKey: ["businessAccessManagement", businessId],
+    queryFn: () =>
+      api.get<BaseResponse<BusinessAccessManagementRes>>(
+        `/business/access-management/${businessId}`
+      ),
+    enabled: !!businessId,
   });
 
 export const useBusinessCreate = () => {
@@ -243,17 +279,6 @@ export const useBusinessDelete = () => {
     mutationFn: (idData: string) => businessService.delete(idData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["businesses"] });
-    },
-  });
-};
-
-export const useBusinessOutBusiness = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (idData: string) => businessService.outBusiness(idData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["businesses"] });
-      queryClient.invalidateQueries({ queryKey: ["business"] });
     },
   });
 };

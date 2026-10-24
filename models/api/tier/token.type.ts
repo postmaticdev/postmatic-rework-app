@@ -19,10 +19,10 @@ export interface TokenUsage {
 }
 
 
-export interface AnalyticTokenUsageRes {
-  date: string,
-  Image: number,
-  Video: number,
-  LiveStream: number
+export interface TokenUsageChartPoint {
+  date: string
+  dateEnd: string
+  image: number
+  video: number
 }
 

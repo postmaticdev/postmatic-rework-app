@@ -26,6 +26,7 @@ interface CreatorDesignContextType {
   // State
   designs: CreatorDesign[];
   isLoading: boolean;
+  isSubmitting: boolean;
   isCreateModalOpen: boolean;
   isEditModalOpen: boolean;
   editingDesign: CreatorDesign | null;
@@ -89,6 +90,7 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
     () => designsResponse?.data?.data || [],
     [designsResponse?.data?.data]
   );
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const pagination = designsResponse?.data?.pagination || initialPagination;
   const filterQuery = designsResponse?.data?.filterQuery || {};
 
@@ -158,7 +160,7 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
 
   // API actions
   const handleCreateDesign = useCallback(async () => {
-    if (!validateForm()) return;
+    if (createMutation.isPending || !validateForm()) return;
 
     try {
       await createMutation.mutateAsync(formData);
@@ -170,7 +172,7 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
   }, [formData, validateForm, createMutation, closeCreateModal, t]);
 
   const handleUpdateDesign = useCallback(async () => {
-    if (!editingDesign || !validateForm()) return;
+    if (!editingDesign || updateMutation.isPending || !validateForm()) return;
 
     try {
       await updateMutation.mutateAsync({
@@ -223,6 +225,7 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
     // State
     designs,
     isLoading,
+    isSubmitting,
     isCreateModalOpen,
     isEditModalOpen,
     editingDesign,

@@ -6,15 +6,13 @@ import {
 } from "@/helper/knowledge-form";
 import { BusinessKnowledgePld } from "@/models/api/knowledge/business.type";
 import { RoleKnowledgePld } from "@/models/api/knowledge/role.type";
-import { useState, createContext, useContext, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { usePathname } from "next/navigation";
 import {
-  useBusinessKnowledgeGetById,
-  usePlatformKnowledgeGetAll,
-} from "@/services/knowledge.api";
-import { useRoleKnowledgeGetById } from "@/services/knowledge.api";
-import { PlatformRes } from "@/models/api/knowledge/platform.type";
+  useState,
+  createContext,
+  useContext,
+  Dispatch,
+  SetStateAction,
+} from "react";
 
 interface FormKnowledge {
   business: BusinessKnowledgePld;
@@ -33,8 +31,7 @@ const initialFormKnowledge: FormKnowledge = {
 
 interface ManageKnowledgeContext {
   formKnowledge: FormKnowledge;
-  setFormKnowledge: (formKnowledge: FormKnowledge) => void;
-  platforms: PlatformRes[];
+  setFormKnowledge: Dispatch<SetStateAction<FormKnowledge>>;
   errors: ValidationErrors;
   setErrors: (errors: ValidationErrors) => void;
 }
@@ -43,6 +40,8 @@ const ManageKnowledgeContext = createContext<
   ManageKnowledgeContext | undefined
 >(undefined);
 
+// Only holds the edit-knowledge form state. It sits in the root layout, so it
+// must not fetch anything itself: that would add requests to every page.
 export function ManageKnowledgeProvider({
   children,
 }: {
@@ -54,18 +53,10 @@ export function ManageKnowledgeProvider({
     business: {},
     role: {},
   });
-  const { businessId } = useParams() as { businessId: string };
-  const { data: businessKnowledgeData } =
-    useBusinessKnowledgeGetById(businessId);
-  const { data: roleKnowledgeData } = useRoleKnowledgeGetById(businessId);
-  const { data: platformsData } = usePlatformKnowledgeGetAll(businessId);
-  const platforms = platformsData?.data.data || [];
-
-
 
   return (
     <ManageKnowledgeContext.Provider
-      value={{ formKnowledge, setFormKnowledge, platforms, errors, setErrors }}
+      value={{ formKnowledge, setFormKnowledge, errors, setErrors }}
     >
       {children}
     </ManageKnowledgeContext.Provider>

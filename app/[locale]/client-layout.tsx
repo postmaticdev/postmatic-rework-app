@@ -15,16 +15,6 @@ const SKIP_HEADER_PATHS = [
   "/business/new-business/website",
 ];
 
-const SKIP_SIDEBAR_PATHS = [
-  "/",
-  "/profile",
-  "/business/new-business",
-  "/business/new-business/manual",
-  "/business/new-business/website",
-  "/business/[businessId]/pricing/checkout",
-  "/business",
-];
-
 const CHECKOUT_PATTERN = "/business/[businessId]/pricing/checkout";
 
 // hapus prefix locale seperti /id atau /en
@@ -70,7 +60,9 @@ export default function BusinessClientLayout({
   })();
 
   const isSkipHeader = SKIP_HEADER_PATHS.some(pathEquals);
-  const isSkipSidebar = isCheckoutPath || SKIP_SIDEBAR_PATHS.some(pathEquals);
+  // Menu sidebar selalu menuju /business/{id}/..., jadi hanya tampil di halaman
+  // yang punya businessId (bukan /, /business, /profile/*, new-business).
+  const isSkipSidebar = isCheckoutPath || !businessId;
   // Header:
   // - Checkout: tampilkan di mobile saja (md:hidden)
   // - Selain checkout: tampilkan normal jika tidak di-skip

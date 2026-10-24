@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname, Link } from "@/i18n/navigation";
+import { usePathname, Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 
 import {
@@ -21,6 +21,8 @@ export function Sidebar() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const t = useTranslations("sideBar");
+  // Menu aktif = segmen setelah /business/{id}, bukan pencocokan substring.
+  const activeSection = pathname.split("/").filter(Boolean)[2];
 
   const navigationItems = [
     {
@@ -81,7 +83,7 @@ export function Sidebar() {
         {/* Main Navigation Items */}
         <div className="flex flex-col space-y-10 mt-auto ">
           {navigationItems.map((item, index) => {
-            const isActive = pathname.includes(`${item.href}`);
+            const isActive = activeSection === item.href;
             const Icon = item.icon;
             const isHovered = hoveredItem === item.href;
 
@@ -97,6 +99,7 @@ export function Sidebar() {
                 <Link
                   href={`/business/${businessId}/${item.href}`}
                   aria-label={item.name}
+                  aria-current={isActive ? "page" : undefined}
                   onMouseEnter={() => setHoveredItem(item.href)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={cn(

@@ -1,5 +1,6 @@
 "use client";
 
+import { Dispatch, SetStateAction, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,7 @@ interface AvatarModalProps {
   onSave: (avatarData: BusinessAvatarPld & { id?: string }) => void;
   mode: "add" | "edit";
   formValue: BusinessAvatarPld & { id?: string };
-  onChange: (avatarData: BusinessAvatarPld & { id?: string }) => void;
+  onChange: Dispatch<SetStateAction<BusinessAvatarPld & { id?: string }>>;
   errors?: Record<string, string>;
   isSubmitting?: boolean;
 }
@@ -35,12 +36,15 @@ export function AvatarModal({
   isSubmitting = false,
 }: AvatarModalProps) {
   const t = useTranslations("avatarKnowledge");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const updateField = (
     key: keyof BusinessAvatarPld,
     value: BusinessAvatarPld[keyof BusinessAvatarPld]
   ) => {
-    onChange({ ...formValue, [key]: value });
+    // Functional update: the photo upload resolves later and must not
+    // overwrite fields edited while it was uploading.
+    onChange((prev) => ({ ...prev, [key]: value }));
   };
 
   const isEditMode = mode === "edit";
@@ -68,6 +72,7 @@ export function AvatarModal({
               }
               currentImage={formValue.imageUrl}
               error={errors.imageUrl}
+              onUploadingChange={setIsUploadingImage}
             />
 
             <div className="w-full">
@@ -85,7 +90,7 @@ export function AvatarModal({
         <DialogFooterWithButton
           buttonMessage={isEditMode ? t("saveButton") : t("addAvatar")}
           onClick={() => onSave(formValue)}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingImage}
         />
       </DialogContent>
     </Dialog>

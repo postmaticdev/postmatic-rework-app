@@ -16,13 +16,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 export const TICKET_CATEGORIES_QUERY_KEY = ["ticketCategories"] as const;
 export const WEBSITE_TICKETS_QUERY_KEY = ["websiteTickets"] as const;
 
+// Backend default limit = 10 dan maksimum = 50 (ReqFilterMiddleware).
+export const WEBSITE_TICKETS_PAGE_LIMIT = 50;
+
 const ticketService = {
   getCategories: () => {
     return api.get<BaseResponseFiltered<TicketCategory[]>>("/ticket/category");
   },
   getWebsiteTickets: () => {
     return api.get<BaseResponse<WebsiteTicket[]> | BaseResponseFiltered<WebsiteTicket[]>>(
-      "/ticket/website"
+      "/ticket/website",
+      {
+        params: {
+          page: 1,
+          limit: WEBSITE_TICKETS_PAGE_LIMIT,
+          sortBy: "updatedAt",
+          sort: "desc",
+        },
+      }
     );
   },
   getWebsiteTicketDetail: (ticketId: number) => {

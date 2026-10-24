@@ -91,7 +91,7 @@ export function OrderSummary({ variant }: OrderSummaryProps) {
       >
         {/* Logo - Only show on desktop */}
         {isDesktop && (
-          <Link href="/" className="mb-8">
+          <Link href="/business" className="mb-8">
             <Image
               src="/logowhite.png"
               alt={t("logoAlt")}

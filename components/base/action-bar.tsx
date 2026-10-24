@@ -7,6 +7,9 @@ import { useRouter } from "@/i18n/navigation";
 import { useBusinessGridFilter } from "@/contexts/business-grid-context";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function ActionBar() {
   const router = useRouter();
@@ -18,6 +21,19 @@ export function ActionBar() {
   const { filterQuery, setFilterQuery, viewMode, setViewMode } =
     useBusinessGridFilter();
 
+  // Input lokal agar mengetik tidak memicu request per huruf; filter baru
+  // dikirim setelah jeda dan selalu kembali ke halaman 1 (halaman lama bisa
+  // melebihi jumlah halaman hasil pencarian).
+  const [searchInput, setSearchInput] = useState(filterQuery.search || "");
+  useEffect(() => {
+    const nextSearch = searchInput.trim();
+    if (nextSearch === (filterQuery.search || "")) return;
+    const timeout = setTimeout(() => {
+      setFilterQuery({ ...filterQuery, search: nextSearch, page: 1 });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [searchInput, filterQuery, setFilterQuery]);
+
   return (
     <div className="p-4 sm:p-6 border-b border-border">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
@@ -27,10 +43,8 @@ export function ActionBar() {
             <Input
               type="text"
               placeholder={t("searchBusiness")}
-              value={filterQuery.search || ""}
-              onChange={(e) =>
-                setFilterQuery({ ...filterQuery, search: e.target.value })
-              }
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-10 bg-muted/50 border-muted-foreground/20 focus:border-blue-500 w-full"
             />
           </div>

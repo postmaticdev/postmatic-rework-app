@@ -398,7 +398,10 @@
     "accountId": "Account ID: {id}",
     "needsReconnect": "Needs reconnecting",
     "needsReconnectDescription": "Access to this account expired or was revoked. Reconnect it so posts can be published.",
-    "reconnect": "Reconnect"
+    "reconnect": "Reconnect",
+    "disconnecting": "Disconnecting...",
+    "loadPlatformsFailed": "Failed to load platforms.",
+    "retry": "Try again"
   },
   "settings": {
     "overview": "Overview",
@@ -406,6 +409,7 @@
     "billingInvoices": "Billing & Invoices",
     "members": "Members",
     "historyTransactions": "Transaction History",
+    "loadFailed": "Couldn't load the data. Please try again.",
     "payAsYouGo": "Pay As You Go",
     "payAsYouGoDescription": "Top up tokens whenever your workspace needs more generation credits.",
     "tokenBalance": "Token Balance",
@@ -520,7 +524,10 @@
       "statusBadge": "Transaction {status}",
       "bankLogoAlt": "{bank} logo",
       "virtualAccountLabel": "Virtual Account {bank}",
-      "qrisLogoAlt": "QRIS logo"
+      "qrisLogoAlt": "QRIS logo",
+      "billedTo": "Billed to",
+      "item": "Item",
+      "amount": "Amount"
     },
     "timezone": "Time Zone",
     "welcomeUser": "Welcome, {name}"
@@ -585,6 +592,7 @@
     "createNew": "Create new",
     "cancel": "Cancel",
     "editPost": "Edit Post",
+    "continueEditing": "Continue Editing",
     "postTitle": "Title",
     "scheduledDateHistoryDescription": "Scheduled content on this date",
     "scheduledHistoryActions": "Scheduled content actions",
@@ -649,10 +657,15 @@
     "videoGenerator": "Video Generator",
     "failedHistoryDeleted": "Failed history deleted successfully",
     "failedUploadHistoryDeleted": "Failed upload history deleted successfully",
+    "deleteHistoryTitle": "Delete this history?",
+    "deleteHistoryDescription": "This item will be removed from the History list. Continue?",
+    "deleteHistoryConfirm": "Yes, delete",
+    "deleteHistoryCancel": "No",
     "failedGenerate": "Generation Failed",
     "generateImageFailedDescription": "Image generation was unsuccessful.",
     "delete": "Delete",
     "retry": "Retry",
+    "historyLoadFailed": "Couldn't load the posting history. Please try again.",
     "uploadFailed": "Upload Failed",
     "contentWithoutCaption": "Content without caption",
     "postToSocialFailed": "Failed to post to social media.",
@@ -878,6 +891,10 @@
     "selectPlatform": "Please select at least one platform",
     "generateFirst": "Generate content first before scheduling",
     "shareReference": "Share this content reference with the Postmatic community to help improve the AI model.",
+    "needsReconnect": "Needs reconnecting",
+    "shareReferenceRequired": "Your current plan always shares published content as a community reference.",
+    "carouselCoverOnly": "Carousel posting is not supported yet. Only the first (cover) image will be published.",
+    "postScheduledSuccess": "Post scheduled successfully",
     "watermarkNotReady": "The watermark isn't ready yet. Please wait a moment before scheduling the post.",
     "captionPlaceholder": "Caption...",
     "enhanceCaption": "Enhance Caption",
@@ -905,7 +922,9 @@
     "firstGeneratePrompt": "Create an engaging product promotion image for social media based on the selected product.",
     "chatSessionUnavailable": "The chat session for this scheduled post is not available yet.",
     "imageChatNotReady": "The image chat is not ready yet. Please regenerate.",
-    "gridTileRequired": "Pick one image from the grid result with Edit to continue."
+    "gridTileRequired": "Pick one image from the grid result with Edit to continue.",
+    "tooManyReferenceImages": "You can attach up to {max} reference images per generation. Remove some images and try again.",
+    "captionRequired": "Write a caption before scheduling the post."
   },
   "templateCard": {
     "detail": "Reference Detail",
@@ -1048,7 +1067,8 @@
     "title": "Business Information",
     "name": "Business Name",
     "role": "Role",
-    "view": "View"
+    "view": "View",
+    "noBusiness": "You have not joined any business yet."
   },
   "sessionLogin": {
     "title": "Login Sessions",
@@ -1060,7 +1080,9 @@
     "confirm": "Yes, Log Out",
     "cancel": "Cancel",
     "currentSession": "Current session",
-    "deviceDetail": "Device & Network"
+    "deviceDetail": "Device & Network",
+    "logoutFailed": "Failed to log out the session. Please try again.",
+    "empty": "No active sessions."
   },
   "editProfileModal": {
     "title": "Edit Profile",
@@ -1100,6 +1122,9 @@
       "tooManyRequests": "Too many attempts. Please wait a moment and try again.",
       "tooManyRequestsRetry": "Too many attempts. Please try again in {minutes, plural, one {# minute} other {# minutes}}.",
       "googleOnly": "This account signs in with Google and has no password yet. Use \"Forgot password\" on the sign-in page to set one."
+    },
+    "profileErrors": {
+      "nameRequired": "Full name is required."
     }
   },
   "sideBar": {
@@ -1429,6 +1454,14 @@
     "zodFeedCategory": "Please select an RSS category",
     "zodRssSource": "Please select an RSS source"
   },
+  "knowledgeBase": {
+    "loading": "Loading data...",
+    "loadFailedTitle": "Failed to load data",
+    "loadFailedDescription": "Something went wrong while loading data. Please try again.",
+    "retry": "Try Again",
+    "loadMore": "Load more",
+    "loadingMore": "Loading..."
+  },
   "avatarKnowledge": {
     "saveButton": "Save Changes",
     "title": "Business Avatars",
@@ -1471,7 +1504,21 @@
     "autoGenerate": "Content Repetition",
     "chartErrorTitle": "Chart Error",
     "chartErrorDescription": "An error occurred while loading the chart",
-    "retry": "Try Again"
+    "retry": "Try Again",
+    "tokenUsageTabs": {
+      "label": "Token usage view",
+      "model": "Model",
+      "usage": "Usage"
+    },
+    "tokenUsageChart": {
+      "usageEmptyTitle": "No token usage yet",
+      "usageEmptyDescription": "Token usage in this period will show up here.",
+      "modelEmptyTitle": "Usage per model isn't available yet",
+      "modelEmptyDescription": "Token usage for each AI model will show up here once it's supported.",
+      "videoNotAvailable": "Video doesn't use tokens yet.",
+      "loadErrorTitle": "Couldn't load token usage",
+      "tokens": "{value} tokens"
+    }
   },
   "analyticsCard": {
     "totalPosting": "Total Posts",
@@ -1531,7 +1578,10 @@
   },
   "businessGrid": {
     "emptyTitle": "No businesses found",
-    "emptyDescription": "Add a new business"
+    "emptyDescription": "Add a new business",
+    "errorTitle": "Failed to load businesses",
+    "errorDescription": "Check your connection and try again.",
+    "retry": "Try Again"
   },
   "videoGenerator": {
     "title": "Video Generator",
@@ -1748,7 +1798,12 @@
     "alignCenter": "Align center",
     "alignRight": "Align right",
     "bulletList": "Bulleted list",
-    "numberedList": "Numbered list"
+    "numberedList": "Numbered list",
+    "loadingTickets": "Loading tickets...",
+    "loadTicketsFailed": "Failed to load tickets.",
+    "ticketResolvedNotice": "This ticket is resolved and can no longer be replied to.",
+    "replyTextRequired": "Add a message to send attachments.",
+    "imageAttachmentInvalid": "Some images were skipped. Only JPG, PNG, or WEBP up to 10MB are allowed."
   },
   "metadata": {
     "title": "Postmatic Business",

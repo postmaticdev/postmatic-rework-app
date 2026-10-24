@@ -25,7 +25,8 @@ export const createProductKnowledgeSchema = (messages: {
     .max(1000, messages.zodMaxLengthProductDescription),
   price: z
     .number()
-    .min(0, messages.zodPrice)
+    // Backend requires price > 0 (`validate:"required"` on int64).
+    .min(1, messages.zodPrice)
     .max(Number.MAX_SAFE_INTEGER, messages.zodMaxLengthPrice),
   currency: z.string().min(1, messages.zodCurrency),
 });
@@ -45,7 +46,7 @@ export const productKnowledgeSchema = z
       .max(1000, "Deskripsi produk harus kurang dari 1000 karakter"),
     price: z
       .number()
-      .min(0, "Harap masukkan harga produk")
+      .min(1, "Harap masukkan harga produk")
       .max(Number.MAX_SAFE_INTEGER, "Price is too high"),
     currency: z.string().min(1, "Harap masukkan mata uang"),
   })

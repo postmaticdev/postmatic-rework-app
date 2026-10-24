@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Shield, UserPlus } from "lucide-react";
+import { RefreshCw, Shield, UserPlus } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMemberGetAllMembers } from "@/services/member.api";
 import { useParams } from "next/navigation";
 import { MemberManagementModal } from "@/app/[locale]/business/[businessId]/settings/(components)/member-management-modal";
@@ -12,14 +13,27 @@ import { useState } from "react";
 import { MemberStatus } from "@/models/api/member/index.type";
 import { useRole } from "@/contexts/role-context";
 import { useTranslations } from "next-intl";
-import { getMemberRoleLabel, getMemberStatusLabel } from "./member-display";
+import {
+  getMemberInitial,
+  getMemberRoleLabel,
+  getMemberStatusLabel,
+} from "./member-display";
 
 export function MembersTable() {
   const { businessId } = useParams() as { businessId: string };
-  const { data: dataMembers } = useMemberGetAllMembers(businessId);
-  const members = dataMembers?.data?.data || [];
+  const {
+    data: dataMembers,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useMemberGetAllMembers(businessId);
+  const members = (dataMembers?.data?.data || []).filter((member) =>
+    JOINED_STATUS.includes(member.status)
+  );
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const t = useTranslations("settings");
+  const d = useTranslations("dashboard");
 
   const { access } = useRole();
   const { invite, edit } = access.member;
@@ -46,11 +60,32 @@ export function MembersTable() {
               </Button>
             )}
           </div>
+          {isLoading ? (
+            <div className="space-y-3 p-4 max-md:pt-0 sm:px-0">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : isError && !dataMembers ? (
+            <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">{t("loadFailed")}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+                />
+                {d("retry")}
+              </Button>
+            </div>
+          ) : (
+          <>
           {/* Mobile list */}
           <div className="block lg:hidden p-4 space-y-3 max-md:pt-0">
-            {members
-              ?.filter((member) => JOINED_STATUS.includes(member.status))
-              .map((member) => (
+            {members.map((member) => (
                 <div
                   key={member.id}
                   className="border rounded-lg p-3 bg-background"
@@ -60,7 +95,7 @@ export function MembersTable() {
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         <AvatarImage src={member.profile.image} />
                         <AvatarFallback className="bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                          {member.profile.name.charAt(0).toUpperCase()}
+                          {getMemberInitial(member.profile)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
@@ -122,9 +157,7 @@ export function MembersTable() {
                 </tr>
               </thead>
               <tbody>
-                {members
-                  ?.filter((member) => JOINED_STATUS.includes(member.status))
-                  .map((member) => (
+                {members.map((member) => (
                     <tr
                       key={member.id}
                       className="border-b last:border-b-0 hover:bg-muted/50"
@@ -134,7 +167,7 @@ export function MembersTable() {
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={member.profile.image} />
                             <AvatarFallback className="bg-blue-100 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                              {member.profile.name.charAt(0).toUpperCase()}
+                              {getMemberInitial(member.profile)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex items-center space-x-2">
@@ -174,6 +207,8 @@ export function MembersTable() {
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </CardContent>
       </Card>
       <MemberManagementModal

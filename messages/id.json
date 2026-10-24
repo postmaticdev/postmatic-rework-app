@@ -398,7 +398,10 @@
     "accountId": "ID Akun: {id}",
     "needsReconnect": "Perlu dihubungkan ulang",
     "needsReconnectDescription": "Akses ke akun ini sudah kedaluwarsa atau dicabut. Hubungkan ulang agar postingan bisa terbit.",
-    "reconnect": "Hubungkan ulang"
+    "reconnect": "Hubungkan ulang",
+    "disconnecting": "Memutuskan...",
+    "loadPlatformsFailed": "Gagal memuat platform.",
+    "retry": "Coba lagi"
   },
   "settings": {
     "timezone": "Zona Waktu",
@@ -407,6 +410,7 @@
     "billingInvoices": "Tagihan & Faktur",
     "members": "Anggota",
     "historyTransactions": "Riwayat Transaksi",
+    "loadFailed": "Gagal memuat data. Silakan coba lagi.",
     "payAsYouGo": "Pay As You Go",
     "payAsYouGoDescription": "Isi ulang token kapan saja saat workspace Anda membutuhkan kredit tambahan.",
     "tokenBalance": "Saldo Token",
@@ -521,7 +525,10 @@
       "statusBadge": "Pembayaran {status}",
       "bankLogoAlt": "Logo {bank}",
       "virtualAccountLabel": "Virtual Account {bank}",
-      "qrisLogoAlt": "Logo QRIS"
+      "qrisLogoAlt": "Logo QRIS",
+      "billedTo": "Ditagihkan kepada",
+      "item": "Item",
+      "amount": "Jumlah"
     },
     "welcomeUser": "Selamat Datang, {name}"
   },
@@ -585,6 +592,7 @@
     "createNew": "Buat baru",
     "cancel": "Batal",
     "editPost": "Edit Postingan",
+    "continueEditing": "Lanjutkan Pengeditan",
     "postTitle": "Judul",
     "scheduledDateHistoryDescription": "Konten terjadwal pada tanggal ini",
     "scheduledHistoryActions": "Tindakan konten terjadwal",
@@ -649,10 +657,15 @@
     "videoGenerator": "Pembuat Video",
     "failedHistoryDeleted": "Riwayat gagal berhasil dihapus",
     "failedUploadHistoryDeleted": "Riwayat gagal unggah berhasil dihapus",
+    "deleteHistoryTitle": "Hapus riwayat ini?",
+    "deleteHistoryDescription": "Riwayat ini akan dihapus dari daftar History. Lanjutkan?",
+    "deleteHistoryConfirm": "Ya, hapus",
+    "deleteHistoryCancel": "Tidak",
     "failedGenerate": "Gagal Dibuat",
     "generateImageFailedDescription": "Proses pembuatan gambar tidak berhasil.",
     "delete": "Hapus",
     "retry": "Coba Lagi",
+    "historyLoadFailed": "Riwayat posting gagal dimuat. Silakan coba lagi.",
     "uploadFailed": "Gagal Unggah",
     "contentWithoutCaption": "Konten tanpa caption",
     "postToSocialFailed": "Gagal memposting ke media sosial.",
@@ -878,6 +891,10 @@
     "selectPlatform": "Silakan pilih minimal satu platform",
     "generateFirst": "Buat konten terlebih dahulu sebelum menjadwalkan",
     "shareReference": "Bagikan referensi konten ini kepada komunitas Postmatic untuk membantu pengembangan model AI yang lebih baik.",
+    "needsReconnect": "Perlu dihubungkan ulang",
+    "shareReferenceRequired": "Paket Anda saat ini selalu membagikan konten yang dipublikasikan sebagai referensi komunitas.",
+    "carouselCoverOnly": "Posting carousel belum didukung. Hanya gambar pertama (cover) yang akan dipublikasikan.",
+    "postScheduledSuccess": "Postingan berhasil dijadwalkan",
     "watermarkNotReady": "Watermark belum siap. Mohon tunggu sebentar sebelum menjadwalkan postingan.",
     "captionPlaceholder": "Caption...",
     "enhanceCaption": "Tingkatkan Caption",
@@ -905,7 +922,9 @@
     "firstGeneratePrompt": "Buat gambar konten promosi produk yang menarik untuk media sosial berdasarkan produk yang dipilih.",
     "chatSessionUnavailable": "Sesi chat untuk postingan terjadwal ini belum tersedia.",
     "imageChatNotReady": "Chat gambar belum siap. Silakan buat ulang.",
-    "gridTileRequired": "Pilih satu gambar dari hasil grid dengan tombol Edit untuk melanjutkan."
+    "gridTileRequired": "Pilih satu gambar dari hasil grid dengan tombol Edit untuk melanjutkan.",
+    "tooManyReferenceImages": "Maksimal {max} gambar referensi per generate. Hapus beberapa gambar lalu coba lagi.",
+    "captionRequired": "Tulis caption terlebih dahulu sebelum menjadwalkan postingan."
   },
   "templateCard": {
     "detail": "Detail Referensi",
@@ -1048,7 +1067,8 @@
     "title": "Informasi Bisnis",
     "name": "Nama Bisnis",
     "role": "Peran",
-    "view": "Lihat"
+    "view": "Lihat",
+    "noBusiness": "Anda belum tergabung di bisnis mana pun."
   },
   "sessionLogin": {
     "title": "Sesi Masuk",
@@ -1060,7 +1080,9 @@
     "confirm": "Ya, Keluar",
     "cancel": "Batal",
     "currentSession": "Sesi saat ini",
-    "deviceDetail": "Perangkat & Jaringan"
+    "deviceDetail": "Perangkat & Jaringan",
+    "logoutFailed": "Gagal mengeluarkan sesi. Silakan coba lagi.",
+    "empty": "Tidak ada sesi aktif."
   },
   "editProfileModal": {
     "title": "Edit Profil",
@@ -1100,6 +1122,9 @@
       "tooManyRequests": "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
       "tooManyRequestsRetry": "Terlalu banyak percobaan. Silakan coba lagi dalam {minutes} menit.",
       "googleOnly": "Akun ini masuk dengan Google dan belum memiliki kata sandi. Gunakan \"Lupa kata sandi\" di halaman masuk untuk membuatnya."
+    },
+    "profileErrors": {
+      "nameRequired": "Nama lengkap wajib diisi."
     }
   },
   "sideBar": {
@@ -1429,6 +1454,14 @@
     "zodFeedCategory": "Harap pilih kategori RSS",
     "zodRssSource": "Harap pilih sumber RSS"
   },
+  "knowledgeBase": {
+    "loading": "Memuat data...",
+    "loadFailedTitle": "Gagal memuat data",
+    "loadFailedDescription": "Terjadi kendala saat mengambil data. Silakan coba lagi.",
+    "retry": "Coba Lagi",
+    "loadMore": "Muat lebih banyak",
+    "loadingMore": "Memuat..."
+  },
   "avatarKnowledge": {
     "saveButton": "Simpan Perubahan",
     "title": "Avatar Bisnis",
@@ -1471,7 +1504,21 @@
     "autoGenerate": "Pengulangan Konten",
     "chartErrorTitle": "Kesalahan Grafik",
     "chartErrorDescription": "Terjadi kesalahan saat memuat grafik",
-    "retry": "Coba Lagi"
+    "retry": "Coba Lagi",
+    "tokenUsageTabs": {
+      "label": "Tampilan penggunaan token",
+      "model": "Model",
+      "usage": "Penggunaan"
+    },
+    "tokenUsageChart": {
+      "usageEmptyTitle": "Belum ada penggunaan token",
+      "usageEmptyDescription": "Penggunaan token pada periode ini akan tampil di sini.",
+      "modelEmptyTitle": "Penggunaan per model belum tersedia",
+      "modelEmptyDescription": "Penggunaan token untuk setiap model AI akan tampil di sini setelah didukung.",
+      "videoNotAvailable": "Video belum menggunakan token.",
+      "loadErrorTitle": "Gagal memuat penggunaan token",
+      "tokens": "{value} token"
+    }
   },
   "analyticsCard": {
     "totalPosting": "Jumlah Postingan",
@@ -1531,7 +1578,10 @@
   },
   "businessGrid": {
     "emptyTitle": "Tidak ada bisnis yang ditemukan",
-    "emptyDescription": "Tambahkan bisnis baru"
+    "emptyDescription": "Tambahkan bisnis baru",
+    "errorTitle": "Gagal memuat daftar bisnis",
+    "errorDescription": "Periksa koneksi Anda lalu coba lagi.",
+    "retry": "Coba Lagi"
   },
   "videoGenerator": {
     "title": "Pembuat Video",
@@ -1748,7 +1798,12 @@
     "alignCenter": "Rata tengah",
     "alignRight": "Rata kanan",
     "bulletList": "Daftar berpoin",
-    "numberedList": "Daftar bernomor"
+    "numberedList": "Daftar bernomor",
+    "loadingTickets": "Memuat tiket...",
+    "loadTicketsFailed": "Gagal memuat tiket.",
+    "ticketResolvedNotice": "Tiket ini sudah selesai dan tidak bisa dibalas lagi.",
+    "replyTextRequired": "Tulis pesan untuk mengirim lampiran.",
+    "imageAttachmentInvalid": "Beberapa gambar dilewati. Hanya JPG, PNG, atau WEBP maksimal 10MB."
   },
   "metadata": {
     "title": "Postmatic Business",

@@ -13,17 +13,25 @@ import countryCodes from "@/lib/country-code.json";
 import { useLocale, useTranslations } from "next-intl";
 import { localizeCountryNames } from "@/helper/locale";
 
-export function BusinessKnowledgeForm() {
+interface BusinessKnowledgeFormProps {
+  onUploadingChange?: (uploading: boolean) => void;
+}
+
+export function BusinessKnowledgeForm({
+  onUploadingChange,
+}: BusinessKnowledgeFormProps = {}) {
   const { formKnowledge, setFormKnowledge, errors } = useManageKnowledge();
 
+  // Functional update: the logo upload resolves later and must not overwrite
+  // fields edited while it was uploading.
   const updateField = (
     key: keyof BusinessKnowledgePld,
     value: BusinessKnowledgePld[keyof BusinessKnowledgePld]
   ) => {
-    setFormKnowledge({
-      ...formKnowledge,
-      business: { ...formKnowledge.business, [key]: value },
-    });
+    setFormKnowledge((prev) => ({
+      ...prev,
+      business: { ...prev.business, [key]: value },
+    }));
   };
   const b = useTranslations("businessKnowledge");
   const locale = useLocale();
@@ -59,13 +67,11 @@ export function BusinessKnowledgeForm() {
         <UploadPhoto
           label={finalLabels.logoBrand}
           onImageChange={(file: string | null) =>
-            setFormKnowledge({
-              ...formKnowledge,
-              business: { ...formKnowledge.business, primaryLogo: file },
-            })
+            updateField("primaryLogo", file)
           }
           currentImage={formKnowledge?.business?.primaryLogo}
           error={errors.business.primaryLogo}
+          onUploadingChange={onUploadingChange}
         />
 
         <div className="w-full space-y-4">
@@ -119,13 +125,13 @@ export function BusinessKnowledgeForm() {
             className="w-36 bg-background-secondary"
           />
           <Input
-            type="number"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
             value={formKnowledge?.business?.businessPhone}
-            onKeyDown={(event) =>
-              ["e", "E", "+", "-"].includes(event.key) &&
-              event.preventDefault()
+            onChange={(event) =>
+              updateField("businessPhone", event.target.value.replace(/D/g, ""))
             }
-            onChange={(event) => updateField("businessPhone", event.target.value)}
             placeholder={finalPlaceholders.phone}
             className={`bg-background-secondary ${
               errors.business.businessPhone ? "border-red-500" : ""

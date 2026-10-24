@@ -32,6 +32,10 @@ import {
 import { showToast } from "@/helper/show-toast";
 import { useBusinessKnowledgeSchema, useRoleKnowledgeSchema } from "@/validator/new-business/schema-with-i18n";
 import { useTranslations } from "next-intl";
+import {
+  KnowledgeListError,
+  KnowledgeListLoading,
+} from "./knowledge-list-states";
 
 const BUSINESS_VALIDATION_FIELD_MAP = {
   primaryLogoUrl: "primaryLogo",
@@ -46,10 +50,12 @@ const ROLE_VALIDATION_FIELD_MAP = {
   hashtags: "hashtags",
 } as const;
 
+type KnowledgeTab = "business" | "role";
+
 interface EditKnowledgeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab: "business" | "role";
+  initialTab: KnowledgeTab;
 }
 
 export function EditKnowledgeModal({
@@ -59,7 +65,7 @@ export function EditKnowledgeModal({
 }: EditKnowledgeModalProps) {
   const businessKnowledgeSchema = useBusinessKnowledgeSchema();
   const roleKnowledgeSchema = useRoleKnowledgeSchema();
-  const [activeTab, setActiveTab] = useState<"business" | "role">(initialTab);
+  const [activeTab, setActiveTab] = useState<KnowledgeTab>(initialTab);
   const { formKnowledge, setFormKnowledge, errors, setErrors } =
     useManageKnowledge();
 
@@ -68,57 +74,80 @@ export function EditKnowledgeModal({
   const t = useTranslations();
 
   const { businessId } = useParams() as { businessId: string };
-  const { data: roleKnowledgeData } = useRoleKnowledgeGetById(businessId);
-  const { data: businessKnowledgeData } =
-    useBusinessKnowledgeGetById(businessId);
+  const {
+    data: roleKnowledgeData,
+    isError: isRoleError,
+    refetch: refetchRole,
+    isRefetching: isRefetchingRole,
+  } = useRoleKnowledgeGetById(businessId);
+  const {
+    data: businessKnowledgeData,
+    isError: isBusinessError,
+    refetch: refetchBusiness,
+    isRefetching: isRefetchingBusiness,
+  } = useBusinessKnowledgeGetById(businessId);
 
-  const hasInitialized = useRef(false);
+  // The form state lives in a layout-level context, so until this business's
+  // data is loaded into it the form may still hold another business's values.
+  // Saving is blocked until then.
+  const [isInitialized, setIsInitialized] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const isSubmittingRef = useRef(false);
+
+  const isLoadError =
+    (isBusinessError && !businessKnowledgeData) ||
+    (isRoleError && !roleKnowledgeData);
 
   useEffect(() => {
     if (!isOpen) {
-      hasInitialized.current = false;
+      setIsInitialized(false);
+      return;
     }
-  }, [isOpen]);
+    setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
-    if (isOpen && !hasInitialized.current && roleKnowledgeData && businessKnowledgeData) {
+    if (isOpen && !isInitialized && roleKnowledgeData && businessKnowledgeData) {
       setFormKnowledge({
         role: normalizeRoleKnowledge(roleKnowledgeData?.data?.data),
         business: normalizeBusinessKnowledge(businessKnowledgeData?.data?.data),
       });
       // Clear errors when modal opens
       setErrors({ business: {}, role: {} });
-      hasInitialized.current = true;
+      setIsInitialized(true);
     }
   }, [
     isOpen,
+    isInitialized,
     roleKnowledgeData,
     businessKnowledgeData,
     setFormKnowledge,
     setErrors,
   ]);
 
-  const handleTabChange = (tab: "business" | "role") => {
-    setActiveTab(tab);
-    // Clear errors for the tab being switched to
-    const newErrors = { ...errors };
-    if (tab === "business") {
-      newErrors.business = {};
-    } else {
-      newErrors.role = {};
+  // Both tabs are saved together, so show the tab that holds the errors.
+  const showTabWithErrors = (
+    businessErrors: Record<string, string>,
+    roleErrors: Record<string, string>
+  ) => {
+    const businessHasErrors = Object.keys(businessErrors).length > 0;
+    const roleHasErrors = Object.keys(roleErrors).length > 0;
+    const activeHasErrors =
+      activeTab === "business" ? businessHasErrors : roleHasErrors;
+    if (!activeHasErrors && (businessHasErrors || roleHasErrors)) {
+      setActiveTab(businessHasErrors ? "business" : "role");
     }
-    setErrors(newErrors);
   };
 
   const validateForms = () => {
     const validationErrors = { ...errors };
 
     // Validate business knowledge
-    const businessResult = businessKnowledgeSchema.safeParse(
-      formKnowledge.business
-    );
+    const businessResult = businessKnowledgeSchema.safeParse({
+      ...formKnowledge.business,
+      primaryLogo: formKnowledge.business.primaryLogo ?? "",
+    });
     if (!businessResult.success) {
       const businessErrors: Record<string, string> = {};
       businessResult.error.issues.forEach((error) => {
@@ -142,6 +171,7 @@ export function EditKnowledgeModal({
     }
 
     setErrors(validationErrors);
+    showTabWithErrors(validationErrors.business, validationErrors.role);
 
     // Check if there are any validation errors
     const hasErrors =
@@ -154,13 +184,13 @@ export function EditKnowledgeModal({
   };
 
   const onSubmit = async () => {
-    if (isSubmittingRef.current) return;
+    if (isSubmittingRef.current || !isInitialized || isUploadingLogo) return;
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       validateForms();
 
-      await Promise.all([
+      const [businessResult, roleResult] = await Promise.allSettled([
         mBusinessKnowledge.mutateAsync({
           businessId,
           formData: prepareBusinessKnowledgePayload(formKnowledge.business),
@@ -170,20 +200,35 @@ export function EditKnowledgeModal({
           formData: prepareRoleKnowledgePayload(formKnowledge.role),
         }),
       ]);
-      showToast("success", t("toast.business.knowledgeUpdated"));
-      onClose();
-    } catch (error) {
-      const businessErrors = getApiValidationErrors(
-        error,
-        BUSINESS_VALIDATION_FIELD_MAP
-      );
-      const roleErrors = getApiValidationErrors(error, ROLE_VALIDATION_FIELD_MAP);
+
+      if (
+        businessResult.status === "fulfilled" &&
+        roleResult.status === "fulfilled"
+      ) {
+        showToast("success", t("toast.business.knowledgeUpdated"));
+        onClose();
+        return;
+      }
+
+      // Map each request's validation errors to its own tab.
+      const businessErrors =
+        businessResult.status === "rejected"
+          ? getApiValidationErrors(
+              businessResult.reason,
+              BUSINESS_VALIDATION_FIELD_MAP
+            )
+          : {};
+      const roleErrors =
+        roleResult.status === "rejected"
+          ? getApiValidationErrors(roleResult.reason, ROLE_VALIDATION_FIELD_MAP)
+          : {};
 
       if (Object.keys(businessErrors).length || Object.keys(roleErrors).length) {
         setErrors({
           business: businessErrors,
           role: roleErrors,
         });
+        showTabWithErrors(businessErrors, roleErrors);
         showToast(
           "error",
           getFirstValidationMessage({ ...businessErrors, ...roleErrors }) ||
@@ -192,6 +237,16 @@ export function EditKnowledgeModal({
         return;
       }
 
+      showToast(
+        "error",
+        businessResult.status === "rejected"
+          ? businessResult.reason
+          : roleResult.status === "rejected"
+            ? roleResult.reason
+            : undefined
+      );
+    } catch (error) {
+      // Client-side validation failed (the fields show the details).
       showToast("error", error);
     } finally {
       isSubmittingRef.current = false;
@@ -213,7 +268,8 @@ export function EditKnowledgeModal({
           <div className="flex justify-center">
             <div className="flex bg-background rounded-lg w-full">
               <button
-                onClick={() => handleTabChange("business")}
+                type="button"
+                onClick={() => setActiveTab("business")}
                 className={`px-4 py-3 text-sm font-medium rounded-md transition-colors w-2/3 ${
                   activeTab === "business"
                     ? "bg-blue-500 text-white"
@@ -223,7 +279,8 @@ export function EditKnowledgeModal({
                 {m("business")}
               </button>
               <button
-                onClick={() => handleTabChange("role")}
+                type="button"
+                onClick={() => setActiveTab("role")}
                 className={`px-4 py-3 text-sm font-medium rounded-md transition-colors w-2/3 ${
                   activeTab === "role"
                     ? "bg-blue-500 text-white"
@@ -236,19 +293,31 @@ export function EditKnowledgeModal({
           </div>
         </DialogHeader>
 
-        {/* Tab Bar */}
-
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
-          {activeTab === "business" && <BusinessKnowledgeForm />}
-
-          {activeTab === "role" && <RoleKnowledgeForm />}
+          {!isInitialized ? (
+            isLoadError ? (
+              <KnowledgeListError
+                onRetry={() => {
+                  if (isBusinessError) refetchBusiness();
+                  if (isRoleError) refetchRole();
+                }}
+                isRetrying={isRefetchingBusiness || isRefetchingRole}
+              />
+            ) : (
+              <KnowledgeListLoading />
+            )
+          ) : activeTab === "business" ? (
+            <BusinessKnowledgeForm onUploadingChange={setIsUploadingLogo} />
+          ) : (
+            <RoleKnowledgeForm />
+          )}
         </div>
 
         <DialogFooterWithButton
           buttonMessage={m("save")}
           onClick={onSubmit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !isInitialized || isUploadingLogo}
         />
       </DialogContent>
     </Dialog>

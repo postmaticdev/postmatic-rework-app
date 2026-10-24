@@ -185,47 +185,37 @@ export function AutoGenerate({
     }
   };
 
-  const handleToggleSchedule = async (scheduleId: string) => {
-    try {
-      console.log("handleToggleSchedule called for scheduleId:", scheduleId);
+  const [togglingScheduleId, setTogglingScheduleId] = useState<string | null>(null);
 
+  const handleToggleSchedule = async (scheduleId: string) => {
+    // One request per switch at a time: a second click would resend the same
+    // stale isActive value.
+    if (togglingScheduleId) return;
+    try {
       // Find the schedule to get its current status by checking all days
       let schedule = null;
       for (let day = 0; day < 7; day++) {
         const daySchedules = getSchedulesByDay(day);
         schedule = daySchedules.find((s) => s.id === scheduleId);
         if (schedule) {
-          console.log(
-            "Found schedule:",
-            schedule.id,
-            "Current isActive:",
-            schedule.isActive,
-            "Day:",
-            day
-          );
           break;
         }
       }
 
       if (!schedule) {
-        console.log("Schedule not found for ID:", scheduleId);
         showToast("error", t("scheduleNotFound"));
         return;
       }
 
       // Check if schedule has no platforms
       if (!schedule.platforms || schedule.platforms.length === 0) {
-        console.log("Schedule has no platforms");
-
         // If no connected platforms, show modal to connect platform
         if (lenConnectedPlatform === 0) {
-          console.log("No connected platforms available");
           handleIfNoPlatformConnected();
           return;
         }
 
         // If there are connected platforms, open edit modal to select platforms
-        console.log("Connected platforms available, opening edit modal");
         showToast("info", t("pleaseSelectPlatform"));
         handleEditSchedule(schedule);
         return;
@@ -233,12 +223,6 @@ export function AutoGenerate({
 
       // Toggle the active status
       const newActiveStatus = !schedule.isActive;
-      console.log(
-        "Toggling schedule from",
-        schedule.isActive,
-        "to",
-        newActiveStatus
-      );
 
       // Create the update payload with all existing data but new isActive status
       const updateData = {
@@ -270,24 +254,18 @@ export function AutoGenerate({
         advRoleHashtags: schedule.advRoleHashtags,
       };
 
+      setTogglingScheduleId(scheduleId);
       await updateScheduleMutation.mutateAsync({
         businessId,
         scheduleId,
         formData: updateData,
       });
 
-      console.log(
-        "Schedule updated successfully:",
-        scheduleId,
-        "New status:",
-        newActiveStatus
-      );
       showToast(
         "success",
         newActiveStatus ? t("scheduleActivated") : t("scheduleDeactivated")
       );
     } catch (error) {
-      console.error("Error toggling schedule:", error);
       // Tampilkan alasan dari backend bila ada (mis. platform terputus, model premium)
       showToast(
         "error",
@@ -295,6 +273,8 @@ export function AutoGenerate({
           ? error
           : t("scheduleToggleFailed")
       );
+    } finally {
+      setTogglingScheduleId(null);
     }
   };
 
@@ -460,6 +440,7 @@ export function AutoGenerate({
                                           <Switch
                                             className="z-50"
                                             checked={schedule.isActive}
+                                            disabled={togglingScheduleId === schedule.id}
                                             onCheckedChange={() =>
                                               handleToggleSchedule(schedule.id)
                                             }

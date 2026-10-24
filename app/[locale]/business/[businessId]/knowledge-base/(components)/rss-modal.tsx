@@ -57,17 +57,24 @@ export function RSSModal({
     if (isOpen) setRssAction(mode);
   }, [isOpen, mode]);
 
-  const { data: rssCategoryLib } = useLibraryRSSCategory({
-    limit: 100,
-    sortBy: "name",
-    sort: "asc",
-  });
-  const { data: rssDataLib } = useLibraryRSSData({
-    sortBy: "title",
-    sort: "asc",
-    limit: 100,
-    category: formValue.masterRssCategoryId,
-  });
+  // The modal stays mounted; only load the library while it is open.
+  const { data: rssCategoryLib } = useLibraryRSSCategory(
+    {
+      limit: 100,
+      sortBy: "name",
+      sort: "asc",
+    },
+    isOpen
+  );
+  const { data: rssDataLib } = useLibraryRSSData(
+    {
+      sortBy: "title",
+      sort: "asc",
+      limit: 100,
+      category: formValue.masterRssCategoryId,
+    },
+    isOpen
+  );
 
   const categoryLib = rssCategoryLib?.data.data || [];
   const dataLib = rssDataLib?.data.data || [];

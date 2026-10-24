@@ -1,8 +1,6 @@
 "use client";
 
 import { getMemberRoleLabel } from "@/helper/member-role";
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,68 +15,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "next-themes";
 import { Moon, Sun, LogOut, User } from "lucide-react";
-import {
-  useAuthProfileGetProfile,
-  useAuthProfileLogout,
-  useAuthProfileGetCurrentSession,
-} from "@/services/auth.api";
-import { showToast } from "@/helper/show-toast";
+import { useAuthProfileGetProfile } from "@/services/auth.api";
 import { useTranslations } from "next-intl";
 import { DEFAULT_USER_AVATAR } from "@/constants";
-import { logoutAndRedirect } from "@/config/api";
-import { showLogoutOverlay } from "@/lib/logout-overlay";
-import { useBusinessGetAll } from "@/services/business.api";
+import { useRole } from "@/contexts/role-context";
+import { useLogout } from "@/hooks/use-logout";
 
 export function ProfileDropdown() {
   const router = useRouter();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const { data: profileData } = useAuthProfileGetProfile();
-  const { data: businessesData } = useBusinessGetAll();
-  const { businessId } = useParams() as { businessId?: string };
-  const businesses = businessesData?.data?.data || [];
-  const currentBusiness =
-    businesses.find((business) => business.id === businessId) || null;
-  const userRole = currentBusiness?.userPosition?.role;
+  // Role bisnis aktif dari RoleProvider (detail bisnis), bukan dari daftar
+  // bisnis yang dibatasi per halaman.
+  const { role: userRole } = useRole();
   const profile = profileData?.data?.data;
   const tSideBar = useTranslations("sideBar");
   const tRole = useTranslations("memberRole");
+  const handleLogout = useLogout();
 
-  const [isDarkMode, setIsDarkMode] = useState(
-    theme === "dark" || resolvedTheme === "dark"
-  );
-
-  useEffect(() => {
-    setIsDarkMode(resolvedTheme === "dark" || theme === "dark");
-  }, [theme, resolvedTheme]);
+  const isDarkMode = resolvedTheme === "dark";
 
   const handleThemeToggle = (checked: boolean) => {
-    setIsDarkMode(checked);
     setTheme(checked ? "dark" : "light");
   };
 
   const handleProfile = () => {
     router.push("/profile");
-  };
-
-  const mLogout = useAuthProfileLogout();
-  const { data: currentSessionData } = useAuthProfileGetCurrentSession();
-  const currentSessionId = currentSessionData?.data?.data?.session?.id;
-  const tToast = useTranslations();
-
-  const handleLogout = async () => {
-    // Layar loading langsung tampil, tidak menunggu request logout selesai.
-    showLogoutOverlay();
-    try {
-      if (currentSessionId) {
-        await mLogout.mutateAsync(currentSessionId);
-      } else {
-        await mLogout.mutateAsync(undefined);
-      }
-    } catch {
-    } finally {
-      showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
-      await logoutAndRedirect();
-    }
   };
 
   return (

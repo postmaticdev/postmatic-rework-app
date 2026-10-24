@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,10 @@ type ViewMode = "profile" | "password";
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 72;
 const PASSWORD_LENGTH_PARAMS = { min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH };
+// Mirrors the API rule for PUT /account/profile.
+const DEFAULT_COUNTRY_CODE = "+62";
+const DESCRIPTION_MAX_LENGTH = 255;
+const PHONE_MAX_LENGTH = 20;
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -68,30 +72,45 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
   const mUpdateProfile = useAuthProfileUpdateProfile();
   const mChangePassword = useAuthProfileChangePassword();
 
-  const isSocialAccount = profile?.users?.some(
-    (user) => user.provider === "google"
-  );
+  // Akun Google tanpa password tidak bisa memakai "ganti password".
+  const isSocialAccount =
+    !!profile?.google?.isConnected && !profile?.credential?.isPasswordSet;
 
   const [formData, setFormData] = useState<ProfilePld>(initialFormData);
   const [passwordData, setPasswordData] =
     useState<UpdatePasswordData>(initialPasswordData);
   const [showPasswords, setShowPasswords] = useState(initialShowPasswords);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  // Isi ulang form dari profile setiap modal dibuka, supaya editan yang
+  // dibatalkan tidak muncul lagi dan refetch tidak menimpa editan yang sedang berjalan.
+  const isFormInitialized = useRef(false);
   useEffect(() => {
-    if (profile) {
-      setFormData({
-        countryCode: profile.countryCode || "",
-        phone: profile.phone || "",
-        image: profile.image || null,
-        email: profile.email || "",
-        name: profile.name || "",
-        description: profile.description || "",
-      });
+    if (!isOpen) {
+      isFormInitialized.current = false;
+      return;
     }
-  }, [profile]);
+    if (!profile || isFormInitialized.current) return;
+    isFormInitialized.current = true;
+    setFormData({
+      // countryCode wajib di API (PUT /account/profile), default ke Indonesia.
+      countryCode: profile.countryCode || DEFAULT_COUNTRY_CODE,
+      phone: profile.phone || "",
+      image: profile.image || null,
+      email: profile.email || "",
+      name: profile.name || "",
+      description: profile.description || "",
+    });
+  }, [isOpen, profile]);
 
   const handleSaveProfile = async () => {
+    if (!profile || mUpdateProfile.isPending || isUploadingPhoto) return;
+    const name = formData.name.trim();
+    if (!name) {
+      showToast("error", t("profileErrors.nameRequired"));
+      return;
+    }
     try {
-      if (!profile) return;
       let copiedPhone = formData.phone;
       let isStartWith0 = true;
 
@@ -106,6 +125,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
       const res = await mUpdateProfile.mutateAsync({
         ...formData,
+        name,
+        countryCode: formData.countryCode || DEFAULT_COUNTRY_CODE,
         phone: copiedPhone,
       });
       showToast("success", res.data.responseMessage);
@@ -278,6 +299,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     }));
                   }}
                   currentImage={formData.image}
+                  onUploadingChange={setIsUploadingPhoto}
                 />
               </div>
 
@@ -302,6 +324,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                   }
                   className="bg-card min-h-24 resize-none"
                   placeholder={t("bioPlaceholder")}
+                  maxLength={DESCRIPTION_MAX_LENGTH}
                 />
               </div>
 
@@ -333,13 +356,13 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     className="w-28 sm:w-40 bg-card"
                   />
                   <Input
-                    type="number"
+                    type="tel"
+                    inputMode="numeric"
                     value={formData.phone}
-                    onKeyDown={(evt) =>
-                      ["e", "E", "+", "-"].includes(evt.key) &&
-                      evt.preventDefault()
+                    maxLength={PHONE_MAX_LENGTH}
+                    onChange={(e) =>
+                      handleInputChange("phone", e.target.value.replace(/\D/g, ""))
                     }
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
                     className="bg-card flex-1"
                     placeholder={t("phonePlaceholder")}
                   />
@@ -507,7 +530,11 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 ? handleSaveProfile
                 : handlePasswordSave
             }
-            disabled={currentView === "password" && mChangePassword.isPending}
+            disabled={
+              currentView === "password"
+                ? mChangePassword.isPending
+                : mUpdateProfile.isPending || isUploadingPhoto
+            }
           >
             <Save className="h-4 w-4" />
             <span>
