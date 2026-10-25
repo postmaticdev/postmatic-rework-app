@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 const iconWrapper = "flex size-8 shrink-0 items-center justify-center rounded-full [&>svg]:size-[18px]"
 
-// Toast kanan bawah: garis warna + ikon menandai status, judul tegas, pesan detail di bawahnya.
+// Toast kanan bawah: ikon berwarna menandai status, judul tegas, pesan detail di bawahnya.
 const Toaster = ({ ...props }: ToasterProps) => {
   const { resolvedTheme } = useTheme()
 
@@ -53,7 +53,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         unstyled: true,
         classNames: {
           toast:
-            "group relative flex w-full items-start gap-3 rounded-xl border border-l-4 border-border bg-popover p-3.5 pr-10 text-popover-foreground shadow-lg shadow-black/5 sm:w-(--width)",
+            "group relative flex w-full items-start gap-3 rounded-xl border border-border bg-popover p-3.5 pr-10 text-popover-foreground shadow-lg shadow-black/5 sm:w-(--width)",
           content: "flex min-w-0 flex-1 flex-col gap-0.5 pt-1",
           title: "text-sm font-semibold leading-snug text-popover-foreground!",
           // "!": sonner mewarnai deskripsi sendiri saat tema gelap.
@@ -66,11 +66,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "shrink-0 self-center rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary/90",
           cancelButton:
             "shrink-0 self-center rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent",
-          success: "border-l-emerald-500",
-          error: "border-l-red-500",
-          warning: "border-l-amber-500",
-          info: "border-l-primary",
-          loading: "border-l-primary",
         },
       }}
       {...props}

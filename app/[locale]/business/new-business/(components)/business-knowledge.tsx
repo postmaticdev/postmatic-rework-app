@@ -56,7 +56,8 @@ export function BusinessKnowledge() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row w-full gap-4 md:gap-6 items-start">
+      {/* Logo di kiri, nama & kategori di kanan (juga di mobile) */}
+      <div className="flex w-full flex-row items-start gap-3 sm:gap-6 [&>*:first-child]:shrink-0">
         <UploadPhoto
           label={finalLabels.logoBrand}
           // onImageChange={(file) => updateField("primaryLogo", file)}
@@ -71,7 +72,7 @@ export function BusinessKnowledge() {
           onFocus={() => clearFieldError(0, "primaryLogo")}
         />
 
-        <div className="w-full space-y-4">
+        <div className="min-w-0 flex-1 space-y-4">
           <TextField
             label={finalLabels.brandName}
             value={step1.name}

@@ -63,7 +63,8 @@ export function BusinessKnowledgeForm({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col md:flex-row w-full gap-4 sm:gap-6 items-start">
+      {/* Logo di kiri, nama & kategori di kanan (juga di mobile) */}
+      <div className="flex w-full flex-row items-start gap-3 sm:gap-6 [&>*:first-child]:shrink-0">
         <UploadPhoto
           label={finalLabels.logoBrand}
           onImageChange={(file: string | null) =>
@@ -74,7 +75,7 @@ export function BusinessKnowledgeForm({
           onUploadingChange={onUploadingChange}
         />
 
-        <div className="w-full space-y-4">
+        <div className="min-w-0 flex-1 space-y-4">
           <TextField
             label={finalLabels.brandName}
             value={formKnowledge?.business?.name}

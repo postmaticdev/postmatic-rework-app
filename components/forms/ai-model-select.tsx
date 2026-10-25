@@ -92,7 +92,9 @@ export function AiModelSelect({
     ? getAiModelDisplayName(selectedOption)
     : isLoading
       ? t("loading")
-      : t("empty");
+      : models.length > 0
+        ? t("placeholder")
+        : t("empty");
   const isSmall = size === "sm";
 
   return (

@@ -77,7 +77,7 @@ export const GenerateFormBasic = ({
 
   return (
     <div className="space-y-4">
-      {basic.productKnowledgeId ? (
+      {basic.productKnowledgeId && basic.productName ? (
         <div className="space-y-4">
           {/* Plus separator if reference image is selected */}
           {basic.referenceImage && (

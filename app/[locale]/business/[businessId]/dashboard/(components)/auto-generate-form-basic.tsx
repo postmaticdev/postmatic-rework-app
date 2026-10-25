@@ -69,7 +69,7 @@ export const AutoGenerateFormBasic = () => {
 
   return (
     <div className="space-y-4">
-      {basic.productKnowledgeId ? (
+      {basic.productKnowledgeId && basic.productName ? (
         <div className="space-y-2">
           <h3 className="font-medium text-sm">{t("productName")}</h3>
           <Card

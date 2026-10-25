@@ -1601,6 +1601,28 @@ export const ContentGenerateProvider = ({
     useState<ContentGenerateContext["form"]["basic"]>(initialFormBasic);
   const [formAdvance, setFormAdvance] =
     useState<ContentGenerateContext["form"]["advance"]>(initialFormAdvance);
+
+  // A product restored by id only (draft route, history) has no name yet: fill it
+  // from the product list, or drop the id when the product no longer exists so
+  // the form asks for a product again.
+  useEffect(() => {
+    const productId = formBasic.productKnowledgeId;
+    if (!productId || formBasic.productName || !allProductsRes) return;
+    const product = (allProductsRes.data?.data || []).find(
+      (item) => item.id === productId
+    );
+    setFormBasic((prev) => {
+      if (prev.productKnowledgeId !== productId || prev.productName) return prev;
+      return product
+        ? {
+            ...prev,
+            productName: product.name,
+            productImage: prev.productImage || product.images?.[0] || "",
+          }
+        : { ...prev, productKnowledgeId: "", productName: "", productImage: "" };
+    });
+  }, [allProductsRes, formBasic.productKnowledgeId, formBasic.productName]);
+
   const [formRss, setFormRss] =
     useState<ContentGenerateContext["form"]["rss"]>(null);
   const [enabledAdvance, setEnableAdvance] = useState<

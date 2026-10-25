@@ -24,7 +24,7 @@ import { useParams } from "next/navigation";
 import { AutoGenerateFormBasic } from "./auto-generate-form-basic";
 import { AutoGenerateFormAdvanced } from "./auto-generate-form-advance";
 import { TextField } from "@/components/forms/text-field";
-import { usePlatformKnowledgeGetAll, useBusinessKnowledgeGetById } from "@/services/knowledge.api";
+import { usePlatformKnowledgeGetAll, useBusinessKnowledgeGetById, useProductKnowledgeGetAll } from "@/services/knowledge.api";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -105,11 +105,42 @@ export function AutoGenerateModal({
     [platformOptions]
   );
 
+  // The context's product list is one page of 10, so an edited schedule's
+  // product is looked up in a larger list.
+  const { data: allProductsRes } = useProductKnowledgeGetAll(
+    businessId,
+    { limit: 100, page: 1, sortBy: "name", sort: "asc" },
+    isOpen
+  );
+
   // Helper function to get product name from productKnowledgeId
   const getProductNameById = (productKnowledgeId: string) => {
     const product = productKnowledges.contents.find(p => p.id === productKnowledgeId);
     return product?.name || "";
   };
+
+  // Fill the name and image of a product known only by id, or drop the id when
+  // the product no longer exists so the form asks for a product again.
+  useEffect(() => {
+    const productId = basic.productKnowledgeId;
+    if (!isOpen || !productId || basic.productName || !allProductsRes) return;
+    const product = (allProductsRes.data?.data || []).find(
+      (item) => item.id === productId
+    );
+    setBasic(
+      product
+        ? { ...basic, productName: product.name, productImage: product.images?.[0] || "" }
+        : { ...basic, productKnowledgeId: "", productName: "", productImage: "" }
+    );
+  }, [allProductsRes, basic, isOpen, setBasic]);
+
+  // A schedule saved with a model that is no longer offered for repetition
+  // (removed, or a grid model) asks for a model instead of showing an unknown one.
+  useEffect(() => {
+    if (!isOpen || !basic.model || aiModels.isLoading || aiModels.models.length === 0) return;
+    if (aiModels.models.some((model) => model.name === basic.model)) return;
+    setBasic({ ...basic, model: "" });
+  }, [aiModels.isLoading, aiModels.models, basic, isOpen, setBasic]);
 
   const DAYS = [
     { value: 0, label: t("sunday") },
@@ -160,6 +191,10 @@ export function AutoGenerateModal({
     if (isSaving) return;
     if (!basic?.productKnowledgeId) {
       showToast("error", t("pleaseSelectProduct"));
+      return;
+    }
+    if (!basic.model) {
+      showToast("error", t("pleaseSelectModel"));
       return;
     }
 
@@ -302,7 +337,12 @@ export function AutoGenerateModal({
         designStyle: editingSchedule.designStyle,
         prompt: editingSchedule.additionalPrompt || "",
         productKnowledgeId: editingSchedule.productKnowledgeId,
+        // Resolved from the product list when not on the context's page.
         productName: getProductNameById(editingSchedule.productKnowledgeId),
+        productImage:
+          productKnowledges.contents.find(
+            (product) => product.id === editingSchedule.productKnowledgeId
+          )?.images?.[0] || "",
         selectedAvatar: editingSchedule.avatarImageUrl
           ? {
               id: `schedule-avatar-${editingSchedule.id}`,
@@ -741,7 +781,7 @@ export function AutoGenerateModal({
           <DialogFooterWithButton
             buttonMessage={t("saveSchedule")}
             onClick={handleSave}
-            disabled={isLoading || isSaving || !basic?.productKnowledgeId}
+            disabled={isLoading || isSaving || !basic?.productKnowledgeId || !basic?.model}
           />
         )}
       </DialogContent>

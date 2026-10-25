@@ -344,6 +344,7 @@
     "hashtag": "Hashtags",
     "cancel": "Cancel",
     "pleaseSelectProduct": "Please select a product",
+    "pleaseSelectModel": "Please select an AI model",
     "pleaseSelectPlatform": "Please select at least one platform",
     "promosiDiskon": "Promotion & Discount",
     "productShowcase": "Product Showcase",
@@ -1932,6 +1933,7 @@
   },
   "aiModelSelect": {
     "loading": "Loading models...",
+    "placeholder": "Select an AI model",
     "empty": "No model available"
   },
   "imageCategory": {

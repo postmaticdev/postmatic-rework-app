@@ -317,6 +317,7 @@
     "saveSchedule": "Simpan Jadwal",
     "updateSchedule": "Perbarui Jadwal",
     "pleaseSelectProduct": "Harap pilih produk",
+    "pleaseSelectModel": "Silakan pilih model AI",
     "pleaseSelectPlatform": "Harap pilih minimal satu platform",
     "sunday": "Minggu",
     "monday": "Senin",
@@ -1932,6 +1933,7 @@
   },
   "aiModelSelect": {
     "loading": "Memuat model...",
+    "placeholder": "Pilih model AI",
     "empty": "Tidak ada model tersedia"
   },
   "imageCategory": {
