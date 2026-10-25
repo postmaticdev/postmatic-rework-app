@@ -1352,8 +1352,8 @@ export function ContentSchedulerBoard({
       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <div className="flex items-start justify-between gap-4 pr-8 max-sm:flex-col max-sm:gap-3">
-              <div>
+            <div className="flex items-start justify-between gap-4 pr-8 max-sm:flex-col max-sm:items-stretch max-sm:gap-3 max-sm:pr-0">
+              <div className="max-sm:pr-8">
                 <DialogTitle>{formatDateTitle(selectedDate)}</DialogTitle>
                 <DialogDescription>
                   {t("scheduledDateHistoryDescription")}
@@ -1362,12 +1362,12 @@ export function ContentSchedulerBoard({
               {canCreateNewOnSelectedDate && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button type="button" className="gap-1.5">
+                    <Button type="button" className="gap-1.5 max-sm:w-full">
                       <Plus className="h-4 w-4" />
                       {t("createNew")}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-48 max-sm:w-(--radix-dropdown-menu-trigger-width)">
                     <DropdownMenuItem
                       onClick={() => {
                         setIsHistoryDialogOpen(false);

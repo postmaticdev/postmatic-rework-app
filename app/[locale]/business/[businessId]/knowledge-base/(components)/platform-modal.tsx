@@ -16,9 +16,11 @@ import { useTranslations } from "next-intl";
 interface PlatformModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Page to come back to after the provider's auth flow; defaults to the current page.
+  returnUrl?: string;
 }
 
-export function PlatformModal({ isOpen, onClose }: PlatformModalProps) {
+export function PlatformModal({ isOpen, onClose, returnUrl }: PlatformModalProps) {
   const m = useTranslations("modal");
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -31,7 +33,7 @@ export function PlatformModal({ isOpen, onClose }: PlatformModalProps) {
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
-          <ConnectedPlatformForm />
+          <ConnectedPlatformForm returnUrl={returnUrl} />
         </div>
         <DialogFooterWithButton
           buttonMessage={m("close")}

@@ -547,18 +547,20 @@ export function AutoGenerateModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         size="xl"
+        className="overflow-x-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DialogHeader className={cn(editingSchedule && "pr-12 sm:pr-14")}>
-          <div className="flex items-center justify-between gap-4">
-            <div>
+        {/* Mobile: status switch below the title so neither collides with the close button */}
+        <DialogHeader className={cn(editingSchedule && "sm:pr-14")}>
+          <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start max-sm:gap-3">
+            <div className="min-w-0">
               <DialogTitle>{t("configureAutoGenerate")}</DialogTitle>
               <DialogDescription>
                 {t("scheduleConfiguration")}
               </DialogDescription>
             </div>
             {editingSchedule && (
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">
                   {isActive ? t("active") : t("inactive")}
                 </span>
@@ -718,7 +720,8 @@ export function AutoGenerateModal({
               variant="destructive"
               size="icon"
               onClick={() => editingSchedule && onDelete?.(editingSchedule)}
-              className="shrink-0 bg-red-600 text-white hover:bg-red-700"
+              // The footer stretches every button on mobile; keep this one square.
+              className="w-(--control-h)! min-w-0! shrink-0 bg-red-600 text-white hover:bg-red-700"
               aria-label={t("deleteSchedule")}
               title={t("deleteSchedule")}
             >
@@ -728,7 +731,7 @@ export function AutoGenerateModal({
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-1 bg-primary text-white hover:bg-blue-700"
+              className="min-w-0 flex-1 bg-primary text-white hover:bg-blue-700"
             >
               <Save className="h-4 w-4" />
               {t("updateSchedule")}

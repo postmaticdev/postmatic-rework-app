@@ -373,10 +373,10 @@ export function SharedReferencePanel({
               <TemplateGridSkeleton />
             ) : (
               <div className="columns-2 gap-4 space-y-0">
-                {/* Upload Card */}
+                {/* Upload Card — mobile: full-width row spanning both columns */}
 
                 <div
-                  className={` w-full mb-4 break-inside-avoid rounded-lg overflow-hidden border-2 border-dashed transition-colors flex items-center justify-center ${
+                  className={` w-full mb-4 break-inside-avoid max-lg:[column-span:all] rounded-lg overflow-hidden border-2 border-dashed transition-colors flex items-center justify-center ${
                     isUploading
                       ? "border-blue-300 bg-background"
                       : "border-border bg-background-secondary cursor-pointer hover:border-blue-300"
@@ -399,12 +399,14 @@ export function SharedReferencePanel({
                         <p className="text-xs text-gray-500">{uploadProgress}%</p>
                       </>
                     ) : (
-                      <>
-                        <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {t("uploadImage")}
-                        </p>
-                        <p className="text-xs text-muted-foreground mb-3">{t("enterNameFirst")}</p>
+                      <div className="flex w-full flex-col items-center max-lg:flex-row max-lg:gap-3 max-lg:text-left">
+                        <Upload className="h-8 w-8 shrink-0 text-gray-400 mb-2 max-lg:mb-0 max-lg:h-6 max-lg:w-6" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-muted-foreground mb-2 max-lg:mb-0.5 max-lg:font-medium max-lg:text-foreground">
+                            {t("uploadImage")}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-3 max-lg:mb-0">{t("enterNameFirst")}</p>
+                        </div>
                         <input
                           id="file-upload"
                           type="file"
@@ -413,7 +415,7 @@ export function SharedReferencePanel({
                           onChange={handleFileInput}
                           disabled={isUploading}
                         />
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>

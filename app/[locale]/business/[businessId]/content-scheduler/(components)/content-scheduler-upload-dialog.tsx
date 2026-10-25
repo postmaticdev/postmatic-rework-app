@@ -20,6 +20,7 @@ import { dateManipulation } from "@/helper/date-manipulation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { cn } from "@/lib/utils";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
+import { SchedulePlatformPicker } from "@/components/shared/schedule-platform-picker";
 import {
   useContentCaptionEnhance,
   useContentSchedulerManualAddToQueue,
@@ -600,9 +601,9 @@ export function ContentSchedulerUploadDialog({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full max-md:gap-6">
             {/* Left Section */}
             <div className="flex flex-col gap-6 sticky top-0 h-fit max-md:static">
-              {/* Mobile: upload di kiri, jadwal (tanggal + jam) di kanan atas */}
-              <div className="flex flex-col gap-6 max-md:flex-row max-md:items-start max-md:gap-3">
-              <div className="max-md:min-w-0 max-md:flex-1">
+              {/* Jadwal di bawah upload; tanggal dan jam berdampingan */}
+              <div className="flex flex-col gap-6 max-md:gap-4">
+              <div>
               <UploadPhoto
                 label={t("fileUpload")}
                 multiple
@@ -615,9 +616,9 @@ export function ContentSchedulerUploadDialog({
               </p>
               </div>
 
-              <div className="space-y-4 max-md:w-[46%] max-md:shrink-0 max-md:space-y-2">
+              <div className="space-y-4 max-md:space-y-3">
                 <div className="text-sm font-medium">{tContentGenerate("scheduleAt")}</div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 max-md:gap-2">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div
                     className="flex h-(--control-h) cursor-pointer items-center gap-2 rounded-md border border-input bg-background-secondary px-3"
                     onClick={(e) => {
@@ -658,53 +659,13 @@ export function ContentSchedulerUploadDialog({
               </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="text-sm font-medium">{tContentGenerate("choosePlatform")}</div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {platformOptions.map(({ platform, isConnected }) => {
-                    const isSelected = isConnected && selectedPlatforms.includes(platform);
-                    return (
-                      <button
-                        key={platform}
-                        type="button"
-                        onClick={() => togglePlatform(platform)}
-                        disabled={!isConnected}
-                        className={cn(
-                          "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors max-md:h-(--control-h)",
-                          isSelected
-                            ? "border-primary bg-primary text-white"
-                            : "border-border bg-background-secondary",
-                          !isConnected &&
-                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
-                        )}
-                      >
-                        {mapEnumPlatform.getPlatformIcon(
-                          platform,
-                          isSelected
-                            ? "text-white"
-                            : !isConnected
-                              ? "text-muted-foreground"
-                              : ""
-                        )}
-                        <span className="flex flex-col leading-tight">
-                          <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
-                          {!isConnected && (
-                            <span className="text-[11px] font-normal max-sm:text-xs">
-                              {tContentGenerate("notConnected")}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              
-              {!hasConnectedPlatforms && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {t("noConnectedPlatformMessage")}
-                </p>
-              )}
+              <SchedulePlatformPicker
+                platforms={platformOptions}
+                selectedPlatforms={selectedPlatforms}
+                onTogglePlatform={togglePlatform}
+                onConnectPlatform={onNeedPlatformConnect}
+                disabled={isSubmitting}
+              />
             </div>
 
             {/* Right Section - Social Media Preview */}
@@ -741,7 +702,8 @@ export function ContentSchedulerUploadDialog({
           <Button
             size="lg"
             onClick={handleSchedule}
-            disabled={isSubmitting}
+            // Scheduling needs at least one platform.
+            disabled={isSubmitting || selectedPlatforms.length === 0}
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />

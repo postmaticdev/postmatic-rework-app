@@ -76,7 +76,12 @@ function PlatformAvatar({
   );
 }
 
-export function ConnectedPlatformForm() {
+export function ConnectedPlatformForm({
+  returnUrl: returnUrlOverride,
+}: {
+  // Where the auth site sends the user back to; defaults to the current page.
+  returnUrl?: string;
+} = {}) {
   const { businessId } = useParams() as { businessId: string };
   const t = useTranslations("connectedPlatformForm");
   const searchParams = useSearchParams();
@@ -160,7 +165,10 @@ export function ConnectedPlatformForm() {
     try {
       // Come back to this page after the account is picked on the auth site,
       // without leftover flags from a previous connection.
-      const returnUrl = new URL(window.location.href);
+      const returnUrl = new URL(
+        returnUrlOverride || window.location.href,
+        window.location.href
+      );
       PLATFORM_URL_FLAGS.forEach((key) => returnUrl.searchParams.delete(key));
       returnUrl.hash = "";
       const response = await mdAuthorizeUrl.mutateAsync({

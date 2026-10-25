@@ -19,6 +19,7 @@ import { useTranslations } from "next-intl";
 import { useState, useEffect, useMemo } from "react";
 import { ContentCarouselPreview } from "./content-carousel-preview";
 import { ProtectedImage } from "./protected-image";
+import { SchedulePlatformPicker } from "@/components/shared/schedule-platform-picker";
 
 interface ScheduleSummaryModalProps {
   isOpen: boolean;
@@ -47,6 +48,8 @@ interface ScheduleSummaryModalProps {
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
   onTogglePlatform: (platform: PlatformEnum) => void;
+  // Opens the platform connect flow from the platform picker.
+  onConnectPlatform?: () => void;
   // Omit to hide the enhance-caption button.
   onEnhanceCaption?: () => void;
   onConfirm: () => void;
@@ -81,6 +84,7 @@ export function ScheduleSummaryModal({
   onDateChange,
   onTimeChange,
   onTogglePlatform,
+  onConnectPlatform,
   onEnhanceCaption,
   onConfirm,
   renderMedia,
@@ -453,49 +457,13 @@ export function ScheduleSummaryModal({
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="text-sm font-medium">{t("choosePlatform")}</div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {platforms.map(({ platform, isConnected, requiresReconnect }) => {
-                    const isAvailable = isConnected && !requiresReconnect;
-                    const isSelected =
-                      isAvailable && selectedPlatforms.includes(platform);
-                    return (
-                      <button
-                        key={platform}
-                        type="button"
-                        onClick={() => onTogglePlatform(platform)}
-                        disabled={!isAvailable || isLoading}
-                        className={cn(
-                          "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
-                          isSelected
-                            ? "border-primary bg-primary text-white"
-                            : "border-border bg-background-secondary",
-                          !isAvailable &&
-                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
-                        )}
-                      >
-                        {mapEnumPlatform.getPlatformIcon(
-                          platform,
-                          isSelected
-                            ? "text-white"
-                            : !isAvailable
-                              ? "text-muted-foreground"
-                              : ""
-                        )}
-                        <span className="flex flex-col leading-tight">
-                          <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
-                          {!isAvailable && (
-                            <span className="text-[11px] font-normal max-sm:text-xs">
-                              {isConnected ? t("needsReconnect") : t("notConnected")}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <SchedulePlatformPicker
+                platforms={platforms}
+                selectedPlatforms={selectedPlatforms}
+                onTogglePlatform={onTogglePlatform}
+                onConnectPlatform={onConnectPlatform}
+                disabled={isLoading}
+              />
 
               {showShareReference && (
                 <label
@@ -564,7 +532,8 @@ export function ScheduleSummaryModal({
         </div>
 
         <DialogFooter>
-          <Button onClick={onConfirm} disabled={isLoading}>
+          {/* Scheduling needs at least one publishable platform. */}
+          <Button onClick={onConfirm} disabled={isLoading || previewPlatforms.length === 0}>
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

@@ -59,7 +59,12 @@ import { usePremiumModelGuard } from "./use-premium-model-guard";
 import { GridResultTiles } from "./grid-result-tiles";
 import { GenerationStatusText } from "./generation-status-text";
 
-export function GenerationPanel() {
+export function GenerationPanel({
+  onOpenMobileReference,
+}: {
+  // Mobile only: opens the reference step, which sits behind the form on small screens.
+  onOpenMobileReference?: () => void;
+} = {}) {
   const { businessId } = useParams() as { businessId: string };
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -813,12 +818,7 @@ export function GenerationPanel() {
                           : job.input.referenceImage || additionalPromptImages[0] || null;
                         // Chat jobs report the backend pipeline step; other jobs fall back to the generic copy.
                         const stepKey = `progressSteps.${job.progressStep || job.stage}`;
-                        const modelObj = aiModels.models.find(m => m.name === job.input.model || String(m.id) === String(job.input.model));
-                        const statusText = t.has(stepKey)
-                          ? t(stepKey, {
-                              model: modelObj ? getAiModelDisplayName(modelObj) : (getAiModelDisplayName(job.input.model) || "AI"),
-                            })
-                          : t("generatingImage");
+                        const statusText = t.has(stepKey) ? t(stepKey) : t("generatingImage");
 
                         return (
                           // Same loading look as the preview: the image being edited, dimmed and blurred,
@@ -994,7 +994,10 @@ export function GenerationPanel() {
 
 
           <SelectedReferenceImage />
-          <GenerateFormBasic onOpenTrend={() => setIsTrendDialogOpen(true)} />
+          <GenerateFormBasic
+            onOpenTrend={() => setIsTrendDialogOpen(true)}
+            onOpenReference={onOpenMobileReference}
+          />
 
           <SelectedArticleRss
             onChangeArticle={() => {

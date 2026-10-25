@@ -6,7 +6,7 @@ import { ChevronDown as ChevronDownIcon, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
-import { Plus, X, Bot, Newspaper } from "lucide-react";
+import { Plus, X, Bot, Newspaper, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { ValidRatio } from "@/models/api/content/image.type";
@@ -53,7 +53,14 @@ const RatioIcon = ({ ratio }: { ratio: string }) => {
   );
 };
 
-export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void }) => {
+export const GenerateFormBasic = ({
+  onOpenTrend,
+  onOpenReference,
+}: {
+  onOpenTrend?: () => void;
+  // Mobile only: the reference panel is a separate step reached from below the product picker.
+  onOpenReference?: () => void;
+}) => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const {
@@ -140,6 +147,24 @@ export const GenerateFormBasic = ({ onOpenTrend }: { onOpenTrend?: () => void })
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+      )}
+
+      {onOpenReference && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-between text-left font-normal lg:hidden"
+          onClick={onOpenReference}
+          disabled={isLoading || disabled}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">
+              {basic.referenceImage ? t("changeReference") : t("selectReference")}
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       )}
 
       {/* Avatar Cards */}

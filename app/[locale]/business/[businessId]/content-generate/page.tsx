@@ -7,15 +7,15 @@ import { LogoLoader } from "@/components/base/logo-loader";
 import { Button } from "@/components/ui/button";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
 
 // Mobile (< lg) memecah halaman menjadi langkah terpisah:
-// 1. "reference" — pilih referensi, sticky button Lanjutkan
-// 2. "form"      — produk, AI model, aspect ratio, dll + sticky button Generate (dari PreviewPanel)
+// 1. "form"      — langkah awal: produk, AI model, aspect ratio, dll + sticky button Generate (dari PreviewPanel)
+// 2. "reference" — dibuka dari tombol di bawah Pilih Produk, sticky button Lanjutkan kembali ke form
 // 3. chat AI     — otomatis saat mode berubah ke "regenerate" setelah generate
 // Desktop (lg+) tetap 3 kolom seperti sebelumnya.
 type MobileStep = "reference" | "form";
@@ -24,7 +24,7 @@ export default function ContentGenerate() {
   const { mode, form, isLoading, isRestoringSchedulerChat } =
     useContentGenerate();
   const t = useTranslations("generationPanel");
-  const [mobileStep, setMobileStep] = useState<MobileStep>("reference");
+  const [mobileStep, setMobileStep] = useState<MobileStep>("form");
 
   // The generator state is reset by the provider when the route is left, not on unmount here:
   // Strict Mode's simulated unmount would otherwise reset it in the middle of a draft-chat restore.
@@ -35,9 +35,9 @@ export default function ContentGenerate() {
     };
   }, []);
 
-  // Setelah masuk chat AI, flow berikutnya (mis. reset form) dimulai lagi dari langkah referensi.
+  // Setelah masuk chat AI, flow berikutnya (mis. reset form) dimulai lagi dari langkah form.
   useEffect(() => {
-    if (mode === "regenerate") setMobileStep("reference");
+    if (mode === "regenerate") setMobileStep("form");
   }, [mode]);
 
   const goToMobileStep = (step: MobileStep) => {
@@ -79,22 +79,6 @@ export default function ContentGenerate() {
           !isChatMode && "max-lg:pb-36"
         )}
       >
-        {isMobileFormStep && (
-          <div className="sticky top-16 z-20 border-b bg-card px-4 py-2 lg:hidden">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="-ml-2"
-              disabled={isLoading}
-              onClick={() => goToMobileStep("reference")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t("mobileBackToReference")}
-            </Button>
-          </div>
-        )}
-
         <div
           className={cn(
             // tanpa overflow di mobile agar tab + search referensi bisa sticky terhadap halaman
@@ -118,7 +102,7 @@ export default function ContentGenerate() {
             isMobileReferenceStep && "max-lg:hidden"
           )}
         >
-          <GenerationPanel />
+          <GenerationPanel onOpenMobileReference={() => goToMobileStep("reference")} />
         </div>
 
         <div

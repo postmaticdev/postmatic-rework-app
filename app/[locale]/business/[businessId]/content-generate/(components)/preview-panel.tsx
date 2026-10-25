@@ -10,6 +10,8 @@ import { ScheduleTimeInput } from "@/components/ui/schedule-time-input";
 import { Textarea } from "@/components/ui/textarea";
 import { LogoLoader } from "@/components/base/logo-loader";
 import { ScheduleSummaryModal } from "@/app/[locale]/business/[businessId]/content-generate/(components)/schedule-summary-modal";
+import { PlatformModal } from "@/app/[locale]/business/[businessId]/knowledge-base/(components)/platform-modal";
+import { usePendingPlatformConnection } from "@/hooks/use-pending-platform-connection";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
@@ -774,6 +776,42 @@ export function PreviewPanel() {
     );
   };
 
+  // Connecting a platform from the summary goes through the same modal as the
+  // knowledge base. Back from the auth site, it reopens to pick the account.
+  const { hasPendingPlatform, clearPlatformFlags } = usePendingPlatformConnection();
+  const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(hasPendingPlatform);
+  const [platformReturnUrl, setPlatformReturnUrl] = useState<string>();
+
+  useEffect(() => {
+    if (hasPendingPlatform) setIsPlatformModalOpen(true);
+  }, [hasPendingPlatform]);
+
+  const handleConnectPlatform = () => {
+    // The auth flow leaves this page, so return through the calendar's
+    // edit-draft route to restore this draft's chat.
+    const url = new URL(window.location.href);
+    if (
+      schedulerDraftId &&
+      schedulerDraftPost?.chatSessionId != null &&
+      scheduleImageSourceUrl
+    ) {
+      url.searchParams.set("editSchedulerManualPostingId", String(schedulerDraftId));
+      url.searchParams.set("chatSessionId", String(schedulerDraftPost.chatSessionId));
+      url.searchParams.set("selectedHistoryImage", scheduleImageSourceUrl);
+      if (date) url.searchParams.set("scheduleDate", date);
+      if (time) url.searchParams.set("scheduleTime", time);
+      const productId = selectedHistory?.input.productKnowledgeId;
+      if (productId) url.searchParams.set("businessProductId", String(productId));
+    }
+    setPlatformReturnUrl(url.toString());
+    setIsPlatformModalOpen(true);
+  };
+
+  const handleClosePlatformModal = () => {
+    setIsPlatformModalOpen(false);
+    clearPlatformFlags();
+  };
+
   // Guards against duplicate scheduled posts: resolving the schedule image can
   // wait on the watermark for a long time before any mutation is pending.
   const submitSchedule = async (scheduleDate: string, scheduleTime: string) => {
@@ -1137,8 +1175,14 @@ export function PreviewPanel() {
         onDateChange={handleDateChange}
         onTimeChange={handleTimeChange}
         onTogglePlatform={togglePlatform}
+        onConnectPlatform={handleConnectPlatform}
         onEnhanceCaption={handleEnhanceCaption}
         onConfirm={handleConfirmSchedule}
+      />
+      <PlatformModal
+        isOpen={isPlatformModalOpen}
+        onClose={handleClosePlatformModal}
+        returnUrl={platformReturnUrl}
       />
       <ConfirmationModal
         isOpen={isScheduleNowConfirmOpen}

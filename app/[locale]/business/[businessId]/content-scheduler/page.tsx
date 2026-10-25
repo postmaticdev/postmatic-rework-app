@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { usePendingPlatformConnection } from "@/hooks/use-pending-platform-connection";
 import { ContentLibrary } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-library";
 import { TabNavigation } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/tab-navigation";
 import { ContentSchedulerBoard } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-scheduler-board";
@@ -11,10 +12,16 @@ import { useTranslations } from "next-intl";
 function ContentSchedulerInner() {
   const { activeTab, setActiveTab } = useContentSchedulerTab();
 
-  const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(false);
+  // Back from the auth site, the modal reopens so the account can be picked.
+  const { hasPendingPlatform, clearPlatformFlags } = usePendingPlatformConnection();
+  const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(hasPendingPlatform);
   const handleIfNoPlatformConnected = () => {
     setIsPlatformModalOpen(true);
   };
+
+  useEffect(() => {
+    if (hasPendingPlatform) setIsPlatformModalOpen(true);
+  }, [hasPendingPlatform]);
 
   const t = useTranslations("welcomeSection");
 
@@ -57,7 +64,10 @@ function ContentSchedulerInner() {
       <div className=" h-full">{renderTabContent()}</div>
       <PlatformModal
         isOpen={isPlatformModalOpen}
-        onClose={() => setIsPlatformModalOpen(false)}
+        onClose={() => {
+          setIsPlatformModalOpen(false);
+          clearPlatformFlags();
+        }}
       />
     </main>
   );
