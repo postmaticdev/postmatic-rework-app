@@ -248,6 +248,7 @@ interface ContentGenerateContext {
   onSaveUploadedReference: (payload: {
     imageUrl: string;
     name: string;
+    typeCategoryIds: number[];
   }) => Promise<void>;
   onConfirmUnsave: () => void;
   onCloseUnsaveModal: () => void;
@@ -2176,7 +2177,7 @@ export const ContentGenerateProvider = ({
   );
   
   const { data: publishedRes, isLoading: isLoadingPublished } =
-    useCreatorImageTemplates(publishedApiQuery, contentFeaturesEnabled);
+    useCreatorImageTemplates(publishedApiQuery, contentFeaturesEnabled, businessId);
   const publishedData: Template[] = useMemo(
     () => publishedRes?.data?.data || [],
     [publishedRes?.data?.data]
@@ -2542,15 +2543,18 @@ export const ContentGenerateProvider = ({
   const onSaveUploadedReference = async ({
     imageUrl,
     name,
+    typeCategoryIds,
   }: {
     imageUrl: string;
     name: string;
+    typeCategoryIds: number[];
   }) => {
     const res = await mSaveOwnBusinessReference.mutateAsync({
       businessId,
       formData: {
         imageUrl,
         name,
+        typeCategoryIds,
       },
     });
 

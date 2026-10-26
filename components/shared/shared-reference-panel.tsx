@@ -16,6 +16,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -28,6 +29,10 @@ import { SharedTemplateCard } from "@/components/shared/shared-template-card";
 import { SharedReferenceFullviewModal } from "@/components/shared/shared-reference-fullview-modal";
 import { SearchNotFound } from "@/components/base/search-not-found";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
+import {
+  REFERENCE_FILTER_RECENTLY,
+  REFERENCE_FILTER_TRENDING,
+} from "@/models/api/library/template.type";
 
 import { Pagination, FilterQuery } from "@/models/api/base-response.type";
 
@@ -68,6 +73,7 @@ interface SharedReferencePanelProps {
   onSaveUploadedReference: (payload: {
     imageUrl: string;
     name: string;
+    typeCategoryIds: number[];
   }) => Promise<void>;
   onSaveUnsave?: (template: Template) => void;
   onConfirmUnsave?: () => void;
@@ -134,6 +140,7 @@ export function SharedReferencePanel({
   const [prepareUploadError, setPrepareUploadError] = useState<string | null>(null);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [uploadedReferenceName, setUploadedReferenceName] = useState("");
+  const [uploadedReferenceCategoryIds, setUploadedReferenceCategoryIds] = useState<string[]>([]);
 
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedTemplateForModal, setSelectedTemplateForModal] = useState<Template | null>(
@@ -149,7 +156,17 @@ export function SharedReferencePanel({
   const resetNameDialog = useCallback(() => {
     closeNameDialog();
     setUploadedReferenceName("");
+    setUploadedReferenceCategoryIds([]);
   }, [closeNameDialog]);
+
+  const toggleUploadedReferenceCategory = useCallback((categoryId: string) => {
+    setUploadedReferenceCategoryIds((current) =>
+      current.includes(categoryId)
+        ? current.filter((id) => id !== categoryId)
+        : [...current, categoryId]
+    );
+    setPrepareUploadError(null);
+  }, []);
 
   const uploadReferenceFile = useCallback(
     async (file: File) => {
@@ -182,6 +199,7 @@ export function SharedReferencePanel({
         await onSaveUploadedReference({
           imageUrl: response,
           name: trimmedName,
+          typeCategoryIds: uploadedReferenceCategoryIds.map(Number),
         });
 
         showToast("success", t("imageUploadedSuccessfully"));
@@ -204,7 +222,7 @@ export function SharedReferencePanel({
         }, 1000);
       }
     },
-    [onSaveUploadedReference, resetNameDialog, t, uploadedReferenceName]
+    [onSaveUploadedReference, resetNameDialog, t, uploadedReferenceName, uploadedReferenceCategoryIds]
   );
 
   const handleFileInput = useCallback(
@@ -231,6 +249,10 @@ export function SharedReferencePanel({
       setPrepareUploadError(t("referenceNameRequired"));
       return;
     }
+    if (uploadedReferenceCategoryIds.length === 0) {
+      setPrepareUploadError(t("referenceCategoryRequired"));
+      return;
+    }
 
     setIsPreparingUpload(true);
     setPrepareUploadError(null);
@@ -243,19 +265,21 @@ export function SharedReferencePanel({
     setTimeout(() => {
       setIsPreparingUpload(false);
     }, 300);
-  }, [t, uploadedReferenceName]);
+  }, [t, uploadedReferenceName, uploadedReferenceCategoryIds]);
 
   const onDetail = useCallback((item: Template | null) => {
     setSelectedTemplateForModal(item);
     setIsDetailDialogOpen(true);
   }, []);
 
+  // Trending is a global ranking, so it is only offered on the Reference tab.
   const renderSearchControls = (
     placeholder: string,
     templates: {
       filterQuery: Partial<FilterQuery>;
       setFilterQuery: (q: Partial<FilterQuery>) => void;
-    }
+    },
+    showTrending: boolean
   ) => (
     <div className="relative">
       <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -290,6 +314,11 @@ export function SharedReferencePanel({
           </SelectTrigger>
           <SelectContent align="end">
             <SelectItem value="all">{t("allCategories")}</SelectItem>
+            {showTrending && (
+              <SelectItem value={REFERENCE_FILTER_TRENDING}>{t("filterTrending")}</SelectItem>
+            )}
+            <SelectItem value={REFERENCE_FILTER_RECENTLY}>{t("filterRecently")}</SelectItem>
+            {categories.length > 0 && <SelectSeparator />}
             {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.name}
@@ -334,8 +363,8 @@ export function SharedReferencePanel({
       {/* Sticky Search Bar */}
       <div className="shrink-0 p-4 sm:p-6">
         {activeTab === "reference" 
-          ? renderSearchControls(t("searchPlaceholder"), publishedTemplates)
-          : renderSearchControls(t("searchPlaceholderSaved"), savedTemplates)}
+          ? renderSearchControls(t("searchPlaceholder"), publishedTemplates, true)
+          : renderSearchControls(t("searchPlaceholderSaved"), savedTemplates, false)}
       </div>
       </div>
 
@@ -502,10 +531,32 @@ export function SharedReferencePanel({
                 placeholder={t("referenceNamePlaceholder")}
                 disabled={isPreparingUpload}
               />
-              {prepareUploadError && (
-                <p className="text-sm text-destructive">{prepareUploadError}</p>
-              )}
             </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t("referenceCategoryLabel")}</p>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => {
+                  const selected = uploadedReferenceCategoryIds.includes(category.id);
+                  return (
+                    <Button
+                      key={category.id}
+                      type="button"
+                      size="sm"
+                      variant={selected ? "default" : "outline"}
+                      aria-pressed={selected}
+                      onClick={() => toggleUploadedReferenceCategory(category.id)}
+                      disabled={isPreparingUpload}
+                      className={selected ? "bg-blue-500 text-white hover:bg-blue-600" : ""}
+                    >
+                      {category.name}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+            {prepareUploadError && (
+              <p className="text-sm text-destructive">{prepareUploadError}</p>
+            )}
           </div>
 
           <DialogFooter>

@@ -11,6 +11,8 @@ import {
 } from "@/models/api/library/rss.type";
 import {
   PublishedTemplateRes,
+  REFERENCE_FILTER_RECENTLY,
+  REFERENCE_FILTER_TRENDING,
   SaveOwnBusinessReferenceImagePld,
   SaveOwnBusinessReferenceImageRes,
   SavedCreatorImageMutationRes,
@@ -151,17 +153,44 @@ const mapCreatorImageTemplate = (
   updatedAt: template.updatedAt,
 });
 
-const getCreatorImageTemplates = (filterQuery?: Partial<FilterQuery>) => {
-  const { productCategory, category, ...rest } = filterQuery || {};
-
-  return api
-    .get<BaseResponseFiltered<CreatorImage[]>>(`/creator/library`, {
+// "Recently": images this business used as a generation reference, newest use first.
+const getRecentlyUsedCreatorImages = (
+  businessId: string,
+  filterQuery: Partial<FilterQuery>,
+  saved: boolean
+) =>
+  api.get<BaseResponseFiltered<CreatorImage[]>>(
+    `/creator/business-creator-image/${businessId}/recently-used`,
+    {
       params: {
-        ...rest,
-        category: productCategory || undefined,
-        typeCategoryId: category || undefined,
+        search: filterQuery.search || undefined,
+        page: filterQuery.page,
+        limit: filterQuery.limit,
+        saved,
       },
-    })
+    }
+  );
+
+const getCreatorImageTemplates = (
+  filterQuery?: Partial<FilterQuery>,
+  businessId?: string
+) => {
+  const { productCategory, category, ...rest } = filterQuery || {};
+  const isTrending = category === REFERENCE_FILTER_TRENDING;
+
+  const request =
+    category === REFERENCE_FILTER_RECENTLY && businessId
+      ? getRecentlyUsedCreatorImages(businessId, rest, false)
+      : api.get<BaseResponseFiltered<CreatorImage[]>>(`/creator/library`, {
+          params: {
+            ...rest,
+            ...(isTrending ? { sortBy: "trending" } : {}),
+            category: productCategory || undefined,
+            typeCategoryId: isTrending ? undefined : category || undefined,
+          },
+        });
+
+  return request
     .then((res) => ({
       ...res,
       data: {
@@ -443,23 +472,32 @@ const templateService = {
       {
         imageUrl: formData.imageUrl,
         name: formData.name,
+        typeCategoryIds: formData.typeCategoryIds,
       }
     );
   },
   getSaved: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     const { productCategory, category, ...rest } = filterQuery || {};
 
-    return api
-      .get<BaseResponseFiltered<CreatorImage[]>>(
-        `/creator/business-saved-creator-image/${businessId}`,
-        {
-          params: {
-            ...rest,
-            category: productCategory || undefined,
-            typeCategoryId: category || undefined,
-          },
-        }
-      )
+    // Trending is not offered on the Saved tab.
+    const request =
+      category === REFERENCE_FILTER_RECENTLY
+        ? getRecentlyUsedCreatorImages(businessId, rest, true)
+        : api.get<BaseResponseFiltered<CreatorImage[]>>(
+            `/creator/business-saved-creator-image/${businessId}`,
+            {
+              params: {
+                ...rest,
+                category: productCategory || undefined,
+                typeCategoryId:
+                  category && category !== REFERENCE_FILTER_TRENDING
+                    ? category
+                    : undefined,
+              },
+            }
+          );
+
+    return request
       .then((res) => ({
         ...res,
         data: {
@@ -494,7 +532,9 @@ const templateService = {
   },
   getCategory: () => {
     return api
-      .get<BaseResponse<CreatorCategory[]>>(`/app/category-creator-image/type`)
+      .get<BaseResponse<CreatorCategory[]>>(`/app/category-creator-image/type`, {
+        params: { sortBy: "sortOrder", sort: "asc", limit: 50 },
+      })
       .then((res) => ({
         ...res,
         data: {
@@ -593,7 +633,7 @@ export const useLibraryTemplateGetPublished = (
 ) => {
   return useQuery({
     queryKey: ["libraryTemplatePublished", businessId, filterQuery],
-    queryFn: () => getCreatorImageTemplates(filterQuery),
+    queryFn: () => getCreatorImageTemplates(filterQuery, businessId),
     enabled: enabled && !!businessId,
     refetchOnMount: "always",
   });
@@ -601,11 +641,12 @@ export const useLibraryTemplateGetPublished = (
 
 export const useCreatorImageTemplates = (
   filterQuery?: Partial<FilterQuery>,
-  enabled = true
+  enabled = true,
+  businessId?: string
 ) => {
   return useQuery({
-    queryKey: ["creatorImageTemplates", filterQuery],
-    queryFn: () => getCreatorImageTemplates(filterQuery),
+    queryKey: ["creatorImageTemplates", filterQuery, businessId],
+    queryFn: () => getCreatorImageTemplates(filterQuery, businessId),
     enabled,
     refetchOnMount: "always",
   });

@@ -541,10 +541,10 @@ function ReferenceSelectionModal({
             onSelectReferenceImage={(imageUrl, imageName) =>
               onSelect({ imageUrl, name: imageName })
             }
-            onSaveUploadedReference={async ({ imageUrl, name }) => {
+            onSaveUploadedReference={async ({ imageUrl, name, typeCategoryIds }) => {
               const res = await mSaveReference.mutateAsync({
                 businessId,
-                formData: { imageUrl, name },
+                formData: { imageUrl, name, typeCategoryIds },
               });
               showToast("success", res.data.responseMessage);
               onSelect({ imageUrl, name });

@@ -6,7 +6,12 @@ export interface SavedTemplatePld {
 export interface SaveOwnBusinessReferenceImagePld {
   imageUrl: string;
   name: string;
+  typeCategoryIds: number[];
 }
+
+/* reference filter values that are not categories (never sent as typeCategoryId) */
+export const REFERENCE_FILTER_TRENDING = "trending";
+export const REFERENCE_FILTER_RECENTLY = "recently";
 
 /* response for get saved templates */
 export interface SavedTemplateRes {
