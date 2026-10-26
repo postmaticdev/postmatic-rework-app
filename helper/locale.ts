@@ -29,8 +29,8 @@ export const localizeCountryNames = <T extends { name: string; code: string }>(
   });
 };
 
-// Business category label in the active locale; unknown codes (legacy free text) are shown as-is.
-export const getBusinessCategoryLabel = (
+// Business/product category label in the active locale; unknown values (free text) are shown as-is.
+export const getCategoryLabel = (
   categories: BusinessCategoryRes[],
   code: string,
   locale?: string | null

@@ -14,7 +14,7 @@ import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { isLegacyUnusedValue } from "@/helper/knowledge-form";
 import { useRole } from "@/contexts/role-context";
 import { useLocale, useTranslations } from "next-intl";
-import { getBusinessCategoryLabel } from "@/helper/locale";
+import { getCategoryLabel } from "@/helper/locale";
 import { useLibraryBusinessCategory } from "@/services/library.api";
 
 export function BusinessKnowledgeSection() {
@@ -99,7 +99,7 @@ export function BusinessKnowledgeSection() {
                     {businessKnowledgeDetail?.name || b("notAvailable")}
                   </h3>
                   <p className="mb-3 text-sm text-muted-foreground">
-                    {getBusinessCategoryLabel(
+                    {getCategoryLabel(
                       businessCategoryData?.data.data ?? [],
                       businessKnowledgeDetail?.category ?? "",
                       locale

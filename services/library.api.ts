@@ -21,6 +21,7 @@ import {
 } from "@/models/api/library/template.type";
 import { TimezoneRes } from "@/models/api/library/time.type";
 import { BusinessCategoryRes } from "@/models/api/library/business-category.type";
+import { ProductCategoryRes } from "@/models/api/library/product-category.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 type CreatorCategory = {
@@ -352,6 +353,11 @@ const libraryService = {
       `/app/business-category`
     );
   },
+  productCategory: () => {
+    return api.get<BaseResponse<ProductCategoryRes[]>>(
+      `/app/product-category`
+    );
+  },
 };
 
 export const useLibraryRSSArticle = (
@@ -407,6 +413,14 @@ export const useLibraryBusinessCategory = () => {
   return useQuery({
     queryKey: ["libraryBusinessCategory"],
     queryFn: () => libraryService.businessCategory(),
+    staleTime: Infinity,
+  });
+};
+
+export const useLibraryProductCategory = () => {
+  return useQuery({
+    queryKey: ["libraryProductCategory"],
+    queryFn: () => libraryService.productCategory(),
     staleTime: Infinity,
   });
 };

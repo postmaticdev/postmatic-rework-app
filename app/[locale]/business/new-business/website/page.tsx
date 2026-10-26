@@ -36,7 +36,7 @@ import { motion } from "motion/react";
 import { useLocale, useTranslations } from "next-intl";
 import { isAxiosError } from "axios";
 import { BusinessCategoryDropdown } from "@/components/forms/business-category-dropdown";
-import { getBusinessCategoryLabel } from "@/helper/locale";
+import { getCategoryLabel } from "@/helper/locale";
 import { useLibraryBusinessCategory } from "@/services/library.api";
 
 type FlowPhase = "input" | "loading" | "result";
@@ -158,24 +158,13 @@ function parseHashtags(value: string) {
     .map((item) => (item.startsWith("#") ? item.slice(1) : item));
 }
 
-type CategoryLabels = {
-  product: (value: string) => string;
-};
-
-function mapScrapperToDraft(
-  item: WebsiteScrapperHistoryItem,
-  categoryLabels: CategoryLabels
-): WebsiteDraft {
+function mapScrapperToDraft(item: WebsiteScrapperHistoryItem): WebsiteDraft {
   const data = item.data;
   const businessKnowledge = data?.businessKnowledge;
   const businessRole = data?.businessRole;
   const metadata = data?.metadata;
-  const rawFirstProduct = data?.businessProducts?.[0] ?? null;
-  // Scraper mengirim kode kategori. Kategori bisnis disimpan sebagai kode (dropdown menampilkan labelnya),
-  // sedangkan dropdown produk masih memakai label.
-  const firstProduct = rawFirstProduct
-    ? { ...rawFirstProduct, category: categoryLabels.product(rawFirstProduct.category) }
-    : null;
+  // Scraper mengirim kode kategori bisnis/produk; dropdown menyimpan kode dan menampilkan labelnya.
+  const firstProduct = data?.businessProducts?.[0] ?? null;
 
   return {
     sourceId: item.id,
@@ -203,11 +192,6 @@ export default function NewBusinessWebsitePage() {
   const t = useTranslations("newBusinessWebsite");
   const b = useTranslations("businessKnowledge");
   const r = useTranslations("roleKnowledge");
-  const productCategoryT = useTranslations("productCategory");
-  // Kode produk yang dikenal diterjemahkan; hasil lama berupa teks bebas tetap ditampilkan apa adanya.
-  const categoryLabels: CategoryLabels = {
-    product: (value) => (value && productCategoryT.has(value) ? productCategoryT(value) : value),
-  };
   const locale = useLocale();
   const { data: businessCategoryData } = useLibraryBusinessCategory();
   const businessCategories = businessCategoryData?.data.data ?? [];
@@ -437,7 +421,7 @@ export default function NewBusinessWebsitePage() {
         );
       }
 
-      const newDraft = mapScrapperToDraft(finalResult, categoryLabels);
+      const newDraft = mapScrapperToDraft(finalResult);
       setDraft(newDraft); // Keep for consistency
       prefillManualForm(newDraft);
       router.push("/business/new-business/manual");
@@ -800,7 +784,7 @@ export default function NewBusinessWebsitePage() {
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         {[
-                          getBusinessCategoryLabel(businessCategories, draft.category, locale),
+                          getCategoryLabel(businessCategories, draft.category, locale),
                           draft.colorTone,
                           draft.name,
                         ]

@@ -45,6 +45,7 @@ import { useProductKnowledgeSchema } from "@/validator/new-business/schema-with-
 import { useRole } from "@/contexts/role-context";
 import { useLocale, useTranslations } from "next-intl";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useProductCategoryLabel } from "@/hooks/use-category-label";
 import {
   KnowledgeListError,
   KnowledgeListLoadMore,
@@ -74,6 +75,7 @@ export function ProductSection() {
   const { businessId } = useParams() as { businessId: string };
   const productKnowledgeSchema = useProductKnowledgeSchema();
   const t = useTranslations();
+  const productCategoryLabel = useProductCategoryLabel();
   const locale = useLocale();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -326,14 +328,15 @@ export function ProductSection() {
                         </div>
                         {product.category && (
                           <span className="inline-block max-w-full truncate rounded-full bg-pink-100 px-2 py-0.5 text-xs text-pink-800">
-                            {product.category}
+                            {productCategoryLabel(product.category)}
                           </span>
                         )}
                         <p className="text-sm font-medium text-foreground">
                           {formatPriceWithCurrency(
                             product.price,
                             product.currency,
-                            locale
+
+                            locale
                           )}
                         </p>
                       </div>
@@ -359,7 +362,7 @@ export function ProductSection() {
                               {product.name}
                             </h3>
                             <span className="bg-pink-100 text-pink-800 text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
-                              {product.category}
+                              {productCategoryLabel(product.category)}
                             </span>
                           </div>
 
@@ -371,7 +374,8 @@ export function ProductSection() {
                             {formatPriceWithCurrency(
                               product.price,
                               product.currency,
-                              locale
+
+                              locale
                             )}
                           </p>
                         </div>

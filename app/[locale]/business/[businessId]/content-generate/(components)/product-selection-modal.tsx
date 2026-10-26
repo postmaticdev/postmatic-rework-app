@@ -15,6 +15,7 @@ import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { formatPriceWithCurrency } from "@/helper/price-formatter";
 import { useLocale, useTranslations } from "next-intl";
+import { useProductCategoryLabel } from "@/hooks/use-category-label";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 
 interface ProductSelectionModalProps {
@@ -35,6 +36,7 @@ export function ProductSelectionModal({
   const currentProductId = onSelect ? selectedProductId : form.basic.productKnowledgeId;
 
   const m = useTranslations("modal");
+  const productCategoryLabel = useProductCategoryLabel();
   const locale = useLocale();
 
   return (
@@ -106,7 +108,7 @@ export function ProductSelectionModal({
                             {product.name}
                           </h3>
                           <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                            {product.category}
+                            {productCategoryLabel(product.category)}
                           </span>
                         </div>
                       </div>
@@ -117,7 +119,7 @@ export function ProductSelectionModal({
                             {product.name}
                           </h3>
                           <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                            {product.category}
+                            {productCategoryLabel(product.category)}
                           </span>
                         </div>
 
@@ -129,7 +131,8 @@ export function ProductSelectionModal({
                           {formatPriceWithCurrency(
                             product.price,
                             product.currency,
-                            locale
+
+                            locale
                           )}
                         </p>
                       </div>

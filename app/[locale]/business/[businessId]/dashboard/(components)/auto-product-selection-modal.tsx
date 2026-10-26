@@ -18,6 +18,7 @@ import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { formatPriceWithCurrency } from "@/helper/price-formatter";
 import { useLocale, useTranslations } from "next-intl";
+import { useProductCategoryLabel } from "@/hooks/use-category-label";
 
 interface ProductSelectionModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export function AutoProductSelectionModal({
   };
 
   const m = useTranslations("modal");
+  const productCategoryLabel = useProductCategoryLabel();
   const locale = useLocale();
 
   return (
@@ -108,7 +110,7 @@ export function AutoProductSelectionModal({
                           {product.name}
                         </h3>
                         <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                          {product.category}
+                          {productCategoryLabel(product.category)}
                         </span>
                       </div>
                     </div>
@@ -119,7 +121,7 @@ export function AutoProductSelectionModal({
                           {product.name}
                         </h3>
                         <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                          {product.category}
+                          {productCategoryLabel(product.category)}
                         </span>
                       </div>
 
@@ -131,7 +133,8 @@ export function AutoProductSelectionModal({
                             {formatPriceWithCurrency(
                               product.price,
                               product.currency,
-                              locale
+
+                              locale
                             )}
                           </p>
                     </div>

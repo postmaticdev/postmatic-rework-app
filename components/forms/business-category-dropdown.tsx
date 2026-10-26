@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { getBusinessCategoryLabel } from "@/helper/locale";
+import { getCategoryLabel } from "@/helper/locale";
 import { useLibraryBusinessCategory } from "@/services/library.api";
 import { Info } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -59,7 +59,7 @@ export function BusinessCategoryDropdown({
             </option>
             {categories.map((category) => (
               <option key={category.code} value={category.code}>
-                {getBusinessCategoryLabel(categories, category.code, locale)}
+                {getCategoryLabel(categories, category.code, locale)}
               </option>
             ))}
           </NativeSelect>
