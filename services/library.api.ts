@@ -20,6 +20,7 @@ import {
   TemplateProductCategoryRes,
 } from "@/models/api/library/template.type";
 import { TimezoneRes } from "@/models/api/library/time.type";
+import { BusinessCategoryRes } from "@/models/api/library/business-category.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 type CreatorCategory = {
@@ -346,6 +347,11 @@ const libraryService = {
   time: () => {
     return api.get<BaseResponse<TimezoneRes[]>>(`/app/timezone`);
   },
+  businessCategory: () => {
+    return api.get<BaseResponse<BusinessCategoryRes[]>>(
+      `/app/business-category`
+    );
+  },
 };
 
 export const useLibraryRSSArticle = (
@@ -393,6 +399,15 @@ export const useLibraryTime = () => {
   return useQuery({
     queryKey: ["libraryTime"],
     queryFn: () => libraryService.time(),
+  });
+};
+
+// The list only changes with an API deploy, so it is fetched once per session.
+export const useLibraryBusinessCategory = () => {
+  return useQuery({
+    queryKey: ["libraryBusinessCategory"],
+    queryFn: () => libraryService.businessCategory(),
+    staleTime: Infinity,
   });
 };
 

@@ -13,7 +13,9 @@ import { useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { isLegacyUnusedValue } from "@/helper/knowledge-form";
 import { useRole } from "@/contexts/role-context";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { getBusinessCategoryLabel } from "@/helper/locale";
+import { useLibraryBusinessCategory } from "@/services/library.api";
 
 export function BusinessKnowledgeSection() {
   const { businessId } = useParams() as { businessId: string };
@@ -25,6 +27,8 @@ export function BusinessKnowledgeSection() {
   const { businessKnowledge } = access;
   const b = useTranslations("businessKnowledge");
   const m = useTranslations("modal");
+  const locale = useLocale();
+  const { data: businessCategoryData } = useLibraryBusinessCategory();
 
   const businessKnowledgeDetail = businessKnowledgeData?.data?.data;
   const phoneNumber = isLegacyUnusedValue(businessKnowledgeDetail?.businessPhone)
@@ -95,7 +99,11 @@ export function BusinessKnowledgeSection() {
                     {businessKnowledgeDetail?.name || b("notAvailable")}
                   </h3>
                   <p className="mb-3 text-sm text-muted-foreground">
-                    {businessKnowledgeDetail?.category}
+                    {getBusinessCategoryLabel(
+                      businessCategoryData?.data.data ?? [],
+                      businessKnowledgeDetail?.category ?? "",
+                      locale
+                    )}
                   </p>
                 </>
               )}

@@ -1,3 +1,5 @@
+import { BusinessCategoryRes } from "@/models/api/library/business-category.type";
+
 // next-intl locale ("id" | "en") -> Intl locale tag.
 export const toIntlLocale = (locale?: string | null) =>
   locale === "en" ? "en-US" : "id-ID";
@@ -25,4 +27,15 @@ export const localizeCountryNames = <T extends { name: string; code: string }>(
     }
     return name && name !== country.code ? { ...country, name } : country;
   });
+};
+
+// Business category label in the active locale; unknown codes (legacy free text) are shown as-is.
+export const getBusinessCategoryLabel = (
+  categories: BusinessCategoryRes[],
+  code: string,
+  locale?: string | null
+) => {
+  const category = categories.find((item) => item.code === code);
+  if (!category) return code;
+  return locale === "en" ? category.label.en : category.label.id;
 };

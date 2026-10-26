@@ -33,8 +33,11 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { isAxiosError } from "axios";
+import { BusinessCategoryDropdown } from "@/components/forms/business-category-dropdown";
+import { getBusinessCategoryLabel } from "@/helper/locale";
+import { useLibraryBusinessCategory } from "@/services/library.api";
 
 type FlowPhase = "input" | "loading" | "result";
 
@@ -156,7 +159,6 @@ function parseHashtags(value: string) {
 }
 
 type CategoryLabels = {
-  business: (value: string) => string;
   product: (value: string) => string;
 };
 
@@ -169,7 +171,8 @@ function mapScrapperToDraft(
   const businessRole = data?.businessRole;
   const metadata = data?.metadata;
   const rawFirstProduct = data?.businessProducts?.[0] ?? null;
-  // Scraper mengirim kode kategori (mis. "foodAndDrink"); dropdown form memakai labelnya.
+  // Scraper mengirim kode kategori. Kategori bisnis disimpan sebagai kode (dropdown menampilkan labelnya),
+  // sedangkan dropdown produk masih memakai label.
   const firstProduct = rawFirstProduct
     ? { ...rawFirstProduct, category: categoryLabels.product(rawFirstProduct.category) }
     : null;
@@ -179,7 +182,7 @@ function mapScrapperToDraft(
     primaryLogoUrl:
       businessKnowledge?.primaryLogoUrl || metadata?.brandImage || "",
     name: businessKnowledge?.name || metadata?.title || "",
-    category: categoryLabels.business(businessKnowledge?.category || ""),
+    category: businessKnowledge?.category || "",
     description: businessKnowledge?.description || metadata?.description || "",
     website: businessKnowledge?.websiteUrl || item.url || "",
     businessPhone: businessKnowledge?.businessPhone || "",
@@ -200,13 +203,14 @@ export default function NewBusinessWebsitePage() {
   const t = useTranslations("newBusinessWebsite");
   const b = useTranslations("businessKnowledge");
   const r = useTranslations("roleKnowledge");
-  const businessCategoryT = useTranslations("businessCategory");
   const productCategoryT = useTranslations("productCategory");
-  // Kode yang dikenal diterjemahkan; hasil lama berupa teks bebas tetap ditampilkan apa adanya.
+  // Kode produk yang dikenal diterjemahkan; hasil lama berupa teks bebas tetap ditampilkan apa adanya.
   const categoryLabels: CategoryLabels = {
-    business: (value) => (value && businessCategoryT.has(value) ? businessCategoryT(value) : value),
     product: (value) => (value && productCategoryT.has(value) ? productCategoryT(value) : value),
   };
+  const locale = useLocale();
+  const { data: businessCategoryData } = useLibraryBusinessCategory();
+  const businessCategories = businessCategoryData?.data.data ?? [];
   const mWebsiteScrapper = useWebsiteScrapperCreate();
   const pollingSessionRef = useRef(0);
   const isScrappingRef = useRef(false);
@@ -650,13 +654,10 @@ export default function NewBusinessWebsitePage() {
                       </div>
 
                       <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                        <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                          {b("category")}
-                        </label>
-                        <Input
+                        <BusinessCategoryDropdown
                           value={draft.category}
-                          onChange={(event) => updateDraft("category", event.target.value)}
-                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          onChange={(value) => updateDraft("category", value)}
+                          label={b("category")}
                         />
                       </div>
                     </div>
@@ -798,7 +799,11 @@ export default function NewBusinessWebsitePage() {
                         </p>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {[draft.category, draft.colorTone, draft.name]
+                        {[
+                          getBusinessCategoryLabel(businessCategories, draft.category, locale),
+                          draft.colorTone,
+                          draft.name,
+                        ]
                           .filter((item) => item.trim().length > 0)
                           .map((item) => (
                             <div

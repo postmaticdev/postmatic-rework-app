@@ -84,6 +84,7 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     ACCOUNT_USES_GOOGLE_SIGN_IN:
       "Akun ini masuk dengan Google. Gunakan \"Lupa kata sandi\" di halaman masuk untuk membuat kata sandi.",
     TIMEZONE_NOT_VALID: "Zona waktu yang dipilih tidak valid.",
+    BUSINESS_CATEGORY_NOT_VALID: "Kategori bisnis yang dipilih tidak valid.",
     CONNECTED_PLATFORM_TEMP_CODE_ACCOUNT_NOT_FOUND:
       "Akun platform yang akan dihubungkan tidak ditemukan.",
     PLATFORM_SCOPES_NOT_FULFILLED:
@@ -198,6 +199,7 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     ACCOUNT_USES_GOOGLE_SIGN_IN:
       "This account signs in with Google. Use \"Forgot password\" on the sign-in page to set a password.",
     TIMEZONE_NOT_VALID: "The selected timezone is invalid.",
+    BUSINESS_CATEGORY_NOT_VALID: "The selected business category is invalid.",
     CONNECTED_PLATFORM_TEMP_CODE_ACCOUNT_NOT_FOUND:
       "The platform account to connect could not be found.",
     PLATFORM_SCOPES_NOT_FULFILLED:
