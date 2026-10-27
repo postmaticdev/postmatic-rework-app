@@ -62,6 +62,7 @@ type NewRepetitionItem = {
   businessRootId: number;
   businessProductId: number;
   appGenerativeImageModelId: number;
+  ratio?: string;
   modelName: string;
   platforms: string[];
   additionalPrompt: string | null;
@@ -247,7 +248,7 @@ const mapRepetitionToAutoGenerateSettings = (
       platforms: item.platforms as PlatformEnum[],
       model: item.modelName,
       designStyle: "",
-      ratio: "1:1",
+      ratio: item.ratio || "1:1",
       category: "",
       additionalPrompt: item.additionalPrompt,
       // Backend menyimpan avatar sebagai additionalImages[0] (lihat createSchedule/updateSchedule)
@@ -1729,6 +1730,7 @@ const autoGenerateService = {
         additionalPrompt: formData.additionalPrompt,
         additionalImages: formData.avatarImageUrl ? [formData.avatarImageUrl] : undefined,
         referenceImageIds: formData.referenceImageIds,
+        ratio: formData.ratio || undefined,
         platforms: formData.platforms,
       }
     );
@@ -1751,6 +1753,7 @@ const autoGenerateService = {
         additionalPrompt: formData.additionalPrompt,
         additionalImages: formData.avatarImageUrl ? [formData.avatarImageUrl] : undefined,
         referenceImageIds: formData.referenceImageIds,
+        ratio: formData.ratio || undefined,
         platforms: formData.platforms,
       }
     );

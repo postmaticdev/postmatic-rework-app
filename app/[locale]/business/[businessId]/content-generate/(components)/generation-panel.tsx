@@ -674,7 +674,6 @@ export function GenerationPanel({
                             </div>
                             <GridResultTiles
                               jobId={job.id}
-                              gridSize={gridSize}
                               images={result.images}
                               upscaledImages={result.upscaledImages}
                               upscaleStatuses={result.upscaleStatuses}

@@ -9,7 +9,6 @@ import { ProtectedImage } from "./protected-image";
 
 type GridResultTilesProps = {
   jobId: string;
-  gridSize: number;
   /** Original tile URLs; they stay the identity used for selection and follow-ups. */
   images: string[];
   /** Upscaled URLs parallel to images, shown once ready. */
@@ -43,11 +42,10 @@ const isUpscaling = (status?: string | null) =>
 
 /**
  * Grid result as a gallery: the active variation large, every variation in a rail beside it.
- * The rail always has gridSize x gridSize slots so missing tiles show as empty placeholders.
+ * The rail lists only the delivered tiles: tiles hidden by QA are not sent, so a 2x2 grid can show 3.
  */
 export function GridResultTiles({
   jobId,
-  gridSize,
   images,
   upscaledImages,
   upscaleStatuses,
@@ -63,7 +61,6 @@ export function GridResultTiles({
   labels,
 }: GridResultTilesProps) {
   const aspectRatio = ratio ? ratio.replace(":", "/") : "1/1";
-  const slotCount = Math.max(gridSize * gridSize, images.length);
   const [activeIndex, setActiveIndex] = useState(0);
   const mainRef = useRef<HTMLDivElement>(null);
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -215,20 +212,7 @@ export function GridResultTiles({
           className="absolute inset-0 flex flex-col gap-1.5 overflow-y-auto overscroll-contain p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           onKeyDown={handleRailKeyDown}
         >
-          {Array.from({ length: slotCount }, (_, index) => {
-            const image = images[index];
-
-            if (!image) {
-              return (
-                <div
-                  key={`${jobId}-slot-${index}`}
-                  aria-hidden
-                  className="w-full shrink-0 rounded-lg bg-muted/70 dark:bg-neutral-900"
-                  style={{ aspectRatio }}
-                />
-              );
-            }
-
+          {images.map((image, index) => {
             const isActive = index === active;
             const order = selectionIndex(image);
 
