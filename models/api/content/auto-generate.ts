@@ -14,6 +14,10 @@ export interface AutoGenerateSchedule {
   category: string;
   additionalPrompt: string | null;
   avatarImageUrl?: string | null;
+  /** Library design reference of the rule (creator image IDs, at most one). Without one, every run picks a reference automatically. */
+  referenceImageIds?: number[];
+  /** Name and image of referenceImageIds; a deleted reference is left out. */
+  referenceImages?: { id: number; name: string; imageUrl: string }[];
   productKnowledgeId: string;
   rootBusinessId: string;
   advBusinessName: boolean;
@@ -74,6 +78,8 @@ export interface CreateAutoGenerateScheduleRequest {
   category: string;
   additionalPrompt?: string;
   avatarImageUrl?: string | null;
+  /** Omit to keep the rule's reference on update; [] clears it. */
+  referenceImageIds?: number[];
   productKnowledgeId: string;
   isActive: boolean;
   advBusinessName: boolean;

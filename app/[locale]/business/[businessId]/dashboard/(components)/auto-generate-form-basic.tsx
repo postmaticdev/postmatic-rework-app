@@ -2,13 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
-import { Bot, ChevronRight, Plus, X } from "lucide-react";
+import { Bot, ChevronRight, ImageIcon, Plus, X } from "lucide-react";
 import { AutoProductSelectionModal } from "./auto-product-selection-modal";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ValidRatio } from "@/models/api/content/image.type";
 import { useTranslations } from "next-intl";
 import { AutoAvatarSelectionModal } from "./auto-avatar-selection-modal";
+import { AutoReferenceSelectionModal } from "./auto-reference-selection-modal";
 import Image from "next/image";
 import { DEFAULT_PLACEHOLDER_IMAGE, DEFAULT_PRODUCT_IMAGE } from "@/constants";
 import { Card } from "@/components/ui/card";
@@ -55,7 +56,8 @@ const RatioIcon = ({ ratio }: { ratio: string }) => {
 export const AutoGenerateFormBasic = () => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
-  const { form, isLoading, aiModels, onSelectAiModel, onSelectAvatar } =
+  const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
+  const { form, isLoading, aiModels, onSelectAiModel, onSelectAvatar, onSelectReference } =
     useAutoGenerate();
   const { basic, setBasic } = form;
   const disabled = false; // Auto generate doesn't have selectedHistory
@@ -245,11 +247,83 @@ export const AutoGenerateFormBasic = () => {
         </Button>
       </div>
 
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
+          {tAuto("designReference")}{" "}
+          <span className="text-muted-foreground font-normal text-xs">({t("optional")})</span>
+        </label>
+        {basic.selectedReference ? (
+          <Card className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted">
+                  <Image
+                    src={basic.selectedReference.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                    alt={basic.selectedReference.name}
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                    unoptimized
+                  />
+                </div>
+                <p className="line-clamp-2 min-w-0 text-sm font-medium text-foreground">
+                  {basic.selectedReference.name}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isLoading}
+                  onClick={() => setIsReferenceModalOpen(true)}
+                >
+                  {tAuto("changeDesignReference")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  disabled={isLoading}
+                  onClick={() => onSelectReference(null)}
+                  aria-label={`${t("removeSelectedTrend")} ${basic.selectedReference.name}`}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsReferenceModalOpen(true)}
+            disabled={isLoading || disabled}
+            size="lg"
+            className="w-full min-w-0 whitespace-normal leading-tight max-sm:h-(--control-h)"
+          >
+            <ImageIcon className="h-4 w-4 mr-2" />
+            {tAuto("addDesignReference")}
+          </Button>
+        )}
+        <p className="text-xs text-muted-foreground">{tAuto("designReferenceHint")}</p>
+      </div>
+
       <AutoProductSelectionModal
         isOpen={isProductModalOpen}
         onClose={() => {
           setIsProductModalOpen(false);
         }}
+      />
+      <AutoReferenceSelectionModal
+        isOpen={isReferenceModalOpen}
+        onClose={() => setIsReferenceModalOpen(false)}
+        onSave={(item) => {
+          onSelectReference(item);
+          setIsReferenceModalOpen(false);
+        }}
+        selectedReference={basic.selectedReference}
       />
       <AutoAvatarSelectionModal
         isOpen={isAvatarModalOpen}

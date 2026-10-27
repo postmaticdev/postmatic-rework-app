@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent } from "react";
-import { Check, Loader2, Pencil } from "lucide-react";
+import { Check, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { cn } from "@/lib/utils";
 import { GeneratedImageViewer } from "./generated-image-viewer";
@@ -24,8 +24,12 @@ type GridResultTilesProps = {
   isEditing: (image: string) => boolean;
   onUse: (image: string) => void;
   onEdit: (image: string, displayUrl: string, targetRect: DOMRect | null) => void;
+  /** Asks for a new variation of a tile; the button is hidden without it. */
+  onRegenerate?: (image: string) => void;
+  regenerateDisabled?: boolean;
   labels: {
     edit: string;
+    regenerate?: string;
     useContent: string;
     /** Visible text of the select button on the active variation. */
     selectContent: string;
@@ -54,6 +58,8 @@ export function GridResultTiles({
   isEditing,
   onUse,
   onEdit,
+  onRegenerate,
+  regenerateDisabled,
   labels,
 }: GridResultTilesProps) {
   const aspectRatio = ratio ? ratio.replace(":", "/") : "1/1";
@@ -126,6 +132,26 @@ export function GridResultTiles({
           <span className="pointer-events-none absolute left-2 top-2 z-20 rounded-full bg-black/45 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
             HD
           </span>
+        ) : null}
+
+        {activeImage && onRegenerate ? (
+          <button
+            type="button"
+            className={cn(
+              "absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full disabled:opacity-50",
+              glassCls
+            )}
+            title={labels.regenerate}
+            aria-label={`${labels.regenerate} ${active + 1}`}
+            disabled={regenerateDisabled}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onRegenerate(activeImage);
+            }}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
         ) : null}
 
         {activeImage && !activeEditing ? (

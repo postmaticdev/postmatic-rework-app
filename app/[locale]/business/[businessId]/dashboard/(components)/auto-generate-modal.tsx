@@ -244,6 +244,8 @@ export function AutoGenerateModal({
       category: basic.category || "sale",
       additionalPrompt: additionalPrompt.trim() || undefined,
       avatarImageUrl: basic.avatarImageUrl || undefined,
+      // The form shows the rule's current reference, so [] on update clears a removed one.
+      referenceImageIds: basic.selectedReference ? [basic.selectedReference.id] : [],
       productKnowledgeId: basic.productKnowledgeId,
       isActive: isActiveStatus,
       advBusinessName: form.advance.businessKnowledge.name,
@@ -352,6 +354,7 @@ export function AutoGenerateModal({
             }
           : null,
         avatarImageUrl: editingSchedule.avatarImageUrl || null,
+        selectedReference: editingSchedule.referenceImages?.[0] || null,
       });
 
       if (scheduleModel) {

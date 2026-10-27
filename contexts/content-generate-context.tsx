@@ -27,6 +27,7 @@ import {
 import { FilterQuery, Pagination } from "@/models/api/base-response.type";
 import {
   AdvancedGenerate,
+  ChatMessageMode,
   GenerateContentAdvanceBase,
   GenerateContentBase,
   GenerateContentRssBase,
@@ -127,6 +128,8 @@ interface BasicForm extends GenerateContentBase {
   customDesignStyle: string;
   referenceImageName: string | null;
   referenceImagePublisher: string | null;
+  /** Creator image behind referenceImage when it was picked from the library or uploaded as a reference. */
+  referenceCreatorImage: { id: number; imageUrl: string } | null;
   caption: string;
   model: string;
   imageSize: string | null;
@@ -225,6 +228,8 @@ interface ContentGenerateContext {
     imageUrl: string,
     options?: { attachForEdit?: boolean }
   ) => void;
+  /** Asks the AI for a new variation of a generated image (chat mode "regenerate"). */
+  onRegenerateImage: (imageUrl: string) => Promise<boolean>;
   // Images picked via "Use Content", in carousel order. More than one means a carousel post.
   selectedContentImages: string[];
   onToggleContentImage: (item: JobData, imageUrl: string) => void;
@@ -268,6 +273,10 @@ interface ContentGenerateContext {
     model?: string;
     ratio?: ValidRatio;
     imageSize?: string | null;
+    /** Chat intent of a follow-up; by default "edit" when an image is attached for editing, else "chat". */
+    chatMode?: ChatMessageMode;
+    /** Generated image the follow-up acts on, instead of the one attached in the composer. */
+    replyImageUrl?: string;
   }) => Promise<boolean>; // true once the message was sent
   onSaveDraft: () => void;
   onResetAdvance: () => void;
@@ -318,6 +327,7 @@ const initialFormBasic: ContentGenerateContext["form"]["basic"] = {
   customDesignStyle: "",
   referenceImageName: null,
   referenceImagePublisher: null,
+  referenceCreatorImage: null,
   caption: "",
   model: "",
   imageSize: null,
@@ -2513,16 +2523,23 @@ export const ContentGenerateProvider = ({
         referenceImage: null,
         referenceImageName: null,
         referenceImagePublisher: null,
+        referenceCreatorImage: null,
       });
       setSelectedTemplate(null);
       return;
     }
 
+    // Library templates are creator images, so the reference is sent by ID.
+    const creatorImageId = Number(template?.id);
     form.setBasic({
       ...form.basic,
       referenceImage: imageUrl,
       referenceImageName: imageName,
       referenceImagePublisher: template?.publisher?.name || null,
+      referenceCreatorImage:
+        Number.isInteger(creatorImageId) && creatorImageId > 0
+          ? { id: creatorImageId, imageUrl }
+          : null,
     });
 
     // Set selected template for visual feedback
@@ -2563,6 +2580,9 @@ export const ContentGenerateProvider = ({
       referenceImage: imageUrl,
       referenceImageName: name,
       referenceImagePublisher: null,
+      referenceCreatorImage: res.data.data?.creatorImageId
+        ? { id: res.data.data.creatorImageId, imageUrl }
+        : null,
     });
     setSelectedTemplate(null);
     setSavedQuery((prev) => ({
@@ -2726,6 +2746,8 @@ export const ContentGenerateProvider = ({
       ratio?: ValidRatio;
       imageSize?: string | null;
       prompt?: string;
+      chatMode?: ChatMessageMode;
+      replyImageUrl?: string;
     }
   ) => {
     const scheduleDate = searchParams.get("scheduleDate");
@@ -2770,12 +2792,21 @@ export const ContentGenerateProvider = ({
       return false;
     }
 
+    // A library reference picked in this form travels by ID (referenceImageIds), not as a file.
+    const referenceImageId =
+      isFirstSchedulerBubble &&
+      form.basic.referenceCreatorImage &&
+      form.basic.referenceCreatorImage.imageUrl === form.basic.referenceImage
+        ? form.basic.referenceCreatorImage.id
+        : null;
+    const referenceFileImage = referenceImageId ? null : form.basic.referenceImage;
+
     // The backend accepts at most 5 manual additional images per message;
     // checked before a draft is created so a rejected send leaves no draft.
     const pendingAdditionalImages = new Set(
       (isFirstSchedulerBubble
         ? [
-            form.basic.referenceImage,
+            referenceFileImage,
             ...form.basic.selectedAvatars.slice(1).map((avatar) => avatar.imageUrl),
             ...additionalImages,
           ]
@@ -2835,9 +2866,10 @@ export const ContentGenerateProvider = ({
     // selected job can move on without it (a running job's realtime progress selects that job), so
     // the replied bubble is the job that owns the attached image.
     const attachedEditImage =
-      form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
+      overrides?.replyImageUrl ??
+      (form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
         ? form.basic.referenceImage || selectedGeneratedImageUrl || null
-        : null;
+        : null);
     const replyJob = attachedEditImage
       ? histories
           .flatMap((group) => group.jobs)
@@ -2887,7 +2919,7 @@ export const ContentGenerateProvider = ({
         (
           isFirstSchedulerBubble
             ? [
-                form.basic.referenceImage,
+                referenceFileImage,
                 ...additionalAvatarImages,
                 ...additionalImages,
               ]
@@ -2999,6 +3031,16 @@ export const ContentGenerateProvider = ({
     setSelectedGeneratedImageUrl(null);
     setMode("regenerate");
 
+    // The first message carries no mode. A follow-up edits or regenerates the image it replies to;
+    // without a resolved reply the backend rejects those modes, so it is sent as a plain chat.
+    const requestedChatMode: ChatMessageMode =
+      overrides?.chatMode ?? (selectedReplyReferenceImage ? "edit" : "chat");
+    const chatMode: ChatMessageMode | undefined = isFirstSchedulerBubble
+      ? undefined
+      : requestedChatMode !== "chat" && !replyBubbleChatId
+        ? "chat"
+        : requestedChatMode;
+
     const chatPayload = {
       model: effectiveModel,
       avatarImageUrl: primaryAvatarImage,
@@ -3008,6 +3050,8 @@ export const ContentGenerateProvider = ({
       bubbleChatId: replyBubbleChatId,
       generatedImagePostItemId: replyImageItemId,
       rss: firstRss || undefined,
+      mode: chatMode,
+      referenceImageIds: referenceImageId ? [referenceImageId] : undefined,
     };
 
     let chatRes: Awaited<ReturnType<typeof sendSchedulerChatMessageWithRetry>>;
@@ -3121,10 +3165,13 @@ export const ContentGenerateProvider = ({
     );
     setSelectedJobId(chatJob.id);
     setSelectedGeneratedImageUrl(images[0] || null);
-    setFormBasic((prev) => ({
-      ...prev,
-      prompt: "",
-    }));
+    // A regenerate started from an image does not use the composer, so its draft stays.
+    if (!overrides?.replyImageUrl) {
+      setFormBasic((prev) => ({
+        ...prev,
+        prompt: "",
+      }));
+    }
     showToast("success", t("toast.contentGeneration.waiting"));
     return true;
   };
@@ -3137,6 +3184,8 @@ export const ContentGenerateProvider = ({
     model?: string;
     ratio?: ValidRatio;
     imageSize?: string | null;
+    chatMode?: ChatMessageMode;
+    replyImageUrl?: string;
   }) => {
     // The ref also blocks a second click in the same render, before
     // isLoading updates: each send is a paid generation.
@@ -3160,6 +3209,8 @@ export const ContentGenerateProvider = ({
           ratio: effectiveRatio,
           imageSize: effectiveImageSize,
           prompt: overrides?.prompt,
+          chatMode: overrides?.chatMode,
+          replyImageUrl: overrides?.replyImageUrl,
         }
       );
     } catch (error) {
@@ -3175,6 +3226,17 @@ export const ContentGenerateProvider = ({
       setIsLoading(false);
     }
   };
+
+  // A variation of a generated image: chat mode "regenerate" replying to that image. The prompt only
+  // labels the request in the chat; the backend keeps the product, brand, and main message.
+  const onRegenerateImage = (imageUrl: string) =>
+    onSubmitGenerate({
+      mode: "regenerate",
+      chatMode: "regenerate",
+      replyImageUrl: imageUrl,
+      prompt: t("contentGenerateScheduler.regeneratePrompt"),
+      additionalImages: [],
+    });
 
   /**
    *
@@ -3984,6 +4046,7 @@ export const ContentGenerateProvider = ({
         productKnowledges,
         onSelectReferenceImage,
         onSubmitGenerate,
+        onRegenerateImage,
         histories,
         selectedHistory,
         selectedGeneratedImageUrl,

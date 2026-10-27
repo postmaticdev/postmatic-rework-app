@@ -53,6 +53,13 @@ export interface AutoGenerateAvatarOption {
   source: "knowledge" | "browse";
 }
 
+/** Library design reference of a rule (a creator image). */
+export interface AutoGenerateReferenceOption {
+  id: number;
+  name: string;
+  imageUrl: string;
+}
+
 interface BasicForm {
   ratio: ValidRatio;
   category: string;
@@ -63,6 +70,8 @@ interface BasicForm {
   productImage: string;
   selectedAvatar: AutoGenerateAvatarOption | null;
   avatarImageUrl: string | null;
+  /** Without one, every run picks a reference automatically. */
+  selectedReference: AutoGenerateReferenceOption | null;
   customCategory: string;
   customDesignStyle: string;
   caption: string;
@@ -122,6 +131,7 @@ type Ctx = {
   // Handlers
   onSelectProduct: (item: ProductKnowledgeRes | null) => void;
   onSelectAvatar: (item: AutoGenerateAvatarOption | null) => void;
+  onSelectReference: (item: AutoGenerateReferenceOption | null) => void;
   onSelectAiModel: (model: AiModelRes) => void;
   onResetAdvance: () => void;
 };
@@ -176,6 +186,7 @@ const initialFormBasic: BasicForm = {
   productImage: "",
   selectedAvatar: null,
   avatarImageUrl: null,
+  selectedReference: null,
   customCategory: "",
   customDesignStyle: "",
   caption: "",
@@ -341,6 +352,13 @@ export function AutoGenerateProvider({
       ...prev,
       selectedAvatar: item,
       avatarImageUrl: item?.imageUrl || null,
+    }));
+  }, []);
+
+  const onSelectReference = useCallback((item: AutoGenerateReferenceOption | null) => {
+    setFormBasic((prev) => ({
+      ...prev,
+      selectedReference: item,
     }));
   }, []);
 
@@ -859,6 +877,7 @@ export function AutoGenerateProvider({
         // Handlers
         onSelectProduct,
         onSelectAvatar,
+        onSelectReference,
         onSelectAiModel,
         onResetAdvance,
       };
@@ -883,6 +902,7 @@ export function AutoGenerateProvider({
       isLoading,
       onSelectProduct,
       onSelectAvatar,
+      onSelectReference,
       onSelectAiModel,
       onResetAdvance,
     ]

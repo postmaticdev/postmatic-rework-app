@@ -297,6 +297,17 @@ export interface ImagePostChatBubbleImageRes {
   upscaleStatus?: ImageUpscaleStatus | null;
 }
 
+/** Follow-up intent sent with a chat message; the first message of a chat has none. */
+export type ChatMessageMode = "chat" | "edit" | "regenerate";
+
+/** Design reference of a bubble. A user bubble lists the user's pick; a system bubble lists what its generation used. */
+export interface ImagePostChatBubbleReferenceImageRes {
+  id: number;
+  name: string;
+  imageUrl: string;
+  source: "user" | "auto";
+}
+
 export interface ImagePostChatBubbleRes {
   id: number;
   role: "user" | "system";
@@ -309,6 +320,10 @@ export interface ImagePostChatBubbleRes {
   additionalImages?: string[] | null;
   errorMessage: string | null;
   images: ImagePostChatBubbleImageRes[] | null;
+  mode?: ChatMessageMode | null;
+  /** AI flow of a successful system bubble (product, chat, edit, regenerate, chat_file, ...). */
+  flow?: string | null;
+  referenceImages?: ImagePostChatBubbleReferenceImageRes[];
   createdAt: string;
   updatedAt: string;
 }
@@ -328,6 +343,10 @@ export interface SendImageChatMessagePld {
   /** Image of the replied bubble to iterate on; required when that bubble holds grid tiles. */
   generatedImagePostItemId?: number;
   rss?: GenerateContentRssBase;
+  /** Follow-up intent; edit and regenerate need bubbleChatId or generatedImagePostItemId. */
+  mode?: ChatMessageMode;
+  /** Library design reference (creator image ID), at most one. Library images are not sent as additionalImages. */
+  referenceImageIds?: number[];
 }
 
 export interface SendImageChatMessageRes {

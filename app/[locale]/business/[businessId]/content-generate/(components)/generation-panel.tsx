@@ -84,6 +84,7 @@ export function GenerationPanel({
     onSelectGeneratedImage,
     onToggleContentImage,
     onSubmitGenerate,
+    onRegenerateImage,
   } = useContentGenerate();
   const t = useTranslations("generationPanel");
   const schedulerT = useTranslations("contentGenerateScheduler");
@@ -270,6 +271,19 @@ export function GenerationPanel({
     }).then((sent) => {
       if (sent) setAttachedImages([]);
     });
+  };
+
+  // A new variation of one generated image; the composer's free-model guard applies too.
+  const handleRegenerateImage = (imageUrl: string) => {
+    if (
+      aiModels.isFreeUser &&
+      aiModels.freeUserAllowedModel &&
+      isAiModelRestrictedForFreeUser(aiModels.models, form.basic.model)
+    ) {
+      setIsRestrictedModelModalOpen(true);
+      return;
+    }
+    void onRegenerateImage(imageUrl);
   };
 
   const handleUseFreeUserAllowedModel = () => {
@@ -669,6 +683,8 @@ export function GenerationPanel({
                               selectionIndex={(image) => selectedContentImages.indexOf(image)}
                               showSelectionOrder={isCarouselSelection}
                               isEditing={(image) => Boolean(selectedEditReferenceImage) && selectedEditReferenceImage === image}
+                              onRegenerate={typeof job.input.systemBubbleId === "number" ? handleRegenerateImage : undefined}
+                              regenerateDisabled={isLoading}
                               onUse={(image) => {
                                 // A finished grid auto-selects its first tile. Picking another tile of the
                                 // same grid replaces it: scheduling publishes the single selected image, so
@@ -695,6 +711,7 @@ export function GenerationPanel({
                               }}
                               labels={{
                                 edit: t("edit"),
+                                regenerate: t("regenerate"),
                                 useContent: t("useContent"),
                                 selectContent: t("selectContent"),
                                 contentUsed: t("contentUsed"),
@@ -741,6 +758,22 @@ export function GenerationPanel({
                                 className="w-full cursor-zoom-in object-cover"
                                 style={{ aspectRatio: job.result?.ratio ? job.result.ratio.replace(":", "/") : "1/1" }}
                               />
+                              {typeof job.input.systemBubbleId === "number" && (
+                                <button
+                                  type="button"
+                                  className="absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-50"
+                                  title={t("regenerate")}
+                                  aria-label={`${t("regenerate")} ${index + 1}`}
+                                  disabled={isLoading}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleRegenerateImage(image);
+                                  }}
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                               {!isEditingThisImage && (
                                 <button
                                   type="button"

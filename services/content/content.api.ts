@@ -67,6 +67,8 @@ type NewRepetitionItem = {
   additionalPrompt: string | null;
   avatarImageUrl?: string | null;
   additionalImages?: string[];
+  referenceImageIds?: number[];
+  referenceImages?: { id: number; name: string; imageUrl: string }[];
   createdAt: string;
   updatedAt: string;
 };
@@ -250,6 +252,8 @@ const mapRepetitionToAutoGenerateSettings = (
       additionalPrompt: item.additionalPrompt,
       // Backend menyimpan avatar sebagai additionalImages[0] (lihat createSchedule/updateSchedule)
       avatarImageUrl: item.avatarImageUrl || item.additionalImages?.[0] || null,
+      referenceImageIds: item.referenceImageIds || [],
+      referenceImages: item.referenceImages || [],
       productKnowledgeId: String(item.businessProductId),
       rootBusinessId: String(item.businessRootId),
       advBusinessName: false,
@@ -922,6 +926,8 @@ export const imagePostChatService = {
         bubbleChatId: formData.bubbleChatId || undefined,
         generatedImagePostItemId: formData.generatedImagePostItemId || undefined,
         rss: formData.rss ? toChatRssPayload(formData.rss) : undefined,
+        mode: formData.mode || undefined,
+        referenceImageIds: formData.referenceImageIds?.length ? formData.referenceImageIds : undefined,
       }
     );
   },
@@ -1722,6 +1728,7 @@ const autoGenerateService = {
         isActive: formData.isActive,
         additionalPrompt: formData.additionalPrompt,
         additionalImages: formData.avatarImageUrl ? [formData.avatarImageUrl] : undefined,
+        referenceImageIds: formData.referenceImageIds,
         platforms: formData.platforms,
       }
     );
@@ -1743,6 +1750,7 @@ const autoGenerateService = {
         isActive: formData.isActive,
         additionalPrompt: formData.additionalPrompt,
         additionalImages: formData.avatarImageUrl ? [formData.avatarImageUrl] : undefined,
+        referenceImageIds: formData.referenceImageIds,
         platforms: formData.platforms,
       }
     );
