@@ -1253,21 +1253,21 @@ export function ContentSchedulerBoard({
                       {t("buildWithAi")}
                     </button>
 
+                    {/* Video generator is still under development: access disabled for now */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowDateActionCard(false);
-                        setDateActionMenuPosition(null);
-                        router.push(
-                          `/business/${businessId}/video-generator?scheduleDate=${chosenDate}`
-                        );
-                      }}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-background-secondary"
+                      disabled
+                      aria-disabled="true"
+                      title={t("videoGeneratorComingSoon")}
+                      className="flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground opacity-60"
                     >
                       <span className="flex size-8 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
                         <Clapperboard className="size-4" />
                       </span>
-                      {t("videoGenerator")}
+                      <span className="flex-1 text-left">{t("videoGenerator")}</span>
+                      <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
+                        {t("soon")}
+                      </span>
                     </button>
                   </div>
                 )}
@@ -1389,16 +1389,13 @@ export function ContentSchedulerBoard({
                       <Sparkles className="h-4 w-4" />
                       {t("buildWithAi")}
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsHistoryDialogOpen(false);
-                        router.push(
-                          `/business/${businessId}/video-generator?scheduleDate=${chosenDate}`
-                        );
-                      }}
-                    >
+                    {/* Video generator is still under development: access disabled for now */}
+                    <DropdownMenuItem disabled title={t("videoGeneratorComingSoon")}>
                       <Clapperboard className="h-4 w-4" />
-                      {t("videoGenerator")}
+                      <span className="flex-1">{t("videoGenerator")}</span>
+                      <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
+                        {t("soon")}
+                      </span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

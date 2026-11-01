@@ -633,6 +633,8 @@
     "buildWithAiCardDescription": "Buka perencana AI dengan tanggal ini sudah terpilih untuk penjadwalan.",
     "viewOnPlatform": "Lihat di platform",
     "videoGenerator": "Pembuat Video",
+    "videoGeneratorComingSoon": "Pembuat Video masih dalam tahap pengembangan dan akan segera tersedia.",
+    "soon": "SEGERA",
     "failedHistoryDeleted": "Riwayat gagal berhasil dihapus",
     "failedUploadHistoryDeleted": "Riwayat gagal unggah berhasil dihapus",
     "deleteHistoryTitle": "Hapus riwayat ini?",

@@ -633,6 +633,8 @@
     "buildWithAiCardDescription": "Open the AI planner with this date already selected for scheduling.",
     "viewOnPlatform": "View on platform",
     "videoGenerator": "Video Generator",
+    "videoGeneratorComingSoon": "Video Generator is still in development and will be available soon.",
+    "soon": "SOON",
     "failedHistoryDeleted": "Failed history deleted successfully",
     "failedUploadHistoryDeleted": "Failed upload history deleted successfully",
     "deleteHistoryTitle": "Delete this history?",
