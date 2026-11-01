@@ -2,24 +2,17 @@
 
 import { Header } from "@/components/base/header";
 import { Sidebar } from "@/components/sidebar";
+import { EnterToNextField } from "@/components/enter-to-next-field";
 import { cn } from "@/lib/utils";
 import { useParams } from "next/navigation";
 import { usePathname } from "@/i18n/navigation";
 
 const SKIP_HEADER_PATHS = [
+  "/",
   "/business/[businessId]/pricing/checkout",
   "/business/new-business",
   "/business/new-business/manual",
   "/business/new-business/website",
-];
-
-const SKIP_SIDEBAR_PATHS = [
-  "/profile",
-  "/business/new-business",
-  "/business/new-business/manual",
-  "/business/new-business/website",
-  "/business/[businessId]/pricing/checkout",
-  "/business",
 ];
 
 const CHECKOUT_PATTERN = "/business/[businessId]/pricing/checkout";
@@ -67,7 +60,9 @@ export default function BusinessClientLayout({
   })();
 
   const isSkipHeader = SKIP_HEADER_PATHS.some(pathEquals);
-  const isSkipSidebar = isCheckoutPath || SKIP_SIDEBAR_PATHS.some(pathEquals);
+  // Menu sidebar selalu menuju /business/{id}/..., jadi hanya tampil di halaman
+  // yang punya businessId (bukan /, /business, /profile/*, new-business).
+  const isSkipSidebar = isCheckoutPath || !businessId;
   // Header:
   // - Checkout: tampilkan di mobile saja (md:hidden)
   // - Selain checkout: tampilkan normal jika tidak di-skip
@@ -89,7 +84,8 @@ export default function BusinessClientLayout({
       : "mt-18";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-dvh bg-background flex flex-col">
+      <EnterToNextField />
       {headerNode}
       <div
         className={cn(
@@ -99,7 +95,7 @@ export default function BusinessClientLayout({
         )}
       >
         {!isSkipSidebar && <Sidebar />}
-        <div className="flex-1">{children}</div>
+        <div className="min-w-0 flex-1">{children}</div>
       </div>
     </div>
   );

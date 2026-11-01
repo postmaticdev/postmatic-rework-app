@@ -1,43 +1,295 @@
 "use client";
 
 import {
+  ACCESS_TOKEN_KEY,
   NEXT_PUBLIC_SOCKET_ORIGIN,
   NEXT_PUBLIC_SOCKET_PATH,
 } from "@/constants";
-import { io, Socket } from "socket.io-client";
 
-type Transport = "websocket" | "polling";
+export type RealtimeEnvelope<T = unknown> = {
+  type: string;
+  topic?: string;
+  data?: T;
+  sentAt?: string;
+};
 
-let socket: Socket | null = null;
+type SocketEventMap = {
+  close: CloseEvent;
+  error: Event;
+  message: RealtimeEnvelope;
+  open: Event;
+};
+
+type SocketEventName = keyof SocketEventMap;
+type SocketListener<TEventName extends SocketEventName> = (
+  event: SocketEventMap[TEventName]
+) => void;
+
+type ListenerMap = {
+  [TEventName in SocketEventName]: Set<SocketListener<TEventName>>;
+};
 
 type CreateSocketOpts = {
-  token?: string | null;
-  ns?: string;
+  heartbeatIntervalMs?: number;
   path?: string;
-  transports?: Transport[];
+  reconnectDelayMs?: number;
+  token?: string | null;
+  tokenQueryKey?: string;
   url?: string;
 };
+
+type SubscribePayload = {
+  topic?: string;
+  type: "subscribe" | "unsubscribe";
+};
+
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 30_000;
+const DEFAULT_RECONNECT_DELAY_MS = 2_000;
+const MAX_RECONNECT_DELAY_MS = 30_000;
+
+let socket: BrowserRealtimeSocket | null = null;
+
+// Access token terbaru (cookie dari postmatic-auth / refresh, atau localStorage).
+// Dibaca ulang setiap connect supaya reconnect setelah token di-refresh tidak
+// memakai token lama yang sudah expired.
+function readLatestAccessToken() {
+  if (typeof document === "undefined") return null;
+  const fromCookie = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${ACCESS_TOKEN_KEY}=`))
+    ?.split("=")[1];
+  if (fromCookie) return decodeURIComponent(fromCookie);
+  try {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function buildWebSocketUrl(
+  origin: string,
+  path: string,
+  token?: string | null,
+  tokenQueryKey = ACCESS_TOKEN_KEY
+) {
+  const baseUrl = new URL(origin || window.location.origin);
+  if (baseUrl.protocol === "https:") {
+    baseUrl.protocol = "wss:";
+  } else if (baseUrl.protocol === "http:") {
+    baseUrl.protocol = "ws:";
+  }
+
+  const wsUrl = new URL(path, baseUrl);
+  if (token) {
+    wsUrl.searchParams.set(tokenQueryKey, token);
+  }
+
+  return wsUrl.toString();
+}
+
+class BrowserRealtimeSocket {
+  private heartbeatIntervalId: number | null = null;
+  private listeners: ListenerMap = {
+    close: new Set(),
+    error: new Set(),
+    message: new Set(),
+    open: new Set(),
+  };
+  private manualDisconnect = false;
+  private reconnectAttempts = 0;
+  private reconnectTimeoutId: number | null = null;
+  private subscriptions = new Set<string>();
+  private ws: WebSocket | null = null;
+
+  constructor(private readonly opts: Required<CreateSocketOpts>) {
+    this.connect();
+  }
+
+  setToken(token: string | null) {
+    this.opts.token = token;
+  }
+
+  get connected() {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  connect() {
+    if (typeof window === "undefined") return;
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.OPEN ||
+        this.ws.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    this.clearReconnect();
+    this.manualDisconnect = false;
+
+    const wsUrl = buildWebSocketUrl(
+      this.opts.url,
+      this.opts.path,
+      readLatestAccessToken() ?? this.opts.token,
+      this.opts.tokenQueryKey
+    );
+
+    this.ws = new WebSocket(wsUrl);
+    this.ws.addEventListener("open", this.handleOpen);
+    this.ws.addEventListener("close", this.handleClose);
+    this.ws.addEventListener("error", this.handleError);
+    this.ws.addEventListener("message", this.handleMessage);
+  }
+
+  disconnect() {
+    this.manualDisconnect = true;
+    this.stopHeartbeat();
+    this.clearReconnect();
+
+    if (this.ws) {
+      this.ws.removeEventListener("open", this.handleOpen);
+      this.ws.removeEventListener("close", this.handleClose);
+      this.ws.removeEventListener("error", this.handleError);
+      this.ws.removeEventListener("message", this.handleMessage);
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  on<TEventName extends SocketEventName>(
+    eventName: TEventName,
+    listener: SocketListener<TEventName>
+  ) {
+    this.listeners[eventName].add(listener as never);
+  }
+
+  off<TEventName extends SocketEventName>(
+    eventName: TEventName,
+    listener: SocketListener<TEventName>
+  ) {
+    this.listeners[eventName].delete(listener as never);
+  }
+
+  send(payload: Record<string, unknown>) {
+    if (!this.connected || !this.ws) return;
+    this.ws.send(JSON.stringify(payload));
+  }
+
+  subscribe(topics: string | string[]) {
+    const nextTopics = Array.isArray(topics) ? topics : [topics];
+    nextTopics.filter(Boolean).forEach((topic) => this.subscriptions.add(topic));
+    this.flushSubscriptions("subscribe", nextTopics);
+  }
+
+  unsubscribe(topics: string | string[]) {
+    const nextTopics = Array.isArray(topics) ? topics : [topics];
+    nextTopics.filter(Boolean).forEach((topic) => this.subscriptions.delete(topic));
+    this.flushSubscriptions("unsubscribe", nextTopics);
+  }
+
+  private readonly handleOpen = (event: Event) => {
+    this.reconnectAttempts = 0;
+    this.startHeartbeat();
+    this.emit("open", event);
+    this.flushSubscriptions("subscribe", [...this.subscriptions]);
+  };
+
+  private readonly handleClose = (event: CloseEvent) => {
+    this.stopHeartbeat();
+    this.emit("close", event);
+    this.ws = null;
+
+    if (!this.manualDisconnect) {
+      this.scheduleReconnect();
+    }
+  };
+
+  private readonly handleError = (event: Event) => {
+    this.emit("error", event);
+  };
+
+  private readonly handleMessage = (event: MessageEvent<string>) => {
+    try {
+      const payload = JSON.parse(event.data) as RealtimeEnvelope;
+      this.emit("message", payload);
+    } catch {
+      // Ignore malformed payloads so one bad event does not break the socket lifecycle.
+    }
+  };
+
+  private emit<TEventName extends SocketEventName>(
+    eventName: TEventName,
+    event: SocketEventMap[TEventName]
+  ) {
+    this.listeners[eventName].forEach((listener) => listener(event as never));
+  }
+
+  private flushSubscriptions(
+    action: SubscribePayload["type"],
+    topics: string[]
+  ) {
+    const filteredTopics = topics.filter(Boolean);
+    if (!filteredTopics.length || !this.connected) return;
+
+    filteredTopics.forEach((topic) => {
+      const payload: SubscribePayload = { type: action, topic };
+      this.send(payload);
+    });
+  }
+
+  private scheduleReconnect() {
+    this.clearReconnect();
+    // Exponential backoff (2s, 4s, 8s ... maks 30s) agar server tidak dibanjiri
+    // handshake saat token invalid atau server sedang down.
+    const delay = Math.min(
+      this.opts.reconnectDelayMs * 2 ** this.reconnectAttempts,
+      MAX_RECONNECT_DELAY_MS
+    );
+    this.reconnectAttempts += 1;
+    this.reconnectTimeoutId = window.setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  private clearReconnect() {
+    if (this.reconnectTimeoutId !== null) {
+      window.clearTimeout(this.reconnectTimeoutId);
+      this.reconnectTimeoutId = null;
+    }
+  }
+
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatIntervalId = window.setInterval(() => {
+      this.send({ type: "ping" });
+    }, this.opts.heartbeatIntervalMs);
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatIntervalId !== null) {
+      window.clearInterval(this.heartbeatIntervalId);
+      this.heartbeatIntervalId = null;
+    }
+  }
+}
 
 export function getSocket() {
   return socket;
 }
 
 export function createSocket(opts: CreateSocketOpts = {}) {
-  if (socket && socket.connected) return socket;
+  if (socket) {
+    if (opts.token) socket.setToken(opts.token);
+    return socket;
+  }
 
-  const url = opts.url ?? NEXT_PUBLIC_SOCKET_ORIGIN;
-
-  socket = io(`${url}`, {
-    forceNew: true,
-    reconnection: true,
-    reconnectionAttempts: 3,
-    reconnectionDelay: 500,
-    reconnectionDelayMax: 5000,
-    timeout: 20000,
+  socket = new BrowserRealtimeSocket({
+    heartbeatIntervalMs:
+      opts.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS,
     path: opts.path ?? NEXT_PUBLIC_SOCKET_PATH,
-    transports: opts.transports,
-    auth: opts.token ? { token: opts.token } : undefined,
-    autoConnect: true,
+    reconnectDelayMs: opts.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS,
+    token: opts.token ?? null,
+    tokenQueryKey: opts.tokenQueryKey ?? ACCESS_TOKEN_KEY,
+    url: opts.url ?? NEXT_PUBLIC_SOCKET_ORIGIN,
   });
 
   return socket;

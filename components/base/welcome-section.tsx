@@ -1,6 +1,7 @@
 import { TimezoneSelector } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/timezone-selector";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Badge } from "../ui/badge";
 interface WelcomeSectionProps {
   title?: string;
@@ -10,11 +11,12 @@ interface WelcomeSectionProps {
 }
 
 export function WelcomeSection({
-  title = "IF THIS SHOW, IT MEANS ERROR",
-  message = "IF THIS SHOW, IT MEANS ERROR",
+  title = "",
+  message = "",
   showTimezoneSelector = false,
   showSubscription = false,
 }: WelcomeSectionProps) {
+  const t = useTranslations("welcomeSection");
   const { businessId } = useParams() as { businessId: string };
   const { data: subscriptionData } = useSubscribtionGetSubscription(
     businessId || ""
@@ -23,14 +25,14 @@ export function WelcomeSection({
   return (
     <div className="bg-card rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm border border-border">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex flex-row mb-4 items-center gap-4 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-2">
+        <div className="min-w-0">
+          <div className="flex flex-row mb-2 sm:mb-4 items-center gap-x-4 gap-y-2 sm:gap-4 flex-wrap">
+            <h1 className="min-w-0 break-words text-xl sm:text-2xl font-bold text-foreground mb-0 sm:mb-2">
               {title}
             </h1>
             {showSubscription && (
               <Badge className="text-xs text-white w-fit">
-                {subscription?.subscription?.productName || "Paket Gratis"}
+                {subscription?.subscription?.productName || t("freePlan")}
               </Badge>
             )}
           </div>

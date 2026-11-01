@@ -3,26 +3,38 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Eye } from "lucide-react";
+import {
+  mergeBusinessPurchaseWithRealtimePayment,
+  syncPaymentRealtimeCaches,
+  usePaymentRealtime,
+} from "@/hooks/use-payment-realtime";
+import { CreditCard, Eye, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useBusinessPurchaseGetHistory } from "@/services/purchase.api";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { PurchaseDetailModal } from "@/app/[locale]/business/[businessId]/settings/(components)/purchase-detail-modal";
 import { useState } from "react";
 import { NoContent } from "@/components/base/no-content";
-import { formatIdr } from "@/helper/formatter";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { dateFormat } from "@/helper/date-format";
 import {
   FilterQuery,
   initialPagination,
 } from "@/models/api/base-response.type";
-import { PaginationWithControls } from "@/components/ui/pagination-with-controls";
 import { PaginationControls } from "@/components/ui/pagination-controls";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  formatIdrStable,
+  formatProductName,
+  formatProductType,
+} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 
 export function HistoryTransactions() {
+  const locale = useLocale();
+  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
   const { businessId } = useParams() as { businessId: string };
   const [filterQuery, setFilterQuery] = useState<Partial<FilterQuery>>({
     page: 1,
@@ -32,9 +44,17 @@ export function HistoryTransactions() {
     category: "",
     search: "",
   });
-  const { data: transactionsData } = useBusinessPurchaseGetHistory(businessId, filterQuery);
+  const {
+    data: transactionsData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useBusinessPurchaseGetHistory(businessId, filterQuery);
   const transactions = transactionsData?.data?.data || [];
+  const queryClient = useQueryClient();
   const t = useTranslations("settings");
+  const d = useTranslations("dashboard");
   const tStatus = useTranslations("checkout.paymentStatusLabel");
   const { formatDate } = useDateFormat();
   const pagination = transactionsData?.data?.pagination || initialPagination;
@@ -44,11 +64,24 @@ export function HistoryTransactions() {
     setSelectedTransaction(transaction);
   };
 
+  usePaymentRealtime({
+    businessId,
+    subscribeBusinessTopic: true,
+    onStatusChanged: (payload) => {
+      syncPaymentRealtimeCaches(queryClient, businessId, payload);
+      setSelectedTransaction((current) =>
+        current?.id === payload.paymentHistoryId
+          ? mergeBusinessPurchaseWithRealtimePayment(current, payload)
+          : current
+      );
+    },
+  });
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <Card className="bg-card ">
-        <CardContent className="px-4 py-8 ">
-          <div className="overflow-x-auto max-w-screen">
+        <CardContent className="px-4 py-4 sm:py-8 ">
+          <div className="min-w-0">
             <CardTitle className="text-lg sm:text-xl font-bold text-foreground  ">
               {t("historyTransactions")}
             </CardTitle>
@@ -59,8 +92,88 @@ export function HistoryTransactions() {
               currData={transactions.length}
               showSort={false}
             /> */}
-            {transactions.length > 0 ? (
+            {isLoading ? (
+              <div className="mt-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Skeleton key={index} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : isError && !transactionsData ? (
+              <div className="mt-6 flex flex-col items-center gap-3 py-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {t("loadFailed")}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+                  />
+                  {d("retry")}
+                </Button>
+              </div>
+            ) : transactions.length > 0 ? (
               <div>
+                {/* Mobile: stacked cards */}
+                <ul className="mt-4 space-y-3 md:hidden">
+                  {transactions.map((transaction) => (
+                    <li
+                      key={transaction.id}
+                      className="rounded-lg border border-border bg-background p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="break-words font-medium text-foreground">
+                            {formatProductName(transaction.productName, locale)}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {formatDate(new Date(transaction.createdAt))}{" "}
+                            {dateFormat.getHhMm(new Date(transaction.createdAt))}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className={`${mapEnumPaymentStatus.getStatusColor(
+                            transaction.status
+                          )} shrink-0 border-0`}
+                        >
+                          {mapEnumPaymentStatus.getStatusLabel(transaction.status, tStatus)}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge
+                          variant="secondary"
+                          className="border-0 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                        >
+                          {formatProductType(transaction.productType)}
+                        </Badge>
+                        {transaction.method && (
+                          <span>{transaction.method.toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <span className="font-semibold text-foreground">
+                          {formatIdr(transaction.totalAmount)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onViewDetail(transaction)}
+                          className="h-(--control-h-sm) bg-gray-600 hover:bg-gray-700 text-white border-gray-600"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          {t("view")}
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Desktop: table */}
+                <div className="hidden overflow-x-auto md:block">
                 <table className="w-full ">
                   <thead className="border-b border-border">
                     <tr className="text-left">
@@ -96,10 +209,10 @@ export function HistoryTransactions() {
                           {dateFormat.getHhMm(new Date(transaction.createdAt))}
                         </td>
                         <td className="p-4 text-foreground">
-                          {transaction.productName}
+                          {formatProductName(transaction.productName, locale)}
                         </td>
                         <td className="p-4 text-foreground">
-                          {transaction.productType?.toUpperCase()}
+                          {formatProductType(transaction.productType)}
                         </td>
                         <td className="p-4 text-foreground">
                           {transaction?.method?.toUpperCase()}
@@ -132,6 +245,7 @@ export function HistoryTransactions() {
                     ))}
                   </tbody>
                 </table>
+                </div>
                 <PaginationControls
                   pagination={pagination}
                   filterQuery={filterQuery}

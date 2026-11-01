@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -8,19 +7,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ReceiptText } from "lucide-react";
 import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { showToast } from "@/helper/show-toast";
-import { formatIdr } from "@/helper/formatter";
+import {
+  mergeBusinessPurchaseWithRealtimePayment,
+  normalizeRealtimePaymentStatus,
+  syncPaymentRealtimeCaches,
+  usePaymentRealtime,
+} from "@/hooks/use-payment-realtime";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { dateFormat } from "@/helper/date-format";
 import { businessPurchaseService } from "@/services/purchase.api";
 import { useParams } from "next/navigation";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { PaymentInstructionCard } from "./payment-instruction-card";
+import { OrderInvoiceCard } from "./order-invoice-card";
 
 interface PurchaseDetailModalProps {
   isOpen: boolean;
@@ -44,35 +48,68 @@ export function PurchaseDetailModal({
   const tStatus = useTranslations("checkout.paymentStatusLabel");
   const tToast = useTranslations();
   const { formatDate } = useDateFormat();
+  const tDialog = useTranslations("settings.topUpTokenDialog");
 
   const paymentDetails = transaction?.paymentDetails ?? [];
 
+  usePaymentRealtime({
+    businessId,
+    enabled: isOpen && !!transaction?.id,
+    paymentId: transaction?.id,
+    onStatusChanged: (payload) => {
+      const nextStatus = normalizeRealtimePaymentStatus(payload.status);
+
+      if (transaction?.id === payload.paymentHistoryId) {
+        setTransaction(mergeBusinessPurchaseWithRealtimePayment(transaction, payload));
+      }
+      syncPaymentRealtimeCaches(queryClient, businessId, payload);
+
+      showToast(
+        nextStatus === "Success" ? "success" : "info",
+        mapEnumPaymentStatus.getStatusDescription(nextStatus, tToast)
+      );
+    },
+  });
+
+  // Only a pending payment shows the countdown, so only it needs a ticking clock.
+  const isPendingTransaction = transaction?.status === "Pending";
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isPendingTransaction) return;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [isOpen]);
+  }, [isOpen, isPendingTransaction]);
 
+  // History rows don't carry the payment actions, so load the detail once per
+  // opened transaction. Keyed by id: a settled payment has no actions even after
+  // the detail loads, and re-running on every transaction update looped forever.
+  const fetchedDetailIdRef = useRef<string | null>(null);
+  const openTransactionIdRef = useRef<string | null>(null);
+  const transactionId = transaction?.id;
+  const hasPaymentActions = (transaction?.paymentActions?.length ?? 0) > 0;
   useEffect(() => {
-    if (!isOpen || !transaction) return;
-    if (transaction.paymentActions.length > 0) return;
+    openTransactionIdRef.current = isOpen ? transactionId ?? null : null;
+    if (!isOpen) {
+      fetchedDetailIdRef.current = null;
+      return;
+    }
+    if (!transactionId || hasPaymentActions) return;
+    if (fetchedDetailIdRef.current === transactionId) return;
+    fetchedDetailIdRef.current = transactionId;
 
-    let ignore = false;
+    // Apply the result only if the same transaction is still open.
+    const isStillOpen = () => openTransactionIdRef.current === transactionId;
     businessPurchaseService
-      .getDetail(businessId, transaction.id)
+      .getDetail(businessId, transactionId)
       .then(({ data: res }) => {
-        if (!ignore) setTransaction(res.data);
+        if (isStillOpen()) setTransaction(res.data);
       })
       .catch(() => {
-        if (!ignore) {
+        if (isStillOpen()) {
           showToast("error", tToast("toast.payment.paymentStatusCheckFailed"));
         }
       });
-
-    return () => {
-      ignore = true;
-    };
-  }, [businessId, isOpen, setTransaction, tToast, transaction]);
+  }, [businessId, hasPaymentActions, isOpen, setTransaction, tToast, transactionId]);
 
   if (!transaction) return null;
 
@@ -102,8 +139,19 @@ export function PurchaseDetailModal({
       );
       setTransaction(res.data);
       queryClient.invalidateQueries({
-        queryKey: ["businessPurchaseHistory"],
+        queryKey: ["businessPurchaseDetail", transaction.id],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseHistory", businessId],
+      });
+      if (res.data.status === "Success") {
+        queryClient.invalidateQueries({
+          queryKey: ["tokenUsage", businessId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["subscribtionSubscription", businessId],
+        });
+      }
     } catch {
       showToast("error", tToast("toast.payment.paymentStatusCheckFailed"));
     } finally {
@@ -121,7 +169,7 @@ export function PurchaseDetailModal({
     const diffMs = new Date(expiredAt).getTime() - now;
     if (diffMs <= 0) {
       return {
-        text: "Batas pembayaran telah berakhir.",
+        text: tDialog("paymentExpired"),
         expired: true,
       };
     }
@@ -137,7 +185,10 @@ export function PurchaseDetailModal({
     )}:${String(seconds).padStart(2, "0")}`;
 
     return {
-      text: days > 0 ? `Sisa waktu pembayaran: ${days} hari ${hhmmss}` : `Sisa waktu pembayaran: ${hhmmss}`,
+      text:
+        days > 0
+          ? tDialog("paymentTimeRemainingWithDays", { days, time: hhmmss })
+          : tDialog("paymentTimeRemaining", { time: hhmmss }),
       expired: false,
     };
   };
@@ -145,40 +196,23 @@ export function PurchaseDetailModal({
   const paymentCountdown = getPaymentCountdown(transaction.expiredAt);
   const statusLabel = mapEnumPaymentStatus.getStatusLabel(transaction.status, tStatus);
   const statusTitle = isPending
-    ? "Menunggu Pembayaran..."
+    ? tDialog("pendingTitle")
     : isSuccess
-      ? "Pembayaran Berhasil"
+      ? tDialog("successTitle")
       : statusLabel;
   const statusDescription = isPending
-    ? "Silakan lakukan pembayaran untuk melanjutkan pesanan."
+    ? tDialog("pendingDescription")
     : transaction.status === "Expired"
-      ? "Batas waktu pembayaran sudah berakhir."
+      ? tDialog("expiredDescription")
       : transaction.status === "Failed" ||
           transaction.status === "Denied" ||
           transaction.status === "Canceled"
-        ? "Pembayaran tidak berhasil diproses."
-        : "Transaksi ini sudah diproses.";
-
-  const detailRows = [
-    {
-      label: "Ref",
-      value: transaction.paymentCode || transaction.orderId || transaction.id,
-    },
-    { label: "Tgl Dibuat", value: formatDateTime(transaction.createdAt) },
-    { label: "Tgl Diubah", value: formatDateTime(transaction.updatedAt) },
-    { label: "Produk", value: transaction.productName },
-    { label: "Tipe", value: transaction.productType?.toUpperCase() || "-" },
-    { label: "Metode", value: transaction.method?.toUpperCase() || "-" },
-    ...paymentDetails.map((detail) => ({
-      label: detail.name,
-      value: formatIdr(detail.price),
-    })),
-    { label: "Total", value: formatIdr(transaction.totalAmount) },
-  ];
+        ? tDialog("failedDescription")
+        : tDialog("processedDescription");
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="scrollbar-hidden">
         <DialogHeader>
           <div>
             <DialogTitle>{m("purchaseDetail")}</DialogTitle>
@@ -186,7 +220,7 @@ export function PurchaseDetailModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-6 p-6">
+        <div className="scrollbar-hidden flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:space-y-6 sm:p-6">
           <PaymentInstructionCard
             status={transaction.status}
             statusTitle={statusTitle}
@@ -205,19 +239,17 @@ export function PurchaseDetailModal({
             onCopy={handleCopy}
           />
 
-          <Card className="rounded-lg border bg-background p-5">
-            <div className="mb-5 flex items-center gap-3 border-b pb-4">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
-                <ReceiptText className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg font-semibold">Detail Order</h3>
-            </div>
-            <div className="space-y-3">
-              {detailRows.map((row) => (
-                <DetailOrderRow key={row.label} label={row.label} value={row.value} />
-              ))}
-            </div>
-          </Card>
+          <OrderInvoiceCard
+            reference={transaction.paymentCode || transaction.orderId || transaction.id}
+            createdAt={formatDateTime(transaction.createdAt)}
+            updatedAt={formatDateTime(transaction.updatedAt)}
+            productName={transaction.productName}
+            productType={transaction.productType}
+            method={transaction.method}
+            paymentDetails={paymentDetails}
+            totalAmount={transaction.totalAmount}
+            billedTo={transaction.profile}
+          />
         </div>
 
         {/* <DialogFooterWithButton buttonMessage={m("close")} onClick={onClose}>
@@ -229,20 +261,5 @@ export function PurchaseDetailModal({
         </DialogFooterWithButton> */}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DetailOrderRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="grid grid-cols-[120px_1fr] items-start gap-4 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="break-words font-medium text-foreground">{value}</span>
-    </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { getMemberRoleLabel } from "@/helper/member-role";
 import { useRouter } from "@/i18n/navigation";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,57 +14,33 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "next-themes";
-import { Settings, LogOut, User } from "lucide-react";
-import {
-  useAuthProfileGetProfile,
-  useAuthProfileLogout,
-} from "@/services/auth.api";
-import { showToast } from "@/helper/show-toast";
+import { Moon, Sun, LogOut, User } from "lucide-react";
+import { useAuthProfileGetProfile } from "@/services/auth.api";
 import { useTranslations } from "next-intl";
-import {
-  ACCESS_TOKEN_KEY,
-  LOGIN_URL,
-  DEFAULT_USER_AVATAR,
-} from "@/constants";
-import { useBusinessGetAll } from "@/services/business.api";
+import { DEFAULT_USER_AVATAR } from "@/constants";
+import { useRole } from "@/contexts/role-context";
+import { useLogout } from "@/hooks/use-logout";
 
 export function ProfileDropdown() {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const { data: profileData } = useAuthProfileGetProfile();
-  const { data: businessesData } = useBusinessGetAll();
-  const { businessId } = useParams() as { businessId?: string };
-  const businesses = businessesData?.data?.data || [];
-  const currentBusiness =
-    businesses.find((business) => business.id === businessId) || null;
-  const userRole = currentBusiness?.userPosition?.role;
+  // Role bisnis aktif dari RoleProvider (detail bisnis), bukan dari daftar
+  // bisnis yang dibatasi per halaman.
+  const { role: userRole } = useRole();
   const profile = profileData?.data?.data;
   const tSideBar = useTranslations("sideBar");
+  const tRole = useTranslations("memberRole");
+  const handleLogout = useLogout();
 
-  const [isDarkMode, setIsDarkMode] = useState(theme === "dark");
+  const isDarkMode = resolvedTheme === "dark";
 
   const handleThemeToggle = (checked: boolean) => {
-    setIsDarkMode(checked);
     setTheme(checked ? "dark" : "light");
   };
 
   const handleProfile = () => {
     router.push("/profile");
-  };
-
-  const mLogout = useAuthProfileLogout();
-  const tToast = useTranslations();
-
-  const handleLogout = async () => {
-    try {
-      await mLogout.mutateAsync(undefined);
-    } catch {
-    } finally {
-      showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
-      window.location.href = LOGIN_URL;
-    }
   };
 
   return (
@@ -88,11 +63,11 @@ export function ProfileDropdown() {
             </Avatar>
             <div className="hidden sm:flex flex-col text-left">
               <span className="text-sm font-medium text-foreground">
-                {profile?.name || "User"}
+                {profile?.name || tSideBar("user")}
               </span>
               {userRole && (
                 <span className="text-xs text-muted-foreground">
-                  {userRole}
+                  {getMemberRoleLabel(userRole, tRole)}
                 </span>
               )}
             </div>
@@ -113,11 +88,11 @@ export function ProfileDropdown() {
             </Avatar>
             <div className="flex flex-col">
               <span className="text-sm font-medium">
-                {profile?.name || "User"}
+                {profile?.name || tSideBar("user")}
               </span>
               {userRole && (
                 <span className="text-xs text-muted-foreground">
-                  {userRole}
+                  {getMemberRoleLabel(userRole, tRole)}
                 </span>
               )}
             </div>
@@ -135,12 +110,23 @@ export function ProfileDropdown() {
           </DropdownMenuItem>
 
           {/* Dark Mode Toggle */}
-          <div className="flex items-center justify-between px-4 py-2">
+          <div
+            className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-accent rounded-sm transition-colors"
+            onClick={() => handleThemeToggle(!isDarkMode)}
+          >
             <div className="flex items-center">
-              <Settings className="mr-4 h-4 w-4" />
-              <span className="text-sm">{tSideBar("darkMode")}</span>
+              {isDarkMode ? (
+                <Moon className="text-foreground mr-4 h-4 w-4" />
+              ) : (
+                <Sun className="text-foreground mr-4 h-4 w-4" />
+              )}
+              <span className="text-sm select-none">{tSideBar("darkMode")}</span>
             </div>
-            <Switch checked={isDarkMode} onCheckedChange={handleThemeToggle} />
+            <Switch
+              checked={isDarkMode}
+              onCheckedChange={handleThemeToggle}
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
 
           <DropdownMenuSeparator />

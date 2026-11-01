@@ -1,0 +1,183 @@
+import {
+  ACCESS_TOKEN_KEY,
+  API_ORIGIN,
+  NEXT_PUBLIC_API_ORIGIN,
+  REFRESH_TOKEN_KEY,
+} from "@/constants";
+import { NextRequest, NextResponse } from "next/server";
+import { getJwtMaxAge } from "@/lib/jwt";
+
+export const ACCESS_TOKEN_HEADER = "X-Postmatic-AccessToken";
+export const REFRESH_TOKEN_HEADER = "X-Postmatic-RefreshToken";
+
+// Fallback only, for a token without a readable `exp`.
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+
+const FORWARDED_AUTH_HEADERS = [
+  "user-agent",
+  "x-forwarded-for",
+  "x-real-ip",
+  "cf-connecting-ip",
+  "true-client-ip",
+  "sec-ch-ua",
+  "sec-ch-ua-mobile",
+  "sec-ch-ua-platform",
+  "accept-language",
+] as const;
+
+type AuthCookieOptions = {
+  path: string;
+  sameSite: "lax";
+  secure: boolean;
+  maxAge: number;
+  domain?: string;
+  httpOnly?: boolean;
+};
+
+const isPostmaticHostname = (hostname: string) =>
+  hostname === "postmatic.id" || hostname.endsWith(".postmatic.id");
+
+export function getBackendApiOrigin() {
+  return (API_ORIGIN || NEXT_PUBLIC_API_ORIGIN).replace(/\/$/, "");
+}
+
+/**
+ * Cookie options for an auth cookie. Pass the token being stored so the cookie
+ * expires together with it (JWT `exp`), like the cookies written by
+ * postmatic-auth and the landing page — otherwise a cookie could outlive its
+ * token, or vanish while the token is still valid.
+ */
+export function getAuthCookieOptions(request: NextRequest, token?: string): AuthCookieOptions {
+  const hostname = request.nextUrl.hostname.toLowerCase();
+  const protocol = request.nextUrl.protocol;
+  const domain = isPostmaticHostname(hostname) ? ".postmatic.id" : undefined;
+
+  return {
+    path: "/",
+    sameSite: "lax",
+    secure: protocol === "https:" || process.env.NODE_ENV === "production",
+    maxAge: (token ? getJwtMaxAge(token) : undefined) ?? COOKIE_MAX_AGE,
+    ...(domain ? { domain } : {}),
+  };
+}
+
+export function expireAuthCookie(
+  response: NextResponse,
+  request: NextRequest,
+  name: string,
+  httpOnly = false
+) {
+  const options = getAuthCookieOptions(request);
+  const expireOptions = {
+    path: options.path,
+    sameSite: options.sameSite,
+    secure: options.secure,
+    maxAge: 0,
+    httpOnly,
+  };
+
+  response.cookies.set(name, "", expireOptions);
+
+  if (options.domain) {
+    response.cookies.set(name, "", {
+      ...expireOptions,
+      domain: options.domain,
+    });
+  }
+}
+
+export function createForwardedAuthHeaders(request: NextRequest) {
+  const headers = new Headers({ "Content-Type": "application/json" });
+
+  FORWARDED_AUTH_HEADERS.forEach((header) => {
+    const value = request.headers.get(header);
+    if (value) headers.set(header, value);
+  });
+
+  const accessToken =
+    request.headers.get(ACCESS_TOKEN_HEADER) ??
+    request.cookies.get(ACCESS_TOKEN_KEY)?.value;
+  if (accessToken) headers.set(ACCESS_TOKEN_HEADER, accessToken);
+
+  const refreshToken = request.cookies.get(REFRESH_TOKEN_KEY)?.value;
+  if (refreshToken) headers.set(REFRESH_TOKEN_HEADER, refreshToken);
+
+  return headers;
+}
+
+export async function forwardAuthRequest(
+  request: NextRequest,
+  upstreamPath: string,
+  body?: BodyInit
+) {
+  const apiOrigin = getBackendApiOrigin();
+
+  if (!apiOrigin) {
+    return NextResponse.json(
+      {
+        metaData: { code: 500, message: "API origin is not configured" },
+        responseMessage: "API_ORIGIN_NOT_CONFIGURED",
+        data: null,
+      },
+      { status: 500 }
+    );
+  }
+
+  const upstream = await fetch(`${apiOrigin}/api${upstreamPath}`, {
+    method: request.method,
+    headers: createForwardedAuthHeaders(request),
+    body,
+    cache: "no-store",
+  });
+
+  const payload = await upstream.json().catch(() => null);
+
+  return NextResponse.json(stripRefreshTokens(payload), {
+    status: upstream.status,
+  });
+}
+
+/**
+ * Refresh token hanya boleh hidup di cookie httpOnly. Backend menyertakannya
+ * di beberapa respons (mis. data.session.refreshToken pada GET session), jadi
+ * buang semua field `refreshToken` sebelum diteruskan ke browser.
+ */
+export function stripRefreshTokens(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripRefreshTokens);
+  if (!value || typeof value !== "object") return value;
+
+  const result: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "refreshToken") continue;
+    result[key] = stripRefreshTokens(child);
+  }
+  return result;
+}
+
+/**
+ * Tolak request lintas origin ke route yang menulis cookie sesi (CSRF /
+ * login CSRF). Browser selalu mengirim header Origin untuk POST/DELETE fetch;
+ * request tanpa Origin atau dari origin lain ditolak.
+ */
+export function isSameOriginRequest(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host.toLowerCase();
+  } catch {
+    return false;
+  }
+
+  const allowedHosts = [
+    request.headers.get("x-forwarded-host"),
+    request.headers.get("host"),
+    request.nextUrl.host,
+  ]
+    .filter((h): h is string => Boolean(h))
+    .flatMap((h) => h.split(","))
+    .map((h) => h.trim().toLowerCase());
+
+  return allowedHosts.includes(originHost);
+}

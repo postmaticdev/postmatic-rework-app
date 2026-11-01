@@ -10,6 +10,9 @@ import {
   FaWhatsapp,
   FaYoutube,
 } from "react-icons/fa";
+import { getToastLocale } from "@/helper/api-response-message";
+
+const getUnknownLabel = () => (getToastLocale() === "en" ? "Unknown" : "Tidak Diketahui");
 
 
 
@@ -19,7 +22,7 @@ const getPlatformIcon = (platform: PlatformEnum, className?: string) => {
       return <FaLinkedin className={cn("h-5 w-5 text-blue-600", className)} />;
     case "facebook_page":
       return <FaFacebook className={cn("h-5 w-5 text-blue-600", className)} />;
-    case "instagram_business":
+    case "instagram_professional":
       return <FaInstagram className={cn("h-5 w-5 text-pink-500", className)} />;
     case "whatsapp_business":
       return <FaWhatsapp className={cn("h-5 w-5 text-green-500", className)} />;
@@ -42,7 +45,7 @@ const getPlaformColor = (platform: PlatformEnum) => {
       return "bg-blue-600";
     case "facebook_page":
       return "bg-blue-600";
-    case "instagram_business":
+    case "instagram_professional":
       return "bg-pink-500";
     case "whatsapp_business":
       return "bg-green-500";
@@ -65,7 +68,7 @@ const getPlatformLabel = (platform: PlatformEnum): string => {
       return "LinkedIn";
     case "facebook_page":
       return "Facebook";
-    case "instagram_business":
+    case "instagram_professional":
       return "Instagram";
     case "whatsapp_business":
       return "WhatsApp Business";
@@ -78,7 +81,7 @@ const getPlatformLabel = (platform: PlatformEnum): string => {
     case "pinterest":
       return "Pinterest";
     default:
-      return "Tidak Diketahui";
+      return getUnknownLabel();
   }
 };
 
@@ -90,7 +93,7 @@ const getPlatformGradient = (platform: PlatformEnum) => {
       return "bg-gradient-to-br from-blue-500 to-blue-600";
     case "tiktok":
       return "bg-gradient-to-br from-black to-black";
-    case "instagram_business":
+    case "instagram_professional":
       return "bg-gradient-to-br from-pink-400 to-purple-500";
     case "whatsapp_business":
       return "bg-gradient-to-br from-green-500 to-green-600";
@@ -135,7 +138,7 @@ const getPlatformHint = (
     case "unavailable":
       return t("notAvailable");
     default:
-      return "Tidak Diketahui";
+      return getUnknownLabel();
   }
 };
 

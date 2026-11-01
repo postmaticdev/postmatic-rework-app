@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormNewBusiness } from "@/contexts/form-new-business-context";
 import { showToast } from "@/helper/show-toast";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import countryCodes from "@/lib/country-code.json";
 import {
   WebsiteScrapperBusinessProduct,
@@ -20,6 +20,7 @@ import {
 } from "@/services/website-scrapper.api";
 import { cn } from "@/lib/utils";
 import { GlowEffect } from "@/components/motion-primitives/glow-effect";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 import {
   ArrowRight,
   CheckCircle2,
@@ -32,7 +33,11 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { isAxiosError } from "axios";
+import { BusinessCategoryDropdown } from "@/components/forms/business-category-dropdown";
+import { getCategoryLabel } from "@/helper/locale";
+import { useLibraryBusinessCategory } from "@/services/library.api";
 
 type FlowPhase = "input" | "loading" | "result";
 
@@ -158,6 +163,7 @@ function mapScrapperToDraft(item: WebsiteScrapperHistoryItem): WebsiteDraft {
   const businessKnowledge = data?.businessKnowledge;
   const businessRole = data?.businessRole;
   const metadata = data?.metadata;
+  // Scraper mengirim kode kategori bisnis/produk; dropdown menyimpan kode dan menampilkan labelnya.
   const firstProduct = data?.businessProducts?.[0] ?? null;
 
   return {
@@ -182,12 +188,21 @@ function mapScrapperToDraft(item: WebsiteScrapperHistoryItem): WebsiteDraft {
 
 export default function NewBusinessWebsitePage() {
   const router = useRouter();
-  const { setFormData } = useFormNewBusiness();
+  const { setFormData, resetForm } = useFormNewBusiness();
   const t = useTranslations("newBusinessWebsite");
   const b = useTranslations("businessKnowledge");
   const r = useTranslations("roleKnowledge");
+  const locale = useLocale();
+  const { data: businessCategoryData } = useLibraryBusinessCategory();
+  const businessCategories = businessCategoryData?.data.data ?? [];
   const mWebsiteScrapper = useWebsiteScrapperCreate();
   const pollingSessionRef = useRef(0);
+  const isScrappingRef = useRef(false);
+
+  // Entering the website flow fresh: drop any data left from a previous run.
+  useEffect(() => {
+    resetForm();
+  }, [resetForm]);
 
   const loadingSteps = useMemo(
     () => [
@@ -262,49 +277,49 @@ export default function NewBusinessWebsitePage() {
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
-  const prefillManualForm = () => {
+  const prefillManualForm = (draftParam: WebsiteDraft = draft) => {
     const finalCountryCode = resolveCountryCode(
-      draft.countryCode,
-      draft.businessPhone
+      draftParam.countryCode,
+      draftParam.businessPhone
     );
     const finalPhone = stripCountryCodeFromPhone(
-      draft.businessPhone,
+      draftParam.businessPhone,
       finalCountryCode
     );
-    const finalHashtags = parseHashtags(draft.hashtags);
+    const finalHashtags = parseHashtags(draftParam.hashtags);
 
     setFormData((current) => ({
       ...current,
       step1: {
         ...current.step1,
-        primaryLogo: draft.primaryLogoUrl || current.step1.primaryLogo,
-        name: draft.name,
-        category: draft.category,
-        description: draft.description,
-        website: draft.website,
+        primaryLogo: draftParam.primaryLogoUrl || current.step1.primaryLogo,
+        name: draftParam.name,
+        category: draftParam.category,
+        description: draftParam.description,
+        website: draftParam.website,
         businessPhone: finalPhone,
         countryCode: finalCountryCode,
-        colorTone: toColorToneValue(draft.colorTone),
+        colorTone: toColorToneValue(draftParam.colorTone),
       },
-      step2: draft.firstProduct
+      step2: draftParam.firstProduct
         ? {
           ...current.step2,
-          name: draft.firstProduct.name || current.step2.name,
-          category: draft.firstProduct.category || current.step2.category,
+          name: draftParam.firstProduct.name || current.step2.name,
+          category: draftParam.firstProduct.category || current.step2.category,
           description:
-            draft.firstProduct.description || current.step2.description,
-          price: Number(draft.firstProduct.price || 0),
-          currency: draft.firstProduct.currency || current.step2.currency,
+            draftParam.firstProduct.description || current.step2.description,
+          price: Number(draftParam.firstProduct.price || 0),
+          currency: draftParam.firstProduct.currency || current.step2.currency,
           images:
-            draft.firstProduct.imageUrls?.length > 0
-              ? draft.firstProduct.imageUrls
+            draftParam.firstProduct.imageUrls?.length > 0
+              ? draftParam.firstProduct.imageUrls
               : current.step2.images,
         }
         : current.step2,
       step3: {
         ...current.step3,
-        targetAudience: draft.targetAudience,
-        tone: draft.contentTone,
+        targetAudience: draftParam.targetAudience,
+        tone: draftParam.contentTone,
         hashtags: finalHashtags,
       },
     }));
@@ -319,15 +334,35 @@ export default function NewBusinessWebsitePage() {
     id: number,
     session: number
   ): Promise<WebsiteScrapperHistoryItem> => {
-    const maxAttempt = 40;
+    // Worker Go bisa >100 detik (antre slot browser, render + retry, subpage,
+    // AI, finalize), jadi beri batas ~4 menit.
+    const maxAttempt = 120;
     const delayMs = 2000;
+    // Gangguan jaringan/5xx sesaat tidak boleh menggagalkan scan yang masih jalan.
+    const maxConsecutiveErrors = 3;
+    let consecutiveErrors = 0;
 
     for (let attempt = 0; attempt < maxAttempt; attempt += 1) {
       if (pollingSessionRef.current !== session) {
         throw new Error("SCRAPPER_CANCELLED");
       }
 
-      const response = await websiteScrapperService.getHistoryById(id);
+      let response: Awaited<
+        ReturnType<typeof websiteScrapperService.getHistoryById>
+      >;
+      try {
+        response = await websiteScrapperService.getHistoryById(id);
+        consecutiveErrors = 0;
+      } catch (error) {
+        const status = isAxiosError(error) ? error.response?.status : undefined;
+        const isTransient = status === undefined || status >= 500;
+        consecutiveErrors += 1;
+        if (!isTransient || consecutiveErrors > maxConsecutiveErrors) {
+          throw error;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+        continue;
+      }
       const item = response.data.data;
       const processState = item.processState?.toLowerCase();
       const status = item.status?.toLowerCase();
@@ -344,11 +379,12 @@ export default function NewBusinessWebsitePage() {
       await new Promise((resolve) => window.setTimeout(resolve, delayMs));
     }
 
-    throw new Error("Process timed out. Please try again.");
+    throw new Error(t("errorTimeout"));
   };
 
   const handleScrapWebsite = async () => {
-    if (!canContinue) return;
+    if (!canContinue || isScrappingRef.current) return;
+    isScrappingRef.current = true;
 
     const normalized = normalizeUrl(websiteInput);
     setWebsiteInput(normalized);
@@ -375,18 +411,20 @@ export default function NewBusinessWebsitePage() {
 
       if (isErrorResult) {
         throw new Error(
-          finalResult.errorReason || "Website analysis failed. Please try again."
+          finalResult.errorReason || t("errorAnalysisFailed")
         );
       }
 
       if (!finalResult.data) {
         throw new Error(
-          "Website analysis is still processing. Please try again in a few moments."
+          t("errorStillProcessing")
         );
       }
 
-      setDraft(mapScrapperToDraft(finalResult));
-      setPhase("result");
+      const newDraft = mapScrapperToDraft(finalResult);
+      setDraft(newDraft); // Keep for consistency
+      prefillManualForm(newDraft);
+      router.push("/business/new-business/manual");
     } catch (error) {
       if (
         error instanceof Error &&
@@ -401,6 +439,8 @@ export default function NewBusinessWebsitePage() {
       }
 
       showToast("error", error);
+    } finally {
+      isScrappingRef.current = false;
     }
   };
 
@@ -426,20 +466,21 @@ export default function NewBusinessWebsitePage() {
   ]);
 
   return (
-    <div className="ai-glow-page relative min-h-screen overflow-hidden bg-background">
-      <div className="relative z-10 flex min-h-screen flex-col px-4 py-4 sm:px-6 sm:py-6">
+    <AuroraBackground className="ai-glow-page !justify-start">
+      <div className="relative z-10 flex min-h-dvh flex-col px-4 py-4 sm:px-6 sm:py-6">
+
         {phase === "input" && (
-          <div className="flex flex-1 items-center justify-center py-8">
+          <div className="flex flex-1 items-center justify-center py-6 sm:py-8">
             <GlowingCardShell
               wrapperClassName="max-w-2xl"
-              cardClassName="border-white/50 bg-white/95 p-6 shadow-[0_24px_100px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
+              cardClassName="border-white/50 bg-white/95 p-4 shadow-[0_24px_100px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
             >
               <div className="mx-auto max-w-xl text-center">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
                   <WandSparkles className="size-3.5" />
                   {t("eyebrow")}
                 </div>
-                <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
                   {t("title")}
                 </h1>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
@@ -447,7 +488,7 @@ export default function NewBusinessWebsitePage() {
                 </p>
               </div>
 
-              <div className="mt-8 space-y-5">
+              <div className="mt-6 sm:mt-8 space-y-4 sm:space-y-5">
                 <div className="rounded-[1.5rem] border border-white/60 bg-black/[0.03] p-3 shadow-inner dark:border-white/10 dark:bg-black/20">
                   <div className="flex items-center gap-3">
                     <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blue-500/12 text-blue-700 dark:text-blue-200">
@@ -458,7 +499,7 @@ export default function NewBusinessWebsitePage() {
                       value={websiteInput}
                       onChange={(event) => setWebsiteInput(event.target.value)}
                       placeholder={t("inputPlaceholder")}
-                      className="h-14 border-0 bg-transparent px-1 text-lg shadow-none focus-visible:ring-0"
+                      className="h-14 max-md:h-(--control-h) border-0 bg-transparent px-1 text-lg shadow-none focus-visible:ring-0"
                     />
                   </div>
                 </div>
@@ -466,7 +507,8 @@ export default function NewBusinessWebsitePage() {
                 <div className="grid gap-3">
 
                   <Button
-                    className="h-14 rounded-full text-base shadow-[0_18px_40px_rgba(37,99,235,0.35)]"
+                    size="lg"
+                    className="shadow-[0_18px_40px_rgba(37,99,235,0.35)]"
                     disabled={!canContinue}
                     onClick={handleScrapWebsite}
                   >
@@ -480,10 +522,10 @@ export default function NewBusinessWebsitePage() {
         )}
 
         {phase === "loading" && (
-          <div className="flex flex-1 items-center justify-center py-8">
+          <div className="flex flex-1 items-center justify-center py-6 sm:py-8">
             <GlowingCardShell
               wrapperClassName="max-w-2xl"
-              cardClassName="border-white/40 bg-white/95 p-6 text-center shadow-[0_24px_110px_rgba(37,99,235,0.2)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
+              cardClassName="border-white/40 bg-white/95 p-4 text-center shadow-[0_24px_110px_rgba(37,99,235,0.2)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(17,24,39,0.94)] sm:p-8"
               radiusClassName="rounded-[2.2rem]"
             >
               <div className="mx-auto max-w-xl">
@@ -491,7 +533,7 @@ export default function NewBusinessWebsitePage() {
                   <Sparkles className="size-3.5" />
                   {t("loadingEyebrow")}
                 </div>
-                <h2 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+                <h2 className="text-3xl font-semibold tracking-tight sm:text-5xl">
                   {t("loadingTitle")}
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
@@ -499,20 +541,20 @@ export default function NewBusinessWebsitePage() {
                 </p>
               </div>
 
-              <div className="mt-8 rounded-[1.8rem] border border-white/60 bg-white/70 p-5 text-left shadow-inner dark:border-white/10 dark:bg-white/5">
+              <div className="mt-6 sm:mt-8 rounded-[1.8rem] border border-white/60 bg-white/70 p-4 sm:p-5 text-left shadow-inner dark:border-white/10 dark:bg-white/5">
                 <div className="mb-5 rounded-[1.4rem] border border-blue-300/30 bg-blue-500/10 p-4 text-sm font-medium text-blue-900 dark:text-blue-100">
                   {loadingSteps[activeLoadingStep]}
                 </div>
 
-                <div className="ai-grid-panel rounded-[1.6rem] border border-white/70 p-5 dark:border-white/10">
-                  <div className="mb-4 h-44 rounded-[1.25rem] border border-blue-200/60 bg-white/80 p-6 shadow-[0_10px_35px_rgba(37,99,235,0.08)] dark:border-blue-300/10 dark:bg-slate-950/50">
+                <div className="ai-grid-panel rounded-[1.6rem] border border-white/70 p-4 sm:p-5 dark:border-white/10">
+                  <div className="mb-4 h-44 rounded-[1.25rem] border border-blue-200/60 bg-white/80 p-4 sm:p-6 shadow-[0_10px_35px_rgba(37,99,235,0.08)] dark:border-blue-300/10 dark:bg-slate-950/50">
                     <div className="flex h-full flex-col justify-between">
                       <div>
                         <div className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
                           <Link2 className="size-3.5" />
                           {t("sourceLabel")}
                         </div>
-                        <p className="text-lg font-semibold text-foreground">
+                        <p className="text-lg font-semibold text-foreground max-md:break-all">
                           {normalizeUrl(websiteInput) || t("previewFallbackUrl")}
                         </p>
                       </div>
@@ -541,15 +583,15 @@ export default function NewBusinessWebsitePage() {
 
         {phase === "result" && (
           <>
-            <div className="mx-auto flex w-full max-w-7xl flex-1 items-start justify-center py-6 pb-28 sm:pb-6">
+            <div className="mx-auto flex w-full max-w-7xl flex-1 items-start justify-center pt-4 pb-28 sm:pt-6 sm:pb-6">
               <GlowingCardShell cardClassName="border-white/50 bg-white/95 p-4 shadow-[0_28px_120px_rgba(37,99,235,0.18)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(15,23,42,0.94)] sm:p-6 lg:p-8">
-                <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] xl:items-end">
+                <div className="mb-4 sm:mb-6 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] xl:items-end">
                   <div className="max-w-3xl">
                     <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-1 text-xs font-medium tracking-[0.22em] text-blue-700 uppercase dark:text-blue-200">
                       <CheckCircle2 className="size-3.5" />
                       {t("resultEyebrow")}
                     </div>
-                    <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                    <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
                       {t("resultTitle")}
                     </h2>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
@@ -559,7 +601,7 @@ export default function NewBusinessWebsitePage() {
 
                   <div className="hidden sm:flex xl:w-full">
                     <Button
-                      className="w-full rounded-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
+                      className="w-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
                       onClick={handleContinueToManual}
                     >
                       {t("manualCta")}
@@ -568,10 +610,10 @@ export default function NewBusinessWebsitePage() {
                   </div>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-                  <div className="grid gap-6">
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
+                  <div className="grid gap-4 sm:gap-6">
+                    <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("logoBrand")}
                         </label>
@@ -580,34 +622,31 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("primaryLogoUrl", event.target.value)
                           }
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("brandName")}
                         </label>
                         <Input
                           value={draft.name}
                           onChange={(event) => updateDraft("name", event.target.value)}
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                        <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                          {b("category")}
-                        </label>
-                        <Input
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                        <BusinessCategoryDropdown
                           value={draft.category}
-                          onChange={(event) => updateDraft("category", event.target.value)}
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          onChange={(value) => updateDraft("category", value)}
+                          label={b("category")}
                         />
                       </div>
                     </div>
 
-                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                    <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                       <label className="mb-2 block text-sm font-medium text-muted-foreground">
                         {b("description")}
                       </label>
@@ -616,23 +655,23 @@ export default function NewBusinessWebsitePage() {
                         onChange={(event) =>
                           updateDraft("description", event.target.value)
                         }
-                        className="min-h-32 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                        className="min-h-32 border-white/50 bg-white/80 dark:bg-slate-950/40"
                       />
                     </div>
 
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                    <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("urlWebsite")}
                         </label>
                         <Input
                           value={draft.website}
                           onChange={(event) => updateDraft("website", event.target.value)}
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {b("phone")}
                         </label>
@@ -641,13 +680,13 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("businessPhone", event.target.value)
                           }
-                          className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
                     </div>
 
-                    <div className="grid gap-6 lg:grid-cols-2">
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                    <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                           <Users className="size-4" />
                           {r("targetAudience")}
@@ -657,11 +696,11 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("targetAudience", event.target.value)
                           }
-                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="min-h-28 border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 block text-sm font-medium text-muted-foreground">
                           {r("contentTone")}
                         </label>
@@ -670,13 +709,13 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("contentTone", event.target.value)
                           }
-                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="min-h-28 border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
                     </div>
 
-                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                    <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                           <Tags className="size-4" />
                           {r("hashtags")}
@@ -686,18 +725,18 @@ export default function NewBusinessWebsitePage() {
                           onChange={(event) =>
                             updateDraft("hashtags", event.target.value)
                           }
-                          className="min-h-28 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                          className="min-h-28 border-white/50 bg-white/80 dark:bg-slate-950/40"
                         />
                       </div>
 
-                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                      <div className="rounded-[1.6rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                         <label className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                           <Palette className="size-4" />
                           {b("colorTone")}
                         </label>
                         <div className="flex items-center gap-4">
                           <div
-                            className="size-16 rounded-2xl border border-white/70 shadow-inner"
+                            className="size-16 max-md:shrink-0 rounded-2xl border border-white/70 shadow-inner"
                             style={{ backgroundColor: normalizeHexColor(draft.colorTone) }}
                           />
                           <Input
@@ -705,15 +744,15 @@ export default function NewBusinessWebsitePage() {
                             onChange={(event) =>
                               updateDraft("colorTone", event.target.value)
                             }
-                            className="h-12 rounded-xl border-white/50 bg-white/80 dark:bg-slate-950/40"
+                            className="border-white/50 bg-white/80 dark:bg-slate-950/40"
                           />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid gap-6">
-                    <div className="rounded-[1.8rem] border border-white/55 bg-white/72 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                  <div className="grid gap-4 sm:gap-6">
+                    <div className="rounded-[1.8rem] border border-white/55 bg-white/72 p-4 sm:p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
                       <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
                         <Sparkles className="size-3.5" />
                         {t("insightsTitle")}
@@ -730,7 +769,7 @@ export default function NewBusinessWebsitePage() {
                       </div>
                     </div>
 
-                    <div className="ai-grid-panel rounded-[1.8rem] border border-white/55 p-5 dark:border-white/10">
+                    <div className="ai-grid-panel rounded-[1.8rem] border border-white/55 p-4 sm:p-5 dark:border-white/10">
                       <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-[0.22em] text-blue-700 uppercase dark:text-blue-300">
                         <Globe className="size-3.5" />
                         {t("sourceTitle")}
@@ -744,7 +783,11 @@ export default function NewBusinessWebsitePage() {
                         </p>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {[draft.category, draft.colorTone, draft.name]
+                        {[
+                          getCategoryLabel(businessCategories, draft.category, locale),
+                          draft.colorTone,
+                          draft.name,
+                        ]
                           .filter((item) => item.trim().length > 0)
                           .map((item) => (
                             <div
@@ -767,9 +810,10 @@ export default function NewBusinessWebsitePage() {
                 </div>
               </GlowingCardShell>
             </div>
-            <div className="fixed right-0 bottom-0 left-0 z-50 border-t border-white/20 bg-background/95 p-4 shadow-[0_-16px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-slate-950/95 sm:hidden">
+            <div className="fixed right-0 bottom-0 left-0 z-50 border-t border-white/20 bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-16px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-slate-950/95 sm:hidden">
               <Button
-                className="h-12 w-full rounded-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
+                size="lg"
+                className="w-full shadow-[0_18px_40px_rgba(37,99,235,0.32)]"
                 onClick={handleContinueToManual}
               >
                 {t("manualCta")}
@@ -779,6 +823,6 @@ export default function NewBusinessWebsitePage() {
           </>
         )}
       </div>
-    </div>
+    </AuroraBackground>
   );
 }

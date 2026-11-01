@@ -5,16 +5,18 @@ import {
   Dialog,
   DialogContent,
   DialogFooterWithButton,
-  DialogFooterWithTwoButtons,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useTranslations } from "next-intl";
 import { CreateAutoGenerateScheduleRequest, AutoGenerateSchedule } from "@/models/api/content/auto-generate";
 import { showToast } from "@/helper/show-toast";
+import { isAxiosError } from "axios";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
 import type { ValidRatio } from "@/models/api/content/image.type";
 import { useContentAutoGenerateCreateSchedule, useContentAutoGenerateUpdateSchedule } from "@/services/content/content.api";
@@ -22,13 +24,19 @@ import { useParams } from "next/navigation";
 import { AutoGenerateFormBasic } from "./auto-generate-form-basic";
 import { AutoGenerateFormAdvanced } from "./auto-generate-form-advance";
 import { TextField } from "@/components/forms/text-field";
-import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
+import { usePlatformKnowledgeGetAll, useBusinessKnowledgeGetById, useProductKnowledgeGetAll } from "@/services/knowledge.api";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { TimeInput } from "@/components/ui/time-input";
-import { Save, Sparkles, Trash2 } from "lucide-react";
+import { NativeSelect } from "@/components/ui/native-select";
+import { 
+  Save, Sparkles, Trash2, Send,
+  Heart, MessageCircle, Bookmark, MoreHorizontal, 
+  ThumbsUp, Share2, Globe, Repeat2, BadgeCheck, X,
+  CalendarDays, Clock as ClockIcon
+} from "lucide-react";
 import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AutoGenerateModalProps {
   isOpen: boolean;
@@ -52,18 +60,29 @@ export function AutoGenerateModal({
   editingSchedule,
 }: AutoGenerateModalProps) {
   const t = useTranslations("autoGenerate");
+  const tContentGenerate = useTranslations("contentGenerateScheduler");
+  const tAutoPosting = useTranslations("autoPosting");
+  const tPreview = useTranslations("mockPostPreview");
   const mCreateSchedule = useContentAutoGenerateCreateSchedule();
   const mUpdateSchedule = useContentAutoGenerateUpdateSchedule();
   const { businessId } = useParams() as { businessId: string };
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
+  const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(businessId);
+
+  const businessName = businessKnowledgeData?.data?.data?.name || tPreview("businessNameFallback");
+  const businessLogo = businessKnowledgeData?.data?.data?.primaryLogo || businessKnowledgeData?.data?.data?.primaryLogoUrl || "";
 
   // Form state
   const [additionalPrompt, setAdditionalPrompt] = useState<string>("");
   const [modalSelectedPlatforms, setModalSelectedPlatforms] = useState<PlatformEnum[]>(selectedPlatforms);
   const [modalHour, setModalHour] = useState<string>("");
   const [modalMinute, setModalMinute] = useState<string>("");
+  const [modalDay, setModalDay] = useState<number | null>(selectedDay);
+  const [isActive, setIsActive] = useState<boolean>(true);
   const prevBasicRef = useRef<typeof basic | null>(null);
   const prevAdvanceRef = useRef<typeof advance | null>(null);
+
+  const [activePreviewPlatform, setActivePreviewPlatform] = useState<PlatformEnum>("instagram_professional");
 
   // Auto Generate Context
   const { form, isLoading, productKnowledges, aiModels, onSelectAiModel } = useAutoGenerate();
@@ -86,11 +105,42 @@ export function AutoGenerateModal({
     [platformOptions]
   );
 
+  // The context's product list is one page of 10, so an edited schedule's
+  // product is looked up in a larger list.
+  const { data: allProductsRes } = useProductKnowledgeGetAll(
+    businessId,
+    { limit: 100, page: 1, sortBy: "name", sort: "asc" },
+    isOpen
+  );
+
   // Helper function to get product name from productKnowledgeId
   const getProductNameById = (productKnowledgeId: string) => {
     const product = productKnowledges.contents.find(p => p.id === productKnowledgeId);
     return product?.name || "";
   };
+
+  // Fill the name and image of a product known only by id, or drop the id when
+  // the product no longer exists so the form asks for a product again.
+  useEffect(() => {
+    const productId = basic.productKnowledgeId;
+    if (!isOpen || !productId || basic.productName || !allProductsRes) return;
+    const product = (allProductsRes.data?.data || []).find(
+      (item) => item.id === productId
+    );
+    setBasic(
+      product
+        ? { ...basic, productName: product.name, productImage: product.images?.[0] || "" }
+        : { ...basic, productKnowledgeId: "", productName: "", productImage: "" }
+    );
+  }, [allProductsRes, basic, isOpen, setBasic]);
+
+  // A schedule saved with a model that is no longer offered for repetition
+  // (removed, or a grid model) asks for a model instead of showing an unknown one.
+  useEffect(() => {
+    if (!isOpen || !basic.model || aiModels.isLoading || aiModels.models.length === 0) return;
+    if (aiModels.models.some((model) => model.name === basic.model)) return;
+    setBasic({ ...basic, model: "" });
+  }, [aiModels.isLoading, aiModels.models, basic, isOpen, setBasic]);
 
   const DAYS = [
     { value: 0, label: t("sunday") },
@@ -101,11 +151,6 @@ export function AutoGenerateModal({
     { value: 5, label: t("friday") },
     { value: 6, label: t("saturday") },
   ];
-
-  const getDayName = (dayValue: number | null) => {
-    if (dayValue === null) return "";
-    return DAYS.find(day => day.value === dayValue)?.label || "";
-  };
 
   const togglePlatform = (platform: PlatformEnum) => {
     if (!connectedPlatforms.includes(platform)) return;
@@ -133,10 +178,23 @@ export function AutoGenerateModal({
     }
   };
 
+  useEffect(() => {
+    if (modalSelectedPlatforms.length > 0 && !modalSelectedPlatforms.includes(activePreviewPlatform)) {
+      setActivePreviewPlatform(modalSelectedPlatforms[0]);
+    }
+  }, [modalSelectedPlatforms, activePreviewPlatform]);
+
+  const isSaving = mCreateSchedule.isPending || mUpdateSchedule.isPending;
 
   const handleSave = async () => {
+    // A double click would otherwise send two create requests.
+    if (isSaving) return;
     if (!basic?.productKnowledgeId) {
       showToast("error", t("pleaseSelectProduct"));
+      return;
+    }
+    if (!basic.model) {
+      showToast("error", t("pleaseSelectModel"));
       return;
     }
 
@@ -149,7 +207,7 @@ export function AutoGenerateModal({
       return;
     }
 
-    if (selectedDay === null) {
+    if (modalDay === null) {
       showToast("error", t("pleaseSelectDay"));
       return;
     }
@@ -162,11 +220,11 @@ export function AutoGenerateModal({
     const h = parseInt(modalHour, 10);
     const m = parseInt(modalMinute, 10);
     if (Number.isNaN(h) || h < 0 || h > 23) {
-      showToast("error", t("hourMustBe0-23"));
+      showToast("error", tAutoPosting("hourMustBe0-23"));
       return;
     }
     if (Number.isNaN(m) || m < 0 || m > 59) {
-      showToast("error", t("minuteMustBe0-59"));
+      showToast("error", tAutoPosting("minuteMustBe0-59"));
       return;
     }
 
@@ -174,27 +232,28 @@ export function AutoGenerateModal({
     const mm = m.toString().padStart(2, "0");
     const timeString = `${hh}:${mm}`;
 
-    const isActiveStatus = editingSchedule ? editingSchedule.isActive : true;
-    console.log('Modal save - editingSchedule:', editingSchedule?.id, 'isActive:', isActiveStatus);
+    const isActiveStatus = editingSchedule ? isActive : true;
     
     const scheduleData: CreateAutoGenerateScheduleRequest = {
-      day: selectedDay,
+      day: modalDay,
       time: timeString,
       platforms: connectedSelectedPlatforms,
-      model: basic.model || "gpt-image-1",
+      model: basic.model || aiModels.selectedModel?.name || "",
       designStyle: basic.designStyle || "modern",
       ratio: basic.ratio || "1:1",
       category: basic.category || "sale",
       additionalPrompt: additionalPrompt.trim() || undefined,
+      avatarImageUrl: basic.avatarImageUrl || undefined,
+      // The form shows the rule's current reference, so [] on update clears a removed one.
+      referenceImageIds: basic.selectedReference ? [basic.selectedReference.id] : [],
       productKnowledgeId: basic.productKnowledgeId,
-      isActive: isActiveStatus, // Use existing status when editing, default to true for new schedules
+      isActive: isActiveStatus,
       advBusinessName: form.advance.businessKnowledge.name,
       advBusinessCategory: form.advance.businessKnowledge.category,
       advBusinessDescription: form.advance.businessKnowledge.description,
       advBusinessLocation: form.advance.businessKnowledge.location,
       advBusinessLogo: form.advance.businessKnowledge.logo,
-      advBusinessUniqueSellingPoint:
-        form.advance.businessKnowledge.uniqueSellingPoint,
+      advBusinessUniqueSellingPoint: form.advance.businessKnowledge.uniqueSellingPoint,
       advBusinessWebsite: form.advance.businessKnowledge.website,
       advBusinessVisionMission: form.advance.businessKnowledge.visionMission,
       advBusinessColorTone: form.advance.businessKnowledge.colorTone,
@@ -221,12 +280,17 @@ export function AutoGenerateModal({
         showToast("success", t("scheduleSavedSuccessfully"));
       }
       onSave();
-    } catch {
-      showToast("error", t("scheduleSaveFailed"));
+    } catch (error) {
+      // Tampilkan alasan dari backend bila ada (mis. platform terputus, model premium)
+      showToast(
+        "error",
+        isAxiosError(error) && error.response?.data?.responseMessage
+          ? error
+          : t("scheduleSaveFailed")
+      );
     }
   };
 
-  // Snapshot form when opening, restore when closing to avoid leaking state to content-generate
   useEffect(() => {
     if (isOpen) {
       prevBasicRef.current = structuredClone(basic);
@@ -237,16 +301,14 @@ export function AutoGenerateModal({
       prevBasicRef.current = null;
       prevAdvanceRef.current = null;
       setAdditionalPrompt("");
+      setIsActive(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Initialize platform selection and time when modal opens
   useEffect(() => {
     if (isOpen) {
       setModalSelectedPlatforms(selectedPlatforms);
-      
-      // Parse selectedTime to hour and minute
+      setModalDay(selectedDay);
       if (selectedTime) {
         const [hour, minute] = selectedTime.split(':');
         setModalHour(hour || "");
@@ -256,24 +318,19 @@ export function AutoGenerateModal({
         setModalMinute("");
       }
     }
-  }, [isOpen, selectedPlatforms, selectedTime]);
+  }, [isOpen, selectedPlatforms, selectedTime, selectedDay]);
 
-  // Prefill form when editing an existing schedule
   useEffect(() => {
     if (!isOpen) return;
     if (editingSchedule) {
+      setIsActive(editingSchedule.isActive);
       setModalSelectedPlatforms(editingSchedule.platforms);
-      
-      // Parse editingSchedule.time to hour and minute
       if (editingSchedule.time) {
         const [hour, minute] = editingSchedule.time.split(':');
         setModalHour(hour || "");
         setModalMinute(minute || "");
       }
-      
-      // Find the AI model that matches the schedule's model
       const scheduleModel = aiModels.models.find(model => model.name === editingSchedule.model);
-      
       setBasic({
         ...basic,
         model: editingSchedule.model,
@@ -282,15 +339,28 @@ export function AutoGenerateModal({
         designStyle: editingSchedule.designStyle,
         prompt: editingSchedule.additionalPrompt || "",
         productKnowledgeId: editingSchedule.productKnowledgeId,
+        // Resolved from the product list when not on the context's page.
         productName: getProductNameById(editingSchedule.productKnowledgeId),
+        productImage:
+          productKnowledges.contents.find(
+            (product) => product.id === editingSchedule.productKnowledgeId
+          )?.images?.[0] || "",
+        selectedAvatar: editingSchedule.avatarImageUrl
+          ? {
+              id: `schedule-avatar-${editingSchedule.id}`,
+              imageUrl: editingSchedule.avatarImageUrl,
+              title: "Avatar",
+              source: "browse",
+            }
+          : null,
+        avatarImageUrl: editingSchedule.avatarImageUrl || null,
+        selectedReference: editingSchedule.referenceImages?.[0] || null,
       });
 
-      // Set the selected AI model to match the schedule's model
       if (scheduleModel) {
         onSelectAiModel(scheduleModel);
       }
 
-      // Prefill advance toggles from schedule flags
       setAdvance({
         ...advance,
         businessKnowledge: {
@@ -318,151 +388,406 @@ export function AutoGenerateModal({
         },
       });
 
-      // Set additional prompt
       setAdditionalPrompt(editingSchedule.additionalPrompt || "");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingSchedule]);
 
+  const renderCaptionArea = (className?: string) => (
+    <div className={cn("relative w-full group", className)}>
+      <Textarea
+        value={additionalPrompt}
+        readOnly
+        className="min-h-[60px] max-h-[300px] resize-none bg-transparent border-none p-0 focus-visible:ring-0 shadow-none text-sm scrollbar-hidden leading-relaxed text-muted-foreground"
+        placeholder={tPreview("captionPlaceholder")}
+      />
+    </div>
+  );
+
+  const renderImagePreviewPlaceholder = () => (
+    <div className="w-full aspect-square flex flex-col items-center justify-center text-muted-foreground bg-muted border border-dashed border-border/50">
+      <Sparkles className="h-8 w-8 mb-2 opacity-50" />
+      <span className="text-sm font-medium">{tPreview("generatedImageAlt")}</span>
+      <span className="text-xs opacity-70">{tPreview("ratioValue", { ratio: basic.ratio || "1:1" })}</span>
+    </div>
+  );
+
+  const renderLinkedInPreview = () => (
+    <div className="flex flex-col rounded-lg border border-border bg-card overflow-hidden shadow-sm w-full mx-auto max-w-[500px]">
+      <div className="p-4 flex justify-between items-start">
+        <div className="flex gap-3">
+          <div className="w-12 h-12 rounded-full bg-muted overflow-hidden shrink-0">
+            {businessLogo ? (
+              <img src={businessLogo} alt={tPreview("logoAlt")} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center font-bold text-lg">{businessName.charAt(0).toUpperCase()}</div>
+            )}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1">
+              <span className="font-semibold text-sm hover:text-blue-600 hover:underline cursor-pointer">{businessName}</span>
+              <BadgeCheck className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground text-xs">• {tPreview("firstDegree")}</span>
+            </div>
+            <span className="text-muted-foreground text-xs line-clamp-1">{tPreview("businessPage")}</span>
+            <span className="text-muted-foreground text-xs flex items-center gap-1 mt-0.5">
+              {tPreview("justNow")} • <Globe className="w-3 h-3" />
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <MoreHorizontal className="w-5 h-5 cursor-pointer hover:text-foreground" />
+          <X className="w-5 h-5 cursor-pointer hover:text-foreground" />
+        </div>
+      </div>
+      <div className="px-4 pb-3">
+        {renderCaptionArea()}
+      </div>
+      <div className="w-full bg-black/5 flex items-center justify-center relative max-h-[500px] overflow-hidden">
+        {renderImagePreviewPlaceholder()}
+      </div>
+      <div className="px-2 py-3 sm:px-4">
+        <div className="flex items-center justify-between border-t border-border/60 pt-3 text-muted-foreground">
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
+            <ThumbsUp className="w-5 h-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("like")}</span>
+          </div>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
+            <MessageCircle className="w-5 h-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("comment")}</span>
+          </div>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
+            <Repeat2 className="w-5 h-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("repost")}</span>
+          </div>
+          <div className="flex items-center gap-2 hover:bg-muted py-2 px-3 rounded-md cursor-pointer transition-colors max-sm:gap-1 max-sm:px-1.5">
+            <Send className="w-5 h-5 max-sm:size-4" />
+            <span className="text-sm font-medium max-sm:text-xs">{tPreview("send")}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderFacebookPreview = () => (
+    <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-sm w-full mx-auto max-w-[500px]">
+      <div className="p-4 flex justify-between items-start">
+        <div className="flex gap-3">
+          <div className="w-10 h-10 rounded-full bg-muted overflow-hidden shrink-0 border border-border/50">
+            {businessLogo ? (
+              <img src={businessLogo} alt={tPreview("logoAlt")} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center font-bold text-lg">{businessName.charAt(0).toUpperCase()}</div>
+            )}
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center flex-wrap gap-x-1">
+              <span className="font-bold text-sm hover:underline cursor-pointer">{businessName}</span>
+              <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-muted-foreground text-sm font-semibold mx-1">•</span>
+              <span className="text-blue-500 font-semibold text-sm cursor-pointer hover:underline">{tPreview("follow")}</span>
+            </div>
+            <span className="text-muted-foreground text-[13px] flex items-center gap-1 hover:underline cursor-pointer w-fit mt-0.5">
+              {tPreview("justNow")} • <Globe className="w-3.5 h-3.5" />
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-muted-foreground mt-1">
+          <MoreHorizontal className="w-5 h-5 cursor-pointer hover:bg-muted rounded-full" />
+          <X className="w-5 h-5 cursor-pointer hover:bg-muted rounded-full" />
+        </div>
+      </div>
+      <div className="px-4 pb-3">
+        {renderCaptionArea()}
+      </div>
+      <div className="w-full bg-black/5 flex items-center justify-center relative max-h-[600px] overflow-hidden border-y border-border/50">
+        {renderImagePreviewPlaceholder()}
+      </div>
+      <div className="px-4 py-2 flex items-center justify-between text-muted-foreground border-b border-border/50">
+        <div className="flex items-center gap-1.5 cursor-pointer hover:underline">
+          <div className="flex -space-x-1">
+             <div className="w-5 h-5 rounded-full bg-blue-500 border border-card flex items-center justify-center z-10">
+               <ThumbsUp className="w-2.5 h-2.5 text-white fill-white" />
+             </div>
+             <div className="w-5 h-5 rounded-full bg-red-500 border border-card flex items-center justify-center">
+               <Heart className="w-2.5 h-2.5 text-white fill-white" />
+             </div>
+          </div>
+          <span className="text-[13px]">12</span>
+        </div>
+        <div className="flex items-center gap-3 text-[13px]">
+          <span className="cursor-pointer hover:underline">{tPreview("commentCount", { count: 1 })}</span>
+          <span className="cursor-pointer hover:underline">{tPreview("shareCount", { count: 1 })}</span>
+        </div>
+      </div>
+      <div className="px-4 py-1.5">
+        <div className="flex items-center justify-between text-muted-foreground font-semibold">
+          <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
+            <ThumbsUp className="w-5 h-5" />
+            <span className="text-sm">{tPreview("like")}</span>
+          </div>
+          <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-sm">{tPreview("comment")}</span>
+          </div>
+          <div className="flex flex-1 items-center justify-center gap-2 hover:bg-muted py-2 rounded-md cursor-pointer transition-colors">
+            <Share2 className="w-5 h-5" />
+            <span className="text-sm">{tPreview("share")}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderInstagramPreview = () => (
+    <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-sm w-full mx-auto max-w-[470px]">
+      <div className="px-3 py-3 flex justify-between items-center bg-card">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 p-[2px]">
+            <div className="w-full h-full rounded-full border-2 border-card bg-muted flex items-center justify-center overflow-hidden">
+              {businessLogo ? (
+                <img src={businessLogo} alt={tPreview("logoAlt")} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold">{businessName.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-sm cursor-pointer">{businessName}</span>
+            <span className="text-muted-foreground text-sm">• {tPreview("minutesAgoShort", { count: 1 })}</span>
+          </div>
+        </div>
+        <MoreHorizontal className="w-5 h-5 text-foreground cursor-pointer" />
+      </div>
+      <div className="w-full bg-black/5 flex items-center justify-center relative min-h-[300px] max-h-[580px] overflow-hidden">
+        {renderImagePreviewPlaceholder()}
+      </div>
+      <div className="px-3 pt-3 pb-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between text-foreground">
+          <div className="flex items-center gap-4">
+            <Heart className="w-6 h-6 cursor-pointer hover:opacity-50 transition-opacity" />
+            <MessageCircle className="w-6 h-6 cursor-pointer hover:opacity-50 transition-opacity" style={{ transform: 'scaleX(-1)' }} />
+            <Send className="w-6 h-6 cursor-pointer hover:opacity-50 transition-opacity" />
+          </div>
+          <Bookmark className="w-6 h-6 text-foreground cursor-pointer hover:opacity-50 transition-opacity" />
+        </div>
+        <span className="font-semibold text-sm cursor-pointer mt-1 w-fit">{tPreview("likesCount", { count: 12 })}</span>
+        <div className="text-sm mt-1 flex flex-col w-full">
+          <span className="font-semibold cursor-pointer w-fit mb-1">{businessName}</span>
+          {renderCaptionArea()}
+        </div>
+        <span className="text-muted-foreground text-sm mt-1 cursor-pointer w-fit">{tPreview("viewAllComments", { count: 1 })}</span>
+      </div>
+    </div>
+  );
+
+  const renderActivePreview = () => {
+    if (activePreviewPlatform === "linked_in") return renderLinkedInPreview();
+    if (activePreviewPlatform === "facebook_page") return renderFacebookPreview();
+    return renderInstagramPreview();
+  };
+
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent 
-          className="max-w-5xl"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>{t("configureAutoGenerate")}</DialogTitle>
-            <DialogDescription>
-              {selectedDay !== null && (
-                <div className="flex flex-row items-center space-x-2 gap-2">
-                  {t("schedulingFor")} {getDayName(selectedDay)} {t("at")}
-                  <TimeInput
-                    hour={modalHour}
-                    minute={modalMinute}
-                    onHourChange={handleModalHourChange}
-                    onMinuteChange={handleModalMinuteChange}
-                  />
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent
+        size="xl"
+        className="overflow-x-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {/* Mobile: status switch below the title so neither collides with the close button */}
+        <DialogHeader className={cn(editingSchedule && "sm:pr-14")}>
+          <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start max-sm:gap-3">
+            <div className="min-w-0">
+              <DialogTitle>{t("configureAutoGenerate")}</DialogTitle>
+              <DialogDescription>
+                {t("scheduleConfiguration")}
+              </DialogDescription>
+            </div>
+            {editingSchedule && (
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {isActive ? t("active") : t("inactive")}
+                </span>
+                <Switch
+                  checked={isActive}
+                  onCheckedChange={setIsActive}
+                  aria-label={t("scheduleStatus")}
+                />
+              </div>
+            )}
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 scrollbar-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full max-md:gap-6">
+            {/* Left Section - Form (sticky hanya di desktop; di mobile ikut scroll agar tidak tertimpa preview) */}
+            <div className="flex flex-col gap-6 lg:sticky lg:top-0 h-fit">
+              <div className="space-y-4">
+                <div className="text-sm font-medium">{tContentGenerate("scheduleAt")}</div>
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <NativeSelect
+                      value={modalDay !== null ? modalDay.toString() : ""}
+                      onChange={(e) => setModalDay(Number(e.target.value))}
+                      disabled={!!editingSchedule}
+                      className="bg-background-secondary"
+                    >
+                      <option value="" disabled>
+                        {t("pleaseSelectDay")}
+                      </option>
+                      {DAYS.map((day) => (
+                        <option key={day.value} value={day.value.toString()}>
+                          {day.label}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </div>
+
+                  {/* Same time field as the schedule summary: one native time input opening the picker. */}
+                  <div
+                    className="flex h-(--control-h) cursor-pointer items-center gap-2 rounded-md border border-input bg-background-secondary px-3"
+                    onClick={(e) => {
+                      const input = e.currentTarget.querySelector("input");
+                      try { input?.showPicker(); } catch {}
+                    }}
+                  >
+                    <ClockIcon className="h-4 w-4 text-primary shrink-0" />
+                    <input
+                      type="time"
+                      value={modalHour && modalMinute ? `${modalHour.padStart(2, "0")}:${modalMinute.padStart(2, "0")}` : ""}
+                      onChange={(e) => {
+                        const [hour = "", minute = ""] = e.target.value.split(":");
+                        handleModalHourChange(hour);
+                        handleModalMinuteChange(minute);
+                      }}
+                      aria-label={t("pleaseSelectTime")}
+                      className="h-full w-full border-0 bg-transparent p-0 text-base outline-none shadow-none sm:text-sm focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden!"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <AutoGenerateFormBasic />
+
+              <div className="space-y-4">
+                <div className="text-sm font-medium">{tContentGenerate("choosePlatform")}</div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {platformOptions.map(({ platform, isConnected }) => {
+                    const isSelected = isConnected && modalSelectedPlatforms.includes(platform);
+                    return (
+                      <button
+                        key={platform}
+                        type="button"
+                        onClick={() => togglePlatform(platform)}
+                        disabled={!isConnected}
+                        className={cn(
+                          "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors max-md:h-(--control-h)",
+                          isSelected
+                            ? "border-primary bg-primary text-white"
+                            : "border-border bg-background-secondary",
+                          !isConnected &&
+                          "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
+                        )}
+                      >
+                        {mapEnumPlatform.getPlatformIcon(
+                          platform,
+                          isSelected
+                            ? "text-white"
+                            : !isConnected
+                              ? "text-muted-foreground"
+                              : ""
+                        )}
+                        <span className="flex flex-col leading-tight">
+                          <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
+                          {!isConnected && (
+                            <span className="text-[11px] font-normal max-sm:text-xs">
+                              {tContentGenerate("notConnected")}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex gap-2 items-center">
+                  <Sparkles className="size-4 text-primary" /> {t("contentBrief")}
+                </label>
+                <Textarea
+                  value={additionalPrompt}
+                  onChange={(e) => setAdditionalPrompt(e.target.value)}
+                  placeholder={t("additionalPromptPlaceholder")}
+                  rows={3}
+                  className="max-h-[120px] scrollbar-hidden resize-none"
+                />
+              </div>
+
+              <AutoGenerateFormAdvanced />
+            </div>
+
+            {/* Right Section - Social Media Preview */}
+            <div className="flex flex-col gap-3">
+              {modalSelectedPlatforms.length > 1 && (
+                <div className="flex gap-2 sticky -top-4 -mt-4 sm:-top-6 sm:-mt-6 z-10 bg-background pb-3 pt-2 -mx-2 px-2 max-md:flex-wrap">
+                  {modalSelectedPlatforms.map(platform => (
+                    <button
+                      key={platform}
+                      onClick={() => setActivePreviewPlatform(platform)}
+                      className={cn(
+                        "min-h-10 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors border",
+                        activePreviewPlatform === platform
+                          ? "bg-primary text-white border-primary"
+                          : "bg-background-secondary text-muted-foreground border-border hover:bg-muted"
+                      )}
+                    >
+                      {mapEnumPlatform.getPlatformIcon(platform, activePreviewPlatform === platform ? "text-white w-3 h-3" : "w-3 h-3")}
+                      {mapEnumPlatform.getPlatformLabel(platform)}
+                    </button>
+                  ))}
                 </div>
               )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto  space-y-4 sm:space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 ">
-              {/* Left Column - Reference Libary */}
-              <div className="space-y-6 md:overflow-y-auto max-h-full md:max-h-[calc(180vh-360px)]">
-              <div className="space-y-6 p-4 sm:p-6">
-              <AutoGenerateFormBasic />
-              <AutoGenerateFormAdvanced />
-              </div>
-              </div>
 
-              {/* Right Column - Form and Status */}
-              <div id="auto-generate-form-section" className="space-y-6 p-4 sm:p-6">
-              
-             
-
-                {/* Platform Selection */}
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="text-lg font-semibold mb-4">
-                      {t("selectPlatforms")}
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {platformOptions.map(({ platform, isConnected }) => {
-                          const selected =
-                            isConnected &&
-                            modalSelectedPlatforms.includes(platform);
-                          return (
-                            <Button
-                              key={platform}
-                              variant="outline"
-                              onClick={() => togglePlatform(platform)}
-                              disabled={!isConnected}
-                              className={cn(
-                                "h-auto flex-shrink-0",
-                                selected
-                                  ? "bg-blue-600 hover:bg-blue-700"
-                                  : "hover:bg-muted",
-                                !isConnected &&
-                                  "cursor-not-allowed border-dashed bg-muted/30 opacity-70 hover:bg-muted/30"
-                              )}
-                            >
-                              <div className="bg-background-secondary p-1 rounded-md">
-                                {mapEnumPlatform.getPlatformIcon(
-                                  platform,
-                                  !isConnected ? "text-muted-foreground" : ""
-                                )}
-                              </div>
-                              <span
-                                className={cn(
-                                  "flex flex-col text-xs font-medium leading-tight",
-                                  selected ? "text-white" : "text-muted-foreground"
-                                )}
-                              >
-                                <span>
-                                  {mapEnumPlatform.getPlatformLabel(platform)}
-                                </span>
-                                {!isConnected && (
-                                  <span className="font-normal">
-                                    {t("notConnected")}
-                                  </span>
-                                )}
-                              </span>
-                            </Button>
-                          );
-                        })}
-                    </div>
-                  </CardContent>
-                </Card>
-
-
-                {/* Additional Prompt */}
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="text-lg font-semibold mb-4 flex gap-2 items-center">
-                    <Sparkles className="size-6" /> {t("additionalPrompt")} 
-                    </h3>
-                    <TextField
-                      label=""
-                      value={additionalPrompt}
-                      onChange={setAdditionalPrompt}
-                      placeholder={t("additionalPromptPlaceholder")}
-                      multiline={true}
-                      rows={3}
-                    />
-                  </CardContent>
-                </Card>
+              <div className="flex flex-col h-fit transform lg:scale-[0.85] origin-top">
+                {renderActivePreview()}
               </div>
             </div>
           </div>
+        </div>
 
-          {editingSchedule ? (
-            <DialogFooterWithTwoButtons
-              secondaryButton={{
-                message: t("updateSchedule"),
-                onClick: handleSave,
-                variant: "default",
-                icon: <Save className="h-4 w-4" />,
-                className: "bg-primary hover:bg-blue-700 px-6 text-white "
-              }}
-              primaryButton={{
-                message: t("deleteSchedule"),
-                onClick: () => editingSchedule && onDelete?.(editingSchedule),
-                variant: "destructive",
-                icon: <Trash2 className="h-4 w-4" />,
-                className: "bg-red-600 hover:bg-red-700 text-white"
-              }}
-            />
-          ) : (
-            <DialogFooterWithButton
-              buttonMessage={t("saveSchedule")}
+        {editingSchedule ? (
+          <DialogFooter className="flex-row items-center gap-3">
+            {/* Hapus: icon saja, persegi (1:1), di kiri tombol update */}
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              onClick={() => editingSchedule && onDelete?.(editingSchedule)}
+              // The footer stretches every button on mobile; keep this one square.
+              className="w-(--control-h)! min-w-0! shrink-0 bg-red-600 text-white hover:bg-red-700"
+              aria-label={t("deleteSchedule")}
+              title={t("deleteSchedule")}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
               onClick={handleSave}
-              disabled={isLoading || !basic?.productKnowledgeId}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+              disabled={isSaving}
+              className="min-w-0 flex-1 bg-primary text-white hover:bg-blue-700"
+            >
+              <Save className="h-4 w-4" />
+              {t("updateSchedule")}
+            </Button>
+          </DialogFooter>
+        ) : (
+          <DialogFooterWithButton
+            buttonMessage={t("saveSchedule")}
+            onClick={handleSave}
+            disabled={isLoading || isSaving || !basic?.productKnowledgeId || !basic?.model}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -27,7 +27,9 @@ const templateCategoryService = {
   // Get template image categories
   getImageCategories: () => {
     return api
-      .get<GetTemplateImageCategoriesResponse>("/app/category-creator-image/type")
+      .get<GetTemplateImageCategoriesResponse>("/app/category-creator-image/type", {
+        params: { sortBy: "sortOrder", sort: "asc", limit: 50 },
+      })
       .then((res) => ({
         ...res,
         data: {

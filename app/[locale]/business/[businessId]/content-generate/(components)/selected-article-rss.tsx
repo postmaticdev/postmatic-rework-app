@@ -29,7 +29,7 @@ export const SelectedArticleRss = ({ onChangeArticle }: SelectedArticleRssProps)
               className="object-cover"
             />
           </div>
-          <div>
+          <div className="max-md:min-w-0">
           <h3 className="font-medium text-sm">{form.rss.title}</h3>
           <div className="relative">
             <p className={`text-xs text-muted-foreground mt-1 ${!expanded ? "line-clamp-1" : ""}`}>
@@ -37,7 +37,7 @@ export const SelectedArticleRss = ({ onChangeArticle }: SelectedArticleRssProps)
             </p>
             <button
               onClick={() => setExpanded(!expanded)}
-              className="text-xs  mt-1 flex items-center"
+              className="text-xs  mt-1 flex items-center max-md:relative max-md:after:absolute max-md:after:-inset-3 max-md:after:content-['']"
             >
               {expanded ? (
                 <>
@@ -57,7 +57,7 @@ export const SelectedArticleRss = ({ onChangeArticle }: SelectedArticleRssProps)
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 text-xs"
+            className="flex-1"
             onClick={onChangeArticle}
             disabled={isLoading}
           >
@@ -66,7 +66,7 @@ export const SelectedArticleRss = ({ onChangeArticle }: SelectedArticleRssProps)
           <Link href={form.rss.url} prefetch={false} target="_blank" className="flex-1">
             <Button
               size="sm"
-              className="w-full bg-blue-500 text-xs text-white hover:bg-blue-600"
+              className="w-full bg-blue-500 text-white hover:bg-blue-600"
             >
               {t("visitSource")}
               <ExternalLink className="ml-1 h-3 w-3" />

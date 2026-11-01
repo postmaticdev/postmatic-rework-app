@@ -49,21 +49,21 @@ export function PaginationControls({
     >
       {/* Page Info */}
       <div className="text-xs text-muted-foreground">
-        {t("page")} {page} {t("of")} {totalPages}
+        {t("pageOf", { page, total: totalPages })}
       </div>
 
       {/* Pagination Buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 max-sm:flex-wrap max-sm:justify-center max-sm:gap-y-3">
         {/* First Page Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => {
             setFilterQuery({ ...filterQuery, page: 1 });
           }}
           disabled={!hasPrevPage}
-          className="h-8 w-8 p-0"
-          title="Halaman Pertama"
+          title={t("firstPage")}
+          aria-label={t("firstPage")}
         >
           <ChevronLeft className="h-3 w-3 -mr-2" />
           <ChevronLeft className="h-3 w-3 -ml-2" />
@@ -72,7 +72,7 @@ export function PaginationControls({
         {/* Previous Page Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => {
             setFilterQuery({
               ...filterQuery,
@@ -80,14 +80,17 @@ export function PaginationControls({
             });
           }}
           disabled={!hasPrevPage}
-          className="h-8 w-8 p-0"
-          title="Halaman Sebelumnya"
+          title={t("previousPage")}
+          aria-label={t("previousPage")}
         >
           <ChevronLeft className="h-3 w-3" />
         </Button>
 
         {/* Page Numbers */}
-        <div className="flex items-center gap-1">
+        {/* Mobile: 1–2 halaman muat satu baris; lebih dari itu nomor halaman pindah ke baris sendiri */}
+        <div
+          className={`flex items-center gap-1 ${totalPages > 2 ? "max-sm:order-first max-sm:w-full max-sm:justify-center" : ""}`}
+        >
           {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
             let pageNum: number;
 
@@ -109,12 +112,14 @@ export function PaginationControls({
               <Button
                 key={pageNum}
                 variant={page === pageNum ? "default" : "outline"}
-                size="sm"
+                size="icon-sm"
                 onClick={() => {
                   setFilterQuery({ ...filterQuery, page: pageNum });
                 }}
-                className="h-8 w-8 p-0 text-xs"
-                title={`Halaman ${pageNum}`}
+                className="text-xs max-md:text-sm"
+                title={t("pageNumber", { page: pageNum })}
+                aria-label={t("pageNumber", { page: pageNum })}
+                aria-current={page === pageNum ? "page" : undefined}
               >
                 {pageNum}
               </Button>
@@ -125,7 +130,7 @@ export function PaginationControls({
         {/* Next Page Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => {
             setFilterQuery({
               ...filterQuery,
@@ -133,8 +138,8 @@ export function PaginationControls({
             });
           }}
           disabled={!hasNextPage}
-          className="h-8 w-8 p-0"
-          title="Halaman Selanjutnya"
+          title={t("nextPage")}
+          aria-label={t("nextPage")}
         >
           <ChevronRight className="h-3 w-3" />
         </Button>
@@ -142,7 +147,7 @@ export function PaginationControls({
         {/* Last Page Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => {
             setFilterQuery({
               ...filterQuery,
@@ -150,8 +155,8 @@ export function PaginationControls({
             });
           }}
           disabled={!hasNextPage}
-          className="h-8 w-8 p-0"
-          title="Halaman Terakhir"
+          title={t("lastPage")}
+          aria-label={t("lastPage")}
         >
           <ChevronRight className="h-3 w-3 -mr-2" />
           <ChevronRight className="h-3 w-3 -ml-2" />

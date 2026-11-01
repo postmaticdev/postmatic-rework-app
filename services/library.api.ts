@@ -11,6 +11,8 @@ import {
 } from "@/models/api/library/rss.type";
 import {
   PublishedTemplateRes,
+  REFERENCE_FILTER_RECENTLY,
+  REFERENCE_FILTER_TRENDING,
   SaveOwnBusinessReferenceImagePld,
   SaveOwnBusinessReferenceImageRes,
   SavedCreatorImageMutationRes,
@@ -20,6 +22,8 @@ import {
   TemplateProductCategoryRes,
 } from "@/models/api/library/template.type";
 import { TimezoneRes } from "@/models/api/library/time.type";
+import { BusinessCategoryRes } from "@/models/api/library/business-category.type";
+import { ProductCategoryRes } from "@/models/api/library/product-category.type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 type CreatorCategory = {
@@ -149,17 +153,44 @@ const mapCreatorImageTemplate = (
   updatedAt: template.updatedAt,
 });
 
-const getCreatorImageTemplates = (filterQuery?: Partial<FilterQuery>) => {
-  const { productCategory, category, ...rest } = filterQuery || {};
-
-  return api
-    .get<BaseResponseFiltered<CreatorImage[]>>(`/creator/library`, {
+// "Recently": images this business used as a generation reference, newest use first.
+const getRecentlyUsedCreatorImages = (
+  businessId: string,
+  filterQuery: Partial<FilterQuery>,
+  saved: boolean
+) =>
+  api.get<BaseResponseFiltered<CreatorImage[]>>(
+    `/creator/business-creator-image/${businessId}/recently-used`,
+    {
       params: {
-        ...rest,
-        category: productCategory || undefined,
-        typeCategoryId: category || undefined,
+        search: filterQuery.search || undefined,
+        page: filterQuery.page,
+        limit: filterQuery.limit,
+        saved,
       },
-    })
+    }
+  );
+
+const getCreatorImageTemplates = (
+  filterQuery?: Partial<FilterQuery>,
+  businessId?: string
+) => {
+  const { productCategory, category, ...rest } = filterQuery || {};
+  const isTrending = category === REFERENCE_FILTER_TRENDING;
+
+  const request =
+    category === REFERENCE_FILTER_RECENTLY && businessId
+      ? getRecentlyUsedCreatorImages(businessId, rest, false)
+      : api.get<BaseResponseFiltered<CreatorImage[]>>(`/creator/library`, {
+          params: {
+            ...rest,
+            ...(isTrending ? { sortBy: "trending" } : {}),
+            category: productCategory || undefined,
+            typeCategoryId: isTrending ? undefined : category || undefined,
+          },
+        });
+
+  return request
     .then((res) => ({
       ...res,
       data: {
@@ -251,23 +282,82 @@ const libraryService = {
       typeof api.get<BaseResponseFiltered<RssArticleRes[]>>
     >;
   },
-  RSSData: (filterQuery?: Partial<FilterQuery>) => {
-    const { category, ...rest } = filterQuery || {};
+  RSSData: async (filterQuery?: Partial<FilterQuery>) => {
+    const { category, limit, page = 1, ...rest } = filterQuery || {};
+    const requestedLimit = limit ? Number(limit) : 10;
 
-    return api.get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
+    if (requestedLimit <= 50) {
+      return api
+        .get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
+          params: {
+            ...rest,
+            page,
+            limit: requestedLimit,
+            category: category || undefined,
+          },
+        })
+        .then((res) => ({
+          ...res,
+          data: {
+            ...res.data,
+            data: getArrayData<RssLibraryRes>(res.data.data).map(
+              mapRssLibrary
+            ),
+          },
+        }));
+    }
+
+    // Backend caps limit at 50 per page. If requested limit > 50, fetch multiple pages to satisfy request
+    const firstRes = await api.get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
       params: {
         ...rest,
+        page: 1,
+        limit: 50,
         category: category || undefined,
       },
-    }).then((res) => ({
-      ...res,
+    });
+
+    const allData = [
+      ...getArrayData<RssLibraryRes>(firstRes.data.data).map(mapRssLibrary),
+    ];
+    const totalPages = firstRes.data.pagination?.totalPages || 1;
+    const pagesToFetch = Math.min(
+      totalPages,
+      Math.ceil(requestedLimit / 50)
+    );
+
+    if (pagesToFetch > 1) {
+      const remainingPages = Array.from(
+        { length: pagesToFetch - 1 },
+        (_, i) => i + 2
+      );
+      const remainingRes = await Promise.all(
+        remainingPages.map((p) =>
+          api.get<BaseResponseFiltered<RssLibraryRes[]>>(`/app/rss`, {
+            params: {
+              ...rest,
+              page: p,
+              limit: 50,
+              category: category || undefined,
+            },
+          })
+        )
+      );
+
+      for (const r of remainingRes) {
+        allData.push(
+          ...getArrayData<RssLibraryRes>(r.data.data).map(mapRssLibrary)
+        );
+      }
+    }
+
+    return {
+      ...firstRes,
       data: {
-        ...res.data,
-        data: getArrayData<RssLibraryRes>(res.data.data).map(
-          mapRssLibrary
-        ),
+        ...firstRes.data,
+        data: allData.slice(0, requestedLimit),
       },
-    }));
+    };
   },
   RSSCategory: (filterQuery?: Partial<FilterQuery>) => {
     return api.get<BaseResponseFiltered<RssCategoryRes[]>>(`/app/rss/category`, {
@@ -287,6 +377,16 @@ const libraryService = {
   time: () => {
     return api.get<BaseResponse<TimezoneRes[]>>(`/app/timezone`);
   },
+  businessCategory: () => {
+    return api.get<BaseResponse<BusinessCategoryRes[]>>(
+      `/app/business-category`
+    );
+  },
+  productCategory: () => {
+    return api.get<BaseResponse<ProductCategoryRes[]>>(
+      `/app/product-category`
+    );
+  },
 };
 
 export const useLibraryRSSArticle = (
@@ -301,23 +401,56 @@ export const useLibraryRSSArticle = (
   });
 };
 
-export const useLibraryRSSData = (filterQuery?: Partial<FilterQuery>) => {
+export const useLibraryRSSData = (
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
+) => {
   return useQuery({
     queryKey: ["libraryRSSData", filterQuery],
     queryFn: () => libraryService.RSSData(filterQuery),
+    enabled,
   });
 };
 
-export const useLibraryRSSCategory = (filterQuery?: Partial<FilterQuery>) => {
+export const useAllLibraryRSSData = () => {
+  return useQuery({
+    queryKey: ["allLibraryRSSData"],
+    queryFn: () => libraryService.RSSData({ limit: 1000 }),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useLibraryRSSCategory = (
+  filterQuery?: Partial<FilterQuery>,
+  enabled = true
+) => {
   return useQuery({
     queryKey: ["libraryRSSCategory", filterQuery],
     queryFn: () => libraryService.RSSCategory(filterQuery),
+    enabled,
   });
 };
 export const useLibraryTime = () => {
   return useQuery({
     queryKey: ["libraryTime"],
     queryFn: () => libraryService.time(),
+  });
+};
+
+// The list only changes with an API deploy, so it is fetched once per session.
+export const useLibraryBusinessCategory = () => {
+  return useQuery({
+    queryKey: ["libraryBusinessCategory"],
+    queryFn: () => libraryService.businessCategory(),
+    staleTime: Infinity,
+  });
+};
+
+export const useLibraryProductCategory = () => {
+  return useQuery({
+    queryKey: ["libraryProductCategory"],
+    queryFn: () => libraryService.productCategory(),
+    staleTime: Infinity,
   });
 };
 
@@ -339,23 +472,32 @@ const templateService = {
       {
         imageUrl: formData.imageUrl,
         name: formData.name,
+        typeCategoryIds: formData.typeCategoryIds,
       }
     );
   },
   getSaved: (businessId: string, filterQuery?: Partial<FilterQuery>) => {
     const { productCategory, category, ...rest } = filterQuery || {};
 
-    return api
-      .get<BaseResponseFiltered<CreatorImage[]>>(
-        `/creator/business-saved-creator-image/${businessId}`,
-        {
-          params: {
-            ...rest,
-            category: productCategory || undefined,
-            typeCategoryId: category || undefined,
-          },
-        }
-      )
+    // Trending is not offered on the Saved tab.
+    const request =
+      category === REFERENCE_FILTER_RECENTLY
+        ? getRecentlyUsedCreatorImages(businessId, rest, true)
+        : api.get<BaseResponseFiltered<CreatorImage[]>>(
+            `/creator/business-saved-creator-image/${businessId}`,
+            {
+              params: {
+                ...rest,
+                category: productCategory || undefined,
+                typeCategoryId:
+                  category && category !== REFERENCE_FILTER_TRENDING
+                    ? category
+                    : undefined,
+              },
+            }
+          );
+
+    return request
       .then((res) => ({
         ...res,
         data: {
@@ -390,7 +532,9 @@ const templateService = {
   },
   getCategory: () => {
     return api
-      .get<BaseResponse<CreatorCategory[]>>(`/app/category-creator-image/type`)
+      .get<BaseResponse<CreatorCategory[]>>(`/app/category-creator-image/type`, {
+        params: { sortBy: "sortOrder", sort: "asc", limit: 50 },
+      })
       .then((res) => ({
         ...res,
         data: {
@@ -489,7 +633,7 @@ export const useLibraryTemplateGetPublished = (
 ) => {
   return useQuery({
     queryKey: ["libraryTemplatePublished", businessId, filterQuery],
-    queryFn: () => getCreatorImageTemplates(filterQuery),
+    queryFn: () => getCreatorImageTemplates(filterQuery, businessId),
     enabled: enabled && !!businessId,
     refetchOnMount: "always",
   });
@@ -497,11 +641,12 @@ export const useLibraryTemplateGetPublished = (
 
 export const useCreatorImageTemplates = (
   filterQuery?: Partial<FilterQuery>,
-  enabled = true
+  enabled = true,
+  businessId?: string
 ) => {
   return useQuery({
-    queryKey: ["creatorImageTemplates", filterQuery],
-    queryFn: () => getCreatorImageTemplates(filterQuery),
+    queryKey: ["creatorImageTemplates", filterQuery, businessId],
+    queryFn: () => getCreatorImageTemplates(filterQuery, businessId),
     enabled,
     refetchOnMount: "always",
   });

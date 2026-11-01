@@ -1,19 +1,36 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import {
+  AUTH_CURRENT_SESSION_QUERY_KEY,
+  AUTH_PROFILE_QUERY_KEY,
+  AUTH_SESSIONS_QUERY_KEY,
+  authProfileService,
   useAuthProfileGetCurrentSession,
   useAuthProfileGetSessions,
-  useAuthProfileLogout,
   useAuthProfileLogoutAll,
 } from "@/services/auth.api";
 import { useDateFormat } from "@/hooks/use-date-format";
-import { ACCESS_TOKEN_KEY, LOGIN_URL, REFRESH_TOKEN_KEY } from "@/constants";
+import { logoutAndRedirect } from "@/config/api";
+import { showLogoutOverlay } from "@/lib/logout-overlay";
 import { showToast } from "@/helper/show-toast";
 import { useTranslations } from "next-intl";
 import { Session } from "@/models/api/auth/profile.type";
+import { useQueryClient } from "@tanstack/react-query";
+import { LogOut, Monitor, Smartphone } from "lucide-react";
+
+interface GroupedSession {
+  key: string;
+  sessionIds: string[];
+  primarySession: Session;
+  isCurrentSession: boolean;
+  latestDate: string;
+  count: number;
+}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const GENERIC_BROWSER_NAMES = ["node", "postmanruntime"];
@@ -58,10 +75,29 @@ const mergeSessionDetails = (session: Session, currentSession: Session | null) =
   };
 };
 
+// API mengirim device "Mobile"/"Desktop"; platform dipakai sebagai cadangan.
+const isMobileSession = (session: Session) => {
+  const device = (session.device || "").toLowerCase();
+  if (device.includes("mobile") || device.includes("tablet")) return true;
+  if (device.includes("desktop")) return false;
+  return /iphone|ipad|ios|android|mobile/.test(
+    `${session.platform || ""} ${session.browser || ""}`.toLowerCase()
+  );
+};
+
+const getSessionGroupKey =(session: Session) => {
+  const device = (session.device || "").trim().toLowerCase();
+  const platform = (session.platform || "").trim().toLowerCase();
+  const browser = (session.browser || "").trim().toLowerCase();
+  const ip = (session.clientIp || "").trim().toLowerCase();
+  return `${platform}:::${device}:::${browser}:::${ip}`;
+};
+
 export function SessionLogin() {
-  const { data: sessionsData } = useAuthProfileGetSessions();
+  const { data: sessionsData, isLoading: isSessionsLoading } =
+    useAuthProfileGetSessions();
   const { data: currentSessionData } = useAuthProfileGetCurrentSession();
-  const mLogout = useAuthProfileLogout();
+  const queryClient = useQueryClient();
   const { formatDate } = useDateFormat();
   const mLogoutAll = useAuthProfileLogoutAll();
   const t = useTranslations("sessionLogin");
@@ -69,99 +105,231 @@ export function SessionLogin() {
   const currentSession = currentSessionData?.data?.data?.session ?? null;
   const currentSessionId = currentSession?.id ?? null;
 
+  const [logoutTarget, setLogoutTarget] = useState<GroupedSession | "all" | null>(
+    null
+  );
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const sessions = useMemo(() => {
     const sessionList = sessionsData?.data?.data ?? [];
+    const groupMap = new Map<string, GroupedSession>();
 
-    return sessionList
+    sessionList
       .map((session) => mergeSessionDetails(session, currentSession))
-      .sort((a, b) => {
-        if (a.id === currentSessionId) return -1;
-        if (b.id === currentSessionId) return 1;
+      .forEach((session) => {
+        const key = getSessionGroupKey(session);
+        const isCurrent = session.id === currentSessionId;
+        const sessionDate = session.createdAt || session.expiredAt || "";
 
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        const existing = groupMap.get(key);
+        if (!existing) {
+          groupMap.set(key, {
+            key,
+            sessionIds: [session.id],
+            primarySession: session,
+            isCurrentSession: isCurrent,
+            latestDate: sessionDate,
+            count: 1,
+          });
+        } else {
+          if (!existing.sessionIds.includes(session.id)) {
+            existing.sessionIds.push(session.id);
+            existing.count += 1;
+          }
+          if (isCurrent) {
+            existing.isCurrentSession = true;
+            existing.primarySession = session;
+          }
+          const existingTime = existing.latestDate
+            ? new Date(existing.latestDate).getTime()
+            : 0;
+          const currentTime = sessionDate
+            ? new Date(sessionDate).getTime()
+            : 0;
+          if (currentTime > existingTime) {
+            existing.latestDate = sessionDate;
+            if (!existing.isCurrentSession) {
+              existing.primarySession = session;
+            }
+          }
+        }
       });
+
+    return Array.from(groupMap.values()).sort((a, b) => {
+      if (a.isCurrentSession && !b.isCurrentSession) return -1;
+      if (!a.isCurrentSession && b.isCurrentSession) return 1;
+
+      const timeA = a.latestDate ? new Date(a.latestDate).getTime() : 0;
+      const timeB = b.latestDate ? new Date(b.latestDate).getTime() : 0;
+      return timeB - timeA;
+    });
   }, [currentSession, currentSessionId, sessionsData?.data?.data]);
 
-  const handleLogout = async (sessionId: string) => {
-    const isCurrentSession = sessionId === currentSessionId;
+  const handleConfirmLogout = async () => {
+    if (!logoutTarget) return;
 
-    try {
-      await mLogout.mutateAsync(sessionId);
-      showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
-    } catch {
-      return;
+    setIsLoggingOut(true);
+
+    if (logoutTarget === "all") {
+      try {
+        await mLogoutAll.mutateAsync();
+        showToast("success", tToast("toast.auth.logoutAllSuccess"), tToast);
+        showLogoutOverlay();
+        await sleep(1000);
+        await logoutAndRedirect();
+      } catch {
+        setIsLoggingOut(false);
+      }
+    } else {
+      const isCurrentSession = logoutTarget.isCurrentSession;
+      try {
+        const results = await Promise.allSettled(
+          logoutTarget.sessionIds.map((id) => authProfileService.logout(id))
+        );
+        const isAllFailed = results.every(
+          (result) => result.status === "rejected"
+        );
+
+        if (isAllFailed && !isCurrentSession) {
+          showToast("error", t("logoutFailed"));
+          queryClient.invalidateQueries({ queryKey: AUTH_SESSIONS_QUERY_KEY });
+          setIsLoggingOut(false);
+          return;
+        }
+
+        showToast("success", tToast("toast.auth.logoutSuccess"), tToast);
+
+        if (isCurrentSession) {
+          showLogoutOverlay();
+          await sleep(1000);
+          await logoutAndRedirect();
+        } else {
+          queryClient.invalidateQueries({ queryKey: AUTH_PROFILE_QUERY_KEY });
+          queryClient.invalidateQueries({
+            queryKey: AUTH_CURRENT_SESSION_QUERY_KEY,
+          });
+          queryClient.invalidateQueries({ queryKey: AUTH_SESSIONS_QUERY_KEY });
+          setLogoutTarget(null);
+          setIsLoggingOut(false);
+        }
+      } catch {
+        setIsLoggingOut(false);
+      }
     }
-
-    if (!isCurrentSession) {
-      return;
-    }
-
-    await sleep(1000);
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
-    window.location.href = LOGIN_URL;
   };
 
-  const handleLogoutAll = async () => {
-    try {
-      await mLogoutAll.mutateAsync();
-      showToast("success", tToast("toast.auth.logoutAllSuccess"), tToast);
-    } catch {
-      return;
-    }
-
-    await sleep(1000);
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    fetch("/api/auth/sync", { method: "DELETE" }).catch(() => undefined);
-    window.location.href = LOGIN_URL;
+  const getModalDetailValue = () => {
+    if (!logoutTarget || logoutTarget === "all") return undefined;
+    const label = formatSessionLabel(logoutTarget.primarySession);
+    const ip = logoutTarget.primarySession.clientIp?.trim();
+    return ip ? `${label} • IP: ${ip}` : label;
   };
 
   return (
-    <Card className="h-fit">
-      <CardContent className="p-6">
-        <div className="flex justify-between">
-          <h2 className="text-lg font-semibold text-foreground mb-6">
-            {t("title")}
-          </h2>
-          <Button variant="destructive" size="sm" onClick={handleLogoutAll}>
-            {t("logoutAll")}
-          </Button>
-        </div>
+    <>
+      <Card className="h-fit">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-3 max-md:mb-4 max-md:items-center">
+            <h2 className="text-lg font-semibold text-foreground mb-6 max-md:mb-0">
+              {t("title")}
+            </h2>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-(--control-h-sm) shrink-0 sm:h-9"
+              onClick={() => setLogoutTarget("all")}
+            >
+              <LogOut className="h-4 w-4" />
+              {t("logoutAll")}
+            </Button>
+          </div>
 
-        <div className="space-y-4">
-          {sessions.map((session) => {
-            const label = formatSessionLabel(session);
-            const sessionDate = session.createdAt || session.expiredAt;
+          <div className="space-y-4">
+            {isSessionsLoading &&
+              Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-[76px] w-full rounded-lg" />
+              ))}
+            {!isSessionsLoading && sessions.length === 0 && (
+              <p className="text-sm text-muted-foreground">{t("empty")}</p>
+            )}
+            {sessions.map((group) => {
+              const label = formatSessionLabel(group.primarySession);
+              const sessionDate = group.latestDate;
+              const clientIp = group.primarySession.clientIp?.trim();
 
-            return (
-              <div
-                key={session.id}
-                className="flex items-center justify-between bg-background-secondary p-4 rounded-lg"
-              >
-                <div>
-                  <p className="font-medium text-foreground">{label}aaa</p>
-                  {sessionDate && (
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(new Date(sessionDate))}
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="text-white px-6"
-                  onClick={() => handleLogout(session.id)}
+              return (
+                <div
+                  key={group.key}
+                  className="flex items-center justify-between gap-3 bg-background-secondary p-4 rounded-lg"
                 >
-                  {t("logout")}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+                  <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground">
+                    {isMobileSession(group.primarySession) ? (
+                      <Smartphone className="h-5 w-5" />
+                    ) : (
+                      <Monitor className="h-5 w-5" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="break-words font-medium text-foreground">
+                        {label}
+                      </p>
+                      {group.isCurrentSession && (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                          {t("currentSession")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground mt-0.5">
+                      {sessionDate && (
+                        <span>{formatDate(new Date(sessionDate))}</span>
+                      )}
+                      {clientIp && (
+                        <>
+                          {sessionDate && <span>•</span>}
+                          <span>IP: {clientIp}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  </div>
+
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-(--control-h-sm) shrink-0 text-white sm:h-9"
+                    onClick={() => setLogoutTarget(group)}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {t("logout")}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <ConfirmationModal
+        isOpen={!!logoutTarget}
+        onClose={() => {
+          if (!isLoggingOut) setLogoutTarget(null);
+        }}
+        onConfirm={handleConfirmLogout}
+        title={t("logoutConfirmTitle")}
+        description={
+          logoutTarget === "all"
+            ? t("logoutAllConfirmDescription")
+            : t("logoutConfirmDescription")
+        }
+        confirmText={t("confirm")}
+        cancelText={t("cancel")}
+        isLoading={isLoggingOut}
+        variant="danger"
+        detailLabel={logoutTarget !== "all" ? t("deviceDetail") : undefined}
+        detailValue={getModalDetailValue()}
+      />
+    </>
   );
 }

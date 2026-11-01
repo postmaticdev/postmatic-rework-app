@@ -4,6 +4,7 @@ import {
   Dispatch,
   SetStateAction,
   createContext,
+  useCallback,
   useContext,
   useState,
 } from "react";
@@ -35,11 +36,50 @@ interface FormNewBusinessContext {
   }) => void;
   clearStepErrors: (step: number) => void;
   clearFieldError: (step: number, field: string) => void;
+  resetForm: () => void;
 }
 
 const FormNewBusinessContext = createContext<
   FormNewBusinessContext | undefined
 >(undefined);
+
+const createInitialFormData = (): FormNewBusiness => ({
+  step1: {
+    primaryLogo: "",
+    name: "",
+    category: "",
+    description: "",
+    visionMission: LEGACY_UNUSED_VALUE,
+    website: "",
+    businessPhone: "",
+    countryCode: "+62",
+    location: LEGACY_UNUSED_VALUE,
+    uniqueSellingPoint: LEGACY_UNUSED_VALUE,
+    colorTone: "",
+  },
+  step2: {
+    name: "",
+    category: "",
+    description: "",
+    currency: "IDR",
+    images: [],
+    price: 0,
+  },
+  step3: {
+    targetAudience: "",
+    tone: "",
+    audiencePersona: LEGACY_UNUSED_VALUE,
+    hashtags: [],
+    callToAction: LEGACY_UNUSED_VALUE,
+    goals: LEGACY_UNUSED_VALUE,
+  },
+});
+
+const createInitialErrors = () => ({
+  step1: {} as Record<string, string>,
+  step2: {} as Record<string, string>,
+  step3: {} as Record<string, string>,
+});
 
 export function FormNewBusinessProvider({
   children,
@@ -47,43 +87,16 @@ export function FormNewBusinessProvider({
   children: React.ReactNode;
 }) {
   const [businessId, setBusinessId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormNewBusiness>({
-    step1: {
-      primaryLogo: "",
-      name: "",
-      category: "",
-      description: "",
-      visionMission: LEGACY_UNUSED_VALUE,
-      website: "",
-      businessPhone: "",
-      countryCode: "+62",
-      location: LEGACY_UNUSED_VALUE,
-      uniqueSellingPoint: LEGACY_UNUSED_VALUE,
-      colorTone: "",
-    },
-    step2: {
-      name: "",
-      category: "",
-      description: "",
-      currency: "IDR",
-      images: [],
-      price: 0,
-    },
-    step3: {
-      targetAudience: "",
-      tone: "",
-      audiencePersona: LEGACY_UNUSED_VALUE,
-      hashtags: [],
-      callToAction: LEGACY_UNUSED_VALUE,
-      goals: LEGACY_UNUSED_VALUE,
-    },
-  });
+  const [formData, setFormData] = useState<FormNewBusiness>(
+    createInitialFormData
+  );
 
-  const [errors, setErrors] = useState({
-    step1: {} as Record<string, string>,
-    step2: {} as Record<string, string>,
-    step3: {} as Record<string, string>,
-  });
+  const [errors, setErrors] = useState(createInitialErrors);
+
+  const resetForm = useCallback(() => {
+    setFormData(createInitialFormData());
+    setErrors(createInitialErrors());
+  }, []);
 
   const clearStepErrors = (step: number) => {
     const newErrors = { ...errors };
@@ -120,6 +133,7 @@ export function FormNewBusinessProvider({
         setErrors,
         clearStepErrors,
         clearFieldError,
+        resetForm,
       }}
     >
       {children}

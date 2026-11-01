@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import {
   prepareBusinessKnowledgePayload,
   prepareRoleKnowledgePayload,
@@ -53,13 +54,18 @@ export function ManualNewBusinessFlow() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
 
-  const { formData, setBusinessId, errors, setErrors } = useFormNewBusiness();
+  const { formData, setBusinessId, errors, setErrors, resetForm } =
+    useFormNewBusiness();
   const { step1, step2, step3 } = formData;
 
   const mBusiness = useBusinessCreate();
   const isLoading = mBusiness.isPending;
+  // Ref-based in-flight guard: isLoading from the closure can be stale on a fast double click.
+  const isSubmittingRef = useRef(false);
 
   const onSubmit = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     try {
       if (isLoading) {
         throw new Error(t("isLoading"));
@@ -76,9 +82,12 @@ export function ManualNewBusinessFlow() {
       const id = business.data.data.id;
 
       router.push(`/business/${id}/content-scheduler`);
+      resetForm();
     } catch (error) {
       console.log(error);
       showToast("error", error);
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -156,28 +165,28 @@ export function ManualNewBusinessFlow() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden rounded bg-transparent md:flex">
+    <div className="min-h-dvh overflow-hidden rounded bg-transparent md:flex">
       <div className="mx-auto mb-22 mt-18 flex w-full flex-col md:mt-18 md:w-2/3 lg:w-2/5">
-        <div className="fixed top-0 right-0 left-0 z-50 w-full border-b border-border bg-background p-2 md:w-2/3 md:p-4 dark:bg-card lg:w-2/5">
+        <div className="fixed top-0 right-0 left-0 z-50 w-full border-b border-border bg-background px-4 py-2 md:w-2/3 md:p-4 dark:bg-card lg:w-2/5">
           <div className="mb-2 flex items-center gap-3">
-            <Link href="/" className="cursor-pointer">
+            <Link href="/" className="cursor-pointer max-md:shrink-0">
               <Image
                 src="/logoblue.png"
-                alt="logol"
+                alt="Postmatic"
                 width={200}
                 height={200}
                 className="h-12 w-12"
               />
             </Link>
-            <h1 className="text-xl font-bold">{currentStepData.title}</h1>
+            <h1 className="text-xl font-bold max-md:min-w-0 max-md:break-words">{currentStepData.title}</h1>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-card p-6 dark:bg-background">
+        <div className="flex-1 overflow-y-auto bg-card p-4 sm:p-6 dark:bg-background">
           <CurrentComponent />
         </div>
 
-        <div className="fixed right-0 bottom-0 left-0 z-50 w-full rounded-b-lg border-t border-border bg-background p-6 dark:bg-card md:w-2/3 lg:w-2/5">
+        <div className="fixed right-0 bottom-0 left-0 z-50 w-full rounded-b-lg border-t border-border bg-background px-4 pt-4 sm:px-6 sm:pt-6 pb-[max(1.2rem,env(safe-area-inset-bottom))] dark:bg-card md:w-2/3 lg:w-2/5">
           <div className="mt-2 flex items-center justify-between gap-4">
             <Progress value={currentStep * 50} />
             <div className="flex flex-row gap-4">
@@ -186,6 +195,7 @@ export function ManualNewBusinessFlow() {
                 onClick={handlePrevious}
                 disabled={currentStep === 0}
               >
+                <ArrowLeft className="size-4" />
                 {t("previous")}
               </Button>
               <Button
@@ -193,11 +203,19 @@ export function ManualNewBusinessFlow() {
                 className="bg-primary text-white hover:bg-blue-700"
                 disabled={isLoading}
               >
-                {isLoading
-                  ? t("loading")
-                  : currentStep === steps.length - 1
-                    ? t("submit")
-                    : t("next")}
+                {isLoading ? (
+                  t("loading")
+                ) : currentStep === steps.length - 1 ? (
+                  <>
+                    <Check className="size-4" />
+                    {t("submit")}
+                  </>
+                ) : (
+                  <>
+                    {t("next")}
+                    <ArrowRight className="size-4" />
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -207,8 +225,10 @@ export function ManualNewBusinessFlow() {
       <div className="relative hidden flex-1 md:block">
         <Image
           src={currentStepData.backgroundImage}
-          alt={`${currentStepData.title} Background`}
+          alt={t("backgroundAlt", { title: currentStepData.title })}
           fill
+          // Panel ini disembunyikan di bawah md; 1px mencegah unduhan gambar besar di mobile.
+          sizes="(min-width: 768px) 60vw, 1px"
           className="object-cover"
           priority
         />

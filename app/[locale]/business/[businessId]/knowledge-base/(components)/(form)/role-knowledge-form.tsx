@@ -16,23 +16,33 @@ export function RoleKnowledgeForm() {
     key: keyof RoleKnowledgePld,
     value: RoleKnowledgePld[keyof RoleKnowledgePld]
   ) => {
-    setFormKnowledge({
-      ...formKnowledge,
-      role: { ...formKnowledge.role, [key]: value },
-    });
+    setFormKnowledge((prev) => ({
+      ...prev,
+      role: { ...prev.role, [key]: value },
+    }));
   };
 
   const [currentHashtag, setCurrentHashtag] = useState("");
 
+  // Accepts pasted lists like "#a, #b c" and skips duplicates.
   const addHashtag = () => {
-    if (currentHashtag.trim()) {
-      let hashtag = currentHashtag.trim();
-      if (hashtag?.startsWith("#")) {
-        hashtag = hashtag.slice(1);
-      }
-      updateField("hashtags", [...formKnowledge.role.hashtags, hashtag]);
-      setCurrentHashtag("");
+    const existing = new Set(
+      formKnowledge.role.hashtags.map((hashtag) => hashtag.toLowerCase())
+    );
+    const newHashtags: string[] = [];
+    currentHashtag
+      .split(/[s,]+/)
+      .map((hashtag) => hashtag.replace(/^#+/, "").trim())
+      .filter(Boolean)
+      .forEach((hashtag) => {
+        if (existing.has(hashtag.toLowerCase())) return;
+        existing.add(hashtag.toLowerCase());
+        newHashtags.push(hashtag);
+      });
+    if (newHashtags.length) {
+      updateField("hashtags", [...formKnowledge.role.hashtags, ...newHashtags]);
     }
+    setCurrentHashtag("");
   };
 
   const removeHashtag = (index: number) => {
@@ -59,7 +69,7 @@ export function RoleKnowledgeForm() {
   const finalPlaceholders = { ...defaultPlaceholders };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <TextField
         label={finalLabels.targetAudience}
         value={formKnowledge.role.targetAudience}
@@ -80,7 +90,7 @@ export function RoleKnowledgeForm() {
         <label className="text-sm font-medium text-foreground">
           {finalLabels.hashtags}
         </label>
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2">
           <Input
             value={currentHashtag}
             onChange={(e) => setCurrentHashtag(e.target.value)}
@@ -95,21 +105,22 @@ export function RoleKnowledgeForm() {
               }
             }}
           />
-          <Button type="button" onClick={addHashtag} className="px-3">
+          <Button type="button" onClick={addHashtag} size="icon" aria-label={r("addHashtag")}>
             <Plus className="w-4 h-4" color="white" />
           </Button>
         </div>
         <div className="flex flex-wrap gap-2">
           {formKnowledge.role.hashtags.map((hashtag, index) => (
             <span
-              key={index}
+              key={`${hashtag}-${index}`}
               className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm flex items-center gap-1"
             >
               #{hashtag}
               <button
                 type="button"
                 onClick={() => removeHashtag(index)}
-                className="text-blue-600 hover:text-blue-800"
+                aria-label={r("removeHashtag", { hashtag })}
+                className="text-blue-600 hover:text-blue-800 max-sm:-my-1 max-sm:px-1.5 max-sm:py-1 max-sm:text-base max-sm:leading-none"
               >
                 ×
               </button>

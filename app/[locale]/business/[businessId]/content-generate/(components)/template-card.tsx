@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
-import { MoreHorizontal, Eye, Save, Heart } from "lucide-react";
+import { MoreHorizontal, Eye, Save, Heart, Check } from "lucide-react";
 import Image from "next/image";
 import {
   Template,
@@ -123,13 +123,14 @@ export const TemplateCard = ({ item, onDetail }: TemplateCardProps) => {
           <p className="block sm:hidden text-xs ">Publisher: {item.publisher?.name}</p>
 
         <Button
-          className="w-full my-0 sm:my-3 bg-blue-500 hover:bg-blue-600 text-white text-sm"
+          className="w-full my-0 sm:my-3 bg-blue-500 hover:bg-blue-600 text-white"
           disabled={isLoading || isSelected}
           onClick={() => {
             if (isLoading) return;
             onSelectReferenceImage(item.imageUrl, item.name, item);
           }}
         >
+          <Check className="h-4 w-4" />
           {isSelected ? t("selected") : t("use")}
         </Button>
       </div>

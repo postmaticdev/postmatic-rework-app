@@ -33,7 +33,17 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     DELETE_DRAFT_NOT_AVAILABLE: "Fitur hapus draft belum tersedia.",
     GET_IMAGE_POST_EMPTY: "Belum ada konten yang tersedia.",
     IMAGE_POST_ALREADY_SUCCESS_ON_PLATFORM: "Konten ini sudah berhasil dipublikasikan di platform tersebut.",
+    PARTIAL_SUCCESS_DIRECT_POST_IMAGE_POST: "Postingan hanya berhasil terbit di sebagian platform.",
+    DIRECT_POST_ALL_PLATFORMS_FAILED: "Postingan gagal terbit di semua platform.",
+    IMAGE_POST_PUBLISH_IN_PROGRESS: "Postingan ini sedang diproses. Tunggu sebentar lalu cek tab Riwayat.",
+    PUBLISH_INTERRUPTED_RESULT_UNKNOWN: "Proses posting terputus dan hasilnya tidak diketahui. Cek akun media sosial Anda sebelum mencoba lagi.",
     PUBLISH_AT_MUST_NOT_BE_IN_THE_PAST: "Jadwal publikasi tidak boleh di waktu yang sudah lewat.",
+    BUSINESS_PLATFORM_NOT_CONNECTED: "Platform yang dipilih belum terhubung ke bisnis ini.",
+    UNSUPPORTED_SOCIAL_PLATFORM_FOR_PUBLISHING: "Platform ini belum didukung untuk publikasi.",
+    CAPTION_REQUIRED_FOR_READY_STATUS: "Tulis caption terlebih dahulu sebelum menjadwalkan postingan.",
+    IMAGE_URL_REQUIRED_FOR_READY_STATUS: "Pilih gambar terlebih dahulu sebelum menjadwalkan postingan.",
+    PLATFORMS_REQUIRED_FOR_READY_STATUS: "Pilih minimal satu platform sebelum menjadwalkan postingan.",
+    IMAGE_POST_SCHEDULE_NOT_FOUND: "Jadwal postingan tidak ditemukan. Mungkin sudah dihapus.",
     RSS_ONLY_ALLOWED_ON_FIRST_BUBBLE: "RSS hanya bisa digunakan pada bubble pertama.",
     GET_GENERATIVE_IMAGE_MODELS_SUCCESS: "Model gambar AI berhasil dimuat.",
     GET_GENERATIVE_TEXT_MODELS_SUCCESS: "Model teks AI berhasil dimuat.",
@@ -68,7 +78,15 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
       "Respons undangan anggota bisnis berhasil disimpan.",
     OWNER_CANNOT_EDITED: "Pemilik bisnis tidak dapat diubah.",
     OWNER_CANNOT_REMOVE_ITSELF: "Pemilik bisnis tidak dapat menghapus dirinya sendiri.",
+    ONLY_OWNER_CAN_ACCESS: "Hanya pemilik bisnis yang dapat melakukan tindakan ini.",
+    ONLY_OWNER_OR_ADMIN_CAN_ACCESS: "Hanya pemilik bisnis atau admin yang dapat melakukan tindakan ini.",
+    TOO_MANY_REQUESTS: "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
+    ACCOUNT_USES_GOOGLE_SIGN_IN:
+      "Akun ini masuk dengan Google. Gunakan \"Lupa kata sandi\" di halaman masuk untuk membuat kata sandi.",
     TIMEZONE_NOT_VALID: "Zona waktu yang dipilih tidak valid.",
+    BUSINESS_CATEGORY_NOT_VALID: "Kategori bisnis yang dipilih tidak valid.",
+    PRODUCT_CATEGORY_REQUIRED: "Kategori produk wajib diisi.",
+    PRODUCT_CATEGORY_OTHER_TEXT_REQUIRED: "Tuliskan kategori produk untuk pilihan Lainnya.",
     CONNECTED_PLATFORM_TEMP_CODE_ACCOUNT_NOT_FOUND:
       "Akun platform yang akan dihubungkan tidak ditemukan.",
     PLATFORM_SCOPES_NOT_FULFILLED:
@@ -78,9 +96,26 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     SOCIAL_PLATFORM_UPDATED: "Platform sosial berhasil diperbarui.",
     SOCIAL_PLATFORM_DELETED: "Platform sosial berhasil dihapus.",
     SUCCESS_CONNECT_PLATFORM: "Platform berhasil dihubungkan.",
+    SUCCESS_DISCONNECT_PLATFORM: "Platform berhasil diputuskan.",
+    PLATFORM_ALREADY_CONNECTED:
+      "Platform ini sudah terhubung. Putuskan koneksi lama bila ingin menggantinya.",
+    UNSUPPORTED_CONNECTED_PLATFORM: "Platform ini belum didukung untuk dihubungkan.",
+    SOCIAL_PLATFORM_NOT_ACTIVE: "Platform ini sedang tidak tersedia.",
+    CONNECTED_PLATFORM_OWNER_REQUIRED:
+      "Hanya Owner bisnis yang dapat menghubungkan atau memutus platform.",
+    CONNECTED_PLATFORM_INVALID_FROM:
+      "Halaman tujuan koneksi tidak valid. Muat ulang halaman lalu coba lagi.",
+    CONNECTED_PLATFORM_NOT_FOUND: "Platform ini sudah tidak terhubung.",
+    CONNECTED_PLATFORM_TEMP_CODE_NOT_FOUND:
+      "Link koneksi sudah dipakai atau kedaluwarsa. Hubungkan ulang platform.",
+    CONNECTED_PLATFORM_OAUTH_INITIATOR_MISMATCH:
+      "Koneksi ini dimulai oleh akun Postmatic lain.",
+    CONNECTED_PLATFORM_OAUTH_CAPABILITY_INVALID:
+      "Anda tidak lagi memiliki akses untuk menghubungkan platform ke bisnis ini.",
     SUCCESS_GENERATE_CAPTION: "Caption berhasil dibuat.",
     SUCCESS_PRESIGN_UPLOAD_IMAGE: "Tautan upload gambar berhasil disiapkan.",
     SUCCESS_UPLOAD_IMAGE: "Gambar berhasil diunggah.",
+    UPLOAD_IMAGE_FAILED: "Gagal mengunggah gambar. Silakan coba lagi.",
   },
   en: {
     LOGIN_SUCCESS: "Logged in successfully.",
@@ -113,7 +148,19 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     GET_IMAGE_POST_EMPTY: "No content is available yet.",
     IMAGE_POST_ALREADY_SUCCESS_ON_PLATFORM:
       "This content has already been published successfully on that platform.",
+    PARTIAL_SUCCESS_DIRECT_POST_IMAGE_POST: "The post was published on only some of the platforms.",
+    DIRECT_POST_ALL_PLATFORMS_FAILED: "The post failed to publish on every platform.",
+    IMAGE_POST_PUBLISH_IN_PROGRESS:
+      "This post is already being published. Wait a moment, then check the History tab.",
+    PUBLISH_INTERRUPTED_RESULT_UNKNOWN:
+      "Publishing was interrupted and the result is unknown. Check your social media account before retrying.",
     PUBLISH_AT_MUST_NOT_BE_IN_THE_PAST: "The publish schedule cannot be set in the past.",
+    BUSINESS_PLATFORM_NOT_CONNECTED: "The selected platform is not connected to this business.",
+    UNSUPPORTED_SOCIAL_PLATFORM_FOR_PUBLISHING: "This platform is not supported for publishing yet.",
+    CAPTION_REQUIRED_FOR_READY_STATUS: "Write a caption before scheduling the post.",
+    IMAGE_URL_REQUIRED_FOR_READY_STATUS: "Pick an image before scheduling the post.",
+    PLATFORMS_REQUIRED_FOR_READY_STATUS: "Select at least one platform before scheduling the post.",
+    IMAGE_POST_SCHEDULE_NOT_FOUND: "The scheduled post was not found. It may have been deleted.",
     RSS_ONLY_ALLOWED_ON_FIRST_BUBBLE: "RSS can only be used in the first bubble.",
     GET_GENERATIVE_IMAGE_MODELS_SUCCESS: "AI image models loaded successfully.",
     GET_GENERATIVE_TEXT_MODELS_SUCCESS: "AI text models loaded successfully.",
@@ -148,7 +195,15 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
       "Business member invitation response saved successfully.",
     OWNER_CANNOT_EDITED: "The business owner cannot be edited.",
     OWNER_CANNOT_REMOVE_ITSELF: "The business owner cannot remove themselves.",
+    ONLY_OWNER_CAN_ACCESS: "Only the business owner can do this.",
+    ONLY_OWNER_OR_ADMIN_CAN_ACCESS: "Only the business owner or an admin can do this.",
+    TOO_MANY_REQUESTS: "Too many attempts. Please wait a moment and try again.",
+    ACCOUNT_USES_GOOGLE_SIGN_IN:
+      "This account signs in with Google. Use \"Forgot password\" on the sign-in page to set a password.",
     TIMEZONE_NOT_VALID: "The selected timezone is invalid.",
+    BUSINESS_CATEGORY_NOT_VALID: "The selected business category is invalid.",
+    PRODUCT_CATEGORY_REQUIRED: "Product category is required.",
+    PRODUCT_CATEGORY_OTHER_TEXT_REQUIRED: "Type the product category for the Other option.",
     CONNECTED_PLATFORM_TEMP_CODE_ACCOUNT_NOT_FOUND:
       "The platform account to connect could not be found.",
     PLATFORM_SCOPES_NOT_FULFILLED:
@@ -158,9 +213,26 @@ const EXACT_MESSAGES: Record<SupportedLocale, Record<string, string>> = {
     SOCIAL_PLATFORM_UPDATED: "Social platform updated successfully.",
     SOCIAL_PLATFORM_DELETED: "Social platform removed successfully.",
     SUCCESS_CONNECT_PLATFORM: "Platform connected successfully.",
+    SUCCESS_DISCONNECT_PLATFORM: "Platform disconnected successfully.",
+    PLATFORM_ALREADY_CONNECTED:
+      "This platform is already connected. Disconnect the current account to replace it.",
+    UNSUPPORTED_CONNECTED_PLATFORM: "This platform cannot be connected yet.",
+    SOCIAL_PLATFORM_NOT_ACTIVE: "This platform is currently unavailable.",
+    CONNECTED_PLATFORM_OWNER_REQUIRED:
+      "Only the business owner can connect or disconnect platforms.",
+    CONNECTED_PLATFORM_INVALID_FROM:
+      "The return page is invalid. Reload the page and try again.",
+    CONNECTED_PLATFORM_NOT_FOUND: "This platform is no longer connected.",
+    CONNECTED_PLATFORM_TEMP_CODE_NOT_FOUND:
+      "This connection link was already used or has expired. Connect the platform again.",
+    CONNECTED_PLATFORM_OAUTH_INITIATOR_MISMATCH:
+      "This connection was started by another Postmatic account.",
+    CONNECTED_PLATFORM_OAUTH_CAPABILITY_INVALID:
+      "You no longer have access to connect platforms to this business.",
     SUCCESS_GENERATE_CAPTION: "Caption generated successfully.",
     SUCCESS_PRESIGN_UPLOAD_IMAGE: "Image upload link prepared successfully.",
     SUCCESS_UPLOAD_IMAGE: "Image uploaded successfully.",
+    UPLOAD_IMAGE_FAILED: "Failed to upload image. Please try again.",
   },
 };
 

@@ -10,6 +10,8 @@ interface ScheduleTimeInputProps {
   onValueChange: (value: string) => void;
   className?: string;
   disabled?: boolean;
+  // Business time zone: the minimum time is "now" in that zone.
+  timeZone?: string | null;
 }
 
 export function ScheduleTimeInput({
@@ -18,17 +20,20 @@ export function ScheduleTimeInput({
   onValueChange,
   className,
   disabled,
+  timeZone,
 }: ScheduleTimeInputProps) {
   const [currentMinimum, setCurrentMinimum] = useState(() =>
-    getCurrentScheduleInput()
+    getCurrentScheduleInput(new Date(), timeZone)
   );
 
   useEffect(() => {
-    const updateMinimum = () => setCurrentMinimum(getCurrentScheduleInput());
+    const updateMinimum = () =>
+      setCurrentMinimum(getCurrentScheduleInput(new Date(), timeZone));
+    updateMinimum();
     const intervalId = window.setInterval(updateMinimum, 30_000);
 
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [timeZone]);
 
   const minTime = useMemo(
     () => (date === currentMinimum.date ? currentMinimum.time : undefined),
@@ -36,9 +41,9 @@ export function ScheduleTimeInput({
   );
 
   useEffect(() => {
-    if (minTime && value && value < minTime) {
-      onValueChange(minTime);
-    }
+    // Optionally we can auto-correct if it's strictly less than minTime on mount/update,
+    // but doing it aggressively causes jumping.
+    // If we want to ensure valid time when submitting, we should check there.
   }, [minTime, onValueChange, value]);
 
   return (
@@ -49,11 +54,17 @@ export function ScheduleTimeInput({
       step={60}
       disabled={disabled}
       onChange={(event) => {
-        const nextValue = event.target.value;
-        if (minTime && nextValue && nextValue < minTime) return;
-        onValueChange(nextValue);
+        onValueChange(event.target.value);
       }}
-      className={className}
+      onBlur={() => {
+        if (minTime && value && value < minTime) {
+          onValueChange(minTime);
+        }
+      }}
+      onClick={(e) => {
+        try { e.currentTarget.showPicker(); } catch {}
+      }}
+      className={`cursor-pointer ${className || ""}`}
     />
   );
 }

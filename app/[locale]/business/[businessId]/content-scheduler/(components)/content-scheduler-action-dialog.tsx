@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -40,17 +41,17 @@ export function ContentSchedulerActionDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl h-auto">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{t("chooseActionTitle")}</DialogTitle>
           <DialogDescription>{formattedDate}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 p-6 pt-2 sm:grid-cols-2">
+        <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto px-4 py-4 sm:grid-cols-2 sm:p-6">
           <button
             type="button"
             onClick={onUpload}
-            className="rounded-3xl border border-border bg-background-secondary p-6 text-left transition-colors hover:border-primary hover:bg-primary/5"
+            className="rounded-3xl border border-border bg-background-secondary p-4 sm:p-6 text-left transition-colors hover:border-primary hover:bg-primary/5"
           >
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Upload className="h-5 w-5" />
@@ -66,7 +67,7 @@ export function ContentSchedulerActionDialog({
           <button
             type="button"
             onClick={onBuildWithAi}
-            className="rounded-3xl border border-border bg-background-secondary p-6 text-left transition-colors hover:border-primary hover:bg-primary/5"
+            className="rounded-3xl border border-border bg-background-secondary p-4 sm:p-6 text-left transition-colors hover:border-primary hover:bg-primary/5"
           >
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Sparkles className="h-5 w-5" />
@@ -80,17 +81,15 @@ export function ContentSchedulerActionDialog({
           </button>
         </div>
 
-        <div className="border-t px-6 py-4">
+        <DialogFooter className="sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="h-4 w-4" />
             <span>{t("selectedScheduleDateHint")}</span>
           </div>
-          <div className="mt-4 flex justify-end">
-            <Button variant="outline" onClick={onClose}>
-              {t("cancel")}
-            </Button>
-          </div>
-        </div>
+          <Button variant="outline" onClick={onClose}>
+            {t("cancel")}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

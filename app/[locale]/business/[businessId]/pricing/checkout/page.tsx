@@ -12,7 +12,8 @@ import { useCheckout } from "@/contexts/checkout-context";
 import { showToast } from "@/helper/show-toast";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 
@@ -22,7 +23,7 @@ export default function CheckoutPage() {
   const mCheckoutPayBank = useCheckoutPayBank();
   const mCheckoutPayEWallet = useCheckoutPayEWallet();
   const queryClient = useQueryClient();
-  const { selectedPayment, product, setCheckoutResult, promoState } =
+  const { selectedPayment, product, setCheckoutResult, promoCode } =
     useCheckout();
 
   const isLoading = mCheckoutPayBank.isPending || mCheckoutPayEWallet.isPending;
@@ -54,7 +55,9 @@ export default function CheckoutPage() {
   };
 
   const handleCheckout = async () => {
-    const discountCode = promoState?.trim() || undefined;
+    // Only send the promo code that was applied (via the URL), not a typed-but-unapplied one.
+    const discountCode =
+      promoCode && product?.isValidCode ? promoCode.trim() : undefined;
 
     try {
       if (!selectedPayment) {
@@ -92,19 +95,19 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       {/* Left sidebar - Hidden on mobile */}
       <OrderSummary variant="sidebar" />
 
       {/* Main content */}
-      <div className="flex-1 p-3 sm:p-4 lg:p-12 max-w-[800px] mx-auto">
+      <div className="flex-1 p-4 lg:p-12 max-w-[800px] mx-auto">
      
 
         {/* Mobile Order Summary Card */}
         <OrderSummary variant="mobile" />
 
         <Card className="border border-border">
-          <CardContent className="p-3 sm:p-4 lg:p-8">
+          <CardContent className="p-4 lg:p-8">
             <>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 text-gray-900 dark:text-white">
                 {t("checkout.paymentMethod")}
@@ -120,16 +123,15 @@ export default function CheckoutPage() {
               <PromoCodeSection />
 
               {/* Continue button */}
-              <button
+              <Button
+                size="lg"
                 onClick={handleCheckout}
                 disabled={disabled}
-                className={cn(
-                  "bg-blue-600 dark:bg-blue-500 text-white text-sm sm:text-base lg:text-lg font-medium w-full py-3 sm:py-3 lg:py-4 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                  disabled && "opacity-50 cursor-not-allowed"
-                )}
+                className="w-full bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600"
               >
                 {isLoading ? t("toast.validation.processing") : t("toast.validation.continue")}
-              </button>
+                {!isLoading && <ArrowRight className="size-4" />}
+              </Button>
             </>
           </CardContent>
         </Card>

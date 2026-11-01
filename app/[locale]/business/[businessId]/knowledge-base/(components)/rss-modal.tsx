@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { TextField } from "@/components/forms/text-field";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -19,12 +20,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { AddRssPld } from "@/models/api/knowledge/rss.type";
 import {
   useLibraryRSSCategory,
   useLibraryRSSData,
 } from "@/services/library.api";
+import Image from "next/image";
+import { getRssSourceImage } from "@/helper/rss-image-helper";
 import { useTranslations } from "next-intl";
 
 interface RSSModalProps {
@@ -35,6 +38,7 @@ interface RSSModalProps {
   formValue: AddRssPld & { id: string; masterRssCategoryId: string };
   onChange: (rssData: AddRssPld & { id: string }) => void;
   errors?: Record<string, string>;
+  isSubmitting?: boolean;
 }
 
 export function RSSModal({
@@ -45,6 +49,7 @@ export function RSSModal({
   formValue,
   onChange,
   errors = {},
+  isSubmitting = false,
 }: RSSModalProps) {
   const [rssAction, setRssAction] = useState<"add" | "edit" | "select">(mode);
 
@@ -52,17 +57,24 @@ export function RSSModal({
     if (isOpen) setRssAction(mode);
   }, [isOpen, mode]);
 
-  const { data: rssCategoryLib } = useLibraryRSSCategory({
-    limit: 100,
-    sortBy: "name",
-    sort: "asc",
-  });
-  const { data: rssDataLib } = useLibraryRSSData({
-    sortBy: "title",
-    sort: "asc",
-    limit: 100,
-    category: formValue.masterRssCategoryId,
-  });
+  // The modal stays mounted; only load the library while it is open.
+  const { data: rssCategoryLib } = useLibraryRSSCategory(
+    {
+      limit: 100,
+      sortBy: "name",
+      sort: "asc",
+    },
+    isOpen
+  );
+  const { data: rssDataLib } = useLibraryRSSData(
+    {
+      sortBy: "title",
+      sort: "asc",
+      limit: 100,
+      category: formValue.masterRssCategoryId,
+    },
+    isOpen
+  );
 
   const categoryLib = rssCategoryLib?.data.data || [];
   const dataLib = rssDataLib?.data.data || [];
@@ -111,7 +123,7 @@ export function RSSModal({
         </DialogHeader>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
           {rssAction === "select" && mode === "add" && (
             <div className="space-y-4">
               <div className="flex gap-4">
@@ -123,6 +135,7 @@ export function RSSModal({
                   {t("addRSS")}
                 </Button>
                 <Button onClick={() => setRssAction("edit")} variant="outline">
+                  <Pencil className="w-4 h-4" />
                   {t("editRSS")}
                 </Button>
               </div>
@@ -132,7 +145,7 @@ export function RSSModal({
           {(rssAction === "add" ||
             (rssAction === "edit" && mode === "add") ||
             mode === "edit") && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <TextField
                 label={t("feedTitle")}
                 value={formValue?.title}
@@ -183,7 +196,20 @@ export function RSSModal({
                   <SelectContent>
                     {dataLib.map((data) => (
                       <SelectItem key={data.id} value={String(data.id)}>
-                        {data.title} ({data.publisher?.toUpperCase()})
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded overflow-hidden flex-shrink-0 relative">
+                            <Image
+                              src={getRssSourceImage(data.publisher, data.title, data.url)}
+                              alt={data.publisher || data.title}
+                              width={20}
+                              height={20}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span>
+                            {data.title} ({data.publisher?.toUpperCase()})
+                          </span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -197,12 +223,12 @@ export function RSSModal({
                 <label className="text-sm font-medium text-foreground">
                   {t("rssUrl")}
                 </label>
-                <input
+                <Input
                   type="text"
                   value={selectedRssUrl}
                   placeholder={placeholders.urlPreview}
                   disabled
-                  className="w-full px-3 py-2 border border-input bg-muted rounded-md text-sm text-muted-foreground cursor-not-allowed"
+                  className="bg-muted text-muted-foreground"
                 />
               </div>
 
@@ -228,6 +254,7 @@ export function RSSModal({
         <DialogFooterWithButton
           buttonMessage={buttonText}
           onClick={handleSave}
+          disabled={isSubmitting}
         />
       </DialogContent>
     </Dialog>

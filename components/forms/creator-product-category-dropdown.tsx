@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Select,
   SelectContent,
@@ -10,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Info } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useTemplateProductCategories } from "@/services/template-category.api";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -25,11 +27,14 @@ interface CreatorProductCategoryDropdownProps {
 export function CreatorProductCategoryDropdown({
   value,
   onChange,
-  placeholder = "Pilih kategori produk",
-  label = "Kategori Produk",
+  placeholder: placeholderProp,
+  label: labelProp,
   error,
   onFocus,
 }: CreatorProductCategoryDropdownProps) {
+  const tField = useTranslations("productCategory");
+  const placeholder = placeholderProp ?? tField("selectPlaceholder");
+  const label = labelProp ?? tField("label");
   const { data: categoriesResponse, isLoading } =
     useTemplateProductCategories();
   const categories = categoriesResponse?.data?.data || [];
@@ -38,20 +43,16 @@ export function CreatorProductCategoryDropdown({
     return (
       <div className="space-y-2">
         <Label className="text-sm font-medium text-foreground">{label}</Label>
-        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full max-sm:h-(--control-h)" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <Label className="text-sm font-medium text-foreground">{label}</Label>
-      <select
-        className={`flex p-2 h-10 w-full items-center rounded-md border bg-background dark:bg-card px-3 py-2 text-sm shadow-xs ring-offset-background transition-[color,box-shadow] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-          error
-            ? "border-red-500 focus:ring-red-500"
-            : "border-input focus:ring-ring"
-        }`}
+      <NativeSelect
+        className={`bg-background dark:bg-card ${error ? "border-red-500" : ""}`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
@@ -65,7 +66,7 @@ export function CreatorProductCategoryDropdown({
             {category.indonesianName}
           </option>
         ))}
-      </select>
+      </NativeSelect>
 
       {error && (
         <div className="flex items-center gap-1">

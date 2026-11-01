@@ -1,8 +1,29 @@
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import { getToastLocale, translateApiResponseMessage } from "@/helper/api-response-message";
+import { haptic, type HapticKind } from "@/lib/haptics";
 
 type ToastType = "success" | "error" | "warning" | "info";
+
+const TOAST_TITLES: Record<"id" | "en", Record<ToastType, string>> = {
+  id: { success: "Berhasil", error: "Gagal", warning: "Perhatian", info: "Info" },
+  en: { success: "Success", error: "Failed", warning: "Warning", info: "Info" },
+};
+
+// Pesan gagal/peringatan biasanya perlu dibaca lebih lama.
+const TOAST_DURATION: Record<ToastType, number> = {
+  success: 3500,
+  error: 5500,
+  warning: 5000,
+  info: 4000,
+};
+
+const TOAST_HAPTIC: Record<ToastType, HapticKind> = {
+  success: "success",
+  error: "error",
+  warning: "warning",
+  info: "notification",
+};
 
 // Client-side version for React components
 export const showToast = (type: ToastType, message: unknown, t?: (key: string) => string) => {
@@ -45,26 +66,24 @@ export const showToast = (type: ToastType, message: unknown, t?: (key: string) =
     messageString = translateIfNeeded(responseMessage || fallbackMessage);
   }
 
+  haptic(TOAST_HAPTIC[type]);
+
+  // Judul menegaskan status ("Berhasil", "Gagal", ...); pesan API menjadi detailnya.
+  const title = TOAST_TITLES[locale === "en" ? "en" : "id"][type];
+  const options = { description: messageString, duration: TOAST_DURATION[type] };
+
   switch (type) {
     case "success":
-      toast.success(messageString, {
-        duration: 3000,
-      });
+      toast.success(title, options);
       break;
     case "error":
-      toast.error(messageString, {
-        duration: 3000,
-      });
+      toast.error(title, options);
       break;
     case "warning":
-      toast.warning(messageString, {
-        duration: 3000,
-      });
+      toast.warning(title, options);
       break;
     case "info":
-      toast.info(messageString, {
-        duration: 3000,
-      });
+      toast.info(title, options);
       break;
   }
 };

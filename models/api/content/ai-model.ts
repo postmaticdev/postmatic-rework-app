@@ -8,18 +8,44 @@ export interface AiModelRes {
   isActive?: boolean;
   validRatios: string[];
   imageSizes?: string[] | null;
+  /** Tiles per side of one generation: 1 = single image, 2 = 2x2, 3 = 3x3. */
+  gridSize?: number;
+  /** Set by the admin per tuned model; free users may only use models where this is false. */
+  premiumModel?: boolean;
 }
 
-export const POSTMATIC_VISION_MODEL_NAME = "gpt-image-1";
+/** Grid models return gridSize x gridSize variations per generation and are not allowed for repetition. */
+export const isGridAiModel = (model?: Pick<AiModelRes, "gridSize"> | null) =>
+  (model?.gridSize ?? 1) > 1;
 
-const AI_MODEL_DISPLAY_NAMES: Record<string, string> = {
-  "gpt-image-1": "Postmatic Vision",
-  "GPT Image 1": "Postmatic Vision",
-  "gemini-2.5-flash-image": "Postmatic Vision Pro",
-  "gemini-2.5-flash-image-preview": "Postmatic Vision Pro",
-  "Gemini 2.5 Flash Image": "Postmatic Vision Pro",
-  "gemini-3-pro-image-preview": "Postmatic Vision Max",
-  "Gemini 3 Pro Image Preview": "Postmatic Vision Max",
+/** Free users may only generate with models the admin marked as non-premium. */
+export const isFreeUserAllowedAiModel = (
+  model?: Pick<AiModelRes, "premiumModel"> | null
+) => model?.premiumModel === false;
+
+/** True when a free user picked a model they may not use: a premium model, or one no longer listed. */
+export const isAiModelRestrictedForFreeUser = (
+  models: AiModelRes[],
+  modelName?: string | null
+) =>
+  Boolean(modelName) &&
+  !isFreeUserAllowedAiModel(models.find((model) => model.name === modelName));
+
+const byAiModelIdAsc = (a: AiModelRes, b: AiModelRes) =>
+  (Number(a.id) || 0) - (Number(b.id) || 0);
+
+/**
+ * The model free users default to: the oldest non-premium single-image model (grid models only when
+ * no single-image one is free). Oldest first, so adding another free model does not move the default.
+ */
+export const pickFreeUserAiModel = (models: AiModelRes[]) => {
+  const allowedModels = models.filter(isFreeUserAllowedAiModel).sort(byAiModelIdAsc);
+
+  return (
+    allowedModels.find((model) => !isGridAiModel(model)) ||
+    allowedModels[0] ||
+    null
+  );
 };
 
 type AiModelDisplaySource =
@@ -36,20 +62,40 @@ export const getAiModelDisplayName = (model: AiModelDisplaySource) => {
   if (!model) return "";
 
   if (typeof model === "string") {
-    return AI_MODEL_DISPLAY_NAMES[model] || model;
+    return model;
   }
 
+  return model.label || model.description || model.name;
+};
+
+/** Display name for a model known only by name (e.g. history): the label of the listed model with that name. */
+export const getAiModelDisplayNameByName = (
+  models: AiModelRes[],
+  modelName?: string | null
+) =>
+  getAiModelDisplayName(
+    models.find((model) => model.name === modelName) || modelName
+  );
+
+/**
+ * The model paid users default to: the first premium single-image model in API order (newest first), then the
+ * first single-image model. Grid models are only picked when nothing else is listed.
+ */
+export const pickDefaultAiModel = (models: AiModelRes[]) => {
+  const singleImageModels = models.filter((model) => !isGridAiModel(model));
+
   return (
-    AI_MODEL_DISPLAY_NAMES[model.name] ||
-    (model.label && (AI_MODEL_DISPLAY_NAMES[model.label] || model.label)) ||
-    (model.description &&
-      (AI_MODEL_DISPLAY_NAMES[model.description] || model.description)) ||
-    model.name
+    singleImageModels.find((model) => model.premiumModel === true) ||
+    singleImageModels[0] ||
+    models[0] ||
+    null
   );
 };
 
-export const isPostmaticVisionModel = (modelName?: string | null) =>
-  modelName === POSTMATIC_VISION_MODEL_NAME || modelName === "GPT Image 1";
-
-export const pickPostmaticVisionModel = (models: AiModelRes[]) =>
-  models.find((model) => isPostmaticVisionModel(model.name)) || null;
+/** Display names of every model free users may use, for the restriction copy. */
+export const getFreeUserAiModelDisplayNames = (models: AiModelRes[]) =>
+  models
+    .filter(isFreeUserAllowedAiModel)
+    .sort(byAiModelIdAsc)
+    .map((model) => getAiModelDisplayName(model))
+    .join(", ");

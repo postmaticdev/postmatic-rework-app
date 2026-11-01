@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/provider/query-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { HapticsListener } from "@/components/haptics-listener";
+import { LogoutOverlay } from "@/components/logout-overlay";
 import { FormNewBusinessProvider } from "@/contexts/form-new-business-context";
 import { ManageKnowledgeProvider } from "@/contexts/manage-knowledge-context";
 import { CheckoutProvider } from "@/contexts/checkout-context";
@@ -15,23 +17,29 @@ import BusinessClientLayout from "./client-layout";
 import { Locale, routing } from "@/i18n/routing";
 import { redirect } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { AutoGenerateProvider } from "@/contexts/auto-generate-context";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { NotificationProvider } from "@/contexts/notification-context";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
-export const metadata: Metadata = {
-  title: "Postmatic Business",
-  description: "Dashboard manajemen bisnis untuk Postmatic",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({
+    locale: routing.locales.includes(locale as Locale)
+      ? locale
+      : routing.defaultLocale,
+    namespace: "metadata",
+  });
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default async function RootLayout({
   children,
@@ -46,8 +54,7 @@ export default async function RootLayout({
   }
   const messages = await getMessages();
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+    <>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -57,31 +64,34 @@ export default async function RootLayout({
           <NextIntlClientProvider messages={messages}>
             <Suspense fallback={null}>
               <QueryProvider>
-                <RoleProvider>
-                <AutoGenerateProvider>
-                  <AutoSchedulerAutosaveProvider>
-                    <ContentGenerateProvider>
-                      <FormNewBusinessProvider>
-                        <ManageKnowledgeProvider>
-                          <CheckoutProvider>
-                            <BusinessGridFilterProvider>
-                              <BusinessClientLayout>
-                                <main>{children}</main>
-                              </BusinessClientLayout>
-                            </BusinessGridFilterProvider>
-                          </CheckoutProvider>
-                        </ManageKnowledgeProvider>
-                      </FormNewBusinessProvider>
-                    </ContentGenerateProvider>
-                  </AutoSchedulerAutosaveProvider>
-                </AutoGenerateProvider>
-                </RoleProvider>
+                <NotificationProvider>
+                  <RoleProvider>
+                  <AutoGenerateProvider>
+                    <AutoSchedulerAutosaveProvider>
+                      <ContentGenerateProvider>
+                        <FormNewBusinessProvider>
+                          <ManageKnowledgeProvider>
+                            <CheckoutProvider>
+                              <BusinessGridFilterProvider>
+                                <BusinessClientLayout>
+                                  <main>{children}</main>
+                                </BusinessClientLayout>
+                              </BusinessGridFilterProvider>
+                            </CheckoutProvider>
+                          </ManageKnowledgeProvider>
+                        </FormNewBusinessProvider>
+                      </ContentGenerateProvider>
+                    </AutoSchedulerAutosaveProvider>
+                  </AutoGenerateProvider>
+                  </RoleProvider>
+                </NotificationProvider>
                 <Toaster />
+                <HapticsListener />
+                <LogoutOverlay />
               </QueryProvider>
             </Suspense>
           </NextIntlClientProvider>
         </ThemeProvider>
-      </body>
-    </html>
+    </>
   );
 }

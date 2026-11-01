@@ -1,24 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { createPortal } from "react-dom";
+import { ProtectedImage } from "./protected-image";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useContentImageWatermarkGet } from "@/services/content/content.api";
-import { Download, Loader2, Maximize2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { showToast } from "@/helper/show-toast";
 import { ImageWatermarkRes } from "@/models/api/content/image.type";
+import { useContentGenerate } from "@/contexts/content-generate-context";
+import { useTranslations } from "next-intl";
 
 const WATERMARK_POLL_INTERVAL_MS = 1500;
 const WATERMARK_POLL_TIMEOUT_MS = 15000;
+const ACCESS_RESOLUTION_POLL_INTERVAL_MS = 250;
+const ACCESS_RESOLUTION_TIMEOUT_MS = 20000;
 
 type WatermarkStatus =
   | "idle"
@@ -40,6 +37,7 @@ type GeneratedImageViewerProps = {
   alt: string;
   protectFromContextMenu?: boolean;
   className?: string;
+  style?: React.CSSProperties;
   width?: number;
   height?: number;
 };
@@ -50,9 +48,14 @@ export function GeneratedImageViewer({
   alt,
   protectFromContextMenu = false,
   className,
+  style,
   width = 800,
   height = 800,
 }: GeneratedImageViewerProps) {
+  const { aiModels } = useContentGenerate();
+  const t = useTranslations("generationPanel");
+  const { mutateAsync: getImageWatermark } = useContentImageWatermarkGet();
+  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [watermarkStatus, setWatermarkStatus] =
@@ -64,14 +67,22 @@ export function GeneratedImageViewer({
     null
   );
   const [isWatermarkedDownload, setIsWatermarkedDownload] = useState(false);
-  const mGetImageWatermark = useContentImageWatermarkGet();
   const watermarkRequestKeyRef = useRef<string | null>(null);
   const watermarkRequestPromiseRef =
     useRef<Promise<ResolvedWatermarkResult> | null>(null);
   const watermarkRequestModeRef = useRef<"preview" | "download" | null>(null);
+  const aiModelsLoadingRef = useRef(aiModels.isLoading);
 
   const sleep = (ms: number) =>
     new Promise((resolve) => window.setTimeout(resolve, ms));
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    aiModelsLoadingRef.current = aiModels.isLoading;
+  }, [aiModels.isLoading]);
 
   const buildDownloadFileName = (sourceUrl: string, prefix: string) => {
     try {
@@ -129,6 +140,19 @@ export function GeneratedImageViewer({
         });
       }
 
+      if (!aiModels.isFreeUser) {
+        const paidResult = {
+          url: imageUrl,
+          isWatermarkedDownload: false,
+        };
+
+        setResolvedDownloadUrl(paidResult.url);
+        setIsWatermarkedDownload(false);
+        setWatermarkStatus("paid");
+
+        return Promise.resolve(paidResult);
+      }
+
       const hasStableResolvedUrl =
         watermarkStatus === "ready" ||
         watermarkStatus === "paid" ||
@@ -146,7 +170,7 @@ export function GeneratedImageViewer({
       const canReuseExistingRequest = Boolean(
         watermarkRequestPromiseRef.current &&
         watermarkRequestKeyRef.current === requestKey &&
-          (!waitForWatermark || watermarkRequestModeRef.current === "download")
+        (!waitForWatermark || watermarkRequestModeRef.current === "download")
       );
 
       if (canReuseExistingRequest) {
@@ -158,7 +182,7 @@ export function GeneratedImageViewer({
           if (!silent) {
             showToast(
               "info",
-              "ID gambar untuk watermark tidak ditemukan, download file original."
+              t("watermarkImageIdMissing")
             );
           }
 
@@ -176,29 +200,26 @@ export function GeneratedImageViewer({
 
         const maxAttempts = waitForWatermark
           ? Math.max(
-              1,
-              Math.ceil(
-                WATERMARK_POLL_TIMEOUT_MS / WATERMARK_POLL_INTERVAL_MS
-              ) + 1
-            )
+            1,
+            Math.ceil(
+              WATERMARK_POLL_TIMEOUT_MS / WATERMARK_POLL_INTERVAL_MS
+            ) + 1
+          )
           : 1;
 
         for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
           try {
-            const watermarkRes = await mGetImageWatermark.mutateAsync({
+            const watermarkRes = await getImageWatermark({
               generatedImagePostItemId: imageItemId,
             });
             const watermarkData: ImageWatermarkRes | undefined =
               watermarkRes.data?.data;
             const watermarkUrl = watermarkData?.imageUrls?.[0];
-            const isPaidUser = watermarkData?.isFreeUser === false;
-            const isFreeUser = watermarkData?.isFreeUser === true;
             const canUseWatermark = Boolean(
               watermarkData?.generatedImagePostItemId === imageItemId &&
-                isFreeUser &&
-                watermarkData?.isWatermarked &&
-                watermarkData?.isCached &&
-                watermarkUrl
+              watermarkData?.isWatermarked &&
+              watermarkData?.isCached &&
+              watermarkUrl
             );
 
             if (canUseWatermark && watermarkUrl) {
@@ -213,19 +234,7 @@ export function GeneratedImageViewer({
               };
             }
 
-            if (isPaidUser) {
-              const paidResult = {
-                url: imageUrl,
-                isWatermarkedDownload: false,
-              };
-
-              setResolvedDownloadUrl(paidResult.url);
-              setIsWatermarkedDownload(false);
-              setWatermarkStatus("paid");
-              return paidResult;
-            }
-
-            if (isFreeUser && waitForWatermark && attempt < maxAttempts) {
+            if (waitForWatermark && attempt < maxAttempts) {
               setWatermarkStatus("pending");
               await sleep(WATERMARK_POLL_INTERVAL_MS);
               continue;
@@ -237,14 +246,12 @@ export function GeneratedImageViewer({
             };
 
             setIsWatermarkedDownload(false);
-            setWatermarkStatus(isFreeUser ? "pending" : "error");
+            setWatermarkStatus("pending");
 
             if (!silent) {
               showToast(
                 "info",
-                isFreeUser
-                  ? "Watermark belum siap, download file original untuk sementara."
-                  : "Watermark tidak tersedia untuk gambar ini, download file original."
+                t("watermarkNotReadyOriginal")
               );
             }
 
@@ -261,7 +268,7 @@ export function GeneratedImageViewer({
             if (!silent) {
               showToast(
                 "warning",
-                "Gagal ambil watermark, download file original."
+                t("watermarkFetchFailed")
               );
             }
 
@@ -291,11 +298,13 @@ export function GeneratedImageViewer({
       });
     },
     [
+      aiModels.isFreeUser,
+      getImageWatermark,
       imageItemId,
       imageUrl,
       isWatermarkedDownload,
-      mGetImageWatermark,
       resolvedDownloadUrl,
+      t,
       watermarkStatus,
     ]
   );
@@ -311,18 +320,88 @@ export function GeneratedImageViewer({
   }, [imageItemId, imageUrl]);
 
   useEffect(() => {
-    if (!isOpen || !imageUrl || watermarkStatus !== "idle") return;
+    if (
+      !isOpen ||
+      aiModels.isLoading ||
+      !imageUrl ||
+      watermarkStatus !== "idle"
+    ) {
+      return;
+    }
 
-    void resolveWatermarkImage({ silent: true });
-  }, [imageUrl, isOpen, resolveWatermarkImage, watermarkStatus]);
+    void resolveWatermarkImage({
+      silent: true,
+      waitForWatermark: true,
+    });
+  }, [
+    aiModels.isLoading,
+    imageUrl,
+    isOpen,
+    resolveWatermarkImage,
+    watermarkStatus,
+  ]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const waitForAccessResolution = useCallback(async () => {
+    if (!aiModelsLoadingRef.current) {
+      return;
+    }
+
+    const maxAttempts = Math.max(
+      1,
+      Math.ceil(
+        ACCESS_RESOLUTION_TIMEOUT_MS / ACCESS_RESOLUTION_POLL_INTERVAL_MS
+      )
+    );
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (!aiModelsLoadingRef.current) {
+        return;
+      }
+
+      await sleep(ACCESS_RESOLUTION_POLL_INTERVAL_MS);
+    }
+
+    throw new Error("ACCESS_RESOLUTION_TIMEOUT");
+  }, []);
 
   const handleDownload = async () => {
     if (!imageUrl || isDownloading) return;
 
     setIsDownloading(true);
     try {
+      await waitForAccessResolution();
       const { url: downloadUrl, isWatermarkedDownload } =
-        await resolveWatermarkImage({ waitForWatermark: true });
+        await resolveWatermarkImage({ silent: true, waitForWatermark: true });
+      // Free users may only ever download the watermarked file.
+      if (aiModels.isFreeUser && !isWatermarkedDownload) {
+        showToast(
+          "info",
+          t("watermarkStillProcessing")
+        );
+        return;
+      }
       const fileName = buildDownloadFileName(
         downloadUrl,
         isWatermarkedDownload ? "generated-watermarked" : "generated"
@@ -334,13 +413,16 @@ export function GeneratedImageViewer({
         triggerBrowserDownload(downloadUrl, fileName);
       }
     } catch {
-      showToast("error", "Gagal mendownload gambar.");
+      showToast(
+        "error",
+        t("downloadAccessVerifyFailed")
+      );
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const fullscreenImageUrl =
+  const displayedImageUrl =
     watermarkedImageUrl || imageUrl || DEFAULT_PLACEHOLDER_IMAGE;
   const handleProtectedInteraction = (
     event:
@@ -353,77 +435,80 @@ export function GeneratedImageViewer({
   };
   const protectedImageStyle = protectFromContextMenu
     ? ({
-        WebkitTouchCallout: "none",
-        userSelect: "none",
-      } as const)
+      WebkitTouchCallout: "none",
+      userSelect: "none",
+    } as const)
     : undefined;
+
+  const fullscreenPreview = isOpen ? (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[100] flex h-dvh w-screen items-center justify-center overflow-hidden bg-black/90"
+      role="dialog"
+      onClick={() => setIsOpen(false)}
+    >
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        aria-label={t("downloadImagePreview")}
+        aria-disabled={isDownloading || !imageUrl}
+        className="absolute right-4 top-4 z-[101] size-12 rounded-full bg-primary text-white hover:bg-primary/80 hover:text-white"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (isDownloading || !imageUrl) return;
+          void handleDownload();
+        }}
+      >
+        {isDownloading ? (
+          <Loader2 className="h-10 w-10 animate-spin" />
+        ) : (
+          <Download className="h-10 w-10" />
+        )}
+      </Button>
+
+      <div
+        className="flex h-dvh w-screen items-center justify-center overflow-hidden"
+        onContextMenu={handleProtectedInteraction}
+        onDragStart={handleProtectedInteraction}
+      >
+        <ProtectedImage
+          src={displayedImageUrl}
+          imageItemId={imageItemId}
+          alt={t("fullscreenAlt", { alt })}
+          fit="contain"
+          className="h-dvh w-screen cursor-zoom-out"
+          onClick={() => setIsOpen(false)}
+        />
+      </div>
+    </div>
+  ) : null;
 
   return (
     <>
       <button
         type="button"
-        className="block w-full max-w-[360px] rounded-lg"
+        className="block w-full max-w-full rounded-lg"
         onClick={() => setIsOpen(true)}
         onContextMenu={handleProtectedInteraction}
         onDragStart={handleProtectedInteraction}
       >
-        <Image
-          src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+        <ProtectedImage
+          src={displayedImageUrl}
+          imageItemId={imageItemId}
           alt={alt}
-          width={width}
-          height={height}
-          draggable={false}
-          style={protectedImageStyle}
+          fit="cover"
           className={
             className ||
-            "aspect-square w-full max-w-[360px] cursor-zoom-in rounded-lg border object-cover"
+            "aspect-square w-full max-w-full cursor-zoom-in rounded-lg border object-cover"
           }
+          style={style}
         />
       </button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent
-          className=""
-          onContextMenu={handleProtectedInteraction}
-          onDragStart={handleProtectedInteraction}
-        >
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Maximize2 className="h-4 w-4" />
-              Fullscreen Preview
-            </DialogTitle>
-            <DialogDescription>
-              Download Image Preview
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 self-center">
-            <Image
-              src={fullscreenImageUrl}
-              alt={`${alt} fullscreen`}
-              width={1440}
-              height={1440}
-              draggable={false}
-              style={protectedImageStyle}
-              className="h-auto w-auto rounded-lg border object-contain"
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              onClick={handleDownload}
-              disabled={isDownloading || !imageUrl}
-            >
-              {isDownloading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              Download
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isMounted && fullscreenPreview
+        ? createPortal(fullscreenPreview, document.body)
+        : null}
     </>
   );
 }

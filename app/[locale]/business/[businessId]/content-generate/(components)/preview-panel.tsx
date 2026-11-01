@@ -2,21 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "@/i18n/navigation";
+import { useRouter, usePathname } from "@/i18n/navigation";
 import { CardNoGap } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { ScheduleTimeInput } from "@/components/ui/schedule-time-input";
 import { Textarea } from "@/components/ui/textarea";
 import { LogoLoader } from "@/components/base/logo-loader";
-import { Progress } from "@/components/ui/progress";
 import { ScheduleSummaryModal } from "@/app/[locale]/business/[businessId]/content-generate/(components)/schedule-summary-modal";
+import { PlatformModal } from "@/app/[locale]/business/[businessId]/knowledge-base/(components)/platform-modal";
+import { usePendingPlatformConnection } from "@/hooks/use-pending-platform-connection";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PLACEHOLDER_IMAGE, SOCIAL_MEDIA_PLATFORMS } from "@/constants";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
-import { getModelRestrictionCopy } from "./model-restriction-copy";
+import { ContentCarouselPreview } from "./content-carousel-preview";
+import { ProtectedImage } from "./protected-image";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import {
+  getFreeUserAiModelDisplayNames,
+  isAiModelRestrictedForFreeUser,
+} from "@/models/api/content/ai-model";
 import { cn } from "@/lib/utils";
 import {
   getSchedulerDraftMarkers,
@@ -25,36 +30,124 @@ import {
 } from "@/lib/scheduler-draft-markers";
 import {
   useContentCaptionEnhance,
+  useContentImageWatermarkGet,
   useContentSchedulerManualAddToQueue,
   useContentSchedulerManualEditQueue,
+  useContentSchedulerTimezoneGetTimezone,
 } from "@/services/content/content.api";
-import { useBusinessGetById } from "@/services/business.api";
+import {
+  useBusinessAccessManagementGet,
+  useBusinessGetById,
+} from "@/services/business.api";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { useParams, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
+  CalendarClock,
   CalendarDays,
   Loader2,
+  RefreshCw,
   RotateCcw,
-  WandSparkles,
+  Sparkles,
+  Wand2,
 } from "lucide-react";
 import { showToast } from "@/helper/show-toast";
-import { getCurrentScheduleInput } from "@/lib/schedule-date-time";
+import { useRole } from "@/contexts/role-context";
+import {
+  getCurrentScheduleInput,
+  getNextSchedulableDate,
+  toBusinessWallDate,
+} from "@/lib/schedule-date-time";
+import { dateManipulation } from "@/helper/date-manipulation";
+import { isAxiosError } from "axios";
+import { ImageWatermarkRes } from "@/models/api/content/image.type";
+
+const WATERMARK_POLL_INTERVAL_MS = 2000;
+const WATERMARK_POLL_TIMEOUT_MS = 60000;
+// Stops background watermark polling when the backend never produces one.
+const WATERMARK_POLL_MAX_DURATION_MS = 5 * 60000;
+// The backend rejects a publishAt already past when the request lands, so a
+// schedule needs some lead time (also absorbs small client clock drift).
+const SCHEDULE_MIN_LEAD_MS = 30000;
+// The backend's zone when a business has none stored.
+const DEFAULT_BUSINESS_TIME_ZONE = "Asia/Jakarta";
+
+// toBusinessWallDate is minute precision; add the seconds back.
+const getBusinessWallNowMs = (timeZone?: string) => {
+  const now = new Date();
+  return (
+    toBusinessWallDate(now, timeZone).getTime() +
+    now.getSeconds() * 1000 +
+    now.getMilliseconds()
+  );
+};
+
+const isTooSoonToSchedule = (scheduledAt: Date, timeZone?: string) =>
+  scheduledAt.getTime() - getBusinessWallNowMs(timeZone) < SCHEDULE_MIN_LEAD_MS;
+
+const getSchedulableInput = (timeZone?: string) =>
+  getCurrentScheduleInput(new Date(Date.now() + SCHEDULE_MIN_LEAD_MS), timeZone);
+
+const getPaddingBottomStyle = (ratio?: string) => {
+  switch (ratio) {
+    case "16:9":
+      return "56.25%";
+    case "9:16":
+      return "177.77%";
+    case "4:3":
+      return "75%";
+    case "3:4":
+      return "133.33%";
+    case "4:5":
+      return "125%";
+    case "2:3":
+      return "150%";
+    case "1:1":
+    default:
+      return "100%";
+  }
+};
+
+const formatScheduleDetail = (date: string, time: string, locale: string) => {
+  const parsed = new Date(`${date}T${time}`);
+  if (Number.isNaN(parsed.getTime())) return `${date} ${time}`;
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "id-ID", {
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(parsed);
+};
 
 export function PreviewPanel() {
+  const { mutateAsync: getImageWatermark } = useContentImageWatermarkGet();
   const previewPanelRef = useRef<HTMLDivElement>(null);
   const shouldAutoEnhanceOnFirstGenerateRef = useRef(false);
   const lastAutoEnhancedResultKeyRef = useRef<string | null>(null);
+  const previewWatermarkRequestKeyRef = useRef<string | null>(null);
+  const isSubmittingScheduleRef = useRef(false);
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
+  const previewWatermarkRequestPromiseRef = useRef<Promise<string | null> | null>(
+    null
+  );
   const router = useRouter();
+  const pathname = usePathname();
   const locale = useLocale();
   const searchParams = useSearchParams();
   const { businessId } = useParams() as { businessId: string };
+  // Schedule inputs and publishAt are wall time in the business time zone,
+  // which is how the backend reads publishAt.
+  const { data: timezoneRes, isError: isTimezoneError } =
+    useContentSchedulerTimezoneGetTimezone(businessId);
+  const businessTimeZone =
+    timezoneRes?.data?.data?.timezone ||
+    (isTimezoneError ? DEFAULT_BUSINESS_TIME_ZONE : undefined);
   const {
     mode,
     form,
     aiModels,
     selectedHistory,
     selectedGeneratedImageUrl,
+    selectedContentImages,
+    histories,
     schedulerDraftPost,
     onSelectHistory,
     isLoading,
@@ -63,10 +156,18 @@ export function PreviewPanel() {
   } = useContentGenerate();
   const { data: businessData } = useBusinessGetById(businessId);
   const { data: platformData } = usePlatformKnowledgeGetAll(businessId);
+  const { data: businessAccessRes } = useBusinessAccessManagementGet(businessId);
+  // The backend shares the post regardless when the plan requires it.
+  const isMustShareContent =
+    businessAccessRes?.data?.data?.isMustShareContent === true;
+  const [shareAsReference, setShareAsReference] = useState(true);
   const businessName = businessData?.data?.data?.name;
   const businessLogo = businessData?.data?.data?.logo;
   const t = useTranslations("previewPanel");
   const schedulerT = useTranslations("contentGenerateScheduler");
+  const tModal = useTranslations("modal");
+  // Top-up links are only offered to members allowed to purchase.
+  const canPurchase = useRole().access.purchase.write;
   const mEnhanceCaption = useContentCaptionEnhance();
   const mSchedulePost = useContentSchedulerManualAddToQueue();
   const mEditSchedulePost = useContentSchedulerManualEditQueue();
@@ -80,30 +181,68 @@ export function PreviewPanel() {
   const schedulerMode = Boolean(scheduleDate);
   const selectedImageUrl =
     selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
-  const modelRestrictionCopy = getModelRestrictionCopy(
-    locale,
-    aiModels.freeUserAllowedModel
-      ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
-      : getAiModelDisplayName("gpt-image-1")
-  );
-  const handleProtectedImageInteraction = (
-    event:
-      | React.MouseEvent<HTMLElement>
-      | React.DragEvent<HTMLElement>
-  ) => {
-    if (!aiModels.isFreeUser) return;
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  const protectedImageStyle = aiModels.isFreeUser
-    ? ({
-        WebkitTouchCallout: "none",
-        userSelect: "none",
-      } as const)
-    : undefined;
+  const selectedImageIndex = useMemo(() => {
+    if (!selectedHistory?.result?.images?.length || !selectedImageUrl) {
+      return 0;
+    }
 
-  const [date, setDate] = useState(() => getCurrentScheduleInput().date);
-  const [time, setTime] = useState(() => getCurrentScheduleInput().time);
+    const foundIndex = selectedHistory.result.images.findIndex(
+      (imageUrl) => imageUrl === selectedImageUrl
+    );
+
+    return foundIndex >= 0 ? foundIndex : 0;
+  }, [selectedHistory?.result?.images, selectedImageUrl]);
+  const selectedImageItemId =
+    selectedHistory?.result?.imageItemIds?.[selectedImageIndex];
+  // The backend rebuilds a grid tile's watermark from its upscale, so the watermark is refetched
+  // once the upscale finishes instead of keeping (and publishing) the one made from the small tile.
+  const selectedUpscaleStatus =
+    selectedHistory?.result?.upscaleStatuses?.[selectedImageIndex] ?? null;
+  const restrictedModelName = getFreeUserAiModelDisplayNames(aiModels.models);
+  const modelRestrictionCopy = {
+    title: t("freeModelRestrictionTitle"),
+    description: t("freeModelRestrictionDescription", {
+      modelName: restrictedModelName,
+    }),
+    topUp: t("freeModelRestrictionTopUp"),
+    useDefault: t("freeModelRestrictionUseDefault"),
+  };
+  const [watermarkedPreviewUrl, setWatermarkedPreviewUrl] = useState<
+    string | null
+  >(null);
+  // ProtectedImage swaps generated images for their watermark for free users.
+  // Grid tiles show their upscaled version once ready; selectedImageUrl stays the original tile,
+  // which the backend swaps for the upscale when publishing.
+  const selectedDisplayImageUrl =
+    selectedHistory?.result?.upscaledImages?.[selectedImageIndex] ||
+    selectedImageUrl;
+  const displayedPreviewImageUrl =
+    watermarkedPreviewUrl ||
+    selectedDisplayImageUrl ||
+    form.basic.productImage ||
+    DEFAULT_PLACEHOLDER_IMAGE;
+  // Display only: selected images stay the original tile URLs, shown upscaled once ready.
+  const upscaledImageByOriginal = useMemo(() => {
+    const upscaled = new Map<string, string>();
+    for (const job of histories.flatMap((group) => group.jobs)) {
+      job.result?.images.forEach((image, index) => {
+        const upscaledImage = job.result?.upscaledImages?.[index];
+        if (upscaledImage) upscaled.set(image, upscaledImage);
+      });
+    }
+    return upscaled;
+  }, [histories]);
+  const carouselPreviewImages = useMemo(
+    () =>
+      selectedContentImages.map(
+        (image) => upscaledImageByOriginal.get(image) || image
+      ),
+    [selectedContentImages, upscaledImageByOriginal]
+  );
+  const isCarouselPreview = carouselPreviewImages.length > 1;
+
+  const [date, setDate] = useState(() => getSchedulableInput(businessTimeZone).date);
+  const [time, setTime] = useState(() => getSchedulableInput(businessTimeZone).time);
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformEnum[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isScheduleNowConfirmOpen, setIsScheduleNowConfirmOpen] =
@@ -111,17 +250,62 @@ export function PreviewPanel() {
   const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
     useState(false);
   const [isAutoEnhancingCaption, setIsAutoEnhancingCaption] = useState(false);
+  
+  const [isScheduleTouched, setIsScheduleTouched] = useState(
+    !!searchParams.get("scheduleDate") || !!searchParams.get("scheduleTime")
+  );
+
   useEffect(() => {
-    if (scheduleDate) {
+    if (isScheduleTouched) return;
+    const intervalId = setInterval(() => {
+      const nextSchedule = getSchedulableInput(businessTimeZone);
+      setDate((prev) => (prev !== nextSchedule.date ? nextSchedule.date : prev));
+      setTime((prev) => (prev !== nextSchedule.time ? nextSchedule.time : prev));
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [businessTimeZone, isScheduleTouched]);
+
+  const handleDateChange = (d: string) => {
+    setDate(d);
+    setIsScheduleTouched(true);
+  };
+
+  const handleTimeChange = (t: string) => {
+    setTime(t);
+    setIsScheduleTouched(true);
+  };
+
+  const lastPushedDate = useRef(scheduleDate);
+  const lastPushedTime = useRef(scheduleTime);
+
+  useEffect(() => {
+    if (scheduleDate && scheduleDate !== lastPushedDate.current) {
       setDate(scheduleDate);
+      lastPushedDate.current = scheduleDate;
     }
   }, [scheduleDate]);
 
   useEffect(() => {
-    if (scheduleTime) {
+    if (scheduleTime && scheduleTime !== lastPushedTime.current) {
       setTime(scheduleTime);
+      lastPushedTime.current = scheduleTime;
     }
   }, [scheduleTime]);
+
+  useEffect(() => {
+    if (!schedulerMode) return;
+    const timeoutId = setTimeout(() => {
+      if (date !== scheduleDate || time !== scheduleTime) {
+        const newParams = new URLSearchParams(searchParams.toString());
+        if (date) newParams.set("scheduleDate", date);
+        if (time) newParams.set("scheduleTime", time);
+        lastPushedDate.current = date || null;
+        lastPushedTime.current = time || null;
+        router.replace(`${pathname}?${newParams.toString()}`, { scroll: false });
+      }
+    }, 400);
+    return () => clearTimeout(timeoutId);
+  }, [date, time, schedulerMode, scheduleDate, scheduleTime, router, pathname, searchParams]);
 
   useEffect(() => {
     if (!initialPlatforms) return;
@@ -134,27 +318,164 @@ export function PreviewPanel() {
     );
   }, [initialPlatforms]);
 
+  useEffect(() => {
+    setWatermarkedPreviewUrl(null);
+    previewWatermarkRequestKeyRef.current = null;
+    previewWatermarkRequestPromiseRef.current = null;
+  }, [selectedImageItemId, selectedImageUrl, selectedUpscaleStatus]);
+
+  const resolvePreviewWatermarkUrl = useCallback(
+    async ({
+      timeoutMs = WATERMARK_POLL_TIMEOUT_MS,
+    }: {
+      timeoutMs?: number;
+    } = {}): Promise<string | null> => {
+      if (!aiModels.isFreeUser) {
+        return selectedImageUrl || null;
+      }
+
+      if (watermarkedPreviewUrl) {
+        return watermarkedPreviewUrl;
+      }
+
+      if (!selectedImageUrl || typeof selectedImageItemId !== "number") {
+        return null;
+      }
+
+      const requestKey = `${selectedImageItemId}-${selectedImageUrl}-${selectedUpscaleStatus}-${timeoutMs}`;
+      if (
+        previewWatermarkRequestPromiseRef.current &&
+        previewWatermarkRequestKeyRef.current === requestKey
+      ) {
+        return previewWatermarkRequestPromiseRef.current;
+      }
+
+      const requestPromise = (async (): Promise<string | null> => {
+        const maxAttempts = Math.max(
+          1,
+          Math.ceil(timeoutMs / WATERMARK_POLL_INTERVAL_MS) + 1
+        );
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          try {
+            const watermarkRes = await getImageWatermark({
+              generatedImagePostItemId: selectedImageItemId,
+            });
+            const watermarkData: ImageWatermarkRes | undefined =
+              watermarkRes.data?.data;
+            const watermarkUrl = watermarkData?.imageUrls?.[0];
+            const canUseWatermark = Boolean(
+              watermarkData?.generatedImagePostItemId === selectedImageItemId &&
+                watermarkData?.isWatermarked &&
+                watermarkData?.isCached &&
+                watermarkUrl
+            );
+
+            if (canUseWatermark && watermarkUrl) {
+              setWatermarkedPreviewUrl(watermarkUrl);
+              return watermarkUrl;
+            }
+          } catch {}
+
+          if (attempt < maxAttempts) {
+            await new Promise((resolve) =>
+              window.setTimeout(resolve, WATERMARK_POLL_INTERVAL_MS)
+            );
+          }
+        }
+
+        return null;
+      })();
+
+      previewWatermarkRequestKeyRef.current = requestKey;
+      previewWatermarkRequestPromiseRef.current = requestPromise;
+
+      return requestPromise.finally(() => {
+        if (previewWatermarkRequestKeyRef.current === requestKey) {
+          previewWatermarkRequestPromiseRef.current = null;
+        }
+      });
+    },
+    [
+      aiModels.isFreeUser,
+      getImageWatermark,
+      selectedImageItemId,
+      selectedImageUrl,
+      selectedUpscaleStatus,
+      watermarkedPreviewUrl,
+    ]
+  );
+
+  useEffect(() => {
+    if (
+      aiModels.isLoading ||
+      !aiModels.isFreeUser ||
+      !selectedImageUrl ||
+      typeof selectedImageItemId !== "number"
+    ) {
+      return;
+    }
+
+    let isCancelled = false;
+    const deadline = Date.now() + WATERMARK_POLL_MAX_DURATION_MS;
+
+    const keepTryingWatermark = async () => {
+      while (!isCancelled && Date.now() < deadline) {
+        const watermarkUrl = await resolvePreviewWatermarkUrl();
+
+        if (isCancelled) {
+          return;
+        }
+
+        if (watermarkUrl) {
+          setWatermarkedPreviewUrl(watermarkUrl);
+          return;
+        }
+
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, WATERMARK_POLL_INTERVAL_MS)
+        );
+      }
+    };
+
+    void keepTryingWatermark();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    aiModels.isFreeUser,
+    aiModels.isLoading,
+    resolvePreviewWatermarkUrl,
+    selectedImageItemId,
+    selectedImageUrl,
+  ]);
+
   const platformOptions = useMemo(
     () =>
-      SOCIAL_MEDIA_PLATFORMS.map((platform) => ({
-        platform,
-        isConnected: (platformData?.data.data || []).some(
+      SOCIAL_MEDIA_PLATFORMS.map((platform) => {
+        const connected = (platformData?.data.data || []).find(
           (item) => item.platform === platform && item.status === "connected"
-        ),
-      })),
+        );
+        return {
+          platform,
+          isConnected: Boolean(connected),
+          requiresReconnect: Boolean(connected?.requiresReconnect),
+        };
+      }),
     [platformData?.data.data]
   );
+  // A platform needing reconnection would only fail at publish time.
   const connectedPlatforms = useMemo(
     () =>
       platformOptions
-        .filter((platform) => platform.isConnected)
+        .filter((platform) => platform.isConnected && !platform.requiresReconnect)
         .map((platform) => platform.platform),
     [platformOptions]
   );
   const isFirstGenerateFlow =
     !selectedHistory || selectedHistory.id.startsWith("chat-scheduled-");
-  const currentScheduleInput = getCurrentScheduleInput();
-  const minDate = currentScheduleInput.date;
+  const minDate = getCurrentScheduleInput(new Date(), businessTimeZone).date;
   const isEnhanceCaptionLoading =
     mEnhanceCaption.isPending &&
     (!isAutoEnhancingCaption || !form.basic.caption.trim());
@@ -174,8 +495,7 @@ export function PreviewPanel() {
     if (
       aiModels.isFreeUser &&
       aiModels.freeUserAllowedModel &&
-      form.basic.model &&
-      form.basic.model !== aiModels.freeUserAllowedModel.name
+      isAiModelRestrictedForFreeUser(aiModels.models, form.basic.model)
     ) {
       setIsRestrictedModelModalOpen(true);
       return;
@@ -223,9 +543,26 @@ export function PreviewPanel() {
     router.push(`/business/${businessId}/settings?tab=billing&topUp=token`);
   };
 
+  // Always the original image: at publish time the backend swaps a grid tile
+  // for its upscaled version and watermarks it for free businesses. A
+  // watermarked URL here would get a second watermark and skip the upscale.
+  // The backend publishes a single image, so a carousel publishes its cover
+  // (the primary image can sit outside the carousel after a new generation).
+  const scheduleImageSourceUrl =
+    selectedContentImages.length > 1 ? selectedContentImages[0] : selectedImageUrl;
+  const resolveScheduleImageUrl = useCallback(
+    async () => scheduleImageSourceUrl || null,
+    [scheduleImageSourceUrl]
+  );
+
   const persistCaptionToSchedulerDraft = useCallback(
     async (nextCaption: string) => {
       if (!schedulerMode || !schedulerDraftId || !selectedHistory || !selectedImageUrl) {
+        return;
+      }
+
+      const scheduleImageUrl = await resolveScheduleImageUrl();
+      if (!scheduleImageUrl) {
         return;
       }
 
@@ -234,7 +571,7 @@ export function PreviewPanel() {
       );
       const draftDate = currentDraftMarker?.date || scheduleDate || date;
       const draftTime =
-        currentDraftMarker?.time || scheduleTime || time || getCurrentScheduleInput().time;
+        currentDraftMarker?.time || scheduleTime || time || getCurrentScheduleInput(new Date(), businessTimeZone).time;
 
       if (draftDate) {
         upsertSchedulerDraftMarker(businessId, {
@@ -242,7 +579,7 @@ export function PreviewPanel() {
           jobId: selectedHistory.id,
           date: draftDate,
           time: draftTime,
-          image: selectedImageUrl,
+          image: scheduleImageUrl,
           caption: nextCaption,
           productImage:
             currentDraftMarker?.productImage || form.basic.productImage || null,
@@ -268,10 +605,20 @@ export function PreviewPanel() {
         businessId,
         idScheduler: schedulerDraftId,
         formData: {
-          imageUrl: selectedImageUrl,
+          imageUrl: scheduleImageUrl,
           caption: nextCaption,
           platforms: [],
-          dateTime: new Date(`${draftDate}T${draftTime}`).toISOString(),
+          // The backend rejects a past publishAt, drafts included.
+          dateTime: (() => {
+            const draftAt = new Date(`${draftDate}T${draftTime}`);
+            return Number.isNaN(draftAt.getTime()) ||
+              isTooSoonToSchedule(draftAt, businessTimeZone)
+              ? getNextSchedulableDate(
+                  new Date(Date.now() + SCHEDULE_MIN_LEAD_MS),
+                  businessTimeZone
+                ).toISOString()
+              : draftAt.toISOString();
+          })(),
           status: "draft",
           withChatAI: true,
           shareAsReference: true,
@@ -285,6 +632,7 @@ export function PreviewPanel() {
     },
     [
       businessId,
+      businessTimeZone,
       date,
       form.basic.productImage,
       form.basic.referenceImage,
@@ -295,6 +643,7 @@ export function PreviewPanel() {
       schedulerDraftId,
       schedulerDraftPost?.chatSessionId,
       schedulerMode,
+      resolveScheduleImageUrl,
       selectedHistory,
       selectedImageUrl,
       time,
@@ -320,6 +669,11 @@ export function PreviewPanel() {
           businessId,
           formData: {
             imageUrl,
+            businessProductId: Number(
+              form.basic.productKnowledgeId || 
+              selectedHistory?.input?.productKnowledgeId || 
+              selectedHistory?.result?.productKnowledgeId
+            ) || undefined,
           },
         });
         const nextCaption = res.data.data.caption;
@@ -344,6 +698,8 @@ export function PreviewPanel() {
       mEnhanceCaption,
       persistCaptionToSchedulerDraft,
       schedulerT,
+      selectedHistory?.input?.productKnowledgeId,
+      selectedHistory?.result?.productKnowledgeId,
       selectedImageUrl,
       t,
     ]
@@ -420,7 +776,57 @@ export function PreviewPanel() {
     );
   };
 
+  // Connecting a platform from the summary goes through the same modal as the
+  // knowledge base. Back from the auth site, it reopens to pick the account.
+  const { hasPendingPlatform, clearPlatformFlags } = usePendingPlatformConnection();
+  const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(hasPendingPlatform);
+  const [platformReturnUrl, setPlatformReturnUrl] = useState<string>();
+
+  useEffect(() => {
+    if (hasPendingPlatform) setIsPlatformModalOpen(true);
+  }, [hasPendingPlatform]);
+
+  const handleConnectPlatform = () => {
+    // The auth flow leaves this page, so return through the calendar's
+    // edit-draft route to restore this draft's chat.
+    const url = new URL(window.location.href);
+    if (
+      schedulerDraftId &&
+      schedulerDraftPost?.chatSessionId != null &&
+      scheduleImageSourceUrl
+    ) {
+      url.searchParams.set("editSchedulerManualPostingId", String(schedulerDraftId));
+      url.searchParams.set("chatSessionId", String(schedulerDraftPost.chatSessionId));
+      url.searchParams.set("selectedHistoryImage", scheduleImageSourceUrl);
+      if (date) url.searchParams.set("scheduleDate", date);
+      if (time) url.searchParams.set("scheduleTime", time);
+      const productId = selectedHistory?.input.productKnowledgeId;
+      if (productId) url.searchParams.set("businessProductId", String(productId));
+    }
+    setPlatformReturnUrl(url.toString());
+    setIsPlatformModalOpen(true);
+  };
+
+  const handleClosePlatformModal = () => {
+    setIsPlatformModalOpen(false);
+    clearPlatformFlags();
+  };
+
+  // Guards against duplicate scheduled posts: resolving the schedule image can
+  // wait on the watermark for a long time before any mutation is pending.
   const submitSchedule = async (scheduleDate: string, scheduleTime: string) => {
+    if (isSubmittingScheduleRef.current) return;
+    isSubmittingScheduleRef.current = true;
+    setIsSubmittingSchedule(true);
+    try {
+      await submitScheduleOnce(scheduleDate, scheduleTime);
+    } finally {
+      isSubmittingScheduleRef.current = false;
+      setIsSubmittingSchedule(false);
+    }
+  };
+
+  const submitScheduleOnce = async (scheduleDate: string, scheduleTime: string) => {
     if (!selectedHistory?.result) {
       showToast("error", schedulerT("generateFirst"));
       return;
@@ -430,10 +836,17 @@ export function PreviewPanel() {
       return;
     }
 
-    const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+    let scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
     if (Number.isNaN(scheduledAt.getTime())) {
       showToast("error", schedulerT("selectDateTime"));
       return;
+    }
+
+    if (isTooSoonToSchedule(scheduledAt, businessTimeZone)) {
+      scheduledAt = getNextSchedulableDate(
+        new Date(Date.now() + SCHEDULE_MIN_LEAD_MS),
+        businessTimeZone
+      );
     }
 
     const connectedSelectedPlatforms = selectedPlatforms.filter((platform) =>
@@ -446,14 +859,32 @@ export function PreviewPanel() {
     }
 
     try {
+      const scheduleImageUrl = await resolveScheduleImageUrl();
+      if (!scheduleImageUrl) {
+        showToast("error", schedulerT("generateFirst"));
+        return;
+      }
+
+      const caption = form.basic.caption || selectedHistory.result.caption || "";
+      // The backend rejects a "ready" post without a caption.
+      if (!caption.trim()) {
+        showToast("error", schedulerT("captionRequired"));
+        return;
+      }
+
+      const existingPostId =
+        schedulerDraftPost?.id ??
+        (editSchedulerManualPostingId ? Number(editSchedulerManualPostingId) : null);
       const formData = {
-        imageUrl: selectedImageUrl,
-        caption: form.basic.caption || selectedHistory.result.caption || "",
+        imageUrl: scheduleImageUrl,
+        caption,
         platforms: connectedSelectedPlatforms,
         dateTime: scheduledAt.toISOString(),
         status: "ready" as const,
-        withChatAI: true,
-        shareAsReference: true,
+        // A new post can't open a chat: the backend allows withChatAI only on
+        // drafts. Existing posts keep their chat (the update ignores it).
+        withChatAI: existingPostId !== null,
+        shareAsReference: isMustShareContent || shareAsReference,
         businessProductId: selectedHistory.input.productKnowledgeId,
         chatSessionId: schedulerDraftPost?.chatSessionId || undefined,
       };
@@ -479,14 +910,27 @@ export function PreviewPanel() {
 
       setIsSummaryOpen(false);
       setIsScheduleNowConfirmOpen(false);
-      if (schedulerDraftPost) {
-        removeSchedulerDraftMarker(businessId, String(schedulerDraftPost.id));
+      if (existingPostId !== null) {
+        removeSchedulerDraftMarker(businessId, String(existingPostId));
       }
+      showToast("success", schedulerT("postScheduledSuccess"));
+      // scheduledAt may have moved past midnight when bumped forward.
       router.push(
-        `/business/${businessId}/content-scheduler?selectedDate=${scheduleDate}`
+        `/business/${businessId}/content-scheduler?selectedDate=${dateManipulation.ymd(scheduledAt)}`
       );
     } catch (error) {
-      showToast("error", error);
+      if (
+        error instanceof Error &&
+        error.message === "WATERMARK_REQUIRED_FOR_FREE_USER"
+      ) {
+        showToast("error", schedulerT("watermarkNotReady"));
+        return;
+      }
+
+      // Failed requests are already toasted by the global mutation onError.
+      if (!isAxiosError(error)) {
+        showToast("error", error);
+      }
     }
   };
 
@@ -496,7 +940,7 @@ export function PreviewPanel() {
       showToast("error", schedulerT("selectDateTime"));
       return;
     }
-    if (scheduledAt <= new Date()) {
+    if (isTooSoonToSchedule(scheduledAt, businessTimeZone)) {
       setIsScheduleNowConfirmOpen(true);
       return;
     }
@@ -505,13 +949,14 @@ export function PreviewPanel() {
   };
 
   const handleScheduleNow = async () => {
-    const nextSchedule = getCurrentScheduleInput();
+    const nextSchedule = getSchedulableInput(businessTimeZone);
     setDate(nextSchedule.date);
     setTime(nextSchedule.time);
     await submitSchedule(nextSchedule.date, nextSchedule.time);
   };
 
   const isScheduling =
+    isSubmittingSchedule ||
     mSchedulePost.isPending ||
     mEditSchedulePost.isPending;
 
@@ -538,18 +983,21 @@ export function PreviewPanel() {
   }, [mode, schedulerMode, selectedHistory, schedulerT]);
 
   return (
-    <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6">
-      <CardNoGap className="flex-1 overflow-auto">
-        <div className="p-4 border-b flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+    // Mobile: card preview (header, gambar, caption) disembunyikan; yang tersisa hanya
+    // optimize prompt (non-scheduler) dan bar Generate yang fixed di bawah.
+    <div ref={previewPanelRef} className="h-full flex flex-col p-4 sm:p-6 overflow-y-auto scrollbar-hidden max-lg:p-0">
+      <CardNoGap className="flex-1 overflow-auto scrollbar-hidden max-lg:contents">
+        <div className="sticky top-0 z-20 bg-card p-4 border-b flex items-center justify-between gap-2 max-lg:hidden">
+          <div className="flex min-w-0 items-center space-x-3">
             <Image
               src={businessLogo || "/logoblue.png"}
-              alt="logo"
+              alt={t("businessLogoAlt")}
               width={200}
               height={200}
-              className="w-8 h-8 rounded-full"
+              className="w-8 h-8 shrink-0 rounded-full"
+              unoptimized
             />
-            <span className="font-medium text-sm">{businessName}</span>
+            <span className="truncate font-medium text-sm">{businessName}</span>
           </div>
           {!schedulerMode && selectedHistory && (
             <Button
@@ -564,171 +1012,88 @@ export function PreviewPanel() {
           )}
         </div>
 
-        <div className="relative w-full h-fit transition-opacity">
-          {isLoading ? (
-            <div
-              className="flex items-center justify-center w-full h-full bg-background-secondary relative !aspect-square"
-              onContextMenu={handleProtectedImageInteraction}
-              onDragStart={handleProtectedImageInteraction}
-            >
-              <LogoLoader
-                hideContentBackground={false}
-                className="absolute z-10"
-              />
-              <div className="absolute bg-black z-0 w-full h-full opacity-50 blur-sm">
-                <Image
-                  src={
-                    selectedImageUrl ||
-                    form.basic.productImage ||
-                    DEFAULT_PLACEHOLDER_IMAGE
-                  }
+        <div 
+          className="relative w-full transition-all duration-300 overflow-hidden max-lg:hidden"
+          style={{ paddingBottom: getPaddingBottomStyle(form.basic.ratio) }}
+        >
+          <div className="absolute inset-0 w-full h-full">
+            {/* A new generation doesn't replace a carousel, so keep it visible meanwhile. */}
+            {isCarouselPreview ? (
+              <ContentCarouselPreview images={carouselPreviewImages} />
+            ) : isLoading ? (
+              <div className="flex items-center justify-center w-full h-full bg-background-secondary relative">
+                <LogoLoader
+                  hideContentBackground={false}
+                  className="absolute z-20"
+                />
+                <ProtectedImage
+                  src={displayedPreviewImageUrl}
                   alt=""
-                  fill
-                  draggable={false}
-                  style={protectedImageStyle}
-                  className="object-cover w-full h-full"
-                  priority
+                  className="absolute inset-0 bg-black opacity-50 blur-sm"
                 />
               </div>
-            </div>
-          ) : (
-            <Image
-              src={
-                selectedImageUrl ||
-                form.basic.productImage ||
-                DEFAULT_PLACEHOLDER_IMAGE
-              }
-              alt=""
-              width={800}
-              height={800}
-              draggable={false}
-              onContextMenu={handleProtectedImageInteraction}
-              onDragStart={handleProtectedImageInteraction}
-              style={protectedImageStyle}
-              className="w-full h-auto"
-              priority
-            />
-          )}
+            ) : (
+              <ProtectedImage
+                src={displayedPreviewImageUrl}
+                alt=""
+                className="h-full w-full bg-background-secondary"
+              />
+            )}
+          </div>
         </div>
 
-        {isLoading &&
-          typeof selectedHistory?.progress === "number" &&
-          selectedHistory?.progress < 100 && (
-            <div className="p-4 flex flex-row items-center gap-4 border-b">
-              <Progress value={selectedHistory?.progress ?? 0} />
-              <span className="text-sm">{selectedHistory?.progress}%</span>
-            </div>
-          )}
-
-        <div className="p-4 border-b flex-col space-y-4">
-          <div className="text-sm">
-            <div className="font-medium mb-2">{businessName}</div>
-            <div className="relative">
-              <Textarea
-                value={form.basic.caption}
-                rows={4}
-                onChange={(e) => {
-                  form.setBasic({ ...form.basic, caption: e.target.value });
-                }}
-                className="min-h-[120px] resize-none rounded-2xl bg-background-secondary pr-14 text-sm"
-                placeholder={
-                  selectedHistory ? t("captionWillShowHere") : t("writeCaption")
-                }
-              />
-              {selectedHistory && (
-                <Button
-                  type="button"
-                  size="icon"
-                  className="absolute bottom-3 right-3 rounded-xl"
-                  onClick={() => void handleEnhanceCaption()}
-                  disabled={!canEnhanceCaption}
-                  title={t("enhanceCaption")}
-                  aria-label={t("enhanceCaption")}
-                >
-                  {isEnhanceCaptionLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <WandSparkles className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
+        <div className="p-4 border-b max-lg:hidden">
+          <div className="flex items-start gap-3">
+            <Image
+              src={businessLogo || "/logoblue.png"}
+              alt={t("businessLogoAlt")}
+              width={32}
+              height={32}
+              className="w-8 h-8 rounded-full shrink-0 object-cover"
+              unoptimized
+            />
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold text-sm">{businessName}</span>
+              <div className="relative mt-1">
+                <Textarea
+                  value={form.basic.caption}
+                  rows={4}
+                  onChange={(e) => {
+                    form.setBasic({ ...form.basic, caption: e.target.value });
+                  }}
+                  className="min-h-[100px] w-full resize-none border-none bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none placeholder:text-muted-foreground/70"
+                  placeholder={
+                    selectedHistory ? t("captionWillShowHere") : t("writeCaption")
+                  }
+                />
+                {selectedHistory && (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="absolute bottom-0 right-0 rounded-full text-muted-foreground hover:text-primary hover:bg-transparent"
+                    onClick={() => void handleEnhanceCaption()}
+                    disabled={!canEnhanceCaption}
+                    title={t("enhanceCaption")}
+                    aria-label={t("enhanceCaption")}
+                  >
+                    {isEnhanceCaptionLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {schedulerMode && (
-          <>
-            <div className="p-4 border-b">
-              <div className="grid gap-3 grid-cols-2">
-                <div className="flex h-12 items-center gap-2 rounded-2xl border border-input bg-background-secondary px-3">
-                  <CalendarDays className="h-4 w-4 text-primary" />
-                  <input
-                    type="date"
-                    value={date}
-                    min={minDate}
-                    onChange={(event) => setDate(event.target.value)}
-                    className="h-full w-full bg-transparent text-sm outline-none"
-                  />
-                </div>
-                <ScheduleTimeInput
-                  date={date}
-                  value={time}
-                  onValueChange={setTime}
-                  className="h-12 rounded-2xl bg-background-secondary"
-                />
-              </div>
-            </div>
 
-            <div className="p-4 border-b space-y-3">
-              <div className="text-sm font-semibold">
-                {schedulerT("choosePlatform")}
-              </div>
-              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-                {platformOptions.map(({ platform, isConnected }) => {
-                  const isSelected =
-                    isConnected && selectedPlatforms.includes(platform);
-                  return (
-                    <button
-                      key={platform}
-                      type="button"
-                      onClick={() => togglePlatform(platform)}
-                      disabled={!isConnected}
-                      className={cn(
-                        "flex h-12 items-center justify-center gap-2 rounded-2xl border text-sm font-medium transition-colors",
-                        isSelected
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-background-secondary",
-                        !isConnected &&
-                        "cursor-not-allowed border-dashed bg-muted/30 text-muted-foreground opacity-70"
-                      )}
-                    >
-                      {mapEnumPlatform.getPlatformIcon(
-                        platform,
-                        isSelected
-                          ? "text-white"
-                          : !isConnected
-                            ? "text-muted-foreground"
-                            : ""
-                      )}
-                      <span className="flex flex-col leading-tight">
-                        <span>{mapEnumPlatform.getPlatformLabel(platform)}</span>
-                        {!isConnected && (
-                          <span className="text-[11px] font-normal">
-                            {schedulerT("notConnected")}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        )}
 
         {!schedulerMode && (
-          <div className="p-4 border-b lg:border-none flex flex-col mb-2">
-            <label className="block text-sm font-medium mb-2">
+          <div className="p-4 border-b lg:border-none flex flex-col space-y-2 mb-2">
+            <label className="block text-sm font-medium">
               {t("optimizePrompt")}
             </label>
             <Textarea
@@ -737,18 +1102,20 @@ export function PreviewPanel() {
               onChange={(e) =>
                 form.setBasic({ ...form.basic, prompt: e.target.value })
               }
-              className="min-h-[60px] max-h-[120px] resize-none border-border text-sm focus:ring-0 p-4"
+              className="min-h-[60px] max-h-[120px] resize-none border-border focus:ring-0"
               placeholder={t("writeOptimizePrompt")}
             />
           </div>
         )}
       </CardNoGap>
 
-      <div className="sticky bottom-0 right-0 border border-border space-y-2 bg-card py-2 px-4 -mt-3 rounded-b-md">
+      {/* Mobile: bar Generate menempel di bawah layar untuk seluruh langkah form */}
+      <div className="sticky bottom-0 right-0 border border-border space-y-2 bg-card pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] px-4 -mt-3 rounded-b-md z-10 max-lg:fixed max-lg:inset-x-0 max-lg:z-30 max-lg:mt-0 max-lg:rounded-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pt-3 md:max-lg:left-16">
         {!schedulerMode && selectedHistory && (
           <div className="flex w-full gap-4">
             <Button
               variant="outline"
+              size="lg"
               className="w-full"
               disabled={isLoading}
               onClick={() => onSelectHistory(null)}
@@ -760,10 +1127,17 @@ export function PreviewPanel() {
         )}
         <Button
           onClick={handleGenerateClick}
+          size="lg"
           className="w-full bg-blue-500 hover:bg-blue-600 text-white"
           disabled={isLoading}
         >
-          <WandSparkles className="h-5 w-5" />
+          {schedulerMode && selectedHistory ? (
+            <CalendarClock className="h-5 w-5" />
+          ) : !schedulerMode && !isLoading && selectedHistory ? (
+            <RefreshCw className="h-5 w-5" />
+          ) : (
+            <Sparkles className="h-5 w-5" />
+          )}
           {schedulerMode
             ? selectedHistory
               ? schedulerT("schedulePost")
@@ -778,27 +1152,37 @@ export function PreviewPanel() {
 
       <ScheduleSummaryModal
         isOpen={isSummaryOpen}
-        imageUrl={
-          selectedImageUrl ||
-          form.basic.productImage ||
-          DEFAULT_PLACEHOLDER_IMAGE
-        }
+        businessName={businessName}
+        businessLogo={businessLogo}
+        imageUrl={displayedPreviewImageUrl}
+        imageUrls={isCarouselPreview ? carouselPreviewImages : undefined}
+        ratio={form.basic.ratio}
         caption={form.basic.caption || selectedHistory?.result?.caption || ""}
         date={date}
         time={time}
         minDate={minDate}
+        timeZone={businessTimeZone}
         selectedPlatforms={selectedPlatforms}
         platforms={platformOptions}
         isLoading={isScheduling || mEnhanceCaption.isPending}
+        shareAsReference={shareAsReference}
+        onShareAsReferenceChange={setShareAsReference}
+        isShareAsReferenceLocked={isMustShareContent}
         onClose={() => setIsSummaryOpen(false)}
         onCaptionChange={(value) =>
           form.setBasic({ ...form.basic, caption: value })
         }
-        onDateChange={setDate}
-        onTimeChange={setTime}
+        onDateChange={handleDateChange}
+        onTimeChange={handleTimeChange}
         onTogglePlatform={togglePlatform}
+        onConnectPlatform={handleConnectPlatform}
         onEnhanceCaption={handleEnhanceCaption}
         onConfirm={handleConfirmSchedule}
+      />
+      <PlatformModal
+        isOpen={isPlatformModalOpen}
+        onClose={handleClosePlatformModal}
+        returnUrl={platformReturnUrl}
       />
       <ConfirmationModal
         isOpen={isScheduleNowConfirmOpen}
@@ -809,18 +1193,20 @@ export function PreviewPanel() {
         confirmText={schedulerT("scheduleNowConfirm")}
         cancelText={schedulerT("scheduleNowCancel")}
         detailLabel={schedulerT("selectedPublishTime")}
-        detailValue={`${date} ${time}`}
+        detailValue={formatScheduleDetail(date, time, locale)}
         isLoading={isScheduling || mEnhanceCaption.isPending}
       />
       <ConfirmationModal
         isOpen={isRestrictedModelModalOpen}
         onClose={() => setIsRestrictedModelModalOpen(false)}
-        onCancel={handleUseFreeUserAllowedModel}
-        onConfirm={handleTopUpNow}
+        onCancel={canPurchase ? handleUseFreeUserAllowedModel : undefined}
+        onConfirm={canPurchase ? handleTopUpNow : handleUseFreeUserAllowedModel}
         title={modelRestrictionCopy.title}
         description={modelRestrictionCopy.description}
-        confirmText={modelRestrictionCopy.topUp}
-        cancelText={modelRestrictionCopy.useDefault}
+        confirmText={
+          canPurchase ? modelRestrictionCopy.topUp : modelRestrictionCopy.useDefault
+        }
+        cancelText={canPurchase ? modelRestrictionCopy.useDefault : tModal("cancel")}
       />
     </div>
   );

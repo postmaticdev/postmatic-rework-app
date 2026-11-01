@@ -11,7 +11,7 @@ export function ZoneTime() {
     <div className="space-y-4 sm:space-y-6">
       <Card>
         <CardContent className="p-4">
-          <CardTitle className="text-xl sm:text-2xl font-bold mb-4">
+          <CardTitle className="text-lg sm:text-2xl font-bold mb-4">
             {t("timezone")}
           </CardTitle>
           <TimezoneSelector />

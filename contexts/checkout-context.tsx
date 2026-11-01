@@ -8,7 +8,7 @@ import {
 import { CheckoutRes } from "@/models/api/purchase/checkout.type";
 import { BusinessPurchaseRes } from "@/models/api/purchase/business.type";
 import { useAppProductGetProductDetail } from "@/services/app-product.api";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 
 import { createContext, useContext, useEffect, useState } from "react";
@@ -39,6 +39,7 @@ const CheckoutContext = createContext<CheckoutContext | undefined>(undefined);
 
 export function CheckoutProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { businessId } = useParams() as { businessId: string };
   const [selectedPayment, setSelectedPayment] =
     useState<SelectedPayment | null>(null);
@@ -128,9 +129,25 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
     }
   }, [promoCode]);
 
-  if (!isLoadingProductDetail && isErrorProductDetail) {
-    router.push(`/business/${businessId}/pricing`);
-  }
+  // Reset previous order/payment/promo state when entering the checkout (product selection) page,
+  // so a new checkout never shows the previous order.
+  const isCheckoutEntry = !!pathname?.endsWith("/pricing/checkout");
+  useEffect(() => {
+    if (!isCheckoutEntry) return;
+    setCheckoutResult(null);
+    setSelectedPayment(null);
+    setPromoState(promoCode);
+    // promoCode intentionally excluded: applying a promo must not reset the selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCheckoutEntry, businessId, productId, type]);
+
+  const shouldRedirectToPricing =
+    !isLoadingProductDetail && isErrorProductDetail;
+  useEffect(() => {
+    if (shouldRedirectToPricing) {
+      router.push(`/business/${businessId}/pricing`);
+    }
+  }, [shouldRedirectToPricing, router, businessId]);
 
   return (
     <CheckoutContext.Provider

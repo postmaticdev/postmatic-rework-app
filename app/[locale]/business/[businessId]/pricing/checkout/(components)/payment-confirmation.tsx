@@ -2,11 +2,19 @@
 
 import { useCheckout } from "@/contexts/checkout-context";
 import { useDateFormat } from "@/hooks/use-date-format";
+import {
+  mergeBusinessPurchaseWithRealtimePayment,
+  mergeCheckoutWithRealtimePayment,
+  normalizeRealtimePaymentStatus,
+  syncPaymentRealtimeCaches,
+  usePaymentRealtime,
+} from "@/hooks/use-payment-realtime";
 import { dateFormat } from "@/helper/date-format";
-import { formatIdr } from "@/helper/formatter";
 import { mapEnumPaymentStatus } from "@/helper/map-enum-payment-status";
 import { showToast } from "@/helper/show-toast";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Copy, Download, ExternalLink, Maximize2, RefreshCw, X } from "lucide-react";
 import {
   PaymentAction as CheckoutPaymentAction,
 } from "@/models/api/purchase/checkout.type";
@@ -17,7 +25,8 @@ import { businessPurchaseService } from "@/services/purchase.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatIdrStable, formatProductName } from "./product-display";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 type PaymentAction = CheckoutPaymentAction | BusinessPaymentAction;
@@ -30,13 +39,49 @@ export function PaymentConfirmation({
 }: PaymentConfirmationProps) {
   const [expandedIndexes, setExpandedIndexes] = useState<number[]>([]);
   const [zoomImageIndex, setZoomImageIndex] = useState<number | null>(null);
-  const { product, detailPricing, checkoutResult } = useCheckout();
+  const { product, detailPricing, checkoutResult, setCheckoutResult } =
+    useCheckout();
   const { businessId } = useParams() as { businessId: string };
   const queryClient = useQueryClient();
   const [isChecking, setIsChecking] = useState(false);
   const t = useTranslations();
   const { formatDate } = useDateFormat();
+  const locale = useLocale();
+
+  usePaymentRealtime({
+    businessId,
+    enabled: !!checkoutResult?.id,
+    paymentId: checkoutResult?.id,
+    onStatusChanged: (payload) => {
+      const nextStatus = normalizeRealtimePaymentStatus(payload.status);
+
+      setCheckoutResult((current) =>
+        current?.id === payload.paymentHistoryId
+          ? "midtransId" in current
+            ? mergeCheckoutWithRealtimePayment(current, payload)
+            : mergeBusinessPurchaseWithRealtimePayment(current, payload)
+          : current
+      );
+      syncPaymentRealtimeCaches(queryClient, businessId, payload);
+
+      showToast(
+        nextStatus === "Success" ? "success" : "info",
+        mapEnumPaymentStatus.getStatusDescription(nextStatus, t)
+      );
+
+      if (nextStatus === "Success") {
+        setShowPaymentSuccess(true);
+      }
+    },
+  });
+
   if (!checkoutResult) return null;
+
+  const expiredAtLabel = checkoutResult.expiredAt
+    ? `${formatDate(new Date(checkoutResult.expiredAt))} ${dateFormat.getHhMm(
+        new Date(checkoutResult.expiredAt)
+      )}`
+    : "-";
 
   const handleCheckPaymentStatus = async () => {
     try {
@@ -45,14 +90,26 @@ export function PaymentConfirmation({
         businessId,
         checkoutResult?.id
       );
+      setCheckoutResult((current) =>
+        current ? { ...current, ...res.data } : current
+      );
       showToast(
         res.data.status === "Success" ? "success" : "info",
         mapEnumPaymentStatus.getStatusDescription(res.data.status, t)
       );
-      if (res.data.status !== checkoutResult?.status) {
-        queryClient.clear();
-      }
+      queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseDetail", checkoutResult.id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseHistory", businessId],
+      });
       if (res.data.status === "Success") {
+        queryClient.invalidateQueries({
+          queryKey: ["tokenUsage", businessId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["subscribtionSubscription", businessId],
+        });
         await sleep(1000);
         setShowPaymentSuccess(true);
       }
@@ -199,7 +256,7 @@ export function PaymentConfirmation({
                   {item.value}
                 </span>
                 <IconButton
-                  title={t("toast.payment.clipboardCopySuccess")}
+                  title={t("checkout.copy")}
                   onClick={() => handleCopy(item.value)}
                 />
               </div>
@@ -222,7 +279,7 @@ export function PaymentConfirmation({
                 <button
                   onClick={() => setZoomImageIndex(index)}
                   className="w-full max-w-xs sm:max-w-sm md:max-w-md rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-                  aria-label="Perbesar QR "
+                  aria-label={t("checkout.Instructions.qris.zoom")}
                   title={t("checkout.Instructions.qris.clickToZoom")}
                 >
                   {/* aspect-square agar QR tidak gepeng */}
@@ -230,25 +287,28 @@ export function PaymentConfirmation({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.value}
-                      alt="QRIS untuk pembayaran"
+                      alt={t("checkout.Instructions.qris.imageAlt")}
                       className="max-h-full max-w-full object-contain"
                     />
                   </div>
                 </button>
 
-                <div className="flex items-center gap-2">
-                  <button
+                <div className="flex items-center gap-2 max-sm:flex-wrap max-sm:justify-center">
+                  <Button
+                    variant="secondary"
                     onClick={() => setZoomImageIndex(index)}
-                    className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                   >
+                    <Maximize2 className="h-4 w-4" />
                     {t("checkout.Instructions.qris.zoom")}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleDownloadImage(item.value)}
-                    className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
                   >
+                    <Download className="h-4 w-4" />
                     {t("checkout.Instructions.qris.downloadQR")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </Box>
@@ -273,30 +333,33 @@ export function PaymentConfirmation({
                 >
                   <div className="flex justify-between items-center mb-2 sm:mb-4">
                     <h4 className="text-base sm:text-lg font-semibold">
-                      QRIS Pembayaran
+                      {t("checkout.Instructions.qris.zoomTitle")}
                     </h4>
-                    <button
+                    <Button
+                      variant="secondary"
                       onClick={() => setZoomImageIndex(null)}
-                      className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                      className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
                     >
-                      Tutup
-                    </button>
+                      <X className="h-4 w-4" />
+                      {t("modal.close")}
+                    </Button>
                   </div>
                   <div className="w-full grid place-items-center p-2 sm:p-4">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={item.value}
-                      alt="QRIS untuk pembayaran"
+                      alt={t("checkout.Instructions.qris.imageAlt")}
                       className="max-h-[70vh] object-contain"
                     />
                   </div>
                   <div className="flex items-center justify-end gap-2">
-                    <button
+                    <Button
                       onClick={() => handleDownloadImage(item.value)}
-                      className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm"
+                      className="bg-blue-600 text-white hover:bg-blue-700"
                     >
-                      Unduh QR
-                    </button>
+                      <Download className="h-4 w-4" />
+                      {t("checkout.Instructions.qris.downloadQR")}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -318,19 +381,22 @@ export function PaymentConfirmation({
                     {item.value}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
+                <div className="flex items-center gap-2 max-sm:flex-wrap">
+                  <Button
                     onClick={() => handleOpenDeeplink(item.value)}
-                    className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
                   >
+                    <ExternalLink className="h-4 w-4" />
                     {t("checkout.Instructions.redirect.openApplication")}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="secondary"
                     onClick={() => handleCopy(item.value)}
-                    className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                    className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
                   >
+                    <Copy className="h-4 w-4" />
                     {t("checkout.Instructions.redirect.copyLink")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </Box>
@@ -352,12 +418,20 @@ export function PaymentConfirmation({
     <div className="text-center">
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
-          Pembayaran dengan {checkoutResult?.method?.toUpperCase()}
+          {t("checkout.paymentWith", {
+            method: checkoutResult?.method?.toUpperCase() ?? "",
+          })}
         </h1>
       </div>
 
             <p className="text-gray-600 dark:text-gray-300 mb-4 sm:mb-6 text-sm sm:text-base">
-        {(product?.name || checkoutResult?.productName || "")} - Total {formatIdr(detailPricing?.total)}
+        {t("checkout.productTotal", {
+          product: formatProductName(
+            product?.name || checkoutResult?.productName || "",
+            locale
+          ),
+          total: formatIdrStable(detailPricing?.total ?? 0, locale),
+        })}
       </p>
 
       {checkoutResult?.paymentActions.map((action, index) => (
@@ -367,32 +441,34 @@ export function PaymentConfirmation({
       ))}
 
       {/* Countdown / Expired info */}
-      <div className="border-2 border-orange-500 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 bg-orange-50 dark:bg-orange-900/20 mt-8">
+      <div className="border-2 border-orange-500 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 bg-orange-50 dark:bg-orange-900/20 mt-2 sm:mt-8">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
           <span className="text-gray-900 dark:text-white font-medium text-sm sm:text-base">
             {t("checkout.payBefore")}
           </span>
           <span className="text-orange-600 dark:text-orange-400 font-bold text-base sm:text-lg">
-            {checkoutResult?.expiredAt ? `${formatDate(new Date(checkoutResult?.expiredAt))} ${dateFormat.getHhMm(new Date(checkoutResult?.expiredAt))}` : "-"}
+            {expiredAtLabel}
           </span>
         </div>
       </div>
 
       {/* Check Payment Status Button */}
-      <button
+      <Button
+        size="lg"
         onClick={handleCheckPaymentStatus}
         className={cn(
-          "text-white text-sm sm:text-base lg:text-lg font-medium w-full py-3 sm:py-4 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors mb-4",
+          "text-white w-full hover:bg-blue-700 dark:hover:bg-blue-600 mb-4",
           isChecking
             ? "bg-gray-500 dark:bg-gray-700"
             : "bg-blue-600 dark:bg-blue-500"
         )}
       >
+        <RefreshCw className={cn("h-4 w-4", isChecking && "animate-spin")} />
         {isChecking ? t("checkout.checking") : t("checkout.checkPaymentStatus")}
-      </button>
+      </Button>
 
       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 break-words">
-        {t("checkout.paymentExpiredAt")}: {checkoutResult?.expiredAt ?? "-"}
+        {t("checkout.paymentExpiredAt")}: {expiredAtLabel}
       </p>
     </div>
   );
@@ -401,7 +477,7 @@ export function PaymentConfirmation({
 /* ---------- UI subcomponents ---------- */
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div className="mb-6 sm:mb-4">
+    <div className="mb-3 sm:mb-4">
       <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white">
         {title}
       </h3>
@@ -427,25 +503,16 @@ function IconButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
+      variant="secondary"
+      size="icon"
       onClick={onClick}
-      className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex-shrink-0"
+      className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 flex-shrink-0"
       title={title}
+      aria-label={title}
     >
-      <svg
-        className="w-4 h-4 sm:w-5 sm:h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-        />
-      </svg>
-    </button>
+      <Copy className="w-4 h-4 sm:w-5 sm:h-5" />
+    </Button>
   );
 }
 
@@ -515,6 +582,7 @@ function Step({ n, text }: { n: number; text: string }) {
 }
 
 function Note({ text }: { text: string }) {
+  const tNote = useTranslations("checkout.Instructions");
   return (
     <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
       <div className="flex items-start gap-2">
@@ -532,7 +600,7 @@ function Note({ text }: { text: string }) {
           />
         </svg>
         <p className="text-xs sm:text-sm text-yellow-800 dark:text-yellow-200">
-          <strong>Catatan:</strong> {text}
+          <strong>{tNote("noteLabel")}</strong> {text}
         </p>
       </div>
     </div>

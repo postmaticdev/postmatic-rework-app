@@ -1,5 +1,7 @@
 "use client";
 
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useContentGenerate } from "@/contexts/content-generate-context";
@@ -13,11 +15,24 @@ interface TabNavigationProps {
 }
 
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
+  const { businessId } = useParams() as { businessId: string };
   const t = useTranslations("contentScheduler");
   const { histories } = useContentGenerate();
+  const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`postmatic:dismissed-failed-jobs:${businessId}`);
+      if (stored) {
+        setDismissedJobIds(JSON.parse(stored));
+      }
+    } catch {}
+  }, [businessId, activeTab]);
+
   const failedJobCount = histories
     .flatMap((group) => group.jobs)
-    .filter(isProblemGenerationJob).length;
+    .filter(isProblemGenerationJob)
+    .filter((job) => !dismissedJobIds.includes(job.id)).length;
   const tabs: {
     id: "scheduler" | "history";
     label: string;
@@ -33,7 +48,7 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
           variant={activeTab === tab.id ? "default" : "ghost"}
           onClick={() => onTabChange(tab.id)}
           className={cn(
-            " p-6 flex-1",
+            "flex-1",
             activeTab === tab.id
               ? "bg-primary text-white"
               : "text-muted-foreground hover:text-foreground"
@@ -43,7 +58,7 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
           {tab.id === "history" && failedJobCount > 0 ? (
             <Badge
               variant="destructive"
-              className="ml-2 min-w-5 justify-center px-1.5"
+              className="ml-2 min-w-5 justify-center px-1.5 text-white"
             >
               {failedJobCount}
             </Badge>

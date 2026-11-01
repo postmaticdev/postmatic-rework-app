@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Plus, Heart, Save } from "lucide-react";
+import { Check, Heart, Save } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -52,19 +52,6 @@ export function SharedReferenceFullviewModal({
           {/* Stats Row in Header */}
           <div className="flex items-center gap-4 text-sm text-muted-foreground pt-3">
             <div className="flex items-center gap-1">
-              <span className="text-yellow-500">★</span>
-              <span className="font-medium">{4.6}</span>
-              {/* TODO: gaada rating */}
-            </div>
-            <div className="text-muted-foreground">•</div>
-            <div className="flex items-center gap-1">
-              <span>
-                {20} {m("downloads")}
-                {/* TODO: gada download */}
-              </span>
-            </div>
-            <div className="text-muted-foreground">•</div>
-            <div className="flex items-center gap-1">
               <span>
                 {formatDate(new Date(template.createdAt))}
               </span>
@@ -73,7 +60,7 @@ export function SharedReferenceFullviewModal({
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4 sm:space-y-6 scrollbar-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {/* Preview Image */}
           <Image
             src={template?.imageUrl}
@@ -122,14 +109,14 @@ export function SharedReferenceFullviewModal({
 
         {/* Footer */}
         <DialogFooterWithTwoButtons
-          className="px-6 py-4 border-t rounded-b-lg"
+          className="rounded-b-lg"
           primaryButton={{
             message: m("buttonUse"),
             onClick: () => {
               onSelectReferenceImage(template.imageUrl, template.name, template);
               onClose();
             },
-            icon: <Plus className="mr-2 h-4 w-4" />,
+            icon: <Check className="mr-2 h-4 w-4" />,
             className:
               "bg-gradient-to-r text-white from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700  shadow-sm font-medium",
           }}
@@ -144,16 +131,16 @@ export function SharedReferenceFullviewModal({
                   <Save className="mr-2 h-4 w-4" />
                 ),
                 variant: "outline" as const,
-                className: `px-6 border-2 font-medium transition-all ${isSaved
+                className: `border-2 font-medium transition-all ${isSaved
                     ? "border-red-200 text-red-600 hover:bg-red-50"
                     : "border-gray-200 hover:bg-gray-50"
                   }`,
               }
               : {
-                message: m("buttonClose"),
+                message: m("close"),
                 onClick: onClose,
                 variant: "outline" as const,
-                className: "px-6 border-2 font-medium transition-all border-gray-200 hover:bg-gray-50",
+                className: "border-2 font-medium transition-all border-gray-200 hover:bg-gray-50",
               }
           }
         />

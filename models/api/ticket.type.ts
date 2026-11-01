@@ -25,6 +25,8 @@ export interface WebsiteTicket {
   channel: string;
   priority: TicketPriority;
   slaStatus: string;
+  isPinned?: boolean | null;
+  unreadMessages?: number | null;
   whatsappRoomChatId: number | null;
   subject: string;
   body: string;
@@ -34,4 +36,35 @@ export interface WebsiteTicket {
   attachments: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface WebsiteTicketMessage {
+  id: number;
+  ticketId: number | null;
+  profileId: string | null;
+  profile?: {
+    id?: string | null;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+  } | null;
+  senderType: "customer" | "customer_service" | string | null;
+  body: string | null;
+  attachments: string[] | null;
+  quotedWebMessageId: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface WebsiteTicketDetail {
+  ticket: WebsiteTicket;
+  messages?: WebsiteTicketMessage[] | null;
+}
+
+export interface ReplyWebsiteTicketPld {
+  /** Wajib diisi (backend: validate:"required"). */
+  body: string;
+  quotedWebMessageId?: number;
+  /** Id aset dari /app/asset-uploader/upload; backend tidak menerima URL lampiran. */
+  uploadedAssetIds?: number[];
 }

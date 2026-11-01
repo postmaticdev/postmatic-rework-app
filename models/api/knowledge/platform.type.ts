@@ -14,6 +14,9 @@ export interface PlatformRes {
   connectUrl: string | null;
   disconnectUrl: string | null;
   accountId: string | null;
+  id: number | null;
+  /* connected, but the token expired or was revoked: posting fails until reconnected */
+  requiresReconnect: boolean;
 }
 
 export interface ConnectedPlatformSocialPlatformApiRes {
@@ -41,6 +44,8 @@ export interface ConnectedPlatformApiRes {
   platformScopes: string[];
   platformTokenExpiredAt: string | null;
   platformMetadata: Record<string, unknown> | null;
+  requiresReconnect?: boolean;
+  reconnectReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,7 +84,7 @@ export interface ConnectPlatformAccountRes {
 export type PlatformEnum =
   | "linked_in"
   | "facebook_page"
-  | "instagram_business"
+  | "instagram_professional"
   | "whatsapp_business"
   | "tiktok"
   | "youtube"

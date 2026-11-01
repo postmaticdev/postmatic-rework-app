@@ -10,21 +10,27 @@ import {
 } from "@/services/app-product.api";
 import { useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
-import { formatIdr } from "@/helper/formatter";
 import {
   AppProductSubscriptionItem,
   ProductSubscription,
 } from "@/models/api/app-product";
 import { showToast } from "@/helper/show-toast";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  formatIdrStable,
+  formatProductType,
+} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
 import { useCheckoutPayBank } from "@/services/purchase.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscribtionGetSubscription } from "@/services/tier/subscribtion.api";
+import { useRole } from "@/contexts/role-context";
 
 export default function Pricing() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { businessId } = useParams() as { businessId: string };
+  const { access } = useRole();
+  const canPurchase = access.purchase.write;
   const { data: tokenData } = useAppProductGetToken(businessId || "");
   const { data: subscriptionData } = useAppProductGetSubscription(
     businessId || ""
@@ -32,6 +38,8 @@ export default function Pricing() {
 
   const tokenPackages = tokenData?.data?.data.products || [];
   const t = useTranslations("pricing");
+  const locale = useLocale();
+  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
 
   // Expecting products as SubscriptionPlan[] with items: SubscriptionItem[]
   const subscriptionPlans = subscriptionData?.data?.data.products || [];
@@ -71,6 +79,7 @@ export default function Pricing() {
   const tToast = useTranslations();
 
   const checkoutFreeProduct = async (id: string) => {
+    if (!canPurchase) return;
     try {
       await mCheckoutBank.mutateAsync({
         businessId,
@@ -87,6 +96,7 @@ export default function Pricing() {
   };
 
   const onSelectItem = (type: "token" | "subscription", id: string) => {
+    if (!canPurchase) return;
     queryClient.clear();
     if (type === "token") {
       router.push(
@@ -100,13 +110,13 @@ export default function Pricing() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-dvh bg-background flex">
       <div className="flex-1 flex flex-col">
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 sm:p-6">
           <div className="max-w-6xl mx-auto">
             {/* Header */}
             <div className="text-center mb-6">
-              <h1 className="text-3xl font-bold mb-2">{t("choosePackage")}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2">{t("choosePackage")}</h1>
               <p className="text-muted-foreground">
                 {t("choosePackageDescription")}
               </p>
@@ -114,7 +124,7 @@ export default function Pricing() {
 
 
             {/* Tabs */}
-            <div className="mb-8">
+            <div className="mb-6 sm:mb-8">
               <div className="flex rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 w-full max-w-md mx-auto">
                 {(isFree || !isSubscribed) && (
                   <button
@@ -145,7 +155,7 @@ export default function Pricing() {
 
             {activeTab === "extraToken" ? (
               /* Token Packages */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {tokenPackages?.map((pkg, index) => (
                   <Card
                     key={pkg?.id ?? index}
@@ -157,21 +167,21 @@ export default function Pricing() {
                       <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-300 rounded-full translate-y-12 -translate-x-12"></div>
                     </div>
 
-                    <CardContent className="relative p-6">
+                    <CardContent className="relative p-4 sm:p-6">
                       {/* Header with Icon */}
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                           <Zap className="w-6 h-6 text-white" />
                         </div>
                         <div className="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-3 py-1 rounded-full">
-                          {pkg.tokenType}
+                          {formatProductType(pkg.tokenType)}
                         </div>
                       </div>
 
                       {/* Token Amount */}
                       <div className="mb-4">
                         <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-                          {pkg.token}
+                          {Number(pkg.token).toLocaleString(locale)}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {t("token")}
@@ -208,6 +218,7 @@ export default function Pricing() {
                       <Button
                         className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300"
                         onClick={() => onSelectItem("token", pkg.id)}
+                        disabled={!canPurchase}
                       >
                         <Zap className="w-4 h-4 mr-2" />
                         {t("getToken")}
@@ -218,7 +229,7 @@ export default function Pricing() {
               </div>
             ) : (
               /* Subscription Plans */
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 {subscriptionPlans.map((plan) => {
                   const selectedItem = getSelectedItem(plan);
                   const showToggle =
@@ -227,9 +238,9 @@ export default function Pricing() {
                   return (
                     <Card
                       key={plan.id}
-                      className="relative rounded-2xl shadow-lg border-2 my-4 lg:my-0 transition-all duration-300 bg-card border-border hover:border-blue-500 hover:scale-105 hover:dark:border-blue-400"
+                      className="relative rounded-2xl shadow-lg border-2 my-4 max-md:my-0 lg:my-0 transition-all duration-300 bg-card border-border hover:border-blue-500 hover:scale-105 hover:dark:border-blue-400"
                     >
-                      <div className="p-6 mb-12">
+                      <div className="p-4 sm:p-6 mb-12 max-md:mb-10">
                         {/* Plan Icon and Name */}
                         <div className="flex items-center mb-4">
                           <div
@@ -269,7 +280,7 @@ export default function Pricing() {
                                     onClick={() =>
                                       setPlanSelectedItem(plan.id, item.id)
                                     }
-                                    className={`px-3 py-1 rounded text-sm font-medium ${
+                                    className={`min-h-10 px-3 py-1 rounded text-sm font-medium ${
                                       isActive
                                         ? "bg-blue-600 text-white"
                                         : "bg-transparent text-gray-600 dark:text-gray-400"
@@ -300,8 +311,12 @@ export default function Pricing() {
                             {formatIdr(selectedItem?.price || 0)}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {selectedItem?.tokenImage} token • {t("validFor")} {" "}
-                            {selectedItem?.subscriptionValidFor} {t("days")}
+                            {t("tokenValidFor", {
+                              tokens: Number(
+                                selectedItem?.tokenImage ?? 0
+                              ).toLocaleString(locale),
+                              days: Number(selectedItem?.subscriptionValidFor ?? 0),
+                            })}
                           </div>
                         </div>
 
@@ -325,13 +340,14 @@ export default function Pricing() {
 
                         {/* Button */}
                         <Button
-                          className={`m-12 absolute bottom-0 left-0 right-0 ${
+                          className={`m-12 max-md:m-4 absolute bottom-0 left-0 right-0 ${
                             plan.appProductSubscriptionItems?.[0]?.isClaimed
                               ? "bg-gray-400 hover:bg-gray-400 text-white cursor-not-allowed opacity-60"
                               : "bg-blue-600 hover:bg-blue-700 text-white"
                           }`}
                           disabled={
-                            plan.appProductSubscriptionItems?.[0]?.isClaimed
+                            plan.appProductSubscriptionItems?.[0]?.isClaimed ||
+                            !canPurchase
                           }
                           onClick={() => {
                             if (

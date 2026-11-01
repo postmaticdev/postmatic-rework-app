@@ -16,7 +16,7 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { AutoGenerateModal } from "./auto-generate-modal";
 import { AutoGenerateHistoryModal } from "./auto-generate-history-modal";
-import { Clock, Edit, History, Plus, Send, X } from "lucide-react";
+import { Clock, Pencil, Plus, X } from "lucide-react";
 import Image from "next/image";
 import {
   Dialog,
@@ -27,16 +27,11 @@ import {
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { AutoGenerateSchedule } from "@/models/api/content/auto-generate";
 import { showToast } from "@/helper/show-toast";
+import { isAxiosError } from "axios";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { cn } from "@/lib/utils";
 import { SOCIAL_MEDIA_PLATFORMS } from "@/constants";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface AutoGenerateProps {
   handleIfNoPlatformConnected: () => void;
@@ -110,15 +105,7 @@ export function AutoGenerate({
   }, [schedules, selectedRepeatDays]);
 
   const visibleDays = DAYS.filter((day) => visibleDayValues.includes(day.value));
-  const selectableDays = DAYS.filter(
-    (day) => !visibleDayValues.includes(day.value)
-  );
 
-  const handleSelectRepeatDay = (day: number) => {
-    setSelectedRepeatDays((current) =>
-      current.includes(day) ? current : [...current, day]
-    );
-  };
 
   const handleRemoveRepeatDay = (day: number) => {
     if (getSchedulesByDay(day).length > 0) return;
@@ -129,6 +116,14 @@ export function AutoGenerate({
     setSelectedDay(day);
     setSelectedTime("");
     setSelectedPlatforms([]); // Will be selected in modal
+    setEditingSchedule(null);
+    setIsModalOpen(true);
+  };
+
+  const handleAddRepetition = () => {
+    setSelectedDay(null);
+    setSelectedTime("");
+    setSelectedPlatforms([]);
     setEditingSchedule(null);
     setIsModalOpen(true);
   };
@@ -190,47 +185,37 @@ export function AutoGenerate({
     }
   };
 
-  const handleToggleSchedule = async (scheduleId: string) => {
-    try {
-      console.log("handleToggleSchedule called for scheduleId:", scheduleId);
+  const [togglingScheduleId, setTogglingScheduleId] = useState<string | null>(null);
 
+  const handleToggleSchedule = async (scheduleId: string) => {
+    // One request per switch at a time: a second click would resend the same
+    // stale isActive value.
+    if (togglingScheduleId) return;
+    try {
       // Find the schedule to get its current status by checking all days
       let schedule = null;
       for (let day = 0; day < 7; day++) {
         const daySchedules = getSchedulesByDay(day);
         schedule = daySchedules.find((s) => s.id === scheduleId);
         if (schedule) {
-          console.log(
-            "Found schedule:",
-            schedule.id,
-            "Current isActive:",
-            schedule.isActive,
-            "Day:",
-            day
-          );
           break;
         }
       }
 
       if (!schedule) {
-        console.log("Schedule not found for ID:", scheduleId);
         showToast("error", t("scheduleNotFound"));
         return;
       }
 
       // Check if schedule has no platforms
       if (!schedule.platforms || schedule.platforms.length === 0) {
-        console.log("Schedule has no platforms");
-
         // If no connected platforms, show modal to connect platform
         if (lenConnectedPlatform === 0) {
-          console.log("No connected platforms available");
           handleIfNoPlatformConnected();
           return;
         }
 
         // If there are connected platforms, open edit modal to select platforms
-        console.log("Connected platforms available, opening edit modal");
         showToast("info", t("pleaseSelectPlatform"));
         handleEditSchedule(schedule);
         return;
@@ -238,12 +223,6 @@ export function AutoGenerate({
 
       // Toggle the active status
       const newActiveStatus = !schedule.isActive;
-      console.log(
-        "Toggling schedule from",
-        schedule.isActive,
-        "to",
-        newActiveStatus
-      );
 
       // Create the update payload with all existing data but new isActive status
       const updateData = {
@@ -255,6 +234,8 @@ export function AutoGenerate({
         ratio: schedule.ratio,
         category: schedule.category,
         additionalPrompt: schedule.additionalPrompt || undefined,
+        // Tanpa ini avatar jadwal ikut terhapus setiap kali status di-toggle
+        avatarImageUrl: schedule.avatarImageUrl || undefined,
         productKnowledgeId: schedule.productKnowledgeId,
         isActive: newActiveStatus,
         advBusinessName: schedule.advBusinessName,
@@ -273,25 +254,27 @@ export function AutoGenerate({
         advRoleHashtags: schedule.advRoleHashtags,
       };
 
+      setTogglingScheduleId(scheduleId);
       await updateScheduleMutation.mutateAsync({
         businessId,
         scheduleId,
         formData: updateData,
       });
 
-      console.log(
-        "Schedule updated successfully:",
-        scheduleId,
-        "New status:",
-        newActiveStatus
-      );
       showToast(
         "success",
         newActiveStatus ? t("scheduleActivated") : t("scheduleDeactivated")
       );
     } catch (error) {
-      console.error("Error toggling schedule:", error);
-      showToast("error", t("scheduleToggleFailed"));
+      // Tampilkan alasan dari backend bila ada (mis. platform terputus, model premium)
+      showToast(
+        "error",
+        isAxiosError(error) && error.response?.data?.responseMessage
+          ? error
+          : t("scheduleToggleFailed")
+      );
+    } finally {
+      setTogglingScheduleId(null);
     }
   };
 
@@ -314,7 +297,7 @@ export function AutoGenerate({
   if (isLoading) {
     return (
       <Card className={cn("h-full flex items-center justify-center", cardClassName)}>
-        <CardContent className="py-6 flex items-center justify-center">
+        <CardContent className="py-4 sm:py-6 flex items-center justify-center">
           <LogoLoader />
         </CardContent>
       </Card>
@@ -324,33 +307,19 @@ export function AutoGenerate({
   return (
     <>
       <Card className={cn("h-full", cardClassName)}>
-        <CardContent className="py-6">
+        <CardContent className="py-4 sm:py-6">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between max-sm:flex-wrap max-sm:gap-2">
               <h1 className="text-xl font-bold">{t("autoGenerate")}</h1>
               <div className="flex flex-row gap-2 items-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      disabled={selectableDays.length === 0}
-                      className="bg-blue-600 text-white hover:bg-blue-700"
-                    >
-                      <Plus className="h-4 w-4" />
-                      {t("addRepetitionDay")}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    {selectableDays.map((day) => (
-                      <DropdownMenuItem
-                        key={day.value}
-                        onClick={() => handleSelectRepeatDay(day.value)}
-                      >
-                        {day.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  type="button"
+                  onClick={handleAddRepetition}
+                  className="bg-blue-600 text-white hover:bg-blue-700 max-sm:hidden"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("addRepetitionDay")}
+                </Button>
               </div>
             </div>
 
@@ -360,6 +329,15 @@ export function AutoGenerate({
                   {t("autoGenerateEnabled")}
                 </p>
 
+                {/* Mobile: tombol full-width di bawah deskripsi */}
+                <Button
+                  type="button"
+                  onClick={handleAddRepetition}
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:hidden"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("addRepetitionDay")}
+                </Button>
               </div>
 
               <div className={scheduleListClassName}>
@@ -389,10 +367,9 @@ export function AutoGenerate({
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
+                                size="icon-sm"
                                 onClick={() => handleRemoveRepeatDay(day.value)}
-                                aria-label={`Hapus ${day.label}`}
+                                aria-label={t("removeDayAria", { day: day.label })}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -421,9 +398,8 @@ export function AutoGenerate({
                                         : ""
                                     )}
                                   >
-                                    <button
-                                      type="button"
-                                      className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg bg-card px-3 py-2 text-left transition-colors hover:bg-primary/10"
+                                    <div
+                                      className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-3 rounded-lg bg-card px-3 py-2 text-left transition-colors hover:bg-primary/10 max-md:min-h-11"
                                       onClick={(event) => {
                                         const target = event.target as HTMLElement;
                                         if (
@@ -453,7 +429,7 @@ export function AutoGenerate({
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        <Edit className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" />
                                         <div
                                           data-toggle-schedule="true"
                                           onClick={(event) => event.stopPropagation()}
@@ -464,13 +440,14 @@ export function AutoGenerate({
                                           <Switch
                                             className="z-50"
                                             checked={schedule.isActive}
+                                            disabled={togglingScheduleId === schedule.id}
                                             onCheckedChange={() =>
                                               handleToggleSchedule(schedule.id)
                                             }
                                           />
                                         </div>
                                       </div>
-                                    </button>
+                                    </div>
                                   </div>
                                 );
                               })
@@ -481,7 +458,7 @@ export function AutoGenerate({
                             onClick={() => handleAddScheduleToDay(day.value)}
                             className="w-full"
                           >
-                            <Send className="h-4 w-4" />
+                            <Plus className="h-4 w-4" />
                             {t("addScheduleFull")}
                           </Button>
                         </div>
@@ -523,22 +500,22 @@ export function AutoGenerate({
 
       {/* Image Preview Modal */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>{t("generatedImages")}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+          <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 px-4 py-4 sm:p-6">
             {selectedImages.map((image, index) => (
               <div key={index} className="space-y-2">
                 <Image
                   src={image}
-                  alt={`Generated ${index + 1}`}
+                  alt={t("generatedImageNumber", { number: index + 1 })}
                   width={400}
                   height={400}
                   className="w-full h-auto rounded-lg border"
                 />
                 <p className="text-sm text-muted-foreground text-center">
-                  {t("generatedImage")} {index + 1}
+                  {t("generatedImageNumber", { number: index + 1 })}
                 </p>
               </div>
             ))}

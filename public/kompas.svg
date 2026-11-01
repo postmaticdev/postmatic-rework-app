@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="kompasBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F385A" />
+      <stop offset="100%" stop-color="#001B30" />
+    </linearGradient>
+    <filter id="kShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#kompasBg)" />
+  
+  <g transform="translate(256, 210)" filter="url(#kShadow)">
+    <!-- Compass Star Symbol -->
+    <path d="M 0 -105 L 18 -25 L 98 -25 L 34 22 L 58 100 L 0 52 L -58 100 L -34 22 L -98 -25 L -18 -25 Z" fill="#F47920" />
+    <path d="M 0 -105 L 0 52 L 58 100 L 34 22 L 98 -25 L 18 -25 Z" fill="#FF9A42" />
+    <circle cx="0" cy="8" r="28" fill="#FFFFFF" />
+    <circle cx="0" cy="8" r="14" fill="#002B49" />
+  </g>
+
+  <!-- "KOMPAS" text -->
+  <text x="256" y="380" font-family="'Times New Roman', Times, Georgia, serif" font-size="52" font-weight="900" letter-spacing="6" fill="#FFFFFF" text-anchor="middle">KOMPAS</text>
+  <text x="256" y="415" font-family="'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="6" fill="#F47920" text-anchor="middle">.COM</text>
+</svg>

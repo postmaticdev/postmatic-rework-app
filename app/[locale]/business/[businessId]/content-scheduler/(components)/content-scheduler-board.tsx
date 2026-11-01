@@ -10,6 +10,8 @@ import {
 import { Link, useRouter } from "@/i18n/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScheduleTimeInput } from "@/components/ui/schedule-time-input";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import {
   Dialog,
@@ -30,11 +32,17 @@ import { dateManipulation } from "@/helper/date-manipulation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
 import { showToast } from "@/helper/show-toast";
 import {
+  getCurrentScheduleInput,
+  toBusinessWallDate,
+} from "@/lib/schedule-date-time";
+import {
   SCHEDULER_DRAFT_MARKERS_CHANGED,
   getSchedulerDraftMarkers,
   removeSchedulerDraftMarker,
   type SchedulerDraftMarker,
 } from "@/lib/scheduler-draft-markers";
+import { getPublishJobState, getPublishOutcome } from "@/helper/publish-status";
+import { PostedImageContent } from "@/models/api/content/image.type";
 import { GeneratedImageContent } from "@/models/api/content/scheduler.type";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { JobData } from "@/models/socket-content";
@@ -47,11 +55,11 @@ import {
   useContentSchedulerTimezoneGetTimezone,
 } from "@/services/content/content.api";
 import {
-  useContentOverviewGetCountUpcoming,
   useContentOverviewGetUpcoming,
   useContentPostCommonGetOverview,
 } from "@/services/content/overview";
 import { useProductKnowledgeGetAll } from "@/services/knowledge.api";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   addMonths,
   eachDayOfInterval,
@@ -68,18 +76,23 @@ import {
   subMonths,
 } from "date-fns";
 import {
+  BookOpen,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
-  Edit,
+  Clapperboard,
   Eye,
   FileClock,
   MoreVertical,
+  Pencil,
+  Plus,
+  RefreshCw,
   Repeat2,
   Sparkles,
-  PencilLine,
-  WandSparkles,
+  Trash2,
+  Upload,
   X,
+  ExternalLink,
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
@@ -87,6 +100,86 @@ import { useLocale, useTranslations } from "next-intl";
 import { ContentSchedulerUploadDialog } from "./content-scheduler-upload-dialog";
 import { TimezoneSelector } from "./timezone-selector";
 import { AutoGenerate } from "../../dashboard/(components)/auto-generate";
+import { useContentSchedulerManualEditQueue } from "@/services/content/content.api";
+
+// Next schedulable minute as wall time in the business time zone.
+const getNextRetrySchedule = (businessTimeZone?: string | null) =>
+  dateFormat.getWallDateTimeInTimeZone(
+    new Date(Date.now() + 60 * 1000),
+    businessTimeZone
+  );
+
+function RetryEventForm({
+  event,
+  businessId,
+  businessTimeZone,
+}: {
+  event: SchedulerEvent;
+  businessId: string;
+  businessTimeZone?: string | null;
+}) {
+  const t = useTranslations("contentScheduler");
+  const mEdit = useContentSchedulerManualEditQueue();
+  // date/time are wall time in the business time zone, which is how the
+  // backend parses publishAt.
+  const [initialSchedule] = useState(() => getNextRetrySchedule(businessTimeZone));
+  const [date, setDate] = useState(initialSchedule.date);
+  const [time, setTime] = useState(initialSchedule.time);
+
+  const handleRetry = async () => {
+    if (!event.schedulerManualPostingId) return;
+
+    let schedule = { date, time };
+    const now = dateFormat.getWallDateTimeInTimeZone(new Date(), businessTimeZone);
+    if (`${date}T${time}` <= `${now.date}T${now.time}`) {
+      schedule = getNextRetrySchedule(businessTimeZone);
+    }
+
+    try {
+      await mEdit.mutateAsync({
+        businessId,
+        idScheduler: event.schedulerManualPostingId,
+        formData: {
+          // Never the calendar placeholder: a schedule without an image is
+          // rejected by the backend instead of being posted with it.
+          imageUrl: event.generatedImageContent?.images?.[0] || "",
+          caption: event.generatedImageContent?.caption || "",
+          platforms: event.platforms,
+          // formatPublishAt sends the local wall time of this instant, i.e.
+          // the picked wall time (same as schedule-post.tsx).
+          dateTime: new Date(`${schedule.date}T${schedule.time}`).toISOString(),
+          status: "ready",
+          withChatAI: event.withChatAI,
+        },
+      });
+      showToast("success", t("rescheduleSuccess"));
+    } catch {
+      // The error toast comes from the global mutation onError.
+    }
+  };
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-background p-2">
+      <Input
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        className="flex-1 bg-background-secondary sm:w-auto"
+      />
+      <ScheduleTimeInput
+        date={date}
+        value={time}
+        onValueChange={setTime}
+        timeZone={businessTimeZone}
+        className="flex-1 bg-background-secondary sm:w-auto"
+      />
+      <Button onClick={handleRetry} disabled={mEdit.isPending}>
+        <RefreshCw className="h-4 w-4" />
+        {t("retry")}
+      </Button>
+    </div>
+  );
+}
 
 type SchedulerEvent = {
   id: string;
@@ -105,22 +198,40 @@ type SchedulerEvent = {
   status: string | null;
   draftMarker: SchedulerDraftMarker | null;
   historyJob: JobData | null;
+  postedUrl: string | null;
+  /* latest publishing job per platform (posted events only) */
+  postedContents?: PostedImageContent[];
 };
+
+// Calendar status of a published post, from the latest job of each platform.
+const POSTED_EVENT_STATUS = {
+  published: "posted",
+  partial: "partial",
+  failed: "failed",
+  processing: "processing",
+} as const;
 
 interface ContentSchedulerBoardProps {
   handleIfNoPlatformConnected: () => void;
 }
 
-function formatCurrentTimeInput() {
-  const now = new Date();
-  if (now.getSeconds() > 0 || now.getMilliseconds() > 0) {
-    now.setMinutes(now.getMinutes() + 1);
+// The backend rejects a publishAt in the past; when an edited draft's
+// date/time has already passed, move it to the next schedulable minute
+// (same adjustment used when the draft is created). date/time are wall time
+// in the business time zone.
+function resolveFutureSchedule(
+  date: string,
+  time: string,
+  businessTimeZone?: string | null
+) {
+  const scheduledAt = new Date(`${date}T${time}`);
+  if (
+    Number.isNaN(scheduledAt.getTime()) ||
+    scheduledAt <= toBusinessWallDate(new Date(), businessTimeZone)
+  ) {
+    return getCurrentScheduleInput(new Date(), businessTimeZone);
   }
-  now.setSeconds(0, 0);
-
-  const hour = now.getHours().toString().padStart(2, "0");
-  const minute = now.getMinutes().toString().padStart(2, "0");
-  return `${hour}:${minute}`;
+  return { date, time };
 }
 
 export function ContentSchedulerBoard({
@@ -147,7 +258,6 @@ export function ContentSchedulerBoard({
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [eventToCancel, setEventToCancel] = useState<SchedulerEvent | null>(null);
   const [draftMarkers, setDraftMarkers] = useState<SchedulerDraftMarker[]>([]);
-  const [showCalendarEventDetails, setShowCalendarEventDetails] = useState(false);
   const [showDateActionCard, setShowDateActionCard] = useState(false);
   const [dateActionMenuPosition, setDateActionMenuPosition] = useState<{
     top: number;
@@ -222,10 +332,10 @@ export function ContentSchedulerBoard({
   const rangeStart = dateManipulation.ymd(startOfMonth(currentMonth));
   const rangeEnd = dateManipulation.ymd(endOfMonth(currentMonth));
 
-  useContentOverviewGetCountUpcoming(businessId, {
-    dateStart: rangeStart,
-    dateEnd: rangeEnd,
-  });
+  // No manual polling: upcoming/posted/job queries poll on their own only
+  // while something is being published or generated (and only while the tab
+  // is visible); everything else is refreshed by mutation invalidation.
+  const queryClient = useQueryClient();
   const { data: postOverviewData } = useContentPostCommonGetOverview(businessId);
   const { data: upcomingData } = useContentOverviewGetUpcoming(
     businessId,
@@ -234,20 +344,67 @@ export function ContentSchedulerBoard({
       dateEnd: rangeEnd,
     }
   );
-  const { data: postedData } = useContentPostedGetAllPostedImage(businessId, {
-    dateStart: rangeStart,
-    dateEnd: rangeEnd,
-    limit: 1000,
-  });
+  const { data: postedData } = useContentPostedGetAllPostedImage(
+    businessId,
+    { dateStart: rangeStart, dateEnd: rangeEnd },
+    true
+  );
   const { data: autoGenerateData } = useContentAutoGenerateGetSettings(businessId);
   const { data: timezoneData } = useContentSchedulerTimezoneGetTimezone(businessId);
-  const { data: generationHistoryData } = useContentJobGetAllJob(businessId);
+  // Every date/time on the calendar is wall time in the business time zone,
+  // the zone the backend schedules in and the one shown in the selector.
+  const businessTimeZone = timezoneData?.data.data?.timezone;
+  const { data: generationHistoryData } = useContentJobGetAllJob(businessId, true, true);
   const postOverview = postOverviewData?.data.data;
   const { data: productsData } = useProductKnowledgeGetAll(businessId, {
     limit: 100,
     sortBy: "name",
     sort: "asc",
   });
+
+  // When a READY post whose publish time has passed leaves the READY list the
+  // worker has published (or failed) it: mark every posted list (calendar and
+  // History) and the overview counters stale once. All READY posts are
+  // tracked with their publish time, so a post that became due while the tab
+  // was hidden (or was handled before the next fetch) is still detected.
+  const readyPostsRef = useRef<{ range: string; publishAtById: Map<number, number> }>({
+    range: "",
+    publishAtById: new Map(),
+  });
+  useEffect(() => {
+    const items = upcomingData?.data.data;
+    if (!items) return;
+
+    const range = `${rangeStart}|${rangeEnd}`;
+    const previousReady =
+      readyPostsRef.current.range === range
+        ? readyPostsRef.current.publishAtById
+        : new Map<number, number>();
+    const now = Date.now();
+    const readyItems = items.filter(
+      (item) => item.status?.toLowerCase() === "ready"
+    );
+    const readyIds = new Set(readyItems.map((item) => item.id));
+    // A future post that disappears was cancelled: nothing was published.
+    const hasFinishedPost = Array.from(previousReady).some(
+      ([id, publishAtMs]) => !readyIds.has(id) && publishAtMs <= now
+    );
+    readyPostsRef.current = {
+      range,
+      publishAtById: new Map(
+        readyItems.map((item) => [item.id, new Date(item.date).getTime()])
+      ),
+    };
+
+    if (hasFinishedPost) {
+      queryClient.invalidateQueries({
+        queryKey: ["contentPostedGetAllPostedImage", businessId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["contentPostCommonOverview", businessId],
+      });
+    }
+  }, [businessId, queryClient, rangeEnd, rangeStart, upcomingData?.data.data]);
   const mRemove = useContentSchedulerManualRemove();
   const mReadyToPost = useContentDraftSetReadyToPost();
 
@@ -271,15 +428,16 @@ export function ContentSchedulerBoard({
             ? [markerImage]
             : [];
         const displayImage = realImages[0] || DEFAULT_PLACEHOLDER_IMAGE;
+        const publishAt = toBusinessWallDate(new Date(item.date), businessTimeZone);
 
         return {
           id: `upcoming-${item.id}`,
           title:
             item.status?.toLowerCase() === "draft"
-              ? "Draft"
+              ? t("draftLabel")
               : item.title || t("scheduledPostLabel"),
-          date: new Date(item.date),
-          time: dateFormat.getHhMm(new Date(item.date)),
+          date: publishAt,
+          time: dateFormat.getHhMm(publishAt),
           image: displayImage,
           type:
             item.status?.toLowerCase() === "draft"
@@ -301,12 +459,18 @@ export function ContentSchedulerBoard({
               "",
           },
           sourceType: item.type,
-          status: item.status?.toLowerCase() ?? null,
+          // Failed schedules without publishing jobs come from calendar-view
+          // only; reuse the posted badges (and "Coba Lagi") for them.
+          status:
+            item.status?.toLowerCase() === "partial_published"
+              ? "partial"
+              : item.status?.toLowerCase() ?? null,
           draftMarker: null,
           historyJob: null,
+          postedUrl: null,
         };
       }),
-    [draftMarkers, t, upcomingData?.data.data]
+    [businessTimeZone, draftMarkers, t, upcomingData?.data.data]
   );
 
   const repetitionEvents = useMemo<SchedulerEvent[]>(() => {
@@ -319,6 +483,9 @@ export function ContentSchedulerBoard({
       start: startOfMonth(currentMonth),
       end: endOfMonth(currentMonth),
     });
+    // Repetitions are only projected ahead: a past slot either produced a post
+    // (shown from the posting history) or never ran.
+    const now = toBusinessWallDate(new Date(), businessTimeZone);
 
     return settings.schedules.flatMap((daySchedule) =>
       daySchedule.schedules
@@ -327,11 +494,16 @@ export function ContentSchedulerBoard({
           datesInMonth
             .filter((date) => getDay(date) === schedule.day)
             .map((date) => ({
+              date,
+              runAt: new Date(`${dateManipulation.ymd(date)}T${schedule.time}`),
+            }))
+            .filter(({ runAt }) => runAt > now)
+            .map(({ date, runAt }) => ({
               id: `auto-${schedule.id}-${date.toISOString()}`,
               title:
                 productMap.get(schedule.productKnowledgeId) ||
                 t("contentRepetitionLabel"),
-              date: new Date(`${dateManipulation.ymd(date)}T${schedule.time}`),
+              date: runAt,
               time: schedule.time,
               image: DEFAULT_PLACEHOLDER_IMAGE,
               type: "repetition" as const,
@@ -339,16 +511,17 @@ export function ContentSchedulerBoard({
               schedulerManualPostingId: null,
               withChatAI: false,
               chatSessionId: null,
-              businessProductId: null,
+              businessProductId: Number(schedule.productKnowledgeId),
               generatedImageContent: null,
               sourceType: "repetition" as const,
               status: null,
               draftMarker: null,
               historyJob: null,
+              postedUrl: null,
             }))
         )
     );
-  }, [autoGenerateData?.data.data, currentMonth, productMap, t]);
+  }, [autoGenerateData?.data.data, businessTimeZone, currentMonth, productMap, t]);
 
   const draftEvents = useMemo<SchedulerEvent[]>(
     () =>
@@ -363,7 +536,7 @@ export function ContentSchedulerBoard({
         )
         .map((marker) => ({
           id: `draft-${marker.draftId}`,
-          title: "Draft",
+          title: t("draftLabel"),
           date: new Date(`${marker.date}T00:00:00`),
           time: marker.time || "",
           image: marker.image || DEFAULT_PLACEHOLDER_IMAGE,
@@ -390,8 +563,9 @@ export function ContentSchedulerBoard({
           status: null,
           draftMarker: marker,
           historyJob: null,
+          postedUrl: null,
         })),
-    [draftMarkers, manualEvents]
+    [draftMarkers, manualEvents, t]
   );
 
   const historyDraftEvents = useMemo<SchedulerEvent[]>(() => {
@@ -412,12 +586,13 @@ export function ContentSchedulerBoard({
       })
       .map((job) => {
         const image = job.result?.images?.[0] || DEFAULT_PLACEHOLDER_IMAGE;
+        const createdAt = toBusinessWallDate(new Date(job.createdAt), businessTimeZone);
 
         return {
           id: `history-draft-${job.id}`,
-          title: job.product?.name || "Draft",
-          date: new Date(job.createdAt),
-          time: dateFormat.getHhMm(new Date(job.createdAt)),
+          title: job.product?.name || t("draftLabel"),
+          date: createdAt,
+          time: dateFormat.getHhMm(createdAt),
           image,
           type: "draft" as const,
           platforms: [],
@@ -431,25 +606,52 @@ export function ContentSchedulerBoard({
           draftMarker: {
             draftId: `history-${job.id}`,
             jobId: job.id,
-            date: dateManipulation.ymd(new Date(job.createdAt)),
+            date: dateManipulation.ymd(createdAt),
             image,
             caption: job.result?.caption || "",
             createdAt: job.createdAt,
           },
           historyJob: job,
+          postedUrl: null,
         };
       });
-  }, [draftMarkers, generationHistoryData?.data.data, manualEvents]);
+  }, [
+    businessTimeZone,
+    draftMarkers,
+    generationHistoryData?.data.data,
+    manualEvents,
+    t,
+  ]);
 
   const postedEvents = useMemo<SchedulerEvent[]>(
     () =>
       (postedData?.data.data || []).map((item) => {
         const image = item.images[0] || DEFAULT_PLACEHOLDER_IMAGE;
-        const postedAt = new Date(item.createdAt || item.updatedAt);
+        const postedAt = toBusinessWallDate(
+          new Date(item.createdAt || item.updatedAt),
+          businessTimeZone
+        );
+        const postedContents = item.postedImageContents || [];
+        const outcome = getPublishOutcome(postedContents) ?? "published";
+        const postedUrl =
+          postedContents.find(
+            (post) =>
+              getPublishJobState(post.jobStatus, post.updatedAt) === "success" && post.url
+          )?.url || null;
+
+        // Untitled posts are named after their real outcome, not "posted".
+        const fallbackTitle =
+          outcome === "failed"
+            ? t("failedToPost")
+            : outcome === "partial"
+              ? t("publishStatusPartial")
+              : outcome === "processing"
+                ? t("publishStatusProcessing")
+                : t("postedThisMonth");
 
         return {
           id: `posted-${item.id}`,
-          title: item.caption || t("postedThisMonth"),
+          title: item.caption || fallbackTitle,
           date: postedAt,
           time: dateFormat.getHhMm(postedAt),
           image,
@@ -477,31 +679,59 @@ export function ContentSchedulerBoard({
             updatedAt: item.updatedAt,
           },
           sourceType: "posted" as const,
-          status: "posted",
+          status: POSTED_EVENT_STATUS[outcome],
           draftMarker: null,
           historyJob: null,
+          postedUrl,
+          postedContents,
         };
       }),
-    [postedData?.data.data, t]
+    [businessTimeZone, postedData?.data.data, t]
   );
 
   const mergedEvents = useMemo(
     () => {
-      const postedScheduleIds = new Set(
-        postedEvents
-          .map((event) => event.schedulerManualPostingId)
-          .filter((id): id is number => id !== null)
+      // A failed/partial post that was rescheduled (READY again) is shown as
+      // the upcoming retry instead of the old failed result.
+      const rescheduledIds = new Set(
+        manualEvents
+          .filter((event) => event.status === "ready")
+          .map((event) => event.generatedImageContent?.id)
+          .filter((id) => Boolean(id))
+      );
+      const visiblePostedEvents = postedEvents.filter(
+        (event) =>
+          event.status === "posted" ||
+          event.status === "processing" ||
+          !rescheduledIds.has(event.generatedImageContent?.id)
+      );
+      const postedGeneratedImageIds = new Set(
+        visiblePostedEvents
+          .map((event) => event.generatedImageContent?.id)
+          .filter((id) => Boolean(id))
       );
       const visibleManualEvents = manualEvents.filter(
         (event) =>
-          !event.schedulerManualPostingId ||
-          !postedScheduleIds.has(event.schedulerManualPostingId)
+          !event.generatedImageContent?.id ||
+          !postedGeneratedImageIds.has(event.generatedImageContent.id)
+      );
+
+      const postedEventsByDateAndProduct = new Set(
+        postedEvents
+          .filter(e => e.businessProductId)
+          .map(e => `${dateManipulation.ymd(e.date)}|${e.businessProductId}`)
+      );
+      
+      const visibleRepetitionEvents = repetitionEvents.filter(
+        (event) =>
+          !event.businessProductId ||
+          !postedEventsByDateAndProduct.has(`${dateManipulation.ymd(event.date)}|${event.businessProductId}`)
       );
 
       return [
         ...visibleManualEvents,
-        ...postedEvents,
-        ...repetitionEvents,
+        ...visiblePostedEvents,
+        ...visibleRepetitionEvents,
         ...draftEvents,
         ...historyDraftEvents,
       ].sort(
@@ -515,6 +745,17 @@ export function ContentSchedulerBoard({
     () => mergedEvents.filter((item) => isSameDay(item.date, selectedDate)),
     [mergedEvents, selectedDate]
   );
+
+  // Group once per data change instead of filtering all events for each of
+  // the 42 calendar cells on every render.
+  const eventsByDay = useMemo(() => {
+    const grouped = new Map<string, SchedulerEvent[]>();
+    mergedEvents.forEach((event) => {
+      const key = dateManipulation.ymd(event.date);
+      grouped.set(key, [...(grouped.get(key) || []), event]);
+    });
+    return grouped;
+  }, [mergedEvents]);
 
   const calendarDays = useMemo(
     () =>
@@ -557,7 +798,7 @@ export function ContentSchedulerBoard({
       year: "numeric",
     }).format(date);
 
-  const today = startOfDay(new Date());
+  const today = startOfDay(toBusinessWallDate(new Date(), businessTimeZone));
   const isPastDate = (date: Date) => isBefore(startOfDay(date), today);
   const canCreateNewOnSelectedDate = !isPastDate(selectedDate);
 
@@ -635,12 +876,16 @@ export function ContentSchedulerBoard({
     }
 
     if (event.sourceType === "draft" && event.draftMarker) {
-      const scheduleDate = eventIsPast
-        ? dateManipulation.ymd(today)
-        : event.draftMarker.date;
+      const { date: scheduleDate, time: scheduleTime } = resolveFutureSchedule(
+        eventIsPast ? dateManipulation.ymd(today) : event.draftMarker.date,
+        event.draftMarker.time ||
+          event.time ||
+          getCurrentScheduleInput(new Date(), businessTimeZone).time,
+        businessTimeZone
+      );
       const params = new URLSearchParams({
         scheduleDate,
-        scheduleTime: event.draftMarker.time || event.time || formatCurrentTimeInput(),
+        scheduleTime,
         editSchedulerManualPostingId: event.draftMarker.draftId,
         selectedHistoryId: event.draftMarker.jobId,
         selectedHistoryImage: event.draftMarker.image,
@@ -676,12 +921,14 @@ export function ContentSchedulerBoard({
       return;
     }
 
-    const scheduleDate = eventIsPast
-      ? dateManipulation.ymd(today)
-      : dateManipulation.ymd(event.date);
+    const { date: scheduleDate, time: scheduleTime } = resolveFutureSchedule(
+      eventIsPast ? dateManipulation.ymd(today) : dateManipulation.ymd(event.date),
+      event.time,
+      businessTimeZone
+    );
     const params = new URLSearchParams({
       scheduleDate,
-      scheduleTime: event.time,
+      scheduleTime,
       editSchedulerManualPostingId: String(event.schedulerManualPostingId),
       selectedHistoryImage: event.generatedImageContent.images[0] || event.image || "",
       platforms: event.platforms.join(","),
@@ -745,6 +992,13 @@ export function ContentSchedulerBoard({
           businessId,
           idScheduler: eventToCancel.schedulerManualPostingId,
         });
+        // A backend draft may also have a local draft marker; drop it so the
+        // deleted draft doesn't reappear from localStorage.
+        removeSchedulerDraftMarker(
+          businessId,
+          String(eventToCancel.schedulerManualPostingId)
+        );
+        setDraftMarkers(getSchedulerDraftMarkers(businessId));
         showToast("success", res.data.responseMessage);
       } else {
         const res = await mReadyToPost.mutateAsync({
@@ -795,9 +1049,10 @@ export function ContentSchedulerBoard({
       12,
       containerRect.width - 12
     );
+    // Menu height: 3 actions × ~52px + padding, so it never overflows the bottom.
     const menuTop = Math.min(
       triggerRect.top - containerRect.top + 8,
-      containerRect.height - 116
+      containerRect.height - 172
     );
 
     setDateActionMenuPosition({
@@ -810,15 +1065,18 @@ export function ContentSchedulerBoard({
 
   return (
     <>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Card>
-          <CardContent className="p-3 sm:p-6">
+      {/* Mobile: urutan Overview → Kalender → Pengulangan Konten (via order);
+          lg ke atas kembali ke layout 2 kolom */}
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Card className="order-2 lg:order-none">
+          <CardContent className="p-4 sm:p-6">
             <div className="mb-4 sm:mb-6">
               <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
                 <Button
                   variant="outline"
                   size="icon"
                   className="shrink-0 justify-self-start"
+                  aria-label={t("previousMonth")}
                   onClick={() => {
                     setCurrentMonth((current) => subMonths(current, 1));
                     setShowDateActionCard(false);
@@ -840,7 +1098,7 @@ export function ContentSchedulerBoard({
                     className={buttonVariants({
                       variant: "outline",
                       className:
-                        "pointer-events-none h-10 w-auto min-w-[160px] px-4 text-center text-lg font-bold capitalize peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 sm:min-w-[220px] sm:text-xl",
+                        "pointer-events-none w-auto min-w-[160px] text-center text-lg font-bold capitalize peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 sm:min-w-[220px] sm:text-xl",
                     })}
                   >
                     {monthLabel}
@@ -850,6 +1108,7 @@ export function ContentSchedulerBoard({
                   variant="outline"
                   size="icon"
                   className="shrink-0 justify-self-end"
+                  aria-label={t("nextMonth")}
                   onClick={() => {
                     setCurrentMonth((current) => addMonths(current, 1));
                     setShowDateActionCard(false);
@@ -857,20 +1116,6 @@ export function ContentSchedulerBoard({
                   }}
                 >
                   <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="mt-2 sm:mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full sm:hidden"
-                  onClick={() =>
-                    setShowCalendarEventDetails((current) => !current)
-                  }
-                >
-                  {showCalendarEventDetails
-                    ? t("hideCalendarEvents")
-                    : t("showCalendarEvents")}
                 </Button>
               </div>
             </div>
@@ -884,7 +1129,7 @@ export function ContentSchedulerBoard({
                   {weekdayLabels.map((label) => (
                     <div
                       key={label}
-                      className="min-w-0 px-0.5 py-2 text-center text-[10px] font-medium uppercase text-muted-foreground sm:p-2 sm:text-sm sm:tracking-[0.24em]"
+                      className="min-w-0 truncate px-0.5 py-2 text-center text-[11px] font-medium uppercase text-muted-foreground sm:p-2 sm:text-sm sm:tracking-[0.24em]"
                     >
                       {label}
                     </div>
@@ -893,9 +1138,8 @@ export function ContentSchedulerBoard({
 
                 <div className="grid grid-cols-7">
                   {calendarDays.map((day) => {
-                    const dayEvents = mergedEvents.filter((item) =>
-                      isSameDay(item.date, day)
-                    );
+                    const dayEvents =
+                      eventsByDay.get(dateManipulation.ymd(day)) || [];
                     const isCurrentMonth = isSameMonth(day, currentMonth);
                     const isSelected = isSameDay(day, selectedDate);
                     const isToday = isSameDay(day, today);
@@ -907,10 +1151,7 @@ export function ContentSchedulerBoard({
                         key={day.toISOString()}
                         type="button"
                         onClick={(event) => openDateAction(day, event)}
-                        className={`flex min-w-0 flex-col justify-start border-b border-r px-1 py-1.5 text-right align-top transition-colors sm:min-h-[116px] sm:px-2 sm:py-2 xl:min-h-[85px] ${showCalendarEventDetails
-                          ? "min-h-[104px]"
-                          : "min-h-[76px]"
-                          } ${isToday
+                        className={`flex min-w-0 flex-col justify-start border-b border-r px-1 py-1.5 text-right align-top transition-colors min-h-[104px] sm:min-h-[116px] sm:px-2 sm:py-2 xl:min-h-[85px] ${isToday
                             ? "bg-blue-50 dark:bg-blue-950/60"
                             : isCurrentMonth
                               ? "bg-card"
@@ -931,27 +1172,22 @@ export function ContentSchedulerBoard({
                           {visibleEvents.map((event) => (
                             <div
                               key={event.id}
-                              className={`min-w-0 overflow-hidden ${showCalendarEventDetails
-                                ? "rounded-md"
-                                : "rounded-full sm:rounded-lg"
-                                } ${event.type === "manual"
+                              className={`min-w-0 overflow-hidden rounded-md sm:rounded-lg ${event.status === "posted"
+                                  ? "bg-blue-100 text-blue-600"
+                                  : event.status === "failed"
+                                  ? "bg-red-100 text-red-700"
+                                  : event.status === "partial"
+                                  ? "bg-orange-100 text-orange-700"
+                                  : event.status === "processing"
+                                  ? "bg-slate-100 text-slate-600"
+                                  : event.type === "manual"
                                   ? "bg-rose-100 text-rose-600"
                                   : event.type === "draft"
                                     ? "bg-amber-100 text-amber-700"
                                     : "bg-violet-100 text-violet-600"
                                 }`}
                             >
-                              <div
-                                className={
-                                  showCalendarEventDetails
-                                    ? "hidden"
-                                    : "h-1.5 sm:hidden"
-                                }
-                              />
-                              <div
-                                className={`px-1 py-0.5 text-[9px] leading-tight sm:px-2 sm:py-1 sm:text-xs ${showCalendarEventDetails ? "block" : "hidden sm:block"
-                                  }`}
-                              >
+                              <div className="px-1 py-0.5 text-[11px] leading-tight sm:px-2 sm:py-1 sm:text-xs">
                                 <div className="truncate font-medium">
                                   {event.title}
                                 </div>
@@ -961,11 +1197,10 @@ export function ContentSchedulerBoard({
                           ))}
                           {hiddenEventCount > 0 && (
                             <div
-                              className={`min-w-0 overflow-hidden rounded-full bg-background-secondary text-muted-foreground sm:rounded-lg ${showCalendarEventDetails ? "rounded-md" : ""
-                                }`}
+                              className="min-w-0 overflow-hidden rounded-md bg-background-secondary text-muted-foreground sm:rounded-lg"
                             >
-                              <div className="px-1 py-0.5 text-center text-[9px] font-semibold leading-tight sm:px-2 sm:py-1 sm:text-xs">
-                                + {hiddenEventCount} {t("more")}
+                              <div className="truncate px-0.5 py-0.5 text-center text-[11px] font-semibold leading-tight sm:px-2 sm:py-1 sm:text-xs">
+                                {t("moreCount", { count: hiddenEventCount })}
                               </div>
                             </div>
                           )}
@@ -996,7 +1231,7 @@ export function ContentSchedulerBoard({
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-background-secondary"
                     >
                       <span className="flex size-8 items-center justify-center rounded-xl bg-background-secondary text-foreground">
-                        <PencilLine className="size-4" />
+                        <Upload className="size-4" />
                       </span>
                       {t("uploadFile")}
                     </button>
@@ -1013,9 +1248,26 @@ export function ContentSchedulerBoard({
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-background-secondary"
                     >
                       <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <WandSparkles className="size-4" />
+                        <Sparkles className="size-4" />
                       </span>
                       {t("buildWithAi")}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDateActionCard(false);
+                        setDateActionMenuPosition(null);
+                        router.push(
+                          `/business/${businessId}/video-generator?scheduleDate=${chosenDate}`
+                        );
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-background-secondary"
+                    >
+                      <span className="flex size-8 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                        <Clapperboard className="size-4" />
+                      </span>
+                      {t("videoGenerator")}
                     </button>
                   </div>
                 )}
@@ -1024,49 +1276,49 @@ export function ContentSchedulerBoard({
           </CardContent>
         </Card>
 
-        <div className="flex h-full flex-col gap-6">
-          <Card>
-            <CardContent className="space-y-5 p-4 sm:p-6">
-              <div className="text-2xl font-bold">{t("overview")}</div>
+        <div className="contents lg:flex h-full flex-col gap-6">
+          <Card className="order-1 lg:order-none">
+            <CardContent className="space-y-4 p-4 sm:space-y-5 sm:p-6">
+              <div className="text-xl font-bold sm:text-2xl">{t("overview")}</div>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
-                  <div className="rounded-md bg-rose-100 p-2 text-rose-500">
-                    <CalendarClock className="h-5 w-5" />
+                <div className="flex min-w-0 flex-row items-center gap-2 rounded-xl border border-border px-2 py-3 sm:gap-3 sm:px-4 sm:py-2">
+                  <div className="shrink-0 rounded-md bg-rose-100 p-1.5 text-rose-500 sm:p-2">
+                    <CalendarClock className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">
-                      {t("totalScheduled")}
+                  <div className="flex min-w-0 flex-col-reverse sm:flex-col">
+                    <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
+                      {t("overviewQueued")}
                     </div>
-                    <div className="sm:-mt-1 font-semibold">
+                    <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalFutureReadySchedules ?? 0}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
-                  <div className="rounded-md bg-amber-100 p-2 text-amber-500">
-                    <Repeat2 className="h-5 w-5" />
+                <div className="flex min-w-0 flex-row items-center gap-2 rounded-xl border border-border px-2 py-3 sm:gap-3 sm:px-4 sm:py-2">
+                  <div className="shrink-0 rounded-md bg-amber-100 p-1.5 text-amber-500 sm:p-2">
+                    <Repeat2 className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">
-                      {t("contentRepetitionShort")}
+                  <div className="flex min-w-0 flex-col-reverse sm:flex-col">
+                    <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
+                      {t("overviewRepetition")}
                     </div>
-                    <div className="sm:-mt-1 font-semibold">
+                    <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalActiveRepetitions ?? 0}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 sm:gap-3 rounded-xl border border-border px-2 sm:px-4 py-2">
-                  <div className="rounded-md bg-blue-100 p-2 text-blue-500">
-                    <FileClock className="h-5 w-5" />
+                <div className="flex min-w-0 flex-row items-center gap-2 rounded-xl border border-border px-2 py-3 sm:gap-3 sm:px-4 sm:py-2">
+                  <div className="shrink-0 rounded-md bg-blue-100 p-1.5 text-blue-500 sm:p-2">
+                    <FileClock className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">
-                      {t("postedThisMonth")}
+                  <div className="flex min-w-0 flex-col-reverse sm:flex-col">
+                    <div className="text-[11px] leading-tight text-muted-foreground sm:text-xs sm:leading-(--text-xs--line-height)">
+                      {t("overviewPosted")}
                     </div>
-                    <div className="sm:-mt-1 font-semibold">
+                    <div className="text-lg leading-tight font-semibold sm:-mt-1 sm:text-base sm:leading-normal">
                       {postOverview?.totalSuccessfulPosted ?? 0}
                     </div>
                   </div>
@@ -1078,28 +1330,30 @@ export function ContentSchedulerBoard({
 
 
 
-              <Link href={`/business/${businessId}/knowledge-base`}>
+              <Link href={`/business/${businessId}/knowledge-base`} className="block">
                 <Button className="w-full">
-                  <Sparkles className="h-4 w-4" />
+                  <BookOpen className="h-4 w-4" />
                   {t("goToBusinessKnowledge")}
                 </Button>
               </Link>
             </CardContent>
           </Card>
 
-          <AutoGenerate
-            handleIfNoPlatformConnected={handleIfNoPlatformConnected}
-            cardClassName="flex-1 xl:max-h-[calc(100vh-8.5rem)] xl:overflow-hidden"
-            scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(80vh-19rem)] xl:overflow-y-auto xl:pr-1"
-          />
+          <div className="order-3 lg:contents">
+            <AutoGenerate
+              handleIfNoPlatformConnected={handleIfNoPlatformConnected}
+              cardClassName="flex-1 xl:max-h-[calc(100vh-8.5rem)] xl:overflow-hidden"
+              scheduleListClassName="flex flex-col gap-4 xl:max-h-[calc(80vh-19rem)] xl:overflow-y-auto scrollbar-hidden xl:pr-1"
+            />
+          </div>
         </div>
       </div>
 
       <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
-        <DialogContent className="w-full">
-          <DialogHeader className="">
-            <div className="flex items-start justify-between gap-4 pr-8">
-              <div>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-start justify-between gap-4 pr-8 max-sm:flex-col max-sm:items-stretch max-sm:gap-3 max-sm:pr-0">
+              <div className="max-sm:pr-8">
                 <DialogTitle>{formatDateTitle(selectedDate)}</DialogTitle>
                 <DialogDescription>
                   {t("scheduledDateHistoryDescription")}
@@ -1108,9 +1362,12 @@ export function ContentSchedulerBoard({
               {canCreateNewOnSelectedDate && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button type="button">{t("createNew")}</Button>
+                    <Button type="button" className="gap-1.5 max-sm:w-full">
+                      <Plus className="h-4 w-4" />
+                      {t("createNew")}
+                    </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-48 max-sm:w-(--radix-dropdown-menu-trigger-width)">
                     <DropdownMenuItem
                       onClick={() => {
                         setIsHistoryDialogOpen(false);
@@ -1118,7 +1375,7 @@ export function ContentSchedulerBoard({
                         setIsUploadDialogOpen(true);
                       }}
                     >
-                      <PencilLine className="h-4 w-4" />
+                      <Upload className="h-4 w-4" />
                       {t("uploadFile")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -1129,8 +1386,19 @@ export function ContentSchedulerBoard({
                         );
                       }}
                     >
-                      <WandSparkles className="h-4 w-4" />
+                      <Sparkles className="h-4 w-4" />
                       {t("buildWithAi")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsHistoryDialogOpen(false);
+                        router.push(
+                          `/business/${businessId}/video-generator?scheduleDate=${chosenDate}`
+                        );
+                      }}
+                    >
+                      <Clapperboard className="h-4 w-4" />
+                      {t("videoGenerator")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1138,13 +1406,13 @@ export function ContentSchedulerBoard({
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6">
             <div className="space-y-3">
               {selectedDateEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-center gap-3 rounded-2xl bg-background-secondary p-3"
-                >
+                <div key={event.id} className="flex flex-col gap-2">
+                  <div
+                    className="flex items-center gap-3 rounded-2xl bg-background-secondary p-3"
+                  >
                   <Image
                     src={event.image}
                     alt={event.title}
@@ -1159,69 +1427,128 @@ export function ContentSchedulerBoard({
                         {event.title}
                       </div>
                       <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${event.type === "manual"
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${event.status === "posted"
+                          ? "bg-blue-500 text-white"
+                          : event.status === "failed"
+                          ? "bg-red-600 text-white"
+                          : event.status === "partial"
+                          ? "bg-orange-500 text-white"
+                          : event.status === "processing"
+                          ? "bg-slate-500 text-white"
+                          : event.type === "manual"
                           ? "bg-rose-500 text-white"
                           : event.type === "draft"
                             ? "bg-amber-500 text-white"
                             : "bg-violet-600 text-white"
                           }`}
                       >
-                        {event.type === "manual"
+                        {event.status === "posted"
+                          ? t("postedBadge")
+                          : event.status === "failed"
+                          ? t("publishStatusFailed")
+                          : event.status === "partial"
+                          ? t("publishStatusPartial")
+                          : event.status === "processing"
+                          ? t("publishStatusProcessing")
+                          : event.type === "manual"
                           ? t("scheduledBadge")
                           : event.type === "draft"
-                            ? "Draft"
+                            ? t("draftLabel")
                             : t("repetitionBadge")}
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {formatFullDate(event.date)} - {event.time}{" "}
-                      {timezoneData?.data.data.offset || ""}
+                      {timezoneData?.data.data?.offset || ""}
                     </div>
                   </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                  {event.sourceType === "posted" ? (
+                    event.postedUrl ? (
+                      <Button variant="outline" size="sm" asChild className="shrink-0">
+                        <a href={event.postedUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                          {t("viewPost")}
+                        </a>
+                      </Button>
+                    ) : (
+                      // No public URL (failed / still processing): show the details instead.
                       <Button
                         type="button"
                         variant="ghost"
-                        size="icon"
+                        size="icon-sm"
                         className="shrink-0"
+                        onClick={() => handleViewEvent(event)}
                       >
-                        <MoreVertical className="h-4 w-4" />
-                        <span className="sr-only">{t("scheduledHistoryActions")}</span>
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">{t("viewPost")}</span>
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                      {event.type !== "draft" && (
-                        <DropdownMenuItem onClick={() => handleViewEvent(event)}>
-                          <Eye className="h-4 w-4" />
-                          {t("viewPost")}
+                    )
+                  ) : event.type === "manual" || event.type === "draft" ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                    {event.type === "draft" && isEventEditable(event) && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => handleEditEvent(event)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="max-sm:sr-only">{t("continueEditing")}</span>
+                      </Button>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">{t("scheduledHistoryActions")}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        {event.type !== "draft" && (
+                          <DropdownMenuItem onClick={() => handleViewEvent(event)}>
+                            <Eye className="h-4 w-4" />
+                            {t("viewPost")}
+                          </DropdownMenuItem>
+                        )}
+                        {/* posted events are handled by the branch above */}
+                        <DropdownMenuItem
+                          disabled={!isEventEditable(event)}
+                          onClick={() => handleEditEvent(event)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          {t("editPost")}
                         </DropdownMenuItem>
-                      )}
-                      {event.sourceType !== "posted" && (
-                        <>
-                          <DropdownMenuItem
-                            disabled={!isEventEditable(event)}
-                            onClick={() => handleEditEvent(event)}
-                          >
-                            <Edit className="h-4 w-4" />
-                            {t("editPost")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={!canCancelEvent(event)}
-                            onClick={() => handleAskCancelEvent(event)}
-                            className="text-red-600 focus:text-red-600"
-                          >
-                            <X className="h-4 w-4" />
-                            {event.type === "draft"
-                              ? t("deleteDraft")
-                              : t("cancelQueue")}
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        <DropdownMenuItem
+                          disabled={!canCancelEvent(event)}
+                          onClick={() => handleAskCancelEvent(event)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {event.type === "draft"
+                            ? t("deleteDraft")
+                            : t("cancelQueue")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    </div>
+                  ) : null}
                 </div>
+                {(event.status === "failed" ||
+                  event.status === "error" ||
+                  event.status === "partial") && (
+                  <RetryEventForm
+                    event={event}
+                    businessId={businessId}
+                    businessTimeZone={businessTimeZone}
+                  />
+                )}
+              </div>
               ))}
             </div>
           </div>
@@ -1229,14 +1556,25 @@ export function ContentSchedulerBoard({
       </Dialog>
 
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>{t("viewPost")}</DialogTitle>
             <DialogDescription>{viewEvent && formatFullDate(viewEvent.date)}</DialogDescription>
           </DialogHeader>
 
           {viewEvent && (
-            <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
+            <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:space-y-5 sm:p-6">
+              {viewEvent.postedUrl && (
+                <a
+                  href={viewEvent.postedUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary/10 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {t("viewOnPlatform")}
+                </a>
+              )}
               <Image
                 src={viewEvent.image}
                 alt={viewEvent.title}
@@ -1263,15 +1601,62 @@ export function ContentSchedulerBoard({
                 <div>
                   <div className="text-sm font-medium">{t("choosePlatforms")}</div>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {viewEvent.platforms.map((platform) => (
-                      <span
-                        key={platform}
-                        className="inline-flex items-center gap-1 rounded-full bg-background-secondary px-2.5 py-1 text-xs font-medium"
-                      >
-                        {mapEnumPlatform.getPlatformIcon(platform, "h-3 w-3")}
-                        {mapEnumPlatform.getPlatformLabel(platform)}
-                      </span>
-                    ))}
+                    {viewEvent.postedContents?.length
+                      ? viewEvent.postedContents.map((post) => {
+                          const state = getPublishJobState(post.jobStatus, post.updatedAt);
+                          const chip = (
+                            <>
+                              {mapEnumPlatform.getPlatformIcon(post.platform, "h-3 w-3")}
+                              {mapEnumPlatform.getPlatformLabel(post.platform)}
+                              <span className="opacity-80">
+                                ·{" "}
+                                {state === "success"
+                                  ? t("postedBadge")
+                                  : state === "failed"
+                                    ? t("publishStatusFailed")
+                                    : t("publishStatusProcessing")}
+                              </span>
+                              {state === "success" && post.url && (
+                                <ExternalLink className="h-3 w-3" />
+                              )}
+                            </>
+                          );
+                          const chipClassName = `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${state === "success"
+                            ? "bg-blue-100 text-blue-700"
+                            : state === "failed"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-background-secondary text-muted-foreground"
+                            }`;
+
+                          return state === "success" && post.url ? (
+                            <a
+                              key={post.id}
+                              href={post.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`${chipClassName} hover:underline`}
+                            >
+                              {chip}
+                            </a>
+                          ) : (
+                            <span
+                              key={post.id}
+                              className={chipClassName}
+                              title={post.errorMessage || undefined}
+                            >
+                              {chip}
+                            </span>
+                          );
+                        })
+                      : viewEvent.platforms.map((platform) => (
+                          <span
+                            key={platform}
+                            className="inline-flex items-center gap-1 rounded-full bg-background-secondary px-2.5 py-1 text-xs font-medium"
+                          >
+                            {mapEnumPlatform.getPlatformIcon(platform, "h-3 w-3")}
+                            {mapEnumPlatform.getPlatformLabel(platform)}
+                          </span>
+                        ))}
                   </div>
                 </div>
               </div>

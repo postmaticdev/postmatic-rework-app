@@ -2,12 +2,13 @@
 
 import { Dispatch, SetStateAction, useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
-import { Image as ImageIcon, Info, Loader2, X } from "lucide-react";
+import { ImagePlus, Info, Loader2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { showToast } from "@/helper/show-toast";
-import { helperService } from "@/services/helper.api";
+import { helperService, validateUploadImageFile } from "@/services/helper.api";
+import { useTranslations } from "next-intl";
 
 interface UploadPhotoProps {
   label: string;
@@ -20,27 +21,39 @@ interface UploadPhotoProps {
     | ((urls: string[]) => void);
   currentImages?: string[];
   multiple?: boolean;
+  /** Multiple mode only: rejects a selection that would exceed this count. */
+  maxImages?: number;
   error?: string;
   onFocus?: () => void;
   emptyText?: string;
   uploadingText?: string;
+  /** Notified with true when an upload starts and false when it finishes. */
+  onUploadingChange?: (uploading: boolean) => void;
 }
+
+const EMPTY_ARRAY: string[] = [];
 
 export function UploadPhoto({
   label,
   onImageChange,
   currentImage,
   onImagesChange,
-  currentImages = [],
+  currentImages = EMPTY_ARRAY,
   multiple = false,
+  maxImages,
   error,
   onFocus,
-  emptyText = "Upload Photo",
-  uploadingText = "Uploading...",
+  emptyText: emptyTextProp,
+  uploadingText: uploadingTextProp,
+  onUploadingChange,
 }: UploadPhotoProps) {
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [previews, setPreviews] = useState<string[]>(currentImages);
   const [isUploading, setIsUploading] = useState(false);
+  const t = useTranslations();
+  const tUpload = useTranslations("uploadPhoto");
+  const emptyText = emptyTextProp ?? tUpload("empty");
+  const uploadingText = uploadingTextProp ?? tUpload("uploading");
 
   useEffect(() => {
     setPreview(currentImage || null);
@@ -55,11 +68,25 @@ export function UploadPhoto({
   const inputId = `upload-${autoId}`;
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    let didStartUpload = false;
     try {
       const files = Array.from(event.target.files || []);
 
       if (files.length > 0) {
+        const invalidReason = files
+          .map((file) => validateUploadImageFile(file))
+          .find(Boolean);
+        if (invalidReason) {
+          showToast("error", t(`toast.content.${invalidReason}`));
+          return;
+        }
+        if (multiple && maxImages && previews.length + files.length > maxImages) {
+          showToast("error", t("toast.content.maxImagesExceeded", { max: maxImages }));
+          return;
+        }
         setIsUploading(true);
+        didStartUpload = true;
+        onUploadingChange?.(true);
         const uploadedImages = await Promise.all(
           files.map((file) => helperService.uploadSingleImage({ image: file }))
         );
@@ -88,6 +115,7 @@ export function UploadPhoto({
       showToast("error", error);
     } finally {
       setIsUploading(false);
+      if (didStartUpload) onUploadingChange?.(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
@@ -130,7 +158,7 @@ export function UploadPhoto({
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <ImageIcon className="h-8 w-8" />
+                <ImagePlus className="h-8 w-8" />
                 <span className="text-center text-sm">{emptyText}</span>
               </div>
             )}
@@ -140,7 +168,7 @@ export function UploadPhoto({
             <div key={`${imageUrl}-${index}`} className="relative">
               <Image
                 src={imageUrl}
-                alt={`Preview ${index + 1}`}
+                alt={tUpload("previewAltIndexed", { index: index + 1 })}
                 width={400}
                 height={400}
                 className="h-32 w-32 rounded-lg object-cover sm:h-40 sm:w-40"
@@ -150,8 +178,9 @@ export function UploadPhoto({
                 type="button"
                 variant="secondary"
                 size="icon"
-                className="absolute -right-2 -top-2 h-7 w-7 rounded-full"
+                className="absolute -right-2 -top-2 size-7 rounded-full max-sm:after:absolute max-sm:after:-inset-2 max-sm:after:content-['']"
                 onClick={() => handleRemoveImage(index)}
+                aria-label={tUpload("removeImage", { index: index + 1 })}
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -210,7 +239,7 @@ export function UploadPhoto({
         ) : preview ? (
           <Image
             src={preview}
-            alt="Preview"
+            alt={tUpload("previewAlt")}
             width={400}
             height={400}
             className="h-full w-full rounded-lg object-cover"
@@ -218,7 +247,7 @@ export function UploadPhoto({
           />
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <ImageIcon className="h-8 w-8" />
+            <ImagePlus className="h-8 w-8" />
             <span className="text-sm">{emptyText}</span>
           </div>
         )}

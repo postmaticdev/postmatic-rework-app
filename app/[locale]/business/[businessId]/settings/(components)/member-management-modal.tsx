@@ -22,7 +22,7 @@ import {
   DialogDescription,
   DialogFooterWithButton,
 } from "@/components/ui/dialog";
-import { ChevronDown, Mail, Shield, Trash2 } from "lucide-react";
+import { ChevronDown, Mail, Shield, Trash2, UserPlus } from "lucide-react";
 import {
   useMemberDelete,
   useMemberGetAllMembers,
@@ -33,12 +33,17 @@ import {
 import { useParams } from "next/navigation";
 import { showToast } from "@/helper/show-toast";
 import { MemberRole, MembersInvitePld } from "@/models/api/member/index.type";
+import { ROLE_PERMISSION_MATRIX } from "@/contexts/role-context";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { JOINED_STATUS } from "./members-table";
 import { useTranslations } from "next-intl";
 import {
+  getMemberActionErrorMessage,
+  getMemberInitial,
   getMemberRoleLabel,
   getMemberStatusLabel,
+  isMemberForbiddenError,
   ROLE_OPTIONS,
 } from "./member-display";
 
@@ -75,10 +80,30 @@ export function MemberManagementModal({
   const mDelete = useMemberDelete();
   const t = useTranslations("settings");
   const m = useTranslations("modal");
+  const queryClient = useQueryClient();
+
+  // The modal is also opened from the business list (outside RoleProvider), so the
+  // caller's role comes from the member list itself. Mirrors the server-side rules.
+  const myRole = members.find((member) => member.isYourself)?.role ?? null;
+  const canInvite =
+    !!myRole && ROLE_PERMISSION_MATRIX.member.invite.includes(myRole);
+  const canEdit = !!myRole && ROLE_PERMISSION_MATRIX.member.edit.includes(myRole);
+  const canDelete =
+    !!myRole && ROLE_PERMISSION_MATRIX.member.delete.includes(myRole);
+
+  const handleMemberActionError = (error: unknown) => {
+    if (isMemberForbiddenError(error)) {
+      // The role may have changed since the page loaded; refresh it so the actions update.
+      queryClient.invalidateQueries({ queryKey: ["business", resolvedBusinessId] });
+      queryClient.invalidateQueries({ queryKey: ["members", resolvedBusinessId] });
+      queryClient.invalidateQueries({ queryKey: ["businesses"] });
+    }
+    showToast("error", getMemberActionErrorMessage(error, t));
+  };
 
   const handleAddMember = async () => {
     try {
-      if (!formData.email.trim()) return;
+      if (!canInvite || !formData.email.trim()) return;
       const res = await mInvite.mutateAsync({
         businessId: resolvedBusinessId,
         formData: {
@@ -92,14 +117,14 @@ export function MemberManagementModal({
         role: "Member",
       });
     } catch (error) {
-      showToast("error", error);
+      handleMemberActionError(error);
     }
   };
 
   const handleDeleteMember = async (id: string) => {
     try {
       const findMember = members.find((member) => member.id === id);
-      if (findMember?.role === "Owner") return;
+      if (!canDelete || findMember?.role === "Owner") return;
       const res = await mDelete.mutateAsync({
         businessId: resolvedBusinessId,
         idData: id,
@@ -107,7 +132,7 @@ export function MemberManagementModal({
       showToast("success", res.data.responseMessage);
       setMemberToDelete(null);
     } catch (error) {
-      showToast("error", error);
+      handleMemberActionError(error);
     }
   };
 
@@ -134,6 +159,7 @@ export function MemberManagementModal({
     try {
       const findMember = members.find((member) => member.id === id);
       if (
+        !canEdit ||
         !findMember ||
         findMember.role === "Owner" ||
         findMember.status !== "Accepted" ||
@@ -150,12 +176,13 @@ export function MemberManagementModal({
       });
       showToast("success", res.data.responseMessage);
     } catch (error) {
-      showToast("error", error);
+      handleMemberActionError(error);
     }
   };
 
   const onResendInvite = async (id: string) => {
     try {
+      if (!canInvite) return;
       const res = await mResend.mutateAsync({
         businessId: resolvedBusinessId,
         formData: {
@@ -164,7 +191,7 @@ export function MemberManagementModal({
       });
       showToast("success", res.data.responseMessage);
     } catch (error) {
-      showToast("error", error);
+      handleMemberActionError(error);
     }
   };
 
@@ -183,58 +210,67 @@ export function MemberManagementModal({
           </DialogHeader>
 
           {/* Body - Scrollable */}
-          <div className="flex-1 overflow-y-auto space-y-6 p-6">
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:space-y-6 sm:p-6">
             {/* Add New Member Section */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-end">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">{t("email")}</Label>
-                    <Input
-                      id="email"
-                      placeholder={t("enterEmail")}
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">{t("role")}</Label>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-between"
-                        >
-                          {getMemberRoleLabel(formData.role, t)}
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        {ROLE_OPTIONS.map((role) => (
-                          <DropdownMenuItem
-                            key={role.value}
-                            onClick={() =>
-                              setFormData({ ...formData, role: role.value })
-                            }
+            {canInvite && (
+              <Card>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-end">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">{t("email")}</Label>
+                      <Input
+                        id="email"
+                        placeholder={t("enterEmail")}
+                        value={formData.email}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="role">{t("role")}</Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-between"
                           >
-                            {t(role.translationKey)}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                            {getMemberRoleLabel(formData.role, t)}
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          className="max-md:w-(--radix-dropdown-menu-trigger-width)"
+                        >
+                          {ROLE_OPTIONS.map((role) => (
+                            <DropdownMenuItem
+                              key={role.value}
+                              onClick={() =>
+                                setFormData({ ...formData, role: role.value })
+                              }
+                            >
+                              {t(role.translationKey)}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <Button
+                      onClick={handleAddMember}
+                      className="bg-primary hover:bg-blue-700 text-white"
+                      disabled={mInvite.isPending || !formData.email.trim()}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      {t("add")}
+                    </Button>
                   </div>
-                  <Button
-                    onClick={handleAddMember}
-                    className="bg-primary hover:bg-blue-700 text-white"
-                    disabled={mInvite.isPending || !formData.email.trim()}
-                  >
-                    + {t("add")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  {/* The invitation link is only emailed to the invitee, never shown here. */}
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    {t("inviteEmailHint")}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Current Members Section */}
             <div className="space-y-4">
@@ -248,8 +284,8 @@ export function MemberManagementModal({
                         <div className="flex flex-col gap-4 sm:grid sm:grid-cols-[minmax(0,1fr)_7.25rem_9.5rem_2.25rem_2.25rem] sm:items-center sm:gap-3">
                           <div className="flex min-w-0 items-center space-x-3">
                             <Avatar className="h-10 w-10 shrink-0">
-                              <AvatarFallback>
-                                {member.profile.name.charAt(0)}
+                              <AvatarFallback className="bg-blue-100 font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                {getMemberInitial(member.profile)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
@@ -271,14 +307,15 @@ export function MemberManagementModal({
                             </Badge>
 
                             <div className="flex items-center sm:w-full">
-                              {member.role !== "Owner" &&
+                              {canEdit &&
+                              member.role !== "Owner" &&
                               member.status === "Accepted" ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="h-auto p-0 font-normal sm:h-9 sm:w-full sm:justify-start sm:px-3"
+                                      className="h-(--control-h-sm) font-normal sm:h-9 sm:w-full sm:justify-start"
                                       disabled={mUpdateRole.isPending}
                                     >
                                       <Shield className="h-4 w-4 mr-1" />
@@ -303,7 +340,7 @@ export function MemberManagementModal({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-auto p-0 font-normal sm:h-9 sm:w-full sm:justify-start sm:px-3"
+                                  className="h-(--control-h-sm) font-normal sm:h-9 sm:w-full sm:justify-start"
                                 >
                                   <Shield className="h-4 w-4 mr-1" />
                                   {getMemberRoleLabel(member.role, t)}
@@ -311,14 +348,17 @@ export function MemberManagementModal({
                               )}
                             </div>
 
-                            <div className="flex h-9 w-9 items-center justify-center">
-                              {member.status === "Pending" && (
+                            <div
+                              className={`${
+                                canInvite && member.status === "Pending" ? "flex" : "hidden sm:flex"
+                              } h-9 w-9 items-center justify-center`}
+                            >
+                              {canInvite && member.status === "Pending" && (
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon-sm"
                                   onClick={() => onResendInvite(member.id)}
                                   disabled={mResend.isPending}
-                                  className="h-9 w-9 p-0"
                                 >
                                   <Mail className="h-4 w-4" />
                                   <span className="sr-only">
@@ -329,14 +369,14 @@ export function MemberManagementModal({
                             </div>
 
                             <div className="flex h-9 w-9 items-center justify-center">
-                              {member.role !== "Owner" && (
+                              {canDelete && member.role !== "Owner" && (
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon-sm"
                                   onClick={() =>
                                     handleOpenDeleteConfirmation(member)
                                   }
-                                  className="h-9 w-9 p-0 text-red-600 hover:text-red-700"
+                                  className="text-red-600 hover:text-red-700"
                                   disabled={mDelete.isPending}
                                 >
                                   <Trash2 className="h-4 w-4" />

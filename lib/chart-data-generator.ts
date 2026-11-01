@@ -1,3 +1,5 @@
+import { toIntlLocale } from "@/helper/locale";
+
 // Data generator untuk berbagai periode waktu
 export interface ChartDataPoint {
   date: string;
@@ -49,7 +51,8 @@ export function getChartData(period: TimePeriod): ChartDataPoint[] {
 }
 
 // Helper function untuk format date range
-export function getDateRangeLabel(period: TimePeriod): string {
+export function getDateRangeLabel(period: TimePeriod, locale: string = "id"): string {
+  const intlLocale = toIntlLocale(locale);
   const today = new Date();
   const formatOptions: Intl.DateTimeFormatOptions = {
     year: "numeric",
@@ -62,25 +65,25 @@ export function getDateRangeLabel(period: TimePeriod): string {
       const startDate = new Date(today);
       startDate.setDate(startDate.getDate() - 6);
       return `${startDate.toLocaleDateString(
-        "id-ID",
+        intlLocale,
         formatOptions
-      )} - ${today.toLocaleDateString("id-ID", formatOptions)}`;
+      )} - ${today.toLocaleDateString(intlLocale, formatOptions)}`;
     }
     case "30d": {
       const startDate = new Date(today);
       startDate.setDate(startDate.getDate() - 29);
       return `${startDate.toLocaleDateString(
-        "id-ID",
+        intlLocale,
         formatOptions
-      )} - ${today.toLocaleDateString("id-ID", formatOptions)}`;
+      )} - ${today.toLocaleDateString(intlLocale, formatOptions)}`;
     }
     case "1y": {
       const startDate = new Date(today);
       startDate.setFullYear(startDate.getFullYear() - 1);
-      return `${startDate.toLocaleDateString("id-ID", {
+      return `${startDate.toLocaleDateString(intlLocale, {
         year: "numeric",
         month: "short",
-      })} - ${today.toLocaleDateString("id-ID", {
+      })} - ${today.toLocaleDateString(intlLocale, {
         year: "numeric",
         month: "short",
       })}`;
@@ -91,27 +94,32 @@ export function getDateRangeLabel(period: TimePeriod): string {
 }
 
 // Helper function untuk format X-axis labels berdasarkan periode
-export function formatXAxisLabel(date: string, period: TimePeriod): string {
+export function formatXAxisLabel(
+  date: string,
+  period: TimePeriod,
+  locale: string = "id"
+): string {
+  const intlLocale = toIntlLocale(locale);
   const dateObj = new Date(date);
 
   switch (period) {
     case "7d":
-      return dateObj.toLocaleDateString("id-ID", {
+      return dateObj.toLocaleDateString(intlLocale, {
         weekday: "short",
         day: "numeric",
       });
     case "30d":
-      return dateObj.toLocaleDateString("id-ID", {
+      return dateObj.toLocaleDateString(intlLocale, {
         day: "numeric",
         month: "short",
       });
     case "1y":
-      return dateObj.toLocaleDateString("id-ID", {
+      return dateObj.toLocaleDateString(intlLocale, {
         month: "short",
         year: "2-digit",
       });
     default:
-      return dateObj.toLocaleDateString("id-ID", {
+      return dateObj.toLocaleDateString(intlLocale, {
         day: "numeric",
         month: "short",
       });

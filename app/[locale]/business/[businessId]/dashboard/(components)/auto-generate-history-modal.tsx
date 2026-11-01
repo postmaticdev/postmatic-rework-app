@@ -47,9 +47,11 @@ export function AutoGenerateHistoryModal({
     sort: "desc",
   });
 
+  // The modal is always mounted; fetch only once it is opened.
   const { data: historiesData, isLoading } = useContentAutoGenerateGetHistories(
     businessId,
-    query
+    query,
+    isOpen
   );
 
   const histories = historiesData?.data?.data || [];
@@ -66,7 +68,7 @@ export function AutoGenerateHistoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="">
+      <DialogContent>
         {/* Header */}
         <DialogHeader>
           <div>
@@ -78,7 +80,7 @@ export function AutoGenerateHistoryModal({
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <LogoLoader />
@@ -110,7 +112,7 @@ export function AutoGenerateHistoryModal({
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col gap-2">
                         <h4 className="font-semibold">
-                          {history.productKnowledge?.name || "Unknown Product"}
+                          {history.productKnowledge?.name || m("unknownProduct")}
                         </h4>
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge
@@ -123,7 +125,7 @@ export function AutoGenerateHistoryModal({
                                 : "bg-yellow-500 hover:bg-yellow-600"
                             )}
                           >
-                            {history.status}
+                            {m("autoGenerateHistoryStatus", { status: String(history.status) })}
                           </Badge>
                           {history.status === "failed" && (
                             <Badge variant="outline">{history.code}</Badge>

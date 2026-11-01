@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "../../../../../../components/ui/textarea";
 import { useContentGenerate } from "@/contexts/content-generate-context";
@@ -22,8 +23,12 @@ import { showToast } from "@/helper/show-toast";
 import { helperService } from "@/services/helper.api";
 import { useTranslations } from "next-intl";
 import { VALID_RATIOS, ValidRatio } from "@/models/api/content/image.type";
+import {
+  getAiModelDisplayName,
+  isFreeUserAllowedAiModel,
+  isGridAiModel,
+} from "@/models/api/content/ai-model";
 import { cn } from "@/lib/utils";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
 
 interface FullscreenImageModalProps {
   isOpen: boolean;
@@ -54,21 +59,33 @@ export function FullscreenImageModal({
 
   const m = useTranslations("modal");
 
-  // Force Postmatic Vision model when modal opens (mask feature only supports this model)
+  // Masks go through the OpenAI image edit endpoint, so the modal locks to an OpenAI model the user may use.
+  const maskModel = useMemo(() => {
+    const openAiModels = aiModels.models.filter(
+      (model) => model.provider === "openai" && !isGridAiModel(model)
+    );
+    return (
+      (aiModels.isFreeUser
+        ? openAiModels.find(isFreeUserAllowedAiModel)
+        : openAiModels[0]) || null
+    );
+  }, [aiModels.models, aiModels.isFreeUser]);
+  const maskModelName = getAiModelDisplayName(maskModel);
+
+  // Force the mask model when modal opens
   useEffect(() => {
-    if (isOpen && aiModels.models.length > 0) {
-      const gptModel = aiModels.models.find(model => model.name === "gpt-image-1");
-      if (gptModel && form.basic.model !== "gpt-image-1") {
-        onSelectAiModel(gptModel);
+    if (isOpen && maskModel) {
+      if (form.basic.model !== maskModel.name) {
+        onSelectAiModel(maskModel);
         
-        // Ensure ratio is valid for Postmatic Vision
-        const validRatiosForGPT = [...VALID_RATIOS];
-        if (!validRatiosForGPT.includes(form.basic.ratio)) {
-          form.setBasic({ ...form.basic, ratio: "1:1" as ValidRatio, model: "gpt-image-1" });
+        // Ensure ratio is valid for the mask model
+        const validRatiosForMask = [...VALID_RATIOS];
+        if (!validRatiosForMask.includes(form.basic.ratio)) {
+          form.setBasic({ ...form.basic, ratio: "1:1" as ValidRatio, model: maskModel.name });
         }
       }
     }
-  }, [isOpen, aiModels.models, form.basic.model, form.basic.ratio, onSelectAiModel, form]);
+  }, [isOpen, maskModel, form.basic.model, form.basic.ratio, onSelectAiModel, form]);
 
   // Extract the first image URL for stable reference
   const firstImageUrl = selectedHistory?.result?.images?.[0];
@@ -1079,7 +1096,7 @@ export function FullscreenImageModal({
           <Button
             variant="ghost"
             size="icon"
-            className="touch-manipulation h-10 w-10"
+            className="touch-manipulation"
             onClick={handleUndo}
             disabled={historyIndex <= 0}
             aria-label="Undo"
@@ -1090,7 +1107,7 @@ export function FullscreenImageModal({
           <Button
             variant="ghost"
             size="icon"
-            className="touch-manipulation h-10 w-10"
+            className="touch-manipulation"
             onClick={handleRedo}
             disabled={historyIndex >= history.length - 1}
             aria-label="Redo"
@@ -1103,7 +1120,7 @@ export function FullscreenImageModal({
           <Button
             variant="ghost"
             size="icon"
-            className="touch-manipulation h-10 w-10"
+            className="touch-manipulation"
             onClick={handleDownload}
             aria-label="Download highlighted image"
             title="Download highlighted image"
@@ -1116,7 +1133,7 @@ export function FullscreenImageModal({
           <Button
             variant="ghost"
             size="icon"
-            className="touch-manipulation h-10 w-10"
+            className="touch-manipulation"
             onClick={onClose}
             aria-label="Close"
           >
@@ -1296,29 +1313,29 @@ export function FullscreenImageModal({
           {/* AI Model and Ratio Dropdowns */}
           <div className="grid grid-cols-2 gap-3">
             {/* AI Model */}
-            <div>
-              <label className="block text-xs font-medium mb-1.5">AI Model</label>
-              <select
+            <div className="space-y-2">
+              <label className="block text-xs font-medium">AI Model</label>
+              <NativeSelect
                 className={cn(
-                  "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring cursor-not-allowed opacity-60",
+                  "bg-background-secondary cursor-not-allowed opacity-60",
                   isLoading
                 )}
                 disabled={true}
-                value="gpt-image-1"
+                value={maskModel?.name || ""}
               >
-                <option value="gpt-image-1">{getAiModelDisplayName("gpt-image-1")}</option>
-              </select>
+                <option value={maskModel?.name || ""}>{maskModelName}</option>
+              </NativeSelect>
               <p className="text-xs text-muted-foreground mt-1">
-                Saat ini fitur mask hanya ada di model {getAiModelDisplayName("gpt-image-1")}
+                Saat ini fitur mask hanya ada di model {maskModelName}
               </p>
             </div>
 
             {/* Aspect Ratio */}
-            <div>
-              <label className="block text-xs font-medium mb-1.5">{t("generationPanel.aspectRatio")}</label>
-              <select
+            <div className="space-y-2">
+              <label className="block text-xs font-medium">{t("generationPanel.aspectRatio")}</label>
+              <NativeSelect
                 className={cn(
-                  "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
+                  "bg-background-secondary",
                   isLoading
                 )}
                 disabled={isLoading}
@@ -1327,13 +1344,13 @@ export function FullscreenImageModal({
                   form.setBasic({ ...form.basic, ratio: e.target.value as ValidRatio });
                 }}
               >
-                {/* Only show valid ratios for Postmatic Vision */}
+                {/* Only show valid ratios for the mask model */}
                 {VALID_RATIOS.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           </div>
 

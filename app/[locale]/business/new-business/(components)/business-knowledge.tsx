@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { useFormNewBusiness } from "@/contexts/form-new-business-context";
 import { BusinessKnowledgePld } from "@/models/api/knowledge/business.type";
 import { SearchableCountrySelect } from "@/app/[locale]/profile/(components)/searchable-select-content";
+import { useMemo } from "react";
 import countryCodes from "@/lib/country-code.json";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeCountryNames } from "@/helper/locale";
 
 export function BusinessKnowledge() {
   const { formData, setFormData, errors, clearFieldError } =
@@ -24,13 +26,18 @@ export function BusinessKnowledge() {
   };
 
   const t = useTranslations("businessKnowledge");
+  const locale = useLocale();
+  const localizedCountries = useMemo(
+    () => localizeCountryNames(countryCodes, locale),
+    [locale]
+  );
 
   const defaultLabels = {
     logoBrand: t("logoBrand"),
     brandName: t("brandName"),
     category: t("category"),
     description: t("description"),
-    website: t("website"),
+    website: t("urlWebsiteOptional"),
     phone: t("phone"),
     colorTone: t("colorTone"),
   };
@@ -49,7 +56,8 @@ export function BusinessKnowledge() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row w-full gap-6 items-start">
+      {/* Logo di kiri, nama & kategori di kanan (juga di mobile) */}
+      <div className="flex w-full flex-row items-start gap-3 sm:gap-6 [&>*:first-child]:shrink-0">
         <UploadPhoto
           label={finalLabels.logoBrand}
           // onImageChange={(file) => updateField("primaryLogo", file)}
@@ -64,7 +72,7 @@ export function BusinessKnowledge() {
           onFocus={() => clearFieldError(0, "primaryLogo")}
         />
 
-        <div className="w-full space-y-4">
+        <div className="min-w-0 flex-1 space-y-4">
           <TextField
             label={finalLabels.brandName}
             value={step1.name}
@@ -74,14 +82,17 @@ export function BusinessKnowledge() {
             onFocus={() => clearFieldError(0, "name")}
           />
 
-          <BusinessCategoryDropdown
-            value={step1.category}
-            onChange={(value) => updateField("category", value)}
-            placeholder={finalPlaceholders.category}
-            label="Kategori Bisnis"
-            error={errors.step1.category}
-            onFocus={() => clearFieldError(0, "category")}
-          />
+          {/* Placeholder (empty value) renders muted like the other fields' placeholders */}
+          <div className="[&_option]:text-foreground [&_select:has(option[value='']:checked)]:text-muted-foreground">
+            <BusinessCategoryDropdown
+              value={step1.category}
+              onChange={(value) => updateField("category", value)}
+              placeholder={finalPlaceholders.category}
+              label={t("category")}
+              error={errors.step1.category}
+              onFocus={() => clearFieldError(0, "category")}
+            />
+          </div>
         </div>
       </div>
 
@@ -111,14 +122,13 @@ export function BusinessKnowledge() {
         </label>
         <div className="flex gap-2">
           <SearchableCountrySelect
-            countries={countryCodes}
+            countries={localizedCountries}
             value={step1.countryCode || "+62"}
             onValueChange={(value) => {
               updateField("countryCode", value);
               clearFieldError(0, "countryCode");
             }}
             placeholder="+62"
-            searchPlaceholder="Search country..."
             className="w-36 bg-background-secondary"
           />
           <Input

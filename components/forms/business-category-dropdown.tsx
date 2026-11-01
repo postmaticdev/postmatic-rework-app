@@ -1,8 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { getCategoryLabel } from "@/helper/locale";
+import { useLibraryBusinessCategory } from "@/services/library.api";
 import { Info } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 interface BusinessCategoryDropdownProps {
   value: string;
@@ -16,66 +20,49 @@ interface BusinessCategoryDropdownProps {
 export function BusinessCategoryDropdown({
   value,
   onChange,
-  placeholder = "Pilih kategori bisnis",
-  label = "Kategori Bisnis",
+  placeholder: placeholderProp,
+  label: labelProp,
   error,
   onFocus,
 }: BusinessCategoryDropdownProps) {
   const t = useTranslations("businessCategory");
-  const BUSINESS_CATEGORIES = [
-    t("foodAndDrink"),
-    t("retailAndEcommerce"),
-    t("technologyAndSoftware"),
-    t("healthAndPharmacy"),
-    t("financialAndFinance"),
-    t("realEstateAndProperty"),
-    t("constructionAndInfrastructure"),
-    t("transportationAndLogistics"),
-    t("travelAndHospitality"),
-    t("energyAndMining"),
-    t("educationAndTraining"),
-    t("mediaAndEntertainment"),
-    t("agricultureAndHunting"),
-    t("fashionAndClothing"),
-    t("consultingAndProfessionalServices"),
-    t("other"),
-  ];
-  const categoryOptions = BUSINESS_CATEGORIES.includes(value)
-    ? BUSINESS_CATEGORIES
-    : value
-      ? [...BUSINESS_CATEGORIES, value]
-      : BUSINESS_CATEGORIES;
+  const locale = useLocale();
+  const placeholder = placeholderProp ?? t("selectPlaceholder");
+  const label = labelProp ?? t("label");
+  const { data, isLoading } = useLibraryBusinessCategory();
+  const categories = data?.data.data ?? [];
+  const isKnownValue = categories.some((category) => category.code === value);
 
-  const handleCategoryChange = (selectedValue: string) => {
-    onChange(selectedValue);
-  };
+  // The API only accepts a category code. A legacy free-text value is cleared so the user picks a valid one.
+  useEffect(() => {
+    if (categories.length > 0 && value && !isKnownValue) {
+      onChange("");
+    }
+  }, [categories.length, value, isKnownValue, onChange]);
 
   return (
     <div className="space-y-1 ">
       <div className="flex flex-col md:flex-row w-full justify-between items-center gap-2">
         <div className="space-y-2 w-full">
           <Label htmlFor="category">{label}</Label>
-          <select
+          <NativeSelect
             id="category"
-            className={`flex p-2 h-10 w-full items-center rounded-md border bg-background dark:bg-card px-3 py-2 text-sm shadow-xs ring-offset-background transition-[color,box-shadow] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-              error
-                ? "border-red-500 focus:ring-red-500"
-                : "border-input focus:ring-ring"
-            }`}
-            value={value || ""}
-            onChange={(e) => handleCategoryChange(e.target.value)}
+            className={`bg-background dark:bg-card ${error ? "border-red-500" : ""}`}
+            value={isKnownValue ? value : ""}
+            onChange={(e) => onChange(e.target.value)}
             onFocus={onFocus}
+            disabled={isLoading}
             aria-invalid={!!error}
           >
             <option value="" disabled hidden>
               {placeholder}
             </option>
-            {categoryOptions.map((category) => (
-              <option key={category} value={category}>
-                {category}
+            {categories.map((category) => (
+              <option key={category.code} value={category.code}>
+                {getCategoryLabel(categories, category.code, locale)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
       </div>
       {error && (

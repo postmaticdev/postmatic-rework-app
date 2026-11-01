@@ -38,17 +38,17 @@ export default function KnowledgeBase() {
         message={w("manageSocialMedia")}
       />
 
-      <div className="grid items-stretch gap-6 lg:grid-cols-2">
+      <div className="grid items-stretch gap-4 sm:gap-6 lg:grid-cols-2">
         <div className="h-full">
           <BusinessKnowledgeSection />
         </div>
-        <div className="grid auto-rows-fr gap-6">
+        <div className="grid auto-rows-fr gap-4 sm:gap-6">
           <RoleKnowledgeSection />
           <MediaSocialSection />
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row">
+      <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row">
         <div className="lg:w-1/3">
           <ProductSection />
         </div>

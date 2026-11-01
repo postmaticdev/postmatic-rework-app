@@ -9,8 +9,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ImagePlus, Plus, Send } from "lucide-react";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { Loader2, ImagePlus, Plus, Send, BookOpen } from "lucide-react";
+import { AiModelSelect } from "@/components/forms/ai-model-select";
+import { useTranslations } from "next-intl";
 
 type ModelOption = {
   name: string;
@@ -49,6 +50,7 @@ export function ChatComposerField({
   onAttachGallery,
   onAttachKnowledge,
 }: ChatComposerFieldProps) {
+  const t = useTranslations("generationPanel");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -72,7 +74,7 @@ export function ChatComposerField({
   return (
     <div className="rounded-xl">
       <div
-        className={`flex gap-2 ${isExpanded ? "flex-col" : "items-center"
+        className={`flex gap-2 ${isExpanded ? "flex-col" : "items-center max-sm:flex-wrap max-sm:[&>textarea]:order-first max-sm:[&>textarea]:basis-full"
           }`}
       >
         {!isExpanded ? (
@@ -81,9 +83,10 @@ export function ChatComposerField({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-md border border-border bg-card hover:bg-card/80"
+                size="icon-sm"
+                className="shrink-0 border border-border bg-card hover:bg-card/80 max-sm:size-10"
                 disabled={disabled || isUploadingAttachment}
+                aria-label={t("attachImage")}
               >
                 {isUploadingAttachment ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -100,7 +103,7 @@ export function ChatComposerField({
                 }}
               >
                 <ImagePlus className="h-4 w-4" />
-                Import Gallery
+                {t("importGallery")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={(event) => {
@@ -108,7 +111,8 @@ export function ChatComposerField({
                   onAttachKnowledge();
                 }}
               >
-                Import from Knowledge
+                <BookOpen className="h-4 w-4" />
+                {t("importFromKnowledgeTitle")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -119,34 +123,28 @@ export function ChatComposerField({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="min-h-10 flex-1 resize-none overflow-y-auto border-0 bg-transparent dark:bg-transparent py-2 shadow-none focus-visible:ring-0 max-h-[50px] "
+          className="min-h-10 flex-1 resize-none overflow-y-auto border-0 bg-transparent dark:bg-transparent py-2 shadow-none focus-visible:ring-0 max-h-[50px] scrollbar-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         />
 
         {!isExpanded ? (
-          <div className="flex items-center gap-2">
-            <select
-              className="h-8 w-[180px] shrink-0 rounded-md border border-input bg-background-secondary px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          <div className="flex items-center gap-2 max-sm:ml-auto">
+            <AiModelSelect
+              className="w-[180px] shrink-0"
+              size="sm"
+              side="top"
               disabled={disabled || isLoadingModels}
-              value={selectedModel}
-              onChange={(event) => onSelectModel(event.target.value)}
-            >
-              {isLoadingModels ? (
-                <option value="">Loading models...</option>
-              ) : null}
-              {!isLoadingModels && models.length === 0 ? (
-                <option value="">No model available</option>
-              ) : null}
-              {models.map((model) => (
-                <option key={model.name} value={model.name}>
-                  {getAiModelDisplayName(model)}
-                </option>
-              ))}
-            </select>
+              isLoading={isLoadingModels}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={onSelectModel}
+            />
             <Button
               type="button"
               onClick={onSubmit}
               disabled={disabled || !canSubmit}
-              className="h-8 w-8 shrink-0 rounded-full p-0"
+              size="icon-sm"
+              className="shrink-0 rounded-full max-sm:size-10"
+              aria-label={t("sendPrompt")}
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -165,9 +163,10 @@ export function ChatComposerField({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-md border border-border bg-card hover:bg-card/80"
+                size="icon-sm"
+                className="shrink-0 border border-border bg-card hover:bg-card/80 max-sm:size-10"
                 disabled={disabled || isUploadingAttachment}
+                aria-label={t("attachImage")}
               >
                 {isUploadingAttachment ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -184,7 +183,7 @@ export function ChatComposerField({
                 }}
               >
                 <ImagePlus className="h-4 w-4" />
-                Import Gallery
+                {t("importGallery")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={(event) => {
@@ -192,35 +191,30 @@ export function ChatComposerField({
                   onAttachKnowledge();
                 }}
               >
-                Import from Knowledge
+                <BookOpen className="h-4 w-4" />
+                {t("importFromKnowledgeTitle")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <div className="flex items-center gap-2">
-            <select
-              className="h-8 w-[180px] shrink-0 rounded-md border border-input bg-background-secondary px-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            <AiModelSelect
+              className="w-[180px] shrink-0"
+              size="sm"
+              side="top"
               disabled={disabled || isLoadingModels}
-              value={selectedModel}
-              onChange={(event) => onSelectModel(event.target.value)}
-            >
-              {isLoadingModels ? (
-                <option value="">Loading models...</option>
-              ) : null}
-              {!isLoadingModels && models.length === 0 ? (
-                <option value="">No model available</option>
-              ) : null}
-              {models.map((model) => (
-                <option key={model.name} value={model.name}>
-                  {getAiModelDisplayName(model)}
-                </option>
-              ))}
-            </select>
+              isLoading={isLoadingModels}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={onSelectModel}
+            />
             <Button
               type="button"
               onClick={onSubmit}
               disabled={disabled || !canSubmit}
-              className="h-8 w-8 shrink-0 rounded-full p-0"
+              size="icon-sm"
+              className="shrink-0 rounded-full max-sm:size-10"
+              aria-label={t("sendPrompt")}
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

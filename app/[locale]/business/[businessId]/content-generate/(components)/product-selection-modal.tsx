@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooterWithButton,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -15,30 +13,31 @@ import { Search, Check } from "lucide-react";
 import Image from "next/image";
 import { useContentGenerate } from "@/contexts/content-generate-context";
 import { DEFAULT_PRODUCT_IMAGE } from "@/constants";
-import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 import { formatPriceWithCurrency } from "@/helper/price-formatter";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useProductCategoryLabel } from "@/hooks/use-category-label";
+import { ProductKnowledgeRes } from "@/models/api/knowledge/product.type";
 
 interface ProductSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Pass both to pick a product for something other than the content form.
+  selectedProductId?: string | null;
+  onSelect?: (product: ProductKnowledgeRes) => void;
 }
 
 export function ProductSelectionModal({
   isOpen,
   onClose,
+  selectedProductId,
+  onSelect,
 }: ProductSelectionModalProps) {
-  const [tempSelected, setTempSelected] = useState<ProductKnowledgeRes | null>(
-    null
-  );
-  const { productKnowledges, onSelectProduct } = useContentGenerate();
-
-  const handleSelectProduct = () => {
-    onSelectProduct(tempSelected);
-    onClose();
-  };
+  const { productKnowledges, onSelectProduct, form } = useContentGenerate();
+  const currentProductId = onSelect ? selectedProductId : form.basic.productKnowledgeId;
 
   const m = useTranslations("modal");
+  const productCategoryLabel = useProductCategoryLabel();
+  const locale = useLocale();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -65,84 +64,89 @@ export function ProductSelectionModal({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4 sm:space-y-6">
 
 
           {/* Product List */}
           <div className="space-y-3 ">
-            {productKnowledges.contents.map((product) => (
-              <Card
-                key={product.id}
-                className={`cursor-pointer transition-colors ${product?.id === tempSelected?.id
-                  ? "ring-2 ring-inset ring-blue-500 bg-card/50"
-                  : "hover:bg-card/50"
+            {productKnowledges.contents.map((product) => {
+              const isSelected = currentProductId === product.id;
+
+              return (
+                <Card
+                  key={product.id}
+                  className={`cursor-pointer transition-colors ${
+                    isSelected
+                      ? "ring-2 ring-inset ring-blue-500 bg-card/50"
+                      : "hover:bg-card/50"
                   }`}
-                onClick={() => {
-                  if (product?.id === tempSelected?.id) {
-                    setTempSelected(null);
-                  } else {
-                    setTempSelected(product);
-                  }
-                }}
-              >
-                <CardContent className="relative p-4">
-                  {tempSelected?.id === product.id && (
-                    <div className="absolute right-4 top-4 z-10 h-6 w-6 rounded-full bg-blue-500 sm:hidden flex items-center justify-center">
-                      <Check className="h-4 w-4 text-white" />
-                    </div>
-                  )}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-2 mb-1">
-
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image
-                          src={product.images[0] || DEFAULT_PRODUCT_IMAGE}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="flex flex-col sm:hidden items-start gap-2 mb-1">
-                        <h3 className="font-medium text-foreground">
-                          {product.name}
-                        </h3>
-                        <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                          {product.category}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="hidden sm:flex items-center gap-2 mb-1">
-                        <h3 className="font-medium text-foreground">
-                          {product.name}
-                        </h3>
-                        <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                          {product.category}
-                        </span>
-                      </div>
-
-                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                        {product.description}
-                      </p>
-
-                      <p className="text-sm font-medium text-foreground">
-                        {formatPriceWithCurrency(
-                          product.price,
-                          product.currency
-                        )}
-                      </p>
-                    </div>
-
-                    {tempSelected?.id === product.id && (
-                      <div className="hidden h-6 w-6 rounded-full bg-blue-500 sm:flex items-center justify-center">
-                        <Check className="w-4 h-4 text-white" />
+                  onClick={() => {
+                    if (onSelect) onSelect(product);
+                    else onSelectProduct(product);
+                    onClose();
+                  }}
+                >
+                  <CardContent className="relative p-4">
+                    {isSelected && (
+                      <div className="absolute right-4 top-4 z-10 h-6 w-6 rounded-full bg-blue-500 sm:hidden flex items-center justify-center">
+                        <Check className="h-4 w-4 text-white" />
                       </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <div className="flex items-center gap-2 mb-1 max-sm:min-w-0 max-sm:gap-3 max-sm:pr-8">
+
+                        <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                          <Image
+                            src={product.images[0] || DEFAULT_PRODUCT_IMAGE}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="flex flex-col sm:hidden items-start gap-2 mb-1 max-sm:min-w-0">
+                          <h3 className="font-medium text-foreground break-words">
+                            {product.name}
+                          </h3>
+                          <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
+                            {productCategoryLabel(product.category)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="hidden sm:flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-foreground">
+                            {product.name}
+                          </h3>
+                          <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
+                            {productCategoryLabel(product.category)}
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                          {product.description}
+                        </p>
+
+                        <p className="text-sm font-medium text-foreground">
+                          {formatPriceWithCurrency(
+                            product.price,
+                            product.currency,
+
+                            locale
+                          )}
+                        </p>
+                      </div>
+
+                      {isSelected && (
+                        <div className="hidden h-6 w-6 rounded-full bg-blue-500 sm:flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {productKnowledges.contents.length === 0 && (
@@ -151,11 +155,6 @@ export function ProductSelectionModal({
             </div>
           )}
         </div>
-
-        <DialogFooterWithButton
-          buttonMessage={m("selectProduct")}
-          onClick={handleSelectProduct}
-        />
       </DialogContent>
     </Dialog>
   );

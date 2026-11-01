@@ -209,6 +209,35 @@ export interface DirectPostContentRes {
   generatedImageContentId: string;
 }
 
+/* Outcome of one requested platform of a direct post / repost */
+export interface DirectPostPlatformResult {
+  platformCode: PlatformEnum;
+  businessConnectedPlatformId: number;
+  publishingJobId: number | null;
+  jobStatus: string;
+  postUrl: string | null;
+  errorMessage: string | null;
+  requiresReconnect: boolean;
+}
+
+export interface DirectPostSummary {
+  requested: number;
+  succeeded: number;
+  failed: number;
+}
+
+/*
+  Response of the direct-post endpoint (also returned as error data with
+  DIRECT_POST_ALL_PLATFORMS_FAILED when every platform failed)
+*/
+export interface DirectPostResultRes {
+  id: number;
+  status: string;
+  platforms: PlatformEnum[];
+  publishResults?: DirectPostPlatformResult[];
+  publishSummary?: DirectPostSummary;
+}
+
 /*
   Payload for Personal Content (manual upload)
 */
@@ -225,6 +254,7 @@ export interface EnhanceCaptionPld {
   images?: string[];
   model?: string;
   currentCaption?: string | null;
+  businessProductId?: number | null;
 }
 
 /*
@@ -253,10 +283,29 @@ export interface ImagePostChatSessionRes {
   updatedAt: string;
 }
 
+export type ImageUpscaleStatus = "pending" | "processing" | "success" | "failed";
+
 export interface ImagePostChatBubbleImageRes {
   id: number;
   source: string;
   imageUrl: string;
+  /** 0-based row-major tile index; null when the image is not a grid tile. */
+  gridPosition?: number | null;
+  /** Set once the tile upscale succeeded. */
+  upscaledImageUrl?: string | null;
+  /** null when no upscale applies. */
+  upscaleStatus?: ImageUpscaleStatus | null;
+}
+
+/** Follow-up intent sent with a chat message; the first message of a chat has none. */
+export type ChatMessageMode = "chat" | "edit" | "regenerate";
+
+/** Design reference of a bubble. A user bubble lists the user's pick; a system bubble lists what its generation used. */
+export interface ImagePostChatBubbleReferenceImageRes {
+  id: number;
+  name: string;
+  imageUrl: string;
+  source: "user" | "auto";
 }
 
 export interface ImagePostChatBubbleRes {
@@ -271,6 +320,10 @@ export interface ImagePostChatBubbleRes {
   additionalImages?: string[] | null;
   errorMessage: string | null;
   images: ImagePostChatBubbleImageRes[] | null;
+  mode?: ChatMessageMode | null;
+  /** AI flow of a successful system bubble (product, chat, edit, regenerate, chat_file, ...). */
+  flow?: string | null;
+  referenceImages?: ImagePostChatBubbleReferenceImageRes[];
   createdAt: string;
   updatedAt: string;
 }
@@ -287,7 +340,13 @@ export interface SendImageChatMessagePld {
   prompt: string;
   ratio?: string;
   bubbleChatId?: string | number;
+  /** Image of the replied bubble to iterate on; required when that bubble holds grid tiles. */
+  generatedImagePostItemId?: number;
   rss?: GenerateContentRssBase;
+  /** Follow-up intent; edit and regenerate need bubbleChatId or generatedImagePostItemId. */
+  mode?: ChatMessageMode;
+  /** Library design reference (creator image ID), at most one. Library images are not sent as additionalImages. */
+  referenceImageIds?: number[];
 }
 
 export interface SendImageChatMessageRes {
@@ -362,6 +421,8 @@ export interface PostedImageContent {
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  jobStatus?: string;
+  errorMessage?: string | null;
 }
 
 export interface AdvancedGenerate {

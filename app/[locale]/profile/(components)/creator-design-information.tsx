@@ -26,10 +26,13 @@ export function CreatorDesignInformation() {
   // Update search query in context when search changes (with debounce)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      setQuery((prev) => ({
-        ...prev,
-        search: searchQuery || undefined,
-      }));
+      // Kembali ke halaman 1 saat kata kunci berubah, agar hasil tidak kosong
+      // karena masih di halaman lama.
+      setQuery((prev) => {
+        const search = searchQuery || undefined;
+        if (prev.search === search) return prev;
+        return { ...prev, search, page: 1 };
+      });
     }, 500);
 
     return () => clearTimeout(timeoutId);
@@ -38,13 +41,13 @@ export function CreatorDesignInformation() {
   return (
     <>
       <Card>
-        <CardContent className="py-6">
-          <h2 className="text-lg font-semibold text-foreground mb-6">
+        <CardContent className="py-4 sm:py-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4 sm:mb-6">
             {t("title")}
           </h2>
 
           {/* Search and Create Section */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -55,7 +58,7 @@ export function CreatorDesignInformation() {
               />
             </div>
             <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
               onClick={openCreateModal}
             >
               <Plus className="w-4 h-4" />

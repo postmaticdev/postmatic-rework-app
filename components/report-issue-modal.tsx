@@ -1,11 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeCountryNames } from "@/helper/locale";
+import { useNotification } from "@/contexts/notification-context";
 
 import { SearchableCountrySelect } from "@/app/[locale]/profile/(components)/searchable-select-content";
 import { UploadPhoto } from "@/components/forms/upload-photo";
 import { Button } from "@/components/ui/button";
+import { Send } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +41,7 @@ interface ReportIssueModalProps {
 }
 
 interface ReportForm {
+  judul: string;
   name: string;
   email: string;
   reportType: string;
@@ -51,6 +55,7 @@ const DEFAULT_COUNTRY_CODE = "+62";
 const OTHER_REPORT_TYPE = "other";
 
 const createInitialForm = (): ReportForm => ({
+  judul: "",
   name: "",
   email: "",
   reportType: "",
@@ -116,6 +121,12 @@ export function ReportIssueModal({
   onClose,
 }: ReportIssueModalProps) {
   const t = useTranslations("reportIssueModal");
+  const locale = useLocale();
+  const localizedCountries = useMemo(
+    () => localizeCountryNames(countryCodes, locale),
+    [locale]
+  );
+  const { refreshTickets } = useNotification();
   const { data: profileData } = useAuthProfileGetProfile();
   const { data: categoryData, isLoading: isCategoryLoading } =
     useTicketCategories(isOpen);
@@ -134,11 +145,6 @@ export function ReportIssueModal({
     return String(preferredCategory?.id ?? categories[0]?.id ?? "");
   }, [categories]);
 
-  const selectedCategory = useMemo(
-    () =>
-      categories.find((category) => String(category.id) === form.reportType),
-    [categories, form.reportType]
-  );
   const submittedCategoryId = useMemo(() => {
     if (form.reportType === OTHER_REPORT_TYPE) {
       return Number(defaultCategoryId);
@@ -196,12 +202,14 @@ export function ReportIssueModal({
     const normalizedName = form.name.trim();
     const normalizedEmail = form.email.trim();
     const normalizedDetails = form.details.trim();
+    const normalizedJudul = form.judul.trim();
     const normalizedPhone = sanitizePhoneNumber(
       form.phoneNumber,
       form.countryCode
     );
 
     if (
+      !normalizedJudul ||
       !normalizedName ||
       !normalizedEmail ||
       !form.reportType ||
@@ -214,12 +222,8 @@ export function ReportIssueModal({
     }
 
     try {
-      const firstLine = normalizedDetails.split(/\r?\n/)[0]?.trim() ?? "";
-      const subject =
-        firstLine.slice(0, 120) || selectedCategory?.name || t("defaultSubject");
-
       const response = await mCreateTicket.mutateAsync({
-        subject,
+        subject: normalizedJudul,
         body: normalizedDetails,
         countryCode: form.countryCode.replace(/[^\d]/g, "") || "62",
         phone: normalizedPhone,
@@ -229,9 +233,11 @@ export function ReportIssueModal({
         attachments: form.attachments,
       });
 
+      await refreshTickets();
       showToast("success", response.data.responseMessage);
       handleClose();
     } catch (error) {
+      // Keep the modal open with the user's input so they can retry.
       showToast("error", error);
     }
   };
@@ -252,9 +258,9 @@ export function ReportIssueModal({
         <form
           id="report-issue-form"
           onSubmit={handleSubmit}
-          className="flex-1 space-y-5 overflow-y-auto p-6"
+          className="flex-1 space-y-4 sm:space-y-5 overflow-y-auto px-4 py-4 sm:p-6"
         >
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="report-name">{t("name")}</Label>
               <Input
@@ -280,12 +286,12 @@ export function ReportIssueModal({
             <Label htmlFor="report-phone-number">{t("phoneNumber")}</Label>
             <div className="flex space-x-2">
               <SearchableCountrySelect
-                countries={countryCodes}
+                countries={localizedCountries}
                 value={form.countryCode || DEFAULT_COUNTRY_CODE}
                 onValueChange={(value) => updateField("countryCode", value)}
                 placeholder={t("countryCode")}
                 searchPlaceholder={t("countryCodeSearch")}
-                className="w-40 bg-card"
+                className="w-28 sm:w-40 bg-card"
               />
               <Input
                 id="report-phone-number"
@@ -300,6 +306,16 @@ export function ReportIssueModal({
                 placeholder={t("phoneNumberPlaceholder")}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="report-judul">{t("subject")}</Label>
+            <Input
+              id="report-judul"
+              value={form.judul}
+              onChange={(event) => updateField("judul", event.target.value)}
+              placeholder={t("subjectPlaceholder")}
+            />
           </div>
 
           <div className="space-y-2">
@@ -360,18 +376,17 @@ export function ReportIssueModal({
         </form>
 
         <DialogFooter>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              {t("cancel")}
-            </Button>
-            <Button
-              type="submit"
-              form="report-issue-form"
-              disabled={mCreateTicket.isPending || isCategoryLoading}
-            >
-              {mCreateTicket.isPending ? t("submitting") : t("submit")}
-            </Button>
-          </div>
+          <Button type="button" variant="outline" onClick={handleClose}>
+            {t("cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form="report-issue-form"
+            disabled={mCreateTicket.isPending || isCategoryLoading}
+          >
+            <Send className="h-4 w-4" />
+            {mCreateTicket.isPending ? t("submitting") : t("submit")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

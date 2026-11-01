@@ -4,7 +4,8 @@ import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
-import { Trash2 } from "lucide-react";
+import { X } from "lucide-react";
+import { SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
 
 interface SharedSelectedReferenceImageProps {
   referenceImage: string | null;
@@ -27,39 +28,50 @@ export const SharedSelectedReferenceImage = ({
 
   if (!referenceImage) return null;
 
+  // The content-generate context uses a fixed marker name for an image attached for editing.
+  const displayName =
+    referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
+      ? t("selectedImageLabel")
+      : referenceImageName;
+
   return (
     <div className="space-y-2" id={idSelector}>
       <h3 className="font-medium text-sm">{t("selectedReferenceImage")}</h3>
       <Card className="p-4">
         <div className="flex flex-row gap-2 justify-between">
-          <div className="flex flex-row gap-3">
+          <div className="flex flex-row gap-3 max-md:min-w-0">
             <div className="aspect-square w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
               <Image
                 src={referenceImage}
-                alt={referenceImageName || ""}
+                alt={displayName || ""}
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                unoptimized
               />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="mb-2 line-clamp-2 text-sm">{referenceImageName}</p>
-              {referenceImagePublisher && (
-                <p className="text-sm text-muted-foreground line-clamp-1">
-                  Publisher: {referenceImagePublisher}
-                </p>
-              )}
+            <div className="flex-1 min-w-0 flex items-center">
+              <div>
+                <p className="line-clamp-2 text-sm font-medium">{displayName}</p>
+                {referenceImagePublisher && (
+                  <p className="text-sm text-muted-foreground line-clamp-1">
+                    {t("referencePublisher", { name: referenceImagePublisher })}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex gap-2 items-center">
             <Button
-              variant="destructive"
-              size="lg"
-              className="h-20 w-20 flex-shrink-0"
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               onClick={onRemove}
+              aria-label={t("removeSelectedReference")}
               disabled={isLoading}
             >
-              <Trash2 className="size-8" />
+              <X className="w-5 h-5" />
             </Button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   MoreVertical,
   Plus,
-  Edit,
+  Pencil,
   Trash2,
   Search,
   TrendingUp,
@@ -24,12 +24,11 @@ import {
 import {
   useRssKnowledgeCreate,
   useRssKnowledgeDelete,
-  useRssKnowledgeGetById,
+  useRssKnowledgeInfinite,
   useRssKnowledgeUpdate,
 } from "@/services/knowledge.api";
-import { useLibraryRSSData } from "@/services/library.api";
-import { useRouter } from "@/i18n/navigation";
-import { useParams, useSearchParams } from "next/navigation";
+import { useAllLibraryRSSData } from "@/services/library.api";
+import { useParams } from "next/navigation";
 import { AddRssPld, RssRes } from "@/models/api/knowledge/rss.type";
 import { showToast } from "@/helper/show-toast";
 import {
@@ -39,10 +38,16 @@ import {
 import { NoContent } from "@/components/base/no-content";
 import { SearchNotFound } from "@/components/base/search-not-found";
 import { getRssSourceImage } from "@/helper/rss-image-helper";
-import { rssKnowledgeSchema } from "@/validator/new-business";
+import z from "zod";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
 import { useRole } from "@/contexts/role-context";
 import { useTranslations } from "next-intl";
+import { useDebounce } from "@/hooks/use-debounce";
+import {
+  KnowledgeListError,
+  KnowledgeListLoadMore,
+  KnowledgeListLoading,
+} from "./knowledge-list-states";
 
 const initialRSS: AddRssPld & { id?: string } = {
   title: "",
@@ -66,8 +71,6 @@ export function RSSTrendSection({
   openRssModal = false,
 }: RSSTrendSectionProps) {
   const { businessId } = useParams() as { businessId: string };
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [selectedRSS, setSelectedRSS] = useState<
@@ -77,21 +80,28 @@ export function RSSTrendSection({
   const { access } = useRole();
   const { rssKnowledge } = access;
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useDebounce(() => setDebouncedSearch(searchQuery.trim()), 400, [searchQuery]);
   const [rssErrors, setRssErrors] = useState<Record<string, string>>({});
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
-  const { data: rssData } = useRssKnowledgeGetById(businessId, {
-    search: searchQuery,
+  const {
+    data: rssData,
+    isLoading: isLoadingRss,
+    isError: isRssError,
+    isRefetching: isRefetchingRss,
+    refetch: refetchRss,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useRssKnowledgeInfinite(businessId, {
+    search: debouncedSearch,
     sortBy: "title",
     sort: "asc",
   });
-  const { data: rssFeedLibraryData } = useLibraryRSSData({
-    limit: 1000,
-    sortBy: "title",
-    sort: "asc",
-  });
+  const { data: rssFeedLibraryData } = useAllLibraryRSSData();
 
-  const rss = rssData?.data.data || [];
+  const rss = rssData?.pages.flatMap((page) => page.data.data) ?? [];
   const rssFeedMap = useMemo(
     () =>
       new Map(
@@ -114,16 +124,18 @@ export function RSSTrendSection({
     setIsModalOpen(true);
   };
 
-  // Auto-open modal when openRssModal prop is true
+  // Opened from "add RSS" links elsewhere (?openRssModal=true). Only users who
+  // can write get the modal, and the flag is dropped so a refresh or a later
+  // URL change does not reopen it.
   useEffect(() => {
-    if (openRssModal) {
-      handleAddRSS();
-
-    }
-  }, [openRssModal, searchParams, router]);
+    if (!openRssModal || !rssKnowledge.write) return;
+    handleAddRSS();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("openRssModal");
+    window.history.replaceState(null, "", url.toString());
+  }, [openRssModal, rssKnowledge.write]);
 
   const handleEditRSS = (rss: RssRes) => {
-    console.log("Editing RSS:", rss);
     setModalMode("edit");
     setSelectedRSS({
       isActive: rss.isActive,
@@ -145,7 +157,9 @@ export function RSSTrendSection({
       showToast("success", res.data.responseMessage);
       setIsDeleteModalOpen(false);
       setSelectedRSS(initialRSS); // Reset selectedRSS after deletion
-    } catch { }
+    } catch (error) {
+      showToast("error", error);
+    }
   };
 
   const handleOpenDeleteModal = (rss: RssRes) => {
@@ -174,7 +188,8 @@ export function RSSTrendSection({
         });
         showToast("success", res.data.responseMessage);
       }
-    } catch {
+    } catch (error) {
+      showToast("error", error);
     } finally {
       setUpdatingStatusId(null);
     }
@@ -182,7 +197,26 @@ export function RSSTrendSection({
 
   const e = useTranslations("errors");
   const r = useTranslations("rssKnowledge");
+  const tCard = useTranslations("businessCard");
+  const rssKnowledgeSchema = useMemo(
+    () =>
+      z.object({
+        title: z
+          .string()
+          .min(1, r("zodFeedTitle"))
+          .max(100, r("zodMaxLengthFeedTitle")),
+        masterRssCategoryId: z.string().min(1, r("zodFeedCategory")),
+        masterRssId: z.string().min(1, r("zodRssSource")),
+        isActive: z.boolean(),
+      }),
+    [r]
+  );
+  const [isSavingRSS, setIsSavingRSS] = useState(false);
+  const isSavingRSSRef = useRef(false);
   const handleSaveRSS = async (item: AddRssPld & { id?: string }) => {
+    if (isSavingRSSRef.current) return;
+    isSavingRSSRef.current = true;
+    setIsSavingRSS(true);
     try {
       // Validate form data
       const result = rssKnowledgeSchema.safeParse(item);
@@ -242,6 +276,9 @@ export function RSSTrendSection({
         return;
       }
       showToast("error", e("FailedToSaveRSS"));
+    } finally {
+      isSavingRSSRef.current = false;
+      setIsSavingRSS(false);
     }
   };
 
@@ -250,25 +287,46 @@ export function RSSTrendSection({
 
   const getSourceName = (trend: RssRes) => {
     const sourceFeed = getSourceFeed(trend);
+    if (sourceFeed) {
+      if (
+        sourceFeed.publisher &&
+        !sourceFeed.title.toLowerCase().includes(sourceFeed.publisher.toLowerCase())
+      ) {
+        return `${sourceFeed.title} (${sourceFeed.publisher.toUpperCase()})`;
+      }
+      return sourceFeed.title;
+    }
 
-    return (
-      sourceFeed?.title ||
-      trend?.masterRss?.title ||
-      trend?.masterRss?.publisher?.toUpperCase() ||
-      "-"
-    );
+    if (trend?.masterRss?.title) {
+      if (
+        trend.masterRss.publisher &&
+        !trend.masterRss.title.toLowerCase().includes(trend.masterRss.publisher.toLowerCase())
+      ) {
+        return `${trend.masterRss.title} (${trend.masterRss.publisher.toUpperCase()})`;
+      }
+      return trend.masterRss.title;
+    }
+
+    return trend?.masterRss?.publisher?.toUpperCase() || trend?.title || "-";
   };
 
-  const getSourcePublisher = (trend: RssRes) => {
+  const getTrendLogo = (trend: RssRes) => {
     const sourceFeed = getSourceFeed(trend);
-
-    return sourceFeed?.publisher || trend?.masterRss?.publisher || "";
+    return getRssSourceImage(
+      sourceFeed?.publisher,
+      trend?.masterRss?.publisher,
+      sourceFeed?.title,
+      trend?.masterRss?.title,
+      trend.title,
+      sourceFeed?.url,
+      trend?.masterRss?.url
+    );
   };
 
   return (
     <>
       <Card className="h-full w-full">
-        <CardContent className="py-6">
+        <CardContent className="py-4 sm:py-6">
           <div className="space-y-4">
             <div className="flex flex-col gap-4">
               <h2 className="text-lg font-semibold text-foreground">
@@ -276,8 +334,8 @@ export function RSSTrendSection({
               </h2>
 
               {/* Search and Add Button */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
+              <div className="flex flex-row gap-3">
+                <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
                     type="text"
@@ -299,7 +357,14 @@ export function RSSTrendSection({
               </div>
             </div>
 
-            {rss.length === 0 && searchQuery === "" ? (
+            {isLoadingRss ? (
+              <KnowledgeListLoading />
+            ) : isRssError && rss.length === 0 ? (
+              <KnowledgeListError
+                onRetry={() => refetchRss()}
+                isRetrying={isRefetchingRss}
+              />
+            ) : rss.length === 0 && debouncedSearch === "" ? (
               <NoContent
                 icon={TrendingUp}
                 title={r("notAvailable")}
@@ -317,29 +382,93 @@ export function RSSTrendSection({
                 {rss.map((trend) => (
                   <Card key={trend.id} className="bg-background-secondary">
                     <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
+                      {/* Mobile: layout mengikuti card Avatar Bisnis; toggle status di kanan atas tanpa label */}
+                      <div className="flex items-center gap-4 sm:hidden">
+                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                          <Image
+                            src={getTrendLogo(trend)}
+                            alt={trend.title}
+                            fill
+                            sizes="80px"
+                            className="object-cover"
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="line-clamp-2 min-w-0 text-sm font-medium text-foreground">
+                              {trend.title}
+                            </h3>
+                            <div className="-mt-1.5 -mr-2 flex shrink-0 items-center gap-1">
+                              <Switch
+                                checked={trend.isActive}
+                                onCheckedChange={(checked) =>
+                                  handleToggleStatus(trend.id, checked)
+                                }
+                                disabled={!rssKnowledge.write || updatingStatusId === trend.id}
+                                aria-label={r("status")}
+                                className="data-[state=checked]:bg-primary"
+                              />
+                              {rssKnowledge.write && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      aria-label={tCard("moreActions")}
+                                    >
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleEditRSS({
+                                          ...trend,
+                                          id: trend.id,
+                                        })
+                                      }
+                                    >
+                                      <Pencil className="w-4 h-4 mr-2" />
+                                      {r("editRSS")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleOpenDeleteModal(trend)}
+                                      className="text-red-600"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      {r("deleteRSS")}
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
+                          </div>
+                          {trend?.masterRss?.masterRssCategory?.name && (
+                            <span className="inline-block max-w-full truncate rounded-full bg-pink-100 px-2 py-0.5 text-xs text-pink-800">
+                              {trend.masterRss.masterRssCategory.name}
+                            </span>
+                          )}
+                          <p className="truncate text-xs text-muted-foreground">
+                            {r("source")}: {getSourceName(trend)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 max-sm:hidden">
                         <div className="hidden sm:block w-10 h-10  lg:w-16 lg:h-16 rounded-lg overflow-hidden flex-shrink-0">
                           <Image
-                            src={getRssSourceImage(getSourcePublisher(trend))}
+                            src={getTrendLogo(trend)}
                             alt={trend.title}
-                            width={40}
-                            height={40}
+                            width={64}
+                            height={64}
                             className="w-full h-full object-cover"
                           />
                         </div>
 
                         <div className="flex-1 min-w-0">
                           <div className="flex gap-2">
-                            <div className="block sm:hidden w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                              <Image
-                                src={getRssSourceImage(getSourcePublisher(trend))}
-                                alt={trend.title}
-                                width={40}
-                                height={40}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div className="flex-col">
+                            <div className="flex-col max-sm:min-w-0 max-sm:flex-1">
                               <div className="flex flex-col lg:flex-row lg:gap-2">
                                 <h3 className="font-medium text-foreground mb-1 text-sm sm:text-base line-clamp-1">
                                   {trend.title}
@@ -355,12 +484,12 @@ export function RSSTrendSection({
 
                             </div>
                           </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground mb-3">
+                          <p className="text-xs sm:text-sm text-muted-foreground sm:mb-3">
                             {r("source")}:{" "}
                             {getSourceName(trend)}
                           </p>
-                          {/* Status Toggle */}
-                          <div className="flex items-center gap-3">
+                          {/* Status Toggle (desktop) — di mobile toggle pindah ke kanan atas card */}
+                          <div className="hidden sm:flex items-center gap-3">
                             {rssKnowledge.write && (
                               <Switch
                                 checked={trend.isActive}
@@ -386,13 +515,14 @@ export function RSSTrendSection({
                           </div>
                         </div>
 
+                        <div className="flex items-center gap-1 self-start sm:self-auto max-sm:gap-2">
                         {rssKnowledge.write && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
+                                size="icon-sm"
+                                aria-label={tCard("moreActions")}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </Button>
@@ -406,7 +536,7 @@ export function RSSTrendSection({
                                   })
                                 }
                               >
-                                <Edit className="w-4 h-4 mr-2" />
+                                <Pencil className="w-4 h-4 mr-2" />
                                 {r("editRSS")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
@@ -419,10 +549,17 @@ export function RSSTrendSection({
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
+                {hasNextPage && (
+                  <KnowledgeListLoadMore
+                    onLoadMore={() => fetchNextPage()}
+                    isLoading={isFetchingNextPage}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -446,6 +583,7 @@ export function RSSTrendSection({
         }}
         onChange={setSelectedRSS}
         errors={rssErrors}
+        isSubmitting={isSavingRSS}
       />
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}

@@ -1,8 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { getCategoryLabel } from "@/helper/locale";
+import { PRODUCT_CATEGORY_OTHER } from "@/models/api/library/product-category.type";
+import { useLibraryProductCategory } from "@/services/library.api";
 
 interface ProductCategoryDropdownProps {
   value: string;
@@ -13,41 +19,49 @@ interface ProductCategoryDropdownProps {
   onFocus?: () => void;
 }
 
+// Stores a suggested category code, or the typed text when "Lainnya" is picked (the "other" code itself
+// is never stored).
 export function ProductCategoryDropdown({
   value,
   onChange,
-  placeholder = "Pilih kategori produk",
-  label = "Kategori Produk",
+  placeholder: placeholderProp,
+  label: labelProp,
   error,
   onFocus,
 }: ProductCategoryDropdownProps) {
   const t = useTranslations("productCategory");
-  const PRODUCT_CATEGORIES = [
-    t("foodAndDrink"),
-    t("fashionAndClothing"),
-    t("beautyAndPersonalCare"),
-    t("electronicsAndGadgets"),
-    t("homeAndLiving"),
-    t("healthAndWellness"),
-    t("babyAndChildren"),
-    t("automotiveAndAccessories"),
-    t("sportsAndOutdoor"),
-    t("booksAndStationery"),
-    t("jewelryAndAccessories"),
-    t("petSupplies"),
-    t("furnitureAndDecor"),
-    t("toolsAndHardware"),
-    t("digitalAndSubscription"),
-    t("other"),
-  ];
-  const categoryOptions = PRODUCT_CATEGORIES.includes(value)
-    ? PRODUCT_CATEGORIES
-    : value
-      ? [...PRODUCT_CATEGORIES, value]
-      : PRODUCT_CATEGORIES;
+  const locale = useLocale();
+  const placeholder = placeholderProp ?? t("selectPlaceholder");
+  const label = labelProp ?? t("label");
+  const { data, isLoading } = useLibraryProductCategory();
+  const categories = data?.data.data ?? [];
+  const [otherSelected, setOtherSelected] = useState(false);
 
-  const handleCategoryChange = (selectedValue: string) => {
-    onChange(selectedValue);
+  const isSuggestedCode = categories.some(
+    (category) => category.code === value && category.code !== PRODUCT_CATEGORY_OTHER
+  );
+  // Until the list loads, a code cannot be told apart from free text.
+  const isFreeText =
+    categories.length > 0 && !!value && value !== PRODUCT_CATEGORY_OTHER && !isSuggestedCode;
+  const showOtherInput = otherSelected || isFreeText || value === PRODUCT_CATEGORY_OTHER;
+  const selectValue = isSuggestedCode ? value : showOtherInput ? PRODUCT_CATEGORY_OTHER : "";
+
+  // A scrapper result can be "other"; the user still has to type the category.
+  useEffect(() => {
+    if (value === PRODUCT_CATEGORY_OTHER) {
+      setOtherSelected(true);
+      onChange("");
+    }
+  }, [value, onChange]);
+
+  const handleSelectChange = (selected: string) => {
+    if (selected === PRODUCT_CATEGORY_OTHER) {
+      setOtherSelected(true);
+      onChange("");
+      return;
+    }
+    setOtherSelected(false);
+    onChange(selected);
   };
 
   return (
@@ -55,27 +69,36 @@ export function ProductCategoryDropdown({
       <div className="flex flex-col md:flex-row w-full justify-between items-center gap-2">
         <div className="space-y-2 w-full">
           <Label htmlFor="category">{label}</Label>
-          <select
+          <NativeSelect
             id="category"
-            className={`flex p-2 h-10 w-full items-center rounded-md border bg-background dark:bg-card px-3 py-2 text-sm shadow-xs ring-offset-background transition-[color,box-shadow] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-              error
-                ? "border-red-500 focus:ring-red-500"
-                : "border-input focus:ring-ring"
-            }`}
-            value={value || ""}
-            onChange={(e) => handleCategoryChange(e.target.value)}
+            className={`bg-background dark:bg-card ${error ? "border-red-500" : ""}`}
+            value={selectValue}
+            onChange={(e) => handleSelectChange(e.target.value)}
             onFocus={onFocus}
+            disabled={isLoading}
             aria-invalid={!!error}
           >
             <option value="" disabled hidden>
               {placeholder}
             </option>
-            {categoryOptions.map((category) => (
-              <option key={category} value={category}>
-                {category}
+            {categories.map((category) => (
+              <option key={category.code} value={category.code}>
+                {getCategoryLabel(categories, category.code, locale)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
+          {showOtherInput && (
+            <Input
+              id="category-other"
+              value={isFreeText ? value : ""}
+              onChange={(e) => onChange(e.target.value)}
+              onFocus={onFocus}
+              placeholder={t("enterOtherCategory")}
+              maxLength={255}
+              className={`bg-background dark:bg-card ${error ? "border-red-500" : ""}`}
+              aria-invalid={!!error}
+            />
+          )}
         </div>
       </div>
       {error && (

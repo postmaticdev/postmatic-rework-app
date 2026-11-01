@@ -6,7 +6,7 @@ import { useContentGenerate } from "@/contexts/content-generate-context";
 import { useDateFormat } from "@/hooks/use-date-format";
 import { dateFormat } from "@/helper/date-format";
 import { useRssKnowledgeGetById } from "@/services/knowledge.api";
-import { ChartNoAxesCombined } from "lucide-react";
+import { ChartNoAxesCombined, Check } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
@@ -67,7 +67,7 @@ export const GenerateFormSelectRss = ({
         )
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {rss.articles.map((article, index) => (
           <Card
             key={`${article?.imageUrl}:${index}`}
@@ -117,8 +117,9 @@ export const GenerateFormSelectRss = ({
                   onArticleSelected?.();
                 }}
                 disabled={!!form.rss || isLoading}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
               >
+                <Check className="h-4 w-4" />
                 {t("use")}
               </Button>
             </div>

@@ -37,12 +37,12 @@ export function DeleteConfirmationModal({
   const t = useTranslations("modal");
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="max-w-md">
-        <AlertDialogHeader className="flex flex-row gap-6 items-center">
+      <AlertDialogContent>
+        <AlertDialogHeader className="flex flex-row items-center gap-4 text-left sm:gap-6">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20 flex-shrink-0">
             <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 max-md:min-w-0">
             <AlertDialogTitle>{title}</AlertDialogTitle>
             <AlertDialogDescription>{description}</AlertDialogDescription>
           </div>
@@ -52,8 +52,8 @@ export function DeleteConfirmationModal({
         <div className="space-y-4">
           <div className="rounded-lg bg-muted/50 p-4">
             <div className="flex items-center gap-3">
-              <Trash2 className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
+              <Trash2 className="h-5 w-5 text-muted-foreground max-md:shrink-0" />
+              <div className="flex-1 max-md:min-w-0">
                 <p className="text-sm font-medium text-foreground">
                   {t("deleteItem")}
                 </p>
@@ -66,18 +66,17 @@ export function DeleteConfirmationModal({
         </div>
         )}
 
-        <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <AlertDialogFooter>
           <AlertDialogCancel
             onClick={onClose}
             disabled={isLoading}
-            className="w-full sm:w-auto"
           >
             {t("cancel")}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isLoading}
-            className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isLoading ? (
               <div className="flex items-center gap-2 text-white">

@@ -11,9 +11,11 @@ import { showToast } from "@/helper/show-toast";
 import { useLibraryTime } from "@/services/library.api";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export function TimezoneSelector() {
   const { businessId } = useParams() as { businessId: string };
+  const t = useTranslations("contentScheduler");
   const { data: timezone } = useContentSchedulerTimezoneGetTimezone(businessId);
   const { data: libraryTimezone } = useLibraryTime();
   const timezones = React.useMemo(
@@ -111,13 +113,13 @@ export function TimezoneSelector() {
         aria-controls={listboxId}
         aria-expanded={isOpen ? "true" : "false"}
         aria-haspopup="listbox"
-        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-(--control-h) w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background sm:text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={() => setIsOpen((current) => !current)}
       >
         <span className="truncate">
           {selectedTimezoneData
             ? `(${selectedTimezoneData.offset}) ${selectedTimezoneData.name}`
-            : selectedTimezone || "Select timezone"}
+            : selectedTimezone || t("selectTimezone")}
         </span>
         <ChevronDown
           className={cn(
@@ -139,8 +141,8 @@ export function TimezoneSelector() {
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search timezone..."
-                className="h-9 pl-9"
+                placeholder={t("searchTimezone")}
+                className="pl-9"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck={false}
@@ -168,7 +170,7 @@ export function TimezoneSelector() {
                   role="option"
                   aria-selected={selectedTimezone === timezone.name}
                   className={cn(
-                    "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                    "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-left text-sm outline-none max-md:py-2.5 hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
                     selectedTimezone === timezone.name &&
                       "bg-accent text-accent-foreground"
                   )}
@@ -186,7 +188,7 @@ export function TimezoneSelector() {
               ))
             ) : (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                Timezone tidak ditemukan
+                {t("timezoneNotFound")}
               </div>
             )}
           </div>

@@ -1,5 +1,10 @@
-import { ACCESS_TOKEN_KEY, NEXT_PUBLIC_API_ORIGIN, REFRESH_TOKEN_KEY } from "@/constants";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/constants";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getAuthCookieOptions,
+  getBackendApiOrigin,
+  isSameOriginRequest,
+} from "../_shared";
 
 type RefreshResponse = {
   metaData?: { code?: number; message?: string };
@@ -8,13 +13,6 @@ type RefreshResponse = {
     accessToken?: string;
     refreshToken?: string;
   };
-};
-
-const COOKIE_OPTIONS = {
-  path: "/",
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
-  maxAge: 60 * 60 * 24 * 7,
 };
 
 const FORWARDED_REFRESH_HEADERS = [
@@ -30,9 +28,21 @@ const FORWARDED_REFRESH_HEADERS = [
 ] as const;
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const refreshToken =
-    request.cookies.get(REFRESH_TOKEN_KEY)?.value ?? body?.refreshToken;
+  // Refresh menulis cookie sesi: tolak request lintas origin, dan hanya pakai
+  // refresh token dari cookie httpOnly (bukan dari body) agar halaman lain
+  // tidak bisa menanamkan sesi miliknya ke browser korban (login CSRF).
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json(
+      {
+        metaData: { code: 403, message: "Forbidden" },
+        responseMessage: "CROSS_ORIGIN_REQUEST_REJECTED",
+        data: null,
+      },
+      { status: 403 }
+    );
+  }
+
+  const refreshToken = request.cookies.get(REFRESH_TOKEN_KEY)?.value;
 
   if (!refreshToken) {
     return NextResponse.json(
@@ -54,31 +64,53 @@ export async function POST(request: NextRequest) {
     if (value) headers.set(header, value);
   });
 
-  const upstream = await fetch(
-    `${NEXT_PUBLIC_API_ORIGIN}/api/account/auth/refresh-token`,
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ refreshToken }),
-      cache: "no-store",
-    }
-  );
+  const apiOrigin = getBackendApiOrigin();
+
+  if (!apiOrigin) {
+    return NextResponse.json(
+      {
+        metaData: { code: 500, message: "API origin is not configured" },
+        responseMessage: "API_ORIGIN_NOT_CONFIGURED",
+        data: null,
+      },
+      { status: 500 }
+    );
+  }
+
+  const upstream = await fetch(`${apiOrigin}/api/account/auth/refresh-token`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ refreshToken }),
+    cache: "no-store",
+  });
 
   const payload = (await upstream.json().catch(() => null)) as
     | RefreshResponse
     | null;
-  const response = NextResponse.json(payload, { status: upstream.status });
+  const responsePayload = payload
+    ? {
+        ...payload,
+        data: payload.data
+          ? { ...payload.data, refreshToken: undefined }
+          : payload.data,
+      }
+    : payload;
+  const response = NextResponse.json(responsePayload, {
+    status: upstream.status,
+  });
 
   const accessToken = payload?.data?.accessToken;
   const nextRefreshToken = payload?.data?.refreshToken;
-
   if (upstream.ok && accessToken) {
-    response.cookies.set(ACCESS_TOKEN_KEY, accessToken, COOKIE_OPTIONS);
+    response.cookies.set(ACCESS_TOKEN_KEY, accessToken, getAuthCookieOptions(request, accessToken));
   }
 
-  if (upstream.ok && nextRefreshToken) {
+  // The API returns the same refresh token until it rotates it near expiry.
+  // Only write it when it changed: rewriting an unchanged token would only
+  // re-extend a cookie whose lifetime should follow the token's own `exp`.
+  if (upstream.ok && nextRefreshToken && nextRefreshToken !== refreshToken) {
     response.cookies.set(REFRESH_TOKEN_KEY, nextRefreshToken, {
-      ...COOKIE_OPTIONS,
+      ...getAuthCookieOptions(request, nextRefreshToken),
       httpOnly: true,
     });
   }

@@ -21,7 +21,7 @@ export function AnalyticsCard({
   titleIconClassName,
 }: AnalyticsCardProps) {
   return (
-    <div className="bg-card rounded-lg p-6 shadow-sm border border-border">
+    <div className="bg-card rounded-lg p-4 sm:p-6 shadow-sm border border-border">
       <div className="mb-1 flex items-center gap-3">
         {titleIcon && (
           <span

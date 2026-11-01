@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import {
   MoreVertical,
   Plus,
   Search,
-  Edit,
+  Pencil,
   Trash2,
   ShoppingBag,
 } from "lucide-react";
@@ -24,7 +24,7 @@ import {
 import { useParams } from "next/navigation";
 import {
   useProductKnowledgeCreate,
-  useProductKnowledgeGetAll,
+  useProductKnowledgeInfinite,
   useProductKnowledgeUpdate,
   useProductKnowledgeDelete,
 } from "@/services/knowledge.api";
@@ -43,7 +43,14 @@ import { NoContent } from "@/components/base/no-content";
 import { SearchNotFound } from "@/components/base/search-not-found";
 import { useProductKnowledgeSchema } from "@/validator/new-business/schema-with-i18n";
 import { useRole } from "@/contexts/role-context";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useProductCategoryLabel } from "@/hooks/use-category-label";
+import {
+  KnowledgeListError,
+  KnowledgeListLoadMore,
+  KnowledgeListLoading,
+} from "./knowledge-list-states";
 
 const initialProduct: ProductKnowledgePld & { id?: string } = {
   category: "",
@@ -68,9 +75,13 @@ export function ProductSection() {
   const { businessId } = useParams() as { businessId: string };
   const productKnowledgeSchema = useProductKnowledgeSchema();
   const t = useTranslations();
+  const productCategoryLabel = useProductCategoryLabel();
+  const locale = useLocale();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useDebounce(() => setDebouncedSearch(searchQuery.trim()), 400, [searchQuery]);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [selectedProduct, setSelectedProduct] = useState<
     ProductKnowledgePld & { id?: string }
@@ -94,7 +105,6 @@ export function ProductSection() {
     setModalMode("edit");
     setSelectedProduct(product);
     setProductErrors({});
-    console.log("Selected product:", product);
     setIsEditModalOpen(true);
   };
 
@@ -134,9 +144,14 @@ export function ProductSection() {
   const mProductUpdate = useProductKnowledgeUpdate();
   const mProductCreate = useProductKnowledgeCreate();
   const mProductDelete = useProductKnowledgeDelete();
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
   const handleSave = async (
     productData: ProductKnowledgePld & { id?: string }
   ) => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
       // Validate form data
       const result = productKnowledgeSchema.safeParse(productData);
@@ -189,24 +204,34 @@ export function ProductSection() {
         return;
       }
       showToast("error", t("toast.product.saveFailed"));
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   };
 
-  const { data: productData } = useProductKnowledgeGetAll(businessId, {
-    search: searchQuery,
-  });
-  const products = productData?.data.data || [];
+  const {
+    data: productData,
+    isLoading: isLoadingProducts,
+    isError: isProductsError,
+    isRefetching: isRefetchingProducts,
+    refetch: refetchProducts,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useProductKnowledgeInfinite(businessId, { search: debouncedSearch });
+  const products = productData?.pages.flatMap((page) => page.data.data) ?? [];
 
   const p = useTranslations("productKnowledge");
 
   return (
     <Card className="h-full w-full">
-      <CardContent className="py-6">
+      <CardContent className="py-4 sm:py-6">
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">{p("title")}</h2>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-row gap-3">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 type="text"
@@ -229,7 +254,14 @@ export function ProductSection() {
 
 
           {/* Product List */}
-          {products.length === 0 && searchQuery === "" ? (
+          {isLoadingProducts ? (
+            <KnowledgeListLoading />
+          ) : isProductsError && products.length === 0 ? (
+            <KnowledgeListError
+              onRetry={() => refetchProducts()}
+              isRetrying={isRefetchingProducts}
+            />
+          ) : products.length === 0 && debouncedSearch === "" ? (
             <NoContent
               icon={ShoppingBag}
               title={p("notAvailable")}
@@ -247,41 +279,91 @@ export function ProductSection() {
               {products.map((product) => (
                 <Card key={product.id} className="bg-background-secondary">
                   <CardContent className="py-4">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
+                    {/* Mobile: layout mengikuti card Avatar Bisnis */}
+                    <div className="flex items-center gap-4 sm:hidden">
+                      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                        <Image
+                          src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
+                          alt={product.name}
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="line-clamp-2 min-w-0 text-sm font-medium text-foreground">
+                            {product.name}
+                          </h3>
+                          {productKnowledge.write && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="-mr-2 -mt-1.5 shrink-0"
+                                  aria-label={t("businessCard.moreActions")}
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleEditProduct(product)}
+                                >
+                                  <Pencil className="w-4 h-4 mr-2" />
+                                  {p("edit")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteProduct(product)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  {p("delete")}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                        {product.category && (
+                          <span className="inline-block max-w-full truncate rounded-full bg-pink-100 px-2 py-0.5 text-xs text-pink-800">
+                            {productCategoryLabel(product.category)}
+                          </span>
+                        )}
+                        <p className="text-sm font-medium text-foreground">
+                          {formatPriceWithCurrency(
+                            product.price,
+                            product.currency,
+
+                            locale
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-1 max-sm:hidden">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 max-sm:min-w-0 max-sm:flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <div className="relative w-16 h-16 sm:w-32  sm:h-32 rounded-lg overflow-hidden flex-shrink-0">
+                          <div className="relative h-20 w-20 rounded-lg overflow-hidden flex-shrink-0">
                             <Image
                               src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                               alt={product.name}
                               fill
+                              sizes="80px"
                               className="object-cover"
                             />
-                          </div>
-                          <div className="flex flex-col sm:hidden items-start ">
-                            <h3 className="font-medium text-foreground mb-1 text-sm line-clamp-1">
-                              {product.name}
-                            </h3>
-
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                                {product.category}
-                              </span>
-                            </div>
                           </div>
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="hidden sm:flex flex-col lg:flex-row lg:gap-2">
-                            <h3 className="font-medium text-foreground mb-1">
+                          <div className="hidden sm:flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
+                            <h3 className="font-medium text-foreground text-base">
                               {product.name}
                             </h3>
-
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="bg-pink-100 text-pink-800 text-xs px-2 py-1 rounded-full">
-                                {product.category}
-                              </span>
-                            </div>
+                            <span className="bg-pink-100 text-pink-800 text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                              {productCategoryLabel(product.category)}
+                            </span>
                           </div>
 
                           <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-2">
@@ -291,7 +373,9 @@ export function ProductSection() {
                           <p className="text-sm font-medium text-foreground">
                             {formatPriceWithCurrency(
                               product.price,
-                              product.currency
+                              product.currency,
+
+                              locale
                             )}
                           </p>
                         </div>
@@ -302,8 +386,8 @@ export function ProductSection() {
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
+                              size="icon-sm"
+                              aria-label={t("businessCard.moreActions")}
                             >
                               <MoreVertical className="w-4 h-4" />
                             </Button>
@@ -312,7 +396,7 @@ export function ProductSection() {
                             <DropdownMenuItem
                               onClick={() => handleEditProduct(product)}
                             >
-                              <Edit className="w-4 h-4 mr-2" />
+                              <Pencil className="w-4 h-4 mr-2" />
                               {p("edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
@@ -329,6 +413,12 @@ export function ProductSection() {
                   </CardContent>
                 </Card>
               ))}
+              {hasNextPage && (
+                <KnowledgeListLoadMore
+                  onLoadMore={() => fetchNextPage()}
+                  isLoading={isFetchingNextPage}
+                />
+              )}
             </div>
           )}
         </div>
@@ -345,6 +435,7 @@ export function ProductSection() {
         formValue={selectedProduct}
         onChange={setSelectedProduct}
         errors={productErrors}
+        isSubmitting={isSaving}
       />
 
       <DeleteConfirmationModal

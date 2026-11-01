@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { ProductKnowledgePld } from "@/models/api/knowledge/product.type";
 import { UploadPhoto } from "@/components/forms/upload-photo";
 import { TextField } from "@/components/forms/text-field";
@@ -26,8 +24,9 @@ interface ProductModalProps {
   onSave: (productData: ProductKnowledgePld & { id?: string }) => void;
   mode: "add" | "edit";
   formValue: ProductKnowledgePld & { id?: string };
-  onChange: (productData: ProductKnowledgePld & { id?: string }) => void;
+  onChange: Dispatch<SetStateAction<ProductKnowledgePld & { id?: string }>>;
   errors?: Record<string, string>;
+  isSubmitting?: boolean;
 }
 
 export function ProductModal({
@@ -38,16 +37,17 @@ export function ProductModal({
   formValue,
   onChange,
   errors = {},
+  isSubmitting = false,
 }: ProductModalProps) {
-  const [productAction, setProductAction] = useState<"add" | "edit" | "select">(
-    mode
-  );
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const updateField = (
     key: keyof ProductKnowledgePld,
     value: ProductKnowledgePld[keyof ProductKnowledgePld]
   ) => {
-    onChange({ ...formValue, [key]: value });
+    // Functional update: the photo upload resolves later and must not
+    // overwrite fields edited while it was uploading.
+    onChange((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = () => {
@@ -79,29 +79,11 @@ export function ProductModal({
         </DialogHeader>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {productAction === "select" && mode === "add" && (
-            <div className="space-y-4">
-              <div className="flex gap-4">
-                <Button
-                  onClick={() => setProductAction("add")}
-                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t("addProduct")}
-                </Button>
-                <Button
-                  onClick={() => setProductAction("edit")}
-                  variant="outline"
-                >
-                  {t("editProduct")}
-                </Button>
-              </div>
-            </div>
-          )}
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
 
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row w-full gap-6 items-start">
+
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col md:flex-row w-full gap-4 sm:gap-6 items-start">
               <UploadPhoto
                 label={t("productPhoto")}
                 onImageChange={(file: string | null) =>
@@ -109,6 +91,7 @@ export function ProductModal({
                 }
                 currentImage={formValue.images?.[0]}
                 error={errors.images}
+                onUploadingChange={setIsUploadingImage}
               />
 
               <div className="w-full space-y-4">
@@ -139,24 +122,26 @@ export function ProductModal({
               rows={3}
               error={errors.description}
             />
-            <Label className="text-sm font-medium text-foreground mb-1">
-              {t("price")}
-            </Label>
-            <div className="flex w-full gap-6 items-start justify-between">
-              <CurrencyDropdown
-                value={formValue.currency}
-                onChange={(value) => updateField("currency", value)}
-                placeholder={placeholders.currency}
-                error={errors.currency}
-              />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">
+                {t("price")}
+              </Label>
+              <div className="flex w-full gap-3 sm:gap-6 items-start justify-between">
+                <CurrencyDropdown
+                  value={formValue.currency}
+                  onChange={(value) => updateField("currency", value)}
+                  placeholder={placeholders.currency}
+                  error={errors.currency}
+                />
 
-              <PriceInput
-                value={formValue.price}
-                onChange={(value) => updateField("price", value)}
-                placeholder={placeholders.price}
-                currency={formValue.currency || "IDR"}
-                error={errors.price}
-              />
+                <PriceInput
+                  value={formValue.price}
+                  onChange={(value) => updateField("price", value)}
+                  placeholder={placeholders.price}
+                  currency={formValue.currency || "IDR"}
+                  error={errors.price}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -164,6 +149,7 @@ export function ProductModal({
         <DialogFooterWithButton
           buttonMessage={buttonText}
           onClick={handleSave}
+          disabled={isSubmitting || isUploadingImage}
         />
       </DialogContent>
     </Dialog>

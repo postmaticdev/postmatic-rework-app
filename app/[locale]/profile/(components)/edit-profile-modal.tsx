@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Lock, ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Lock, ArrowLeft, ArrowRight, Eye, EyeOff, Save } from "lucide-react";
 import { UploadPhoto } from "@/components/forms/upload-photo";
 import {
   useAuthProfileChangePassword,
@@ -23,9 +24,20 @@ import { showToast } from "@/helper/show-toast";
 import { SearchableCountrySelect } from "./searchable-select-content";
 import countryCodes from "@/lib/country-code.json";
 import { FcGoogle } from "react-icons/fc";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeCountryNames } from "@/helper/locale";
+import { AxiosError } from "axios";
 
 type ViewMode = "profile" | "password";
+
+// Mirrors the API rule for PUT /account/profile/password (min=8, max=72).
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 72;
+const PASSWORD_LENGTH_PARAMS = { min: PASSWORD_MIN_LENGTH, max: PASSWORD_MAX_LENGTH };
+// Mirrors the API rule for PUT /account/profile.
+const DEFAULT_COUNTRY_CODE = "+62";
+const DESCRIPTION_MAX_LENGTH = 255;
+const PHONE_MAX_LENGTH = 20;
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -60,30 +72,45 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
   const mUpdateProfile = useAuthProfileUpdateProfile();
   const mChangePassword = useAuthProfileChangePassword();
 
-  const isSocialAccount = profile?.users?.some(
-    (user) => user.provider === "google"
-  );
+  // Akun Google tanpa password tidak bisa memakai "ganti password".
+  const isSocialAccount =
+    !!profile?.google?.isConnected && !profile?.credential?.isPasswordSet;
 
   const [formData, setFormData] = useState<ProfilePld>(initialFormData);
   const [passwordData, setPasswordData] =
     useState<UpdatePasswordData>(initialPasswordData);
   const [showPasswords, setShowPasswords] = useState(initialShowPasswords);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  // Isi ulang form dari profile setiap modal dibuka, supaya editan yang
+  // dibatalkan tidak muncul lagi dan refetch tidak menimpa editan yang sedang berjalan.
+  const isFormInitialized = useRef(false);
   useEffect(() => {
-    if (profile) {
-      setFormData({
-        countryCode: profile.countryCode || "",
-        phone: profile.phone || "",
-        image: profile.image || null,
-        email: profile.email || "",
-        name: profile.name || "",
-        description: profile.description || "",
-      });
+    if (!isOpen) {
+      isFormInitialized.current = false;
+      return;
     }
-  }, [profile]);
+    if (!profile || isFormInitialized.current) return;
+    isFormInitialized.current = true;
+    setFormData({
+      // countryCode wajib di API (PUT /account/profile), default ke Indonesia.
+      countryCode: profile.countryCode || DEFAULT_COUNTRY_CODE,
+      phone: profile.phone || "",
+      image: profile.image || null,
+      email: profile.email || "",
+      name: profile.name || "",
+      description: profile.description || "",
+    });
+  }, [isOpen, profile]);
 
   const handleSaveProfile = async () => {
+    if (!profile || mUpdateProfile.isPending || isUploadingPhoto) return;
+    const name = formData.name.trim();
+    if (!name) {
+      showToast("error", t("profileErrors.nameRequired"));
+      return;
+    }
     try {
-      if (!profile) return;
       let copiedPhone = formData.phone;
       let isStartWith0 = true;
 
@@ -98,6 +125,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
       const res = await mUpdateProfile.mutateAsync({
         ...formData,
+        name,
+        countryCode: formData.countryCode || DEFAULT_COUNTRY_CODE,
         phone: copiedPhone,
       });
       showToast("success", res.data.responseMessage);
@@ -150,7 +179,56 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
     });
   };
 
+  const newPasswordLength = passwordData.newPassword.length;
+  const isNewPasswordLengthValid =
+    newPasswordLength >= PASSWORD_MIN_LENGTH &&
+    newPasswordLength <= PASSWORD_MAX_LENGTH;
+  const isConfirmMismatch =
+    passwordData.confirmPassword.length > 0 &&
+    passwordData.confirmPassword !== passwordData.newPassword;
+
+  const getChangePasswordErrorMessage = (error: unknown): unknown => {
+    if (!(error instanceof AxiosError)) return error;
+    const code = error.response?.data?.responseMessage;
+    if (error.response?.status === 429 || code === "TOO_MANY_REQUESTS") {
+      const retryAfter = Number(
+        error.response?.data?.data?.retryAfter ??
+          error.response?.headers?.["retry-after"]
+      );
+      return retryAfter > 0
+        ? t("passwordErrors.tooManyRequestsRetry", {
+            minutes: Math.ceil(retryAfter / 60),
+          })
+        : t("passwordErrors.tooManyRequests");
+    }
+    if (
+      code === "ACCOUNT_USES_GOOGLE_SIGN_IN" ||
+      code === "CREDENTIAL_USER_NOT_FOUND"
+    ) {
+      return t("passwordErrors.googleOnly");
+    }
+    if (code === "VALIDATION_FAILED") {
+      return t("passwordErrors.newPasswordLength", PASSWORD_LENGTH_PARAMS);
+    }
+    return error;
+  };
+
   const handlePasswordSave = async () => {
+    if (!passwordData.oldPassword) {
+      showToast("error", t("passwordErrors.oldPasswordRequired"));
+      return;
+    }
+    if (!isNewPasswordLengthValid) {
+      showToast(
+        "error",
+        t("passwordErrors.newPasswordLength", PASSWORD_LENGTH_PARAMS)
+      );
+      return;
+    }
+    if (passwordData.confirmPassword !== passwordData.newPassword) {
+      showToast("error", t("passwordErrors.confirmMismatch"));
+      return;
+    }
     try {
       const res = await mChangePassword.mutateAsync(passwordData);
       showToast("success", res.data.responseMessage);
@@ -166,7 +244,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         new: false,
         confirm: false,
       });
-    } catch {}
+    } catch (error) {
+      showToast("error", getChangePasswordErrorMessage(error));
+    }
   };
 
   const handleModalClose = () => {
@@ -181,6 +261,11 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
   };
  
   const t = useTranslations("editProfileModal");
+  const locale = useLocale();
+  const localizedCountries = useMemo(
+    () => localizeCountryNames(countryCodes, locale),
+    [locale]
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleModalClose}>
@@ -200,7 +285,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4 sm:space-y-6">
           {currentView === "profile" ? (
             <>
               {/* Profile Image */}
@@ -214,6 +299,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     }));
                   }}
                   currentImage={formData.image}
+                  onUploadingChange={setIsUploadingPhoto}
                 />
               </div>
 
@@ -238,6 +324,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                   }
                   className="bg-card min-h-24 resize-none"
                   placeholder={t("bioPlaceholder")}
+                  maxLength={DESCRIPTION_MAX_LENGTH}
                 />
               </div>
 
@@ -259,23 +346,23 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 <label className="text-sm font-medium">{t("phone")}</label>
                 <div className="flex space-x-2">
                   <SearchableCountrySelect
-                    countries={countryCodes}
+                    countries={localizedCountries}
                     value={formData.countryCode}
                     onValueChange={(value) =>
                       handleInputChange("countryCode", value)
                     }
                     placeholder={t("countryCode")}
                     searchPlaceholder={t("countryCodeSearch")}
-                    className="w-40 bg-card"
+                    className="w-28 sm:w-40 bg-card"
                   />
                   <Input
-                    type="number"
+                    type="tel"
+                    inputMode="numeric"
                     value={formData.phone}
-                    onKeyDown={(evt) =>
-                      ["e", "E", "+", "-"].includes(evt.key) &&
-                      evt.preventDefault()
+                    maxLength={PHONE_MAX_LENGTH}
+                    onChange={(e) =>
+                      handleInputChange("phone", e.target.value.replace(/\D/g, ""))
                     }
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
                     className="bg-card flex-1"
                     placeholder={t("phonePlaceholder")}
                   />
@@ -290,7 +377,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 {isSocialAccount ? (
                   <Button
                     variant="outline"
-                    className="w-full h-12 justify-between space-x-3 bg-card text-foreground hover:bg-background"
+                    className="w-full justify-between space-x-3 bg-card text-foreground hover:bg-background"
                   >
                     <div className="flex items-center space-x-3">
                       <FcGoogle className="h-5 w-5" />
@@ -302,7 +389,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 ) : (
                   <Button
                     variant="outline"
-                    className="w-full h-12 justify-between space-x-3 bg-card text-muted-foreground hover:bg-background"
+                    className="w-full justify-between space-x-3 bg-card text-muted-foreground hover:bg-background"
                     onClick={handleChangePassword}
                   >
                     <div className="flex items-center space-x-3">
@@ -337,6 +424,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => togglePasswordVisibility("current")}
+                    aria-label={showPasswords.current ? t("hidePassword") : t("showPassword")}
                   >
                     {showPasswords.current ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -366,6 +454,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => togglePasswordVisibility("new")}
+                    aria-label={showPasswords.new ? t("hidePassword") : t("showPassword")}
                   >
                     {showPasswords.new ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -374,6 +463,15 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     )}
                   </Button>
                 </div>
+                <p
+                  className={`text-xs ${
+                    newPasswordLength > 0 && !isNewPasswordLengthValid
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {t("passwordHint", PASSWORD_LENGTH_PARAMS)}
+                </p>
               </div>
 
               {/* Confirm New Password */}
@@ -397,6 +495,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => togglePasswordVisibility("confirm")}
+                    aria-label={showPasswords.confirm ? t("hidePassword") : t("showPassword")}
                   >
                     {showPasswords.confirm ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -405,39 +504,46 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                     )}
                   </Button>
                 </div>
+                {isConfirmMismatch && (
+                  <p className="text-xs text-destructive">
+                    {t("passwordErrors.confirmMismatch")}
+                  </p>
+                )}
               </div>
             </>
           )}
         </div>
 
-        <div className="flex items-center justify-between p-6 pt-4 border-t border-border">
+        <DialogFooter>
           {currentView === "password" && (
             <Button
               variant="outline"
               onClick={handleBackToProfile}
-              className="flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>{t("back")}</span>
             </Button>
           )}
-          <div className={currentView === "password" ? "ml-auto" : "w-full"}>
-            <Button
-              onClick={
-                currentView === "profile"
-                  ? handleSaveProfile
-                  : handlePasswordSave
-              }
-              className="w-full flex items-center justify-center space-x-2"
-            >
-              <span>
-                {currentView === "profile"
-                  ? t("save")
-                  : "Ubah Password"}
-              </span>
-            </Button>
-          </div>
-        </div>
+          <Button
+            onClick={
+              currentView === "profile"
+                ? handleSaveProfile
+                : handlePasswordSave
+            }
+            disabled={
+              currentView === "password"
+                ? mChangePassword.isPending
+                : mUpdateProfile.isPending || isUploadingPhoto
+            }
+          >
+            <Save className="h-4 w-4" />
+            <span>
+              {currentView === "profile"
+                ? t("save")
+                : t("savePassword")}
+            </span>
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -2,13 +2,16 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
+import { getMemberRoleLabel } from "@/helper/member-role";
 import { useBusinessGetAll } from "@/services/business.api";
 import { useBusinessKnowledgeGetById } from "@/services/knowledge.api";
 import { DEFAULT_BUSINESS_IMAGE } from "@/constants";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { BusinessRes } from "@/models/api/business/index.type";
+import { Eye } from "lucide-react";
 
 function BusinessInformationItem({ business }: { business: BusinessRes }) {
   const { data: businessKnowledgeData } = useBusinessKnowledgeGetById(
@@ -22,6 +25,7 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
   const businessImage = knowledgeLogo || business.logo || DEFAULT_BUSINESS_IMAGE;
 
   const t = useTranslations("businessInformation");
+  const tRole = useTranslations("memberRole");
 
   return (
     <div className="flex flex-col md:flex-row flex-warp md:items-center justify-between p-3 rounded-lg bg-background-secondary">
@@ -35,11 +39,11 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
             className="w-full h-full object-contain"
           />
         </div>
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-col">
           <span className="text-xs font-medium text-muted-foreground">
             {t("name")}
           </span>
-          <span className="font-medium text-foreground">{business.name}</span>
+          <span className="break-words font-medium text-foreground">{business.name}</span>
         </div>
       </div>
 
@@ -52,7 +56,7 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
           </div>
           <div className="flex items-center gap-2">
             <span className="font-medium text-foreground">
-              {business?.userPosition?.role}
+              {getMemberRoleLabel(business?.userPosition?.role, tRole)}
             </span>
           </div>
         </div>
@@ -61,8 +65,9 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
           <Button
             variant="default"
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+            className="h-(--control-h-sm) bg-blue-600 hover:bg-blue-700 text-white sm:h-9"
           >
+            <Eye className="h-4 w-4" />
             {t("view")}
           </Button>
         </Link>
@@ -72,8 +77,9 @@ function BusinessInformationItem({ business }: { business: BusinessRes }) {
 }
 
 export function BusinessInformation() {
-  const { data: businessesData } = useBusinessGetAll({
-    limit: 1000,
+  // API membatasi limit maksimal 50 per request (ReqFilterMiddleware).
+  const { data: businessesData, isLoading } = useBusinessGetAll({
+    limit: 50,
     sort: "asc",
     sortBy: "name",
   });
@@ -82,8 +88,8 @@ export function BusinessInformation() {
 
   return (
     <Card className="h-fit">
-      <CardContent className="py-6">
-        <h2 className="text-lg font-semibold text-foreground mb-6">
+      <CardContent className="py-4 sm:py-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4 sm:mb-6">
           {t("title")}
         </h2>
 
@@ -92,6 +98,10 @@ export function BusinessInformation() {
             businesses.length > 3 ? "max-h-[400px] overflow-y-auto" : ""
           }`}
         >
+          {isLoading && <Skeleton className="h-[72px] w-full rounded-lg" />}
+          {!isLoading && businesses.length === 0 && (
+            <p className="text-sm text-muted-foreground">{t("noBusiness")}</p>
+          )}
           {businesses.map((business) => (
             <BusinessInformationItem key={business.id} business={business} />
           ))}

@@ -101,6 +101,10 @@ export const useMemberInvite = () => {
         queryKey: ["members", keyBusinessId],
       });
     },
+    // The member modal shows its own error message (e.g. 403 role errors).
+    onError: (error) => {
+      throw error;
+    },
   });
 };
 
@@ -119,6 +123,9 @@ export const useMemberResend = () => {
       queryClient.invalidateQueries({
         queryKey: ["members", keyBusinessId],
       });
+    },
+    onError: (error) => {
+      throw error;
     },
   });
 };
@@ -139,6 +146,9 @@ export const useMemberUpdateRole = () => {
         queryKey: ["members", keyBusinessId],
       });
     },
+    onError: (error) => {
+      throw error;
+    },
   });
 };
 
@@ -150,6 +160,9 @@ export const useMemberDelete = () => {
       queryClient.invalidateQueries({
         queryKey: ["members", keyBusinessId],
       });
+    },
+    onError: (error) => {
+      throw error;
     },
     mutationFn: ({
       businessId,

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="detikBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0060B6" />
+      <stop offset="100%" stop-color="#003E80" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#detikBg)" />
+  
+  <!-- "detik" emblem / text -->
+  <g transform="translate(48, 175)" filter="url(#shadow)">
+    <!-- Lowercase d -->
+    <path d="M 52 0 L 52 64 C 42 52 28 46 12 46 C -20 46 -48 74 -48 112 C -48 150 -20 178 12 178 C 28 178 42 172 52 160 L 52 174 L 86 174 L 86 0 Z M 20 80 C 38 80 52 94 52 112 C 52 130 38 144 20 144 C 2 144 -12 130 -12 112 C -12 94 2 80 20 80 Z" fill="#FFFFFF" transform="translate(60, 0)"/>
+    
+    <!-- Lowercase e -->
+    <path d="M 188 112 C 188 74 162 46 128 46 C 92 46 66 74 66 112 C 66 150 92 178 130 178 C 158 178 178 164 186 142 L 152 142 C 146 150 138 154 128 154 C 110 154 98 142 98 124 L 188 124 C 188 120 188 116 188 112 Z M 98 102 C 100 86 112 72 128 72 C 144 72 154 86 156 102 Z" fill="#FFFFFF" transform="translate(60, 0)"/>
+    
+    <!-- Lowercase t -->
+    <path d="M 226 50 L 226 14 C 226 14 204 14 196 34 L 196 50 L 180 50 L 180 76 L 196 76 L 196 148 C 196 168 206 178 228 176 L 228 150 C 222 150 218 146 218 138 L 218 76 L 234 76 L 234 50 Z" fill="#FFFFFF" transform="translate(72, 0)"/>
+    
+    <!-- Lowercase i with signature orange dot -->
+    <rect x="320" y="50" width="26" height="124" rx="4" fill="#FFFFFF" />
+    <circle cx="333" cy="24" r="16" fill="#F37023" />
+    
+    <!-- Lowercase k -->
+    <path d="M 360 0 L 360 174 L 388 174 L 388 116 L 416 174 L 450 174 L 414 104 L 446 50 L 414 50 L 388 94 L 388 0 Z" fill="#FFFFFF" />
+  </g>
+  
+  <!-- "com" in subtle badge / orange text -->
+  <g transform="translate(365, 335)">
+    <rect x="-10" y="-2" width="90" height="34" rx="17" fill="#F37023" />
+    <text x="35" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="900" fill="#FFFFFF" text-anchor="middle">.com</text>
+  </g>
+</svg>

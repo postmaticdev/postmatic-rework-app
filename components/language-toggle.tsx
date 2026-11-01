@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import "flag-icons/css/flag-icons.min.css";
 
@@ -24,6 +24,7 @@ const LOCALES: LocaleItem[] = [
 ];
 
 export function LanguageToggle() {
+  const t = useTranslations("languageToggle");
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
@@ -32,11 +33,11 @@ export function LanguageToggle() {
   const triggerLabel = active?.label ?? locale?.toUpperCase() ?? "ID";
   const triggerFlag = active?.flag ?? "fi fi-xx";
 
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-  const changeLocale = async (next: string) => {
+  const changeLocale = (next: string) => {
     if (!next || next === locale) return;
-    router.replace(pathname, { locale: next });
+    // Bawa query & hash (mis. ?tab=billing) agar halaman tetap di posisi yang sama.
+    const { search, hash } = window.location;
+    router.replace(`${pathname}${search}${hash}`, { locale: next });
   };
 
   return (
@@ -45,8 +46,8 @@ export function LanguageToggle() {
         <Button
           variant="ghost"
           size="sm"
-          className="h-9 px-2 gap-2"
-          aria-label="Choose language"
+          className="h-10 md:h-9"
+          aria-label={t("chooseLanguage")}
         >
           <span className={`fi ${triggerFlag}`}></span>
           <span className="font-medium">{triggerLabel}</span>
@@ -54,7 +55,7 @@ export function LanguageToggle() {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Pilih Bahasa / Choose Language</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("chooseLanguage")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {LOCALES.map((l) => {
           const selected = l.value === locale;

@@ -2,326 +2,338 @@
 
 import { Button } from "@/components/ui/button";
 import { useAutoGenerate } from "@/contexts/auto-generate-context";
-import { ChevronDown as ChevronDownIcon } from "lucide-react";
+import { Bot, ChevronRight, ImageIcon, Plus, X } from "lucide-react";
 import { AutoProductSelectionModal } from "./auto-product-selection-modal";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ValidRatio } from "@/models/api/content/image.type";
 import { useTranslations } from "next-intl";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
+import { AutoAvatarSelectionModal } from "./auto-avatar-selection-modal";
+import { AutoReferenceSelectionModal } from "./auto-reference-selection-modal";
+import Image from "next/image";
+import { DEFAULT_PLACEHOLDER_IMAGE, DEFAULT_PRODUCT_IMAGE } from "@/constants";
+import { Card } from "@/components/ui/card";
+import { AiModelSelect } from "@/components/forms/ai-model-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
+// Sama dengan RatioIcon di content-generate/generate-form-basic.tsx
+const RatioIcon = ({ ratio }: { ratio: string }) => {
+  let width = "w-[16px]";
+  let height = "h-[16px]";
+
+  if (ratio === "16:9") {
+    width = "w-[18px]";
+    height = "h-[10px]";
+  } else if (ratio === "9:16") {
+    width = "w-[10px]";
+    height = "h-[18px]";
+  } else if (ratio === "4:3") {
+    width = "w-[16px]";
+    height = "h-[12px]";
+  } else if (ratio === "3:4" || ratio === "4:5") {
+    width = "w-[12px]";
+    height = "h-[16px]";
+  } else if (ratio === "2:3") {
+    width = "w-[12px]";
+    height = "h-[18px]";
+  }
+
+  return (
+    <div className={`border-2 border-current rounded-[2px] ${width} ${height} opacity-70`} />
+  );
+};
+
+/**
+ * Form dasar untuk pengulangan konten. Tampilannya mengikuti section tengah
+ * content-generate (GenerateFormBasic) tanpa bagian trend.
+ */
 export const AutoGenerateFormBasic = () => {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const { form, isLoading, aiModels, onSelectAiModel } = useAutoGenerate();
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
+  const { form, isLoading, aiModels, onSelectAiModel, onSelectAvatar, onSelectReference } =
+    useAutoGenerate();
   const { basic, setBasic } = form;
   const disabled = false; // Auto generate doesn't have selectedHistory
   const t = useTranslations("generationPanel");
+  const tAuto = useTranslations("autoGenerate");
 
-  const CATEGORY_OPTIONS = [
-    {
-      label: "Default ⭐️",
-      value: "Default",
-    },
-    {
-      label: t("promosiDiskon"),
-      value: t("promosiDiskon"),
-    },
-    {
-      label: t("productShowcase"),
-      value: t("productShowcase"),
-    },
-    {
-      label: t("testimoniReviewPelanggan"),
-      value: t("testimoniReviewPelanggan"),
-    },
-    {
-      label: t("behindTheScenes"),
-      value: t("behindTheScenes"),
-    },
-    {
-      label: t("edukasiTips"),
-      value: t("edukasiTips"),
-    },
-    {
-      label: t("eventAktivitas"),
-      value: t("eventAktivitas"),
-    },
-    {
-      label: t("brandingStory"),
-      value: t("brandingStory"),
-    },
-    {
-      label: t("tutorialCaraPakai"),
-      value: t("tutorialCaraPakai"),
-    },
-    {
-      label: t("entertainmentKontenViral"),
-      value: t("entertainmentKontenViral"),
-    },
-    {
-      label: t("pengumumanPembaruan"),
-      value: t("pengumumanPembaruan"),
-    },
-  ];
-  
-  const DESIGN_STYLE_OPTIONS = [
-    {
-      label: "Default ⭐️",
-      value: "Default",
-    },
-    {
-      label: "Minimalist",
-      value: "Minimalist",
-    },
-    {
-      label: "Flat Design",
-      value: "Flat Design",
-    },
-    {
-      label: "3D Design",
-      value: "3D Design",
-    },
-    {
-      label: "Futuristic",
-      value: "Futuristic",
-    },
-    {
-      label: "Retro / Vintage",
-      value: "Retro / Vintage",
-    },
-    {
-      label: "Cartoon / Character",
-      value: "Cartoon / Character",
-    },
-    {
-      label: "Realistic / Photorealism",
-      value: "Realistic / Photorealism",
-    },
-    {
-      label: "Abstract",
-      value: "Abstract",
-    },
-    {
-      label: "Typography-based",
-      value: "Typography-based",
-    },
-    {
-      label: "Gradient / Colorful",
-      value: "Gradient / Colorful",
-    },
-    {
-      label: "Cyberpunk",
-      value: "Cyberpunk",
-    },
-    {
-      label: "Line Art",
-      value: "Line Art",
-    },
-    {
-      label: "Geometric",
-      value: "Geometric",
-    },
-    {
-      label: "Hand-drawn / Sketch",
-      value: "Hand-drawn / Sketch",
-    },
-  ];
-  
+  const ratioOptions =
+    basic?.ratio && !aiModels.validRatios.includes(basic.ratio)
+      ? [...aiModels.validRatios, basic.ratio] // ratio lama saat edit jadwal
+      : aiModels.validRatios;
+
   return (
     <div className="space-y-4">
-      {/* Product Name */}
-      <div>
-        <label className="block text-sm font-medium mb-2">{t("productName")}</label>
-        <Button
-          variant="outline"
-          className="w-full justify-between text-left font-normal"
-          onClick={() => setIsProductModalOpen(true)}
-          disabled={isLoading || disabled}
-        >
-          <span
-            className={
-              basic?.productKnowledgeId
-                ? "text-foreground"
-                : "text-muted-foreground"
-            }
+      {basic.productKnowledgeId && basic.productName ? (
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm">{t("productName")}</h3>
+          <Card
+            className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => !isLoading && !disabled && setIsProductModalOpen(true)}
           >
-            {basic?.productKnowledgeId ? basic?.productName : t("selectProduct")}
-          </span>
-          <ChevronDownIcon className="h-4 w-4" />
-        </Button>
-      </div>
+            <div className="flex flex-row gap-2 justify-between">
+              <div className="flex flex-row gap-3 max-md:min-w-0">
+                <div className="aspect-square w-20 h-20 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
+                  <Image
+                    src={basic.productImage || DEFAULT_PRODUCT_IMAGE}
+                    alt={basic.productName || ""}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    unoptimized
+                  />
+                </div>
+                <div className="flex-1 min-w-0 flex items-center">
+                  <p className="line-clamp-2 text-sm font-medium">{basic.productName}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 items-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setBasic({ ...basic, productKnowledgeId: "", productName: "", productImage: "" });
+                  }}
+                  disabled={isLoading || disabled}
+                  aria-label={`${t("removeSelectedTrend")} ${basic.productName}`}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">
+            {t("productName")}
+          </label>
+          <Button
+            variant="outline"
+            className="w-full justify-between text-left font-normal"
+            onClick={() => setIsProductModalOpen(true)}
+            disabled={isLoading || disabled}
+          >
+            <span className="text-muted-foreground">
+              {t("selectProduct")}
+            </span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
-      {/* AI Model */}
-      <div>
-        <label className="block text-sm font-medium mb-2">AI Model</label>
-        <select
-          className={cn(
-            "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-            isLoading ||
-              (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-          )}
+      {/* Avatar Card */}
+      {basic.selectedAvatar ? (
+        <>
+          {/* Plus separator */}
+          <div className="flex justify-center -my-2 relative z-10">
+            <div className="bg-background rounded-full p-1 border shadow-sm">
+              <Plus className="w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+          <Card className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted">
+                  <Image
+                    src={basic.selectedAvatar.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                    alt={basic.selectedAvatar.title}
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="line-clamp-1 text-sm font-medium text-foreground">
+                    {basic.selectedAvatar.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {basic.selectedAvatar.source === "knowledge"
+                      ? t("avatarSourceKnowledge")
+                      : t("avatarSourceBrowse")}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                disabled={isLoading}
+                onClick={() => onSelectAvatar(null)}
+                aria-label={`${t("removeSelectedTrend")} ${basic.selectedAvatar.title}`}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+          </Card>
+        </>
+      ) : null}
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">{tAuto("aiModel")}</label>
+        <AiModelSelect
           disabled={isLoading || disabled || aiModels.isLoading}
-          value={basic?.model || ""}
-          onChange={(e) => {
+          isLoading={aiModels.isLoading}
+          models={aiModels.models}
+          selectedModel={basic?.model || ""}
+          onSelectModel={(modelName) => {
             if (disabled) return;
-            const selectedModel = aiModels.models.find(model => model.name === e.target.value);
+            const selectedModel = aiModels.models.find(
+              (model) => model.name === modelName
+            );
             if (selectedModel) {
               onSelectAiModel(selectedModel);
             }
           }}
-        >
-          {aiModels.models.map((model) => (
-            <option key={model.name} value={model.name}>
-              {getAiModelDisplayName(model)}
-            </option>
-          ))}
-        </select>
+        />
       </div>
 
-      {/* {aiModels.selectedModel?.name === "gemini-3-pro-image-preview" &&
-        aiModels.selectedModel?.imageSizes?.length ? (
-        <div>
-          <label className="block text-sm font-medium mb-2">Image Size</label>
-          <select
-            className={cn(
-              "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-              isLoading
-            )}
-            disabled={isLoading || aiModels.isLoading}
-            value={basic?.imageSize || ""}
-            onChange={(e) => {
-              
-              setBasic({ ...basic, imageSize: e.target.value });
-            }}
-          >
-            {(aiModels.selectedModel?.imageSizes || []).map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null} */}
-
-      {/* Aspect Ratio */}
-      <div>
-        <label className="block text-sm font-medium mb-2">{t("aspectRatio")}</label>
-        <select
-          className={cn(
-            "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-            isLoading ||
-              (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-          )}
-          disabled={isLoading || disabled}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
+          {t("aspectRatio")}
+        </label>
+        <Select
+          disabled={isLoading || disabled || ratioOptions.length === 0}
           value={basic?.ratio || ""}
-          onChange={(e) => {
+          onValueChange={(value) => {
             if (disabled) return;
-            setBasic({ ...basic, ratio: e.target.value as ValidRatio });
+            setBasic({ ...basic, ratio: value as ValidRatio });
           }}
         >
-          {aiModels.validRatios.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-          {/* Show current ratio if it's not in validRatios (for editing existing schedules) */}
-          {basic?.ratio && !aiModels.validRatios.includes(basic.ratio) && (
-            <option key={basic.ratio} value={basic.ratio}>
-              {basic.ratio}
-            </option>
-          )}
-        </select>
+          <SelectTrigger className={cn("w-full bg-background-secondary", isLoading && "opacity-50 cursor-not-allowed")}>
+            <SelectValue placeholder={tAuto("selectRatio")} />
+          </SelectTrigger>
+          <SelectContent>
+            {ratioOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    <RatioIcon ratio={option} />
+                  </div>
+                  <span>{option}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Category */}
-      {/* <div>
-        <label className="block text-sm font-medium mb-2">{t("category")}</label>
-        <select
-          value={basic?.category}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
+          {t("avatarLabel")}{" "}
+          <span className="text-muted-foreground font-normal text-xs">({t("optional")})</span>
+        </label>
+        <Button
+          type="button"
+          variant={basic.selectedAvatar ? "outline" : "default"}
+          onClick={() => setIsAvatarModalOpen(true)}
           disabled={isLoading || disabled}
-          onChange={(e) => {
-            if (disabled) return;
-            setBasic({ ...basic, category: e.target.value });
-          }}
-          className={cn(
-            "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-            isLoading ||
-              (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-          )}
+          size="lg"
+          className="w-full min-w-0 whitespace-normal leading-tight max-sm:h-(--control-h)"
         >
-          {CATEGORY_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-          <option value="other">{t("other")}</option>
-        </select>
-        {basic.category === "other" && (
-          <input
-            type="text"
-            value={basic.customCategory}
-            disabled={isLoading || disabled}
-            onChange={(e) =>
-              setBasic({ ...basic, customCategory: e.target.value })
-            }
-            placeholder={t("enterCustomCategory")}
-            className={cn(
-              "w-full p-2 mt-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-              isLoading ||
-                (disabled &&
-                  "opacity-50 cursor-not-allowed hover:bg-transparent")
-            )}
-          />
-        )}
-      </div> */}
+          <Bot className="h-4 w-4 mr-2" />
+          {t("addAvatar")}
+        </Button>
+      </div>
 
-      {/* Design Style */}
-      {/* <div>
-        <label className="block text-sm font-medium mb-2">{t("designStyle")}</label>
-        <select
-          value={basic.designStyle || ""}
-          onChange={(e) => setBasic({ ...basic, designStyle: e.target.value })}
-          disabled={isLoading || disabled}
-          className={cn(
-            "w-full p-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-            isLoading ||
-              (disabled && "opacity-50 cursor-not-allowed hover:bg-transparent")
-          )}
-        >
-          {DESIGN_STYLE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-
-          <option value="other">{t("other")}</option>
-        </select>
-        {basic.designStyle === "other" && (
-          <input
-            type="text"
-            value={basic.customDesignStyle}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
+          {tAuto("designReference")}{" "}
+          <span className="text-muted-foreground font-normal text-xs">({t("optional")})</span>
+        </label>
+        {basic.selectedReference ? (
+          <Card className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-muted">
+                  <Image
+                    src={basic.selectedReference.imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
+                    alt={basic.selectedReference.name}
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                    unoptimized
+                  />
+                </div>
+                <p className="line-clamp-2 min-w-0 text-sm font-medium text-foreground">
+                  {basic.selectedReference.name}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isLoading}
+                  onClick={() => setIsReferenceModalOpen(true)}
+                >
+                  {tAuto("changeDesignReference")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  disabled={isLoading}
+                  onClick={() => onSelectReference(null)}
+                  aria-label={`${t("removeSelectedTrend")} ${basic.selectedReference.name}`}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsReferenceModalOpen(true)}
             disabled={isLoading || disabled}
-            onChange={(e) =>
-              setBasic({ ...basic, customDesignStyle: e.target.value })
-            }
-            placeholder={t("enterCustomDesignStyle")}
-            className={cn(
-              "w-full p-2 mt-2 rounded-md text-sm border border-input bg-background-secondary text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring",
-              isLoading ||
-                (disabled &&
-                  "opacity-50 cursor-not-allowed hover:bg-transparent")
-            )}
-          />
+            size="lg"
+            className="w-full min-w-0 whitespace-normal leading-tight max-sm:h-(--control-h)"
+          >
+            <ImageIcon className="h-4 w-4 mr-2" />
+            {tAuto("addDesignReference")}
+          </Button>
         )}
-      </div> */}
+        <p className="text-xs text-muted-foreground">{tAuto("designReferenceHint")}</p>
+      </div>
+
       <AutoProductSelectionModal
         isOpen={isProductModalOpen}
         onClose={() => {
           setIsProductModalOpen(false);
         }}
       />
+      <AutoReferenceSelectionModal
+        isOpen={isReferenceModalOpen}
+        onClose={() => setIsReferenceModalOpen(false)}
+        onSave={(item) => {
+          onSelectReference(item);
+          setIsReferenceModalOpen(false);
+        }}
+        selectedReference={basic.selectedReference}
+      />
+      <AutoAvatarSelectionModal
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        onSave={(item) => {
+          onSelectAvatar(item);
+          setIsAvatarModalOpen(false);
+        }}
+        selectedAvatar={basic.selectedAvatar}
+      />
     </div>
   );
 };
-
-

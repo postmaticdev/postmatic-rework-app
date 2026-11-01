@@ -13,10 +13,11 @@ import { UploadPhoto } from "@/components/forms/upload-photo";
 import { TextField } from "@/components/forms/text-field";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useContentCaptionEnhance } from "@/services/content/content.api";
 import { showToast } from "@/helper/show-toast";
 import { useParams } from "next/navigation";
+import { useProductKnowledgeGetAll } from "@/services/knowledge.api";
 
 export interface PersonalContentForm {
   image: string | null;
@@ -45,13 +46,11 @@ export function PersonalPostModal({
   const t = useTranslations("contentScheduler");
   const { businessId } = useParams() as { businessId: string };
   const mEnhanceCaption = useContentCaptionEnhance();
+  const { data: productsData } = useProductKnowledgeGetAll(businessId, undefined, isOpen);
 
   const handleGenerateCaption = async () => {
     if (!form.image) {
-      showToast(
-        "error",
-        "Please upload a photo first"
-      );
+      showToast("error", t("uploadPhotoFirst"));
       return;
     }
 
@@ -60,6 +59,7 @@ export function PersonalPostModal({
         businessId,
         formData: {
           imageUrl: form.image,
+          businessProductId: productsData?.data?.data?.[0]?.id ? Number(productsData.data.data[0].id) : undefined,
         },
       });
       setForm((prev) => ({ ...prev, caption: res.data.data.caption }));
@@ -84,10 +84,10 @@ export function PersonalPostModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="flex flex-col w-full gap-6 items-start">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="flex flex-col w-full gap-4 sm:gap-6 items-start">
             <UploadPhoto
-              label="Photo"
+              label={t("photoLabel")}
               onImageChange={(url: string | null) =>
                 setForm((prev) => ({ ...prev, image: url }))
               }
@@ -113,8 +113,10 @@ export function PersonalPostModal({
               onClick={handleGenerateCaption}
               disabled={mEnhanceCaption.isPending}
             >
-              {mEnhanceCaption.isPending && (
+              {mEnhanceCaption.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
               )}
               {t("generateCaption")}
             </Button>

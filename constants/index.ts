@@ -9,7 +9,7 @@ export const NEXT_PUBLIC_ENABLE_SOCKET =
 export const NEXT_PUBLIC_SOCKET_ORIGIN =
   process.env.NEXT_PUBLIC_SOCKET_ORIGIN || NEXT_PUBLIC_API_ORIGIN;
 export const NEXT_PUBLIC_SOCKET_PATH =
-  process.env.NEXT_PUBLIC_SOCKET_PATH || "/socket.io";
+  process.env.NEXT_PUBLIC_SOCKET_PATH || "/api/realtime/ws";
 export const NEXT_PUBLIC_ENABLE_CONTENT_FEATURES =
   process.env.NEXT_PUBLIC_ENABLE_CONTENT_FEATURES === "true";
 export const DEFAULT_USER_AVATAR = "/user.png";
@@ -24,10 +24,18 @@ export const DOCUMENTATION_PAGE_URL = "https://docs.postmatic.id";
 export const ACCESS_TOKEN_KEY = "postmaticAccessToken";
 export const REFRESH_TOKEN_KEY = "postmaticRefreshToken";
 
-export const LOGIN_URL = NEXT_PUBLIC_AUTH_ORIGIN;
+// Fallback wajib: LOGIN_URL kosong membuat `location.href = ""` me-reload app (loop).
+export const LOGIN_URL = NEXT_PUBLIC_AUTH_ORIGIN || "https://auth.postmatic.id";
 
 export const SOCIAL_MEDIA_PLATFORMS: PlatformEnum[] = [
   "facebook_page",
-  "instagram_business",
+  "instagram_professional",
   "linked_in",
 ];
+
+// Facebook caps carousel posts at 10 images; Instagram and LinkedIn allow more.
+export const MAX_CAROUSEL_IMAGES = 10;
+
+// Internal marker stored in `form.basic.referenceImageName` for an image attached for editing.
+// Never render it directly; show a translated label instead.
+export const SELECTED_IMAGE_REFERENCE_NAME = "Selected image";

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import {
-  Edit,
-  Loader2,
   MoreVertical,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -39,11 +38,17 @@ import {
 import {
   useBusinessAvatarCreate,
   useBusinessAvatarDelete,
-  useBusinessAvatarGetAll,
+  useBusinessAvatarInfinite,
   useBusinessAvatarUpdate,
 } from "@/services/knowledge.api";
 import { useAvatarKnowledgeSchema } from "@/validator/new-business";
+import { useDebounce } from "@/hooks/use-debounce";
 import { AvatarModal } from "./avatar-modal";
+import {
+  KnowledgeListError,
+  KnowledgeListLoadMore,
+  KnowledgeListLoading,
+} from "./knowledge-list-states";
 
 const initialAvatar: BusinessAvatarPld & { id?: string } = {
   name: "",
@@ -59,6 +64,8 @@ const AVATAR_VALIDATION_FIELD_MAP = {
 export function AvatarSection() {
   const { businessId } = useParams() as { businessId: string };
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useDebounce(() => setDebouncedSearch(searchQuery.trim()), 400, [searchQuery]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [selectedAvatar, setSelectedAvatar] = useState<
@@ -69,24 +76,34 @@ export function AvatarSection() {
   const [avatarErrors, setAvatarErrors] = useState<Record<string, string>>({});
 
   const t = useTranslations("avatarKnowledge");
+  const tCard = useTranslations("businessCard");
   const e = useTranslations("errors");
   const avatarKnowledgeSchema = useAvatarKnowledgeSchema();
   const { access } = useRole();
   const { businessKnowledge } = access;
 
-  const { data, isLoading, isError } = useBusinessAvatarGetAll(businessId, {
-    limit: 100,
-    page: 1,
+  const {
+    data,
+    isLoading,
+    isError,
+    isRefetching,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useBusinessAvatarInfinite(businessId, {
     sortBy: "name",
     sort: "asc",
-    search: searchQuery,
+    search: debouncedSearch,
   });
 
   const mBusinessAvatarCreate = useBusinessAvatarCreate();
   const mBusinessAvatarUpdate = useBusinessAvatarUpdate();
   const mBusinessAvatarDelete = useBusinessAvatarDelete();
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
-  const avatars = data?.data.data || [];
+  const avatars = data?.pages.flatMap((page) => page.data.data) ?? [];
 
   const handleAddAvatar = () => {
     setModalMode("add");
@@ -109,6 +126,9 @@ export function AvatarSection() {
   const handleSaveAvatar = async (
     avatarData: BusinessAvatarPld & { id?: string }
   ) => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setIsSaving(true);
     try {
       const result = avatarKnowledgeSchema.safeParse(avatarData);
       if (!result.success) {
@@ -163,6 +183,9 @@ export function AvatarSection() {
       }
 
       showToast("error", t("saveFailed"));
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -187,15 +210,15 @@ export function AvatarSection() {
   return (
     <>
       <Card className="h-full w-full">
-        <CardContent className="py-6">
+        <CardContent className="py-4 sm:py-6">
           <div className="space-y-4">
             <div className="flex flex-col gap-4">
               <h2 className="text-lg font-semibold text-foreground">
                 {t("title")}
               </h2>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="relative flex-1">
+              <div className="flex flex-row gap-3">
+                <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     type="text"
@@ -219,24 +242,20 @@ export function AvatarSection() {
             </div>
 
             {isLoading ? (
-              <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{t("loading")}</span>
-              </div>
-            ) : isError ? (
-              <NoContent
-                icon={UserRound}
-                title={t("errorTitle")}
-                titleDescription={t("errorDescription")}
+              <KnowledgeListLoading label={t("loading")} />
+            ) : isError && avatars.length === 0 ? (
+              <KnowledgeListError
+                onRetry={() => refetch()}
+                isRetrying={isRefetching}
               />
-            ) : avatars.length === 0 && searchQuery === "" ? (
+            ) : avatars.length === 0 && debouncedSearch === "" ? (
               <NoContent
                 icon={UserRound}
                 title={t("notAvailable")}
                 titleDescription={t("notAvailableDescription")}
               />
             ) : avatars.length === 0 ? (
-              <SearchNotFound description={t("searchEmptyDescription")} />
+              <SearchNotFound />
             ) : (
               <div
                 className={`space-y-3 ${
@@ -276,8 +295,8 @@ export function AvatarSection() {
                                 <DropdownMenuTrigger asChild>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
+                                    size="icon-sm"
+                                    aria-label={tCard("moreActions")}
                                   >
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
@@ -286,7 +305,7 @@ export function AvatarSection() {
                                   <DropdownMenuItem
                                     onClick={() => handleEditAvatar(avatar)}
                                   >
-                                    <Edit className="mr-2 h-4 w-4" />
+                                    <Pencil className="mr-2 h-4 w-4" />
                                     {t("edit")}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
@@ -305,6 +324,12 @@ export function AvatarSection() {
                     </CardContent>
                   </Card>
                 ))}
+                {hasNextPage && (
+                  <KnowledgeListLoadMore
+                    onLoadMore={() => fetchNextPage()}
+                    isLoading={isFetchingNextPage}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -322,6 +347,7 @@ export function AvatarSection() {
         formValue={selectedAvatar}
         onChange={setSelectedAvatar}
         errors={avatarErrors}
+        isSubmitting={isSaving}
       />
 
       <DeleteConfirmationModal

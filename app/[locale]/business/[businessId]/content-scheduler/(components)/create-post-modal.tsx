@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Clock } from "lucide-react";
+import { CalendarClock, Send } from "lucide-react";
 
 import { FormDataDraft } from "./content-library";
 import Image from "next/image";
@@ -19,6 +19,7 @@ import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
 import { usePlatformKnowledgeGetAll } from "@/services/knowledge.api";
 import { useParams } from "next/navigation";
 import { mapEnumPlatform } from "@/helper/map-enum-platform";
+import { dateManipulation } from "@/helper/date-manipulation";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
 import { useTranslations } from "next-intl";
 
@@ -52,10 +53,12 @@ export function CreatePostModal({
   const mappedPlatforms = platforms.map((platform) => ({
     id: platform.platform,
     name: platform.name,
-    isActive: platform.status === "connected",
+    isActive: platform.status === "connected" && !platform.requiresReconnect,
     hint:
       platform.status === "connected"
-        ? null
+        ? platform.requiresReconnect
+          ? t("needsReconnect")
+          : null
         : platform.status === "unconnected"
         ? t("unconnected")
         : t("notAvailable"),
@@ -114,25 +117,25 @@ export function CreatePostModal({
             <div className="flex bg-muted rounded-lg p-1">
               <button
                 onClick={() => setPostType("now")}
-                className={`flex-1 flex items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex-1 flex min-h-10 items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-sm font-medium transition-all ${
                   postType === "now"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Send className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("postNow")}</span>
                 <span className="sm:hidden">{t("now")}</span>
               </button>
               <button
                 onClick={() => setPostType("schedule")}
-                className={`flex-1 flex items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex-1 flex min-h-10 items-center justify-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-md text-sm font-medium transition-all ${
                   postType === "schedule"
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                <CalendarClock className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("schedule")}</span>
                 <span className="sm:hidden">{t("later")}</span>
               </button>
@@ -141,11 +144,11 @@ export function CreatePostModal({
         </DialogHeader>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Media Upload Area */}
           <Image
             src={formData?.edit?.images[0] || DEFAULT_PLACEHOLDER_IMAGE}
-            alt="Media"
+            alt={t("mediaAlt")}
             width={800}
             height={400}
             className="w-full h-auto object-cover rounded-lg"
@@ -153,7 +156,7 @@ export function CreatePostModal({
 
           {/* Caption Section */}
           <div className="space-y-2">
-            <label className=" font-medium">{t("caption")}</label>
+            <label className=" font-medium max-sm:text-sm">{t("caption")}</label>
             <Textarea
               value={
                 (showScheduling
@@ -177,13 +180,13 @@ export function CreatePostModal({
 
           {/* Choose Platforms Section */}
           <div className="space-y-3">
-            <label className=" font-medium">{t("choosePlatforms")}</label>
+            <label className=" font-medium max-sm:text-sm">{t("choosePlatforms")}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               {mappedPlatforms.map((platform) => (
                 <Button
                   key={platform.id}
                   variant={platform.isActive ? "default" : "outline"}
-                  className={`h-10 sm:h-12 justify-start space-x-2 sm:space-x-3 text-xs sm:text-sm ${
+                  className={`justify-start space-x-2 sm:space-x-3 ${
                     isSelectedPlatform(platform.id)
                       ? "bg-blue-600 hover:bg-blue-700 "
                       : "bg-card text-muted- hover:bg-background-secondary"
@@ -231,8 +234,8 @@ export function CreatePostModal({
                       queue: { ...formData?.queue, date: e.target.value },
                     })
                   }
-                  min={new Date().toISOString().split("T")[0]}
-                  className="bg-card text-sm sm:text-base"
+                  min={dateManipulation.ymd(new Date())}
+                  className="bg-card"
                 />
               </div>
 
@@ -250,7 +253,7 @@ export function CreatePostModal({
                       queue: { ...formData?.queue, time: e.target.value },
                     })
                   }
-                  className="bg-card text-sm sm:text-base"
+                  className="bg-card"
                 />
               </div>
             </div>
@@ -260,7 +263,9 @@ export function CreatePostModal({
         <DialogFooterWithButton
           buttonMessage={
             isLoading
-              ? t("loading")
+              ? postType === "now"
+                ? t("postingInProgress")
+                : t("loading")
               : showScheduling && postType === "schedule"
               ? t("scheduleButton")
               : t("postNowButton")

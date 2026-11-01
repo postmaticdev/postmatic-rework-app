@@ -4,10 +4,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { LogoLoader } from "@/components/base/logo-loader";
 import { showToast } from "@/helper/show-toast";
-import { DEFAULT_PLACEHOLDER_IMAGE } from "@/constants";
-import { useContentGenerate } from "@/contexts/content-generate-context";
-import { helperService } from "@/services/helper.api";
+import { DEFAULT_PLACEHOLDER_IMAGE, MAX_CAROUSEL_IMAGES, SELECTED_IMAGE_REFERENCE_NAME } from "@/constants";
+import { cn } from "@/lib/utils";
+import {
+  MAX_CHAT_ADDITIONAL_IMAGES,
+  useContentGenerate,
+} from "@/contexts/content-generate-context";
+import { helperService, validateUploadImageFile } from "@/services/helper.api";
+import { useRole } from "@/contexts/role-context";
 import { useAppAvatarGetAll } from "@/services/app-avatar.api";
 import { useBusinessGetById } from "@/services/business.api";
 import {
@@ -21,34 +28,46 @@ import {
 import { RssTrendModal } from "./rss-trend-modal";
 import { SelectedArticleRss } from "./selected-article-rss";
 import { SelectedReferenceImage } from "./selected-reference-image";
-import { getModelRestrictionCopy } from "./model-restriction-copy";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import {
   AlertCircle,
   Bot,
+  CalendarClock,
   Check,
   Copy,
-  Loader2,
+  CreditCard,
   Newspaper,
   Pencil,
   Plus,
+  RefreshCw,
   Trash2,
-  WandSparkles,
   X,
 } from "lucide-react";
 import { GenerateFormBasic } from "./generate-form-basic";
 import { ChatComposerField } from "./chat-composer-field";
 import { GeneratedImageViewer } from "./generated-image-viewer";
-import { getAiModelDisplayName } from "@/models/api/content/ai-model";
-import { SelectedAvatars } from "./selected-avatars";
+import { ProtectedImage } from "./protected-image";
+import {
+  getAiModelDisplayName,
+  getFreeUserAiModelDisplayNames,
+  isAiModelRestrictedForFreeUser,
+} from "@/models/api/content/ai-model";
+import { AiModelLogo } from "@/components/forms/ai-model-select";
+import { usePremiumModelGuard } from "./use-premium-model-guard";
+import { GridResultTiles } from "./grid-result-tiles";
+import { GenerationStatusText } from "./generation-status-text";
 
-export function GenerationPanel() {
+export function GenerationPanel({
+  onOpenMobileReference,
+}: {
+  // Mobile only: opens the reference step, which sits behind the form on small screens.
+  onOpenMobileReference?: () => void;
+} = {}) {
   const { businessId } = useParams() as { businessId: string };
   const searchParams = useSearchParams();
   const router = useRouter();
-  const locale = useLocale();
   const {
     mode,
     form,
@@ -56,23 +75,50 @@ export function GenerationPanel() {
     aiModels,
     selectedHistory,
     selectedGeneratedImageUrl,
+    selectedContentImages,
     schedulerDraftPost,
     schedulerChatSeed,
     histories,
     rss,
     onSelectAiModel,
     onSelectGeneratedImage,
+    onToggleContentImage,
     onSubmitGenerate,
+    onRegenerateImage,
   } = useContentGenerate();
   const t = useTranslations("generationPanel");
   const schedulerT = useTranslations("contentGenerateScheduler");
+  const tRoot = useTranslations();
+  // Top-up links are only offered to members allowed to purchase.
+  const canPurchase = useRole().access.purchase.write;
   const [isTrendDialogOpen, setIsTrendDialogOpen] = useState(false);
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
   const [isRestrictedModelModalOpen, setIsRestrictedModelModalOpen] =
     useState(false);
+  const { selectModel, premiumModelModal } = usePremiumModelGuard();
+  const [previewPromptImage, setPreviewPromptImage] = useState<string | null>(null);
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [flyingImage, setFlyingImage] = useState<{ url: string; rect: DOMRect; isFlying: boolean; endX: number; endY: number } | null>(null);
   const attachInputRef = useRef<HTMLInputElement | null>(null);
+
+  const triggerFlyAnimation = (url: string, targetRect: DOMRect) => {
+    const composer = document.getElementById("chat-composer-container");
+    const composerRect = composer?.getBoundingClientRect();
+    const endX = composerRect ? composerRect.left + 24 : window.innerWidth / 2 - 40;
+    const endY = composerRect ? composerRect.top + 24 : window.innerHeight - 100;
+
+    setFlyingImage({ url, rect: targetRect, isFlying: false, endX, endY });
+    
+    // Force a reflow and then trigger animation
+    setTimeout(() => {
+      setFlyingImage((prev) => (prev ? { ...prev, isFlying: true } : null));
+    }, 100);
+
+    setTimeout(() => {
+      setFlyingImage(null);
+    }, 1800);
+  };
   const { data: businessData } = useBusinessGetById(businessId);
   const { data: productKnowledgeData } = useProductKnowledgeGetAll(
     businessId,
@@ -85,12 +131,16 @@ export function GenerationPanel() {
     Boolean(businessId)
   );
   const { data: businessAvatarData, isLoading: isLoadingBusinessAvatars } =
-    useBusinessAvatarGetAll(businessId, {
-      limit: 100,
-      page: 1,
-      sortBy: "name",
-      sort: "asc",
-    });
+    useBusinessAvatarGetAll(
+      businessId,
+      {
+        limit: 100,
+        page: 1,
+        sortBy: "name",
+        sort: "asc",
+      },
+      isKnowledgeDialogOpen
+    );
   const { data: appAvatarData, isLoading: isLoadingAppAvatars } =
     useAppAvatarGetAll(
       {
@@ -107,6 +157,13 @@ export function GenerationPanel() {
       setIsTrendDialogOpen(false);
     }
   }, [form.rss, isTrendDialogOpen]);
+
+  // The panel stays mounted across chats; unsent attachments belong to the
+  // chat they were added in.
+  const activeChatSessionId = selectedHistory?.input.chatSessionId ?? null;
+  useEffect(() => {
+    setAttachedImages([]);
+  }, [activeChatSessionId]);
 
   const currentThread = useMemo(() => {
     if (!selectedHistory) return [];
@@ -200,15 +257,33 @@ export function GenerationPanel() {
     if (
       aiModels.isFreeUser &&
       aiModels.freeUserAllowedModel &&
-      form.basic.model &&
-      form.basic.model !== aiModels.freeUserAllowedModel.name
+      isAiModelRestrictedForFreeUser(aiModels.models, form.basic.model)
     ) {
       setIsRestrictedModelModalOpen(true);
       return;
     }
 
-    onSubmitGenerate({ mode: "regenerate", additionalImages: attachedImages });
-    setAttachedImages([]);
+    if (isUploadingAttachment) return;
+    // Attachments are kept when the send is rejected, so the user can retry.
+    void onSubmitGenerate({
+      mode: "regenerate",
+      additionalImages: attachedImages,
+    }).then((sent) => {
+      if (sent) setAttachedImages([]);
+    });
+  };
+
+  // A new variation of one generated image; the composer's free-model guard applies too.
+  const handleRegenerateImage = (imageUrl: string) => {
+    if (
+      aiModels.isFreeUser &&
+      aiModels.freeUserAllowedModel &&
+      isAiModelRestrictedForFreeUser(aiModels.models, form.basic.model)
+    ) {
+      setIsRestrictedModelModalOpen(true);
+      return;
+    }
+    void onRegenerateImage(imageUrl);
   };
 
   const handleUseFreeUserAllowedModel = () => {
@@ -233,13 +308,27 @@ export function GenerationPanel() {
       model: allowedModel.name,
       ratio: nextRatio as "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9",
       imageSize: allowedModel.imageSizes?.[0] || null,
+    }).then((sent) => {
+      if (sent) setAttachedImages([]);
     });
-    setAttachedImages([]);
   };
 
   const handleTopUpNow = () => {
     setIsRestrictedModelModalOpen(false);
     router.push(`/business/${businessId}/settings?tab=billing&topUp=token`);
+  };
+
+  const isInsufficientTokenError = (message?: string | null) => {
+    const normalizedMessage = message?.toLowerCase() || "";
+
+    return (
+      normalizedMessage.includes("token") &&
+      (normalizedMessage.includes("tidak mencukupi") ||
+        normalizedMessage.includes("insufficient") ||
+        normalizedMessage.includes("not enough") ||
+        normalizedMessage.includes("habis") ||
+        normalizedMessage.includes("saldo"))
+    );
   };
 
   const handleAttachImage = async (
@@ -248,10 +337,28 @@ export function GenerationPanel() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (attachedImages.length >= MAX_CHAT_ADDITIONAL_IMAGES) {
+      showToast(
+        "error",
+        schedulerT("tooManyReferenceImages", { max: MAX_CHAT_ADDITIONAL_IMAGES })
+      );
+      if (attachInputRef.current) attachInputRef.current.value = "";
+      return;
+    }
+
+    const invalidReason = validateUploadImageFile(file);
+    if (invalidReason) {
+      showToast("error", tRoot(`toast.content.${invalidReason}`));
+      if (attachInputRef.current) attachInputRef.current.value = "";
+      return;
+    }
+
     try {
       setIsUploadingAttachment(true);
       const imageUrl = await helperService.uploadSingleImage({ image: file });
       setAttachedImages((current) => Array.from(new Set([...current, imageUrl])));
+    } catch (error) {
+      showToast("error", error);
     } finally {
       setIsUploadingAttachment(false);
       if (attachInputRef.current) attachInputRef.current.value = "";
@@ -264,25 +371,31 @@ export function GenerationPanel() {
 
   const handleAttachFromKnowledge = (images: string[]) => {
     if (images.length === 0) return;
-    setAttachedImages((current) =>
-      Array.from(new Set([...current, ...images]))
-    );
+    const merged = Array.from(new Set([...attachedImages, ...images]));
+    if (merged.length > MAX_CHAT_ADDITIONAL_IMAGES) {
+      showToast(
+        "error",
+        schedulerT("tooManyReferenceImages", { max: MAX_CHAT_ADDITIONAL_IMAGES })
+      );
+    }
+    setAttachedImages(merged.slice(0, MAX_CHAT_ADDITIONAL_IMAGES));
     setIsKnowledgeDialogOpen(false);
   };
 
-  const selectedImage =
-    selectedGeneratedImageUrl || selectedHistory?.result?.images?.[0];
-  const modelRestrictionCopy = getModelRestrictionCopy(
-    locale,
-    aiModels.freeUserAllowedModel
-      ? getAiModelDisplayName(aiModels.freeUserAllowedModel)
-      : getAiModelDisplayName("gpt-image-1")
-  );
+  const isCarouselSelection = selectedContentImages.length > 1;
+  const restrictedModelName = getFreeUserAiModelDisplayNames(aiModels.models);
+  const modelRestrictionCopy = {
+    title: t("freeModelRestrictionTitle"),
+    description: t("freeModelRestrictionDescription", {
+      modelName: restrictedModelName,
+    }),
+    topUp: t("freeModelRestrictionTopUp"),
+    useDefault: t("freeModelRestrictionUseDefault"),
+  };
   const schedulerMode = Boolean(searchParams.get("scheduleDate"));
   const selectedEditReferenceImage =
-    selectedGeneratedImageUrl &&
-      form.basic.referenceImageName === "Selected image"
-      ? selectedGeneratedImageUrl
+    form.basic.referenceImageName === SELECTED_IMAGE_REFERENCE_NAME
+      ? form.basic.referenceImage || selectedGeneratedImageUrl
       : null;
   const handleOpenScheduleSummary = () => {
     window.dispatchEvent(new Event("content-generate:open-schedule-summary"));
@@ -297,11 +410,83 @@ export function GenerationPanel() {
     }
   };
 
+  // Fills the viewport so any click, on the image or around it, closes the preview.
+  const promptImagePreviewDialog = (
+    <Dialog open={!!previewPromptImage} onOpenChange={(open) => !open && setPreviewPromptImage(null)}>
+      <DialogContent className="h-dvh max-h-none w-screen max-w-none overflow-hidden rounded-none border-none bg-transparent p-0 shadow-none sm:max-h-none dark:bg-transparent [&>button]:hidden">
+        <DialogTitle className="sr-only">{t("imagePreview")}</DialogTitle>
+        {previewPromptImage && (
+          <div
+            className="flex h-full w-full cursor-zoom-out items-center justify-center p-4 sm:p-8"
+            onClick={() => setPreviewPromptImage(null)}
+          >
+            <ProtectedImage
+              src={previewPromptImage}
+              alt={t("promptPreviewAlt")}
+              fit="contain"
+              className="h-full w-full rounded-md"
+            />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+
+  // Rendered in both branches: the chat composer opens the model restriction
+  // modal and starts the fly-to-composer animation.
+  const restrictedModelModal = (
+    <ConfirmationModal
+      isOpen={isRestrictedModelModalOpen}
+      onClose={() => setIsRestrictedModelModalOpen(false)}
+      onCancel={canPurchase ? handleUseFreeUserAllowedModel : undefined}
+      onConfirm={canPurchase ? handleTopUpNow : handleUseFreeUserAllowedModel}
+      title={modelRestrictionCopy.title}
+      description={modelRestrictionCopy.description}
+      confirmText={
+        canPurchase ? modelRestrictionCopy.topUp : modelRestrictionCopy.useDefault
+      }
+      cancelText={canPurchase ? modelRestrictionCopy.useDefault : t("cancel")}
+    />
+  );
+
+  const flyingImageOverlay = flyingImage ? (
+    <div 
+      className="fixed z-50 pointer-events-none"
+      style={
+        flyingImage.isFlying 
+        ? {
+            left: flyingImage.endX, 
+            top: flyingImage.endY,
+            width: 64, 
+            height: 64,
+            opacity: 0.3,
+            transform: "scale(0.75)",
+            transition: "all 1.8s cubic-bezier(0.25, 1, 0.5, 1)"
+          } 
+        : {
+            left: flyingImage.rect.left,
+            top: flyingImage.rect.top,
+            width: flyingImage.rect.width,
+            height: flyingImage.rect.height,
+            opacity: 1,
+            transform: "scale(1)",
+            transition: "none"
+          }
+      }
+    >
+      <ProtectedImage
+        src={flyingImage.url}
+        alt=""
+        className="w-full h-full rounded-lg shadow-lg"
+      />
+    </div>
+  ) : null;
+
   if (mode === "regenerate" && selectedHistory) {
     return (
       <>
         <div className="flex h-full min-h-0 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 pb-44 lg:pb-6">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:pb-6 scrollbar-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {currentThread.map((job, jobIndex) => {
               const isInitialSchedulerBubble =
                 jobIndex === 0 && job.id.startsWith("chat-");
@@ -327,33 +512,24 @@ export function GenerationPanel() {
                 ? schedulerChatSeed?.productImage ||
                 null
                 : null;
-              const promptImages = isInitialSchedulerBubble
-                ? Array.from(
-                  new Set(
-                    [
-                      initialReferenceImage,
-                      initialProductImage,
-                      ...avatarPromptImages,
-                      ...additionalPromptImages,
-                    ].filter(Boolean) as string[]
-                  )
+              const promptImages = Array.from(
+                new Set(
+                  [
+                    initialReferenceImage,
+                    initialProductImage,
+                    job.input.referenceImage,
+                    ...(job.product?.images || []),
+                    ...avatarPromptImages,
+                    ...additionalPromptImages,
+                  ].filter(Boolean) as string[]
                 )
-                : Array.from(
-                  new Set(
-                    [
-                      ...avatarPromptImages,
-                      ...additionalPromptImages,
-                      ...(job.product?.images || []),
-                      job.input.referenceImage,
-                    ].filter(Boolean) as string[]
-                  )
-                );
+              );
 
               return (
                 <div key={job.id} className="space-y-3">
                   {job.input.prompt ||
                     promptImages.length > 0 ? (
-                    <div className="ml-auto flex max-w-[78%] flex-col items-end gap-2">
+                    <div className="ml-auto flex max-w-[78%] min-w-0 flex-col items-end gap-2">
                       {promptImages.length > 0 ? (
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           {promptImages.map((imageUrl, imageIndex) => (
@@ -366,31 +542,31 @@ export function GenerationPanel() {
                                   <Plus className="h-4 w-4 text-muted-foreground" />
                                 </div>
                               ) : null}
-                              <Image
+                              <ProtectedImage
                                 src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                                alt={`prompt image ${imageIndex + 1}`}
-                                width={160}
-                                height={160}
-                                className="h-20 w-20 rounded-lg border object-cover sm:h-24 sm:w-24"
+                                alt={t("promptImageAlt", { index: imageIndex + 1 })}
+                                className="h-20 w-20 rounded-lg border sm:h-24 sm:w-24 cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => setPreviewPromptImage(imageUrl)}
                               />
                             </div>
                           ))}
                         </div>
                       ) : null}
                       {job.input.prompt ? (
-                        <div className="flex max-w-full items-end gap-2 self-end">
+                        <div className="group/prompt flex max-w-full min-w-0 items-end gap-2 self-end">
+                          {/* Shown on hover; touch screens have no hover, so it stays visible there. */}
                           <Button
                             type="button"
                             variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0 rounded-full border border-input bg-card/90 hover:bg-muted"
+                            size="icon-sm"
+                            className="shrink-0 rounded-full border border-input bg-card/90 transition-opacity hover:bg-muted [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/prompt:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                             onClick={() => handleCopyPrompt(job.input.prompt || "")}
                             title={t("copyPrompt")}
                             aria-label={t("copyPrompt")}
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </Button>
-                          <div className="rounded-3xl bg-background-secondary px-4 py-3 text-sm break-words">
+                          <div className="min-w-0 max-w-full rounded-3xl bg-background-secondary px-4 py-3 text-sm break-words break-all [overflow-wrap:anywhere] whitespace-pre-wrap">
                             {job.input.prompt}
                           </div>
                         </div>
@@ -400,24 +576,167 @@ export function GenerationPanel() {
 
                   <div className="space-y-3">
                     {job.status === "error" || job.stage === "error" ? (
-                      <div className="max-w-[82%] rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
-                        <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
-                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                          <div>
-                            <p className="font-medium">Image generation failed</p>
-                            <p className="mt-1 text-xs">
-                              {job.error?.message ||
-                                "The generated image could not be completed."}
-                            </p>
+                      (() => {
+                        const errorMessage =
+                          job.error?.message ||
+                          t("imageGenerationIncomplete");
+                        const shouldShowTopUpButton =
+                          canPurchase && isInsufficientTokenError(errorMessage);
+
+                        return (
+                          <div className="w-full max-w-[360px] rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/60 dark:bg-red-950/20">
+                            <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+                              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium">
+                                  {t("imageGenerationFailed")}
+                                </p>
+                                <p className="mt-1 text-xs break-words">
+                                  {errorMessage}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-900/50"
+                                disabled={isLoading}
+                                onClick={() => {
+                                  // Resends the failed message in the same chat: its prompt,
+                                  // model and ratio (not the now-empty composer).
+                                  const retryRatio = job.input.ratio as
+                                    | "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9";
+                                  const allowedModel = aiModels.freeUserAllowedModel;
+                                  if (
+                                    aiModels.isFreeUser &&
+                                    allowedModel &&
+                                    isAiModelRestrictedForFreeUser(aiModels.models, job.input.model)
+                                  ) {
+                                    const allowedRatios = allowedModel.validRatios.length
+                                      ? allowedModel.validRatios
+                                      : aiModels.validRatios;
+                                    const nextRatio = allowedRatios.includes(retryRatio)
+                                      ? retryRatio
+                                      : (allowedRatios[0] || aiModels.validRatios[0] || "1:1");
+
+                                    onSelectAiModel(allowedModel);
+                                    void onSubmitGenerate({
+                                      mode: "regenerate",
+                                      prompt: job.input.prompt || undefined,
+                                      model: allowedModel.name,
+                                      ratio: nextRatio as "1:1" | "2:3" | "4:5" | "5:4" | "9:16" | "16:9",
+                                      imageSize: allowedModel.imageSizes?.[0] || null,
+                                    });
+                                  } else {
+                                    void onSubmitGenerate({
+                                      mode: "regenerate",
+                                      prompt: job.input.prompt || undefined,
+                                      model: job.input.model || undefined,
+                                      ratio: retryRatio || undefined,
+                                    });
+                                  }
+                                }}
+                                title={t("retryGeneration")}
+                                aria-label={t("retryGeneration")}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {shouldShowTopUpButton ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="mt-4 w-full bg-blue-600 text-white hover:bg-blue-700"
+                                onClick={handleTopUpNow}
+                              >
+                                <CreditCard className="h-3.5 w-3.5" />
+                                {modelRestrictionCopy.topUp}
+                              </Button>
+                            ) : null}
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()
+                    ) : job.result && (job.result.gridSize ?? 1) > 1 ? (
+                      (() => {
+                        const result = job.result;
+                        const gridSize = result.gridSize ?? 1;
+                        const modelObj = aiModels.models.find(m => m.name === job.input.model || String(m.id) === String(job.input.model));
+                        const modelDisplayName = modelObj ? getAiModelDisplayName(modelObj) : (getAiModelDisplayName(job.input.model) || t("generatedResult"));
+
+                        return (
+                          <div className="w-full max-w-[69%] space-y-2 sm:max-w-[390px]">
+                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                              <AiModelLogo size="sm" imageUrl={modelObj?.image} />
+                              {modelDisplayName}
+                              <span className="rounded-full border px-1.5 py-0.5 text-[10px] leading-none">
+                                {gridSize}x{gridSize}
+                              </span>
+                            </div>
+                            <GridResultTiles
+                              jobId={job.id}
+                              images={result.images}
+                              upscaledImages={result.upscaledImages}
+                              upscaleStatuses={result.upscaleStatuses}
+                              imageItemIds={result.imageItemIds}
+                              ratio={result.ratio}
+                              selectionIndex={(image) => selectedContentImages.indexOf(image)}
+                              showSelectionOrder={isCarouselSelection}
+                              isEditing={(image) => Boolean(selectedEditReferenceImage) && selectedEditReferenceImage === image}
+                              onRegenerate={typeof job.input.systemBubbleId === "number" ? handleRegenerateImage : undefined}
+                              regenerateDisabled={isLoading}
+                              onUse={(image) => {
+                                // A finished grid auto-selects its first tile. Picking another tile of the
+                                // same grid replaces it: scheduling publishes the single selected image, so
+                                // adding it would preview a carousel but still publish the first tile.
+                                if (
+                                  !selectedContentImages.includes(image) &&
+                                  selectedContentImages.length === 1 &&
+                                  result.images.includes(selectedContentImages[0])
+                                ) {
+                                  onSelectGeneratedImage(job, image);
+                                  return;
+                                }
+                                if (
+                                  !selectedContentImages.includes(image) &&
+                                  selectedContentImages.length >= MAX_CAROUSEL_IMAGES
+                                ) {
+                                  showToast(
+                                    "error",
+                                    t("carouselLimitReached", { max: MAX_CAROUSEL_IMAGES })
+                                  );
+                                  return;
+                                }
+                                onToggleContentImage(job, image);
+                              }}
+                              labels={{
+                                edit: t("edit"),
+                                regenerate: t("regenerate"),
+                                useContent: t("useContent"),
+                                selectContent: t("selectContent"),
+                                contentUsed: t("contentUsed"),
+                                imageAlt: (index) => t("generatedImageAlt", { index }),
+                              }}
+                              onEdit={(image, displayUrl, targetRect) => {
+                                if (targetRect) {
+                                  triggerFlyAnimation(displayUrl, targetRect);
+                                }
+                                onSelectGeneratedImage(job, image, { attachForEdit: true });
+                              }}
+                            />
+                          </div>
+                        );
+                      })()
                     ) : job.result?.images?.length ? (
                       job.result.images.map((image, index) => {
                         const imageUrl = image || DEFAULT_PLACEHOLDER_IMAGE;
-                        const isSelected =
-                          selectedHistory?.id === job.id &&
-                          selectedImage === image;
+                        const selectionIndex = selectedContentImages.indexOf(image);
+                        const isSelected = selectionIndex >= 0;
+                        const isEditingThisImage =
+                          Boolean(selectedEditReferenceImage) &&
+                          (selectedEditReferenceImage === imageUrl || selectedEditReferenceImage === image);
+
+                        const modelObj = aiModels.models.find(m => m.name === job.input.model || String(m.id) === String(job.input.model));
+                        const modelDisplayName = modelObj ? getAiModelDisplayName(modelObj) : (getAiModelDisplayName(job.input.model) || t("generatedResult"));
 
                         return (
                           <div
@@ -425,57 +744,143 @@ export function GenerationPanel() {
                             className="max-w-[82%] space-y-2"
                           >
                             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                              <Bot className="h-3.5 w-3.5" />
-                              {getAiModelDisplayName(job.input.model) || t("generatedResult")}
+                              <AiModelLogo size="sm" imageUrl={modelObj?.image} />
+                              {modelDisplayName}
                             </div>
-                            <GeneratedImageViewer
-                              imageUrl={imageUrl}
-                              imageItemId={job.result?.imageItemIds?.[index]}
-                              alt={`generated-${index + 1}`}
-                              protectFromContextMenu={aiModels.isFreeUser}
-                              className="aspect-square w-full max-w-[360px] cursor-zoom-in rounded-lg border object-cover"
-                            />
-                            <div className="flex items-center gap-2">
-                              <Button
+                            {/* Same card as the grid's active variation: actions sit on the image. */}
+                            <div className="relative max-w-[270px] overflow-hidden rounded-[1.3rem] border">
+                              <GeneratedImageViewer
+                                imageUrl={imageUrl}
+                                imageItemId={job.result?.imageItemIds?.[index]}
+                                alt={t("generatedImageAlt", { index: index + 1 })}
+                                protectFromContextMenu
+                                className="w-full cursor-zoom-in object-cover"
+                                style={{ aspectRatio: job.result?.ratio ? job.result.ratio.replace(":", "/") : "1/1" }}
+                              />
+                              {typeof job.input.systemBubbleId === "number" && (
+                                <button
+                                  type="button"
+                                  className="absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-50"
+                                  title={t("regenerate")}
+                                  aria-label={`${t("regenerate")} ${index + 1}`}
+                                  disabled={isLoading}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleRegenerateImage(image);
+                                  }}
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                              {!isEditingThisImage && (
+                                <button
+                                  type="button"
+                                  className="absolute bottom-2 left-2 z-20 inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-semibold bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const imgElement = e.currentTarget.parentElement?.querySelector("canvas") || e.currentTarget.parentElement?.querySelector("img");
+                                    if (imgElement) {
+                                      triggerFlyAnimation(imageUrl, imgElement.getBoundingClientRect());
+                                    }
+                                    onSelectGeneratedImage(job, image, {
+                                      attachForEdit: true,
+                                    });
+                                  }}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  {t("edit")}
+                                </button>
+                              )}
+                              <button
                                 type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-3 text-xs"
-                                onClick={() =>
-                                  onSelectGeneratedImage(job, image, {
-                                    attachForEdit: true,
-                                  })
-                                }
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                                Edit
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                className={
+                                className={cn(
+                                  "absolute bottom-2 right-2 z-20 inline-flex h-8 items-center gap-1.5 rounded-full pl-2 pr-3 text-xs font-semibold",
                                   isSelected
-                                    ? "h-8 bg-blue-600 px-3 text-xs text-white hover:bg-blue-700"
-                                    : "h-8 border border-input bg-muted px-3 text-xs text-foreground hover:bg-muted/80"
-                                }
-                                onClick={() => onSelectGeneratedImage(job, image)}
+                                    ? "bg-blue-600 text-white shadow-lg transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                                    : "bg-black/45 text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                                )}
+                                title={isSelected ? t("contentUsed") : t("useContent")}
+                                aria-pressed={isSelected}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (
+                                    !isSelected &&
+                                    selectedContentImages.length >= MAX_CAROUSEL_IMAGES
+                                  ) {
+                                    showToast(
+                                      "error",
+                                      t("carouselLimitReached", {
+                                        max: MAX_CAROUSEL_IMAGES,
+                                      })
+                                    );
+                                    return;
+                                  }
+                                  onToggleContentImage(job, image);
+                                }}
                               >
                                 {isSelected ? (
-                                  <Check className="h-3.5 w-3.5" />
-                                ) : null}
-                                {isSelected ? "Content Used" : "Use Content"}
-                              </Button>
+                                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-semibold leading-none text-blue-600">
+                                    {isCarouselSelection ? selectionIndex + 1 : <Check className="h-2.5 w-2.5" />}
+                                  </span>
+                                ) : (
+                                  <span aria-hidden className="h-4 w-4 rounded-full border-2 border-white" />
+                                )}
+                                {isSelected ? t("contentUsed") : t("selectContent")}
+                              </button>
                             </div>
+                            {isSelected && isCarouselSelection ? (
+                              <span className="text-xs text-muted-foreground">
+                                {t("carouselSlideLabel", {
+                                  index: selectionIndex + 1,
+                                  total: selectedContentImages.length,
+                                })}
+                              </span>
+                            ) : null}
                           </div>
                         );
                       })
                     ) : (
-                      <div className="max-w-[82%] rounded-lg border bg-background-secondary p-4">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Generating image...
-                        </div>
-                      </div>
+                      (() => {
+                        // A follow-up edits the attached tile or upload; the bubble shows that image being worked on.
+                        const editSourceImage = isInitialSchedulerBubble
+                          ? null
+                          : job.input.referenceImage || additionalPromptImages[0] || null;
+                        // Chat jobs report the backend pipeline step; other jobs fall back to the generic copy.
+                        const stepKey = `progressSteps.${job.progressStep || job.stage}`;
+                        const statusText = t.has(stepKey) ? t(stepKey) : t("generatingImage");
+
+                        return (
+                          // Same loading look as the preview: the image being edited, dimmed and blurred,
+                          // under the Postmatic loader, with the process step below it.
+                          <div
+                            className="relative w-full max-w-[82%] overflow-hidden rounded-[1.3rem] border bg-background-secondary sm:max-w-[270px]"
+                            style={{ aspectRatio: job.input.ratio ? job.input.ratio.replace(":", "/") : "1/1" }}
+                          >
+                            {editSourceImage ? (
+                              <>
+                                <ProtectedImage
+                                  src={editSourceImage}
+                                  alt=""
+                                  className="absolute inset-0 h-full w-full scale-110 blur-sm"
+                                />
+                                <div className="absolute inset-0 bg-black/50" />
+                              </>
+                            ) : (
+                              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+                            )}
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-5 text-center">
+                              <LogoLoader hideContentBackground={false} size={80} />
+                              <GenerationStatusText
+                                text={statusText}
+                                className={editSourceImage ? "gen-status-inverse text-white" : undefined}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                 </div>
@@ -483,32 +888,32 @@ export function GenerationPanel() {
             })}
           </div>
 
-          <div className="sticky bottom-0 right-0 z-20 border-t border-border bg-card px-4 py-3 sm:px-6 lg:z-10">
+          <div className="sticky bottom-0 right-0 z-20 border-t border-border bg-card px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 lg:z-10">
             <div className="space-y-3">
               <div className="flex h-full">
-                <div className="min-w-0 flex-1 rounded-2xl border border-input bg-background-secondary p-3">
+                <div id="chat-composer-container" className="min-w-0 flex-1 rounded-2xl border border-input bg-background-secondary p-3">
                   {(selectedEditReferenceImage || attachedImages.length > 0) && (
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       {selectedEditReferenceImage ? (
                         <div className="relative">
-                          <Image
+                          <ProtectedImage
                             src={
                               selectedEditReferenceImage ||
                               DEFAULT_PLACEHOLDER_IMAGE
                             }
-                            alt="selected edit reference"
-                            width={96}
-                            height={96}
-                            className="h-16 w-16 rounded-md object-cover"
+                            alt={t("selectedEditReferenceAlt")}
+                            className="h-16 w-16 rounded-md"
                           />
                           <Button
                             type="button"
                             variant="secondary"
                             size="icon"
-                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full"
+                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full after:absolute after:-inset-2 after:content-[''] sm:after:hidden"
+                            aria-label={t("removeImage")}
                             onClick={() =>
                               form.setBasic({
                                 ...form.basic,
+                                referenceImage: "",
                                 referenceImageName: "",
                                 referenceImagePublisher: null,
                               })
@@ -523,7 +928,7 @@ export function GenerationPanel() {
                         <div key={`${imageUrl}-${index}`} className="relative">
                           <Image
                             src={imageUrl || DEFAULT_PLACEHOLDER_IMAGE}
-                            alt={`attached image ${index + 1}`}
+                            alt={t("attachedImageAlt", { index: index + 1 })}
                             width={96}
                             height={96}
                             className="h-16 w-16 rounded-md object-cover"
@@ -532,7 +937,8 @@ export function GenerationPanel() {
                             type="button"
                             variant="secondary"
                             size="icon"
-                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full"
+                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full after:absolute after:-inset-2 after:content-[''] sm:after:hidden"
+                            aria-label={t("removeImage")}
                             onClick={() =>
                               setAttachedImages((current) =>
                                 current.filter((_, itemIndex) => itemIndex !== index)
@@ -557,13 +963,15 @@ export function GenerationPanel() {
                     isLoadingModels={aiModels.isLoading}
                     models={aiModels.models}
                     selectedModel={form.basic.model || ""}
-                    canSubmit={Boolean(form.basic.prompt?.trim())}
+                    canSubmit={
+                      Boolean(form.basic.prompt?.trim()) && !isUploadingAttachment
+                    }
                     onSubmit={handleRegenerate}
                     onSelectModel={(modelName) => {
                       const selectedModel = aiModels.models.find(
                         (model) => model.name === modelName
                       );
-                      if (selectedModel) onSelectAiModel(selectedModel);
+                      if (selectedModel) selectModel(selectedModel);
                     }}
                     onAttachGallery={() => attachInputRef.current?.click()}
                     onAttachKnowledge={handleOpenKnowledgeDialog}
@@ -573,11 +981,11 @@ export function GenerationPanel() {
               {schedulerMode && (
                 <Button
                   type="button"
-                  className="h-11 w-full bg-blue-500 text-white hover:bg-blue-600 lg:hidden"
+                  className="w-full bg-blue-500 text-white hover:bg-blue-600 lg:hidden"
                   disabled={isLoading || !selectedHistory}
                   onClick={handleOpenScheduleSummary}
                 >
-                  <WandSparkles className="h-4 w-4" />
+                  <CalendarClock className="h-4 w-4" />
                   {schedulerT("schedulePost")}
                 </Button>
               )}
@@ -603,6 +1011,10 @@ export function GenerationPanel() {
           isLoadingAvatars={isLoadingBusinessAvatars}
           isLoadingMoreAvatars={isLoadingAppAvatars}
         />
+        {promptImagePreviewDialog}
+        {restrictedModelModal}
+        {premiumModelModal}
+        {flyingImageOverlay}
       </>
     );
   }
@@ -610,36 +1022,14 @@ export function GenerationPanel() {
   return (
     <>
       <div id="generation-panel" className="h-full flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
 
           <SelectedReferenceImage />
-          <SelectedAvatars />
-          <GenerateFormBasic />
-
-          {form.rss ? (
-            <Button
-              type="button"
-              variant="default"
-              onClick={() => form.onRssSelect(null)}
-              disabled={isLoading}
-              className="h-14 w-full bg-red-600 text-white hover:bg-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-              {t("removeSelectedTrend")}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="default"
-              onClick={() => setIsTrendDialogOpen(true)}
-              disabled={isLoading}
-              className="h-14 w-full"
-            >
-              <Newspaper className="h-4 w-4" />
-              {t("addLatestTrend")}
-            </Button>
-          )}
+          <GenerateFormBasic
+            onOpenTrend={() => setIsTrendDialogOpen(true)}
+            onOpenReference={onOpenMobileReference}
+          />
 
           <SelectedArticleRss
             onChangeArticle={() => {
@@ -659,17 +1049,11 @@ export function GenerationPanel() {
         filterQuery={rss.filterQuery}
         setFilterQuery={rss.setFilterQuery}
       />
-      <ConfirmationModal
-        isOpen={isRestrictedModelModalOpen}
-        onClose={() => setIsRestrictedModelModalOpen(false)}
-        onCancel={handleUseFreeUserAllowedModel}
-        onConfirm={handleTopUpNow}
-        title={modelRestrictionCopy.title}
-        description={modelRestrictionCopy.description}
-        confirmText={modelRestrictionCopy.topUp}
-        cancelText={modelRestrictionCopy.useDefault}
-      />
+      {restrictedModelModal}
 
+      {promptImagePreviewDialog}
+      
+      {flyingImageOverlay}
     </>
   );
 }

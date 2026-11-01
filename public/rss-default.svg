@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="rssBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7D26" />
+      <stop offset="100%" stop-color="#E54F00" />
+    </linearGradient>
+    <filter id="rssShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#rssBg)" />
+  
+  <g transform="translate(100, 100)" filter="url(#rssShadow)">
+    <!-- Dot -->
+    <circle cx="50" cy="262" r="48" fill="#FFFFFF" />
+    
+    <!-- Inner Arc -->
+    <path d="M 2 135 A 175 175 0 0 1 177 310 L 122 310 A 120 120 0 0 0 2 190 Z" fill="#FFFFFF" />
+    
+    <!-- Outer Arc -->
+    <path d="M 2 25 A 285 285 0 0 1 287 310 L 232 310 A 230 230 0 0 0 2 80 Z" fill="#FFFFFF" />
+  </g>
+</svg>

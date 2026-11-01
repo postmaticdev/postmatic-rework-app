@@ -1,10 +1,10 @@
 import { api } from "@/config/api";
 import { BaseResponse, FilterQuery } from "@/models/api/base-response.type";
 import {
-  AnalyticTokenUsageRes,
   TokenUsage,
+  TokenUsageChartPoint,
 } from "@/models/api/tier/token.type";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 type TokenUsageChartRes = {
   rangeStart: string;
@@ -18,29 +18,31 @@ type TokenUsageChartRes = {
 };
 
 const tokenService = {
+  // usage-chart only reports the total OUT tokens per bucket. Every token spent
+  // today goes to image content (image + caption); video has no token flow yet.
   getAnalyticUsage: (
     businessId: string,
     filterQuery?: Partial<FilterQuery>
-  ) => {
+  ): Promise<TokenUsageChartPoint[]> => {
     return api
       .get<BaseResponse<TokenUsageChartRes>>(
         `/generative-token/image-token/${businessId}/usage-chart`,
-        { params: filterQuery }
+        {
+          params: {
+            dateStart: filterQuery?.dateStart,
+            dateEnd: filterQuery?.dateEnd,
+            limit: filterQuery?.limit,
+          },
+        }
       )
-      .then((res) => ({
-        ...res,
-        data: {
-          ...res.data,
-          data: (res.data.data?.data || []).map((item) => ({
-            date: item.dateStart,
-            Image: item.totalUsage,
-            Video: 0,
-            LiveStream: 0,
-          })),
-        },
-      })) as unknown as ReturnType<
-      typeof api.get<BaseResponse<AnalyticTokenUsageRes[]>>
-    >;
+      .then((res) =>
+        (res.data.data?.data || []).map((item) => ({
+          date: item.dateStart,
+          dateEnd: item.dateEnd,
+          image: item.totalUsage,
+          video: 0,
+        }))
+      );
   },
   getTokenUsage: (businessId: string) => {
     return api
@@ -57,8 +59,9 @@ const tokenService = {
           availableToken: data.availableToken,
           totalValidToken: data.totalToken,
           totalUsedToken: data.usedToken,
+          // Keep two decimals; the card renders "31.00%" style values.
           percentageUsage: data.totalToken
-            ? Math.round((data.usedToken / data.totalToken) * 100)
+            ? Math.round((data.usedToken / data.totalToken) * 10000) / 100
             : 0,
         };
         return res as unknown as Awaited<
@@ -76,6 +79,7 @@ export const useTokenGetAnalyticUsage = (
     queryKey: ["tokenAnalyticUsage", businessId, filterQuery],
     queryFn: () => tokenService.getAnalyticUsage(businessId, filterQuery),
     enabled: !!businessId,
+    placeholderData: keepPreviousData,
   });
 };
 

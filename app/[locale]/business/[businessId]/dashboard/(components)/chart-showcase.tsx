@@ -31,7 +31,7 @@ export function ChartShowcase() {
           <button
             key={chart.id}
             onClick={() => setActiveChart(chart.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`min-h-10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
               activeChart === chart.id
                 ? "bg-blue-600 text-white shadow-lg"
                 : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"

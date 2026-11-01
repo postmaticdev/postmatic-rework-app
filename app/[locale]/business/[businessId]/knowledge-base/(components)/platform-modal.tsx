@@ -10,22 +10,21 @@ import {
 } from "@/components/ui/dialog";
 import { ConnectedPlatformForm } from "@/app/[locale]/business/[businessId]/knowledge-base/(components)/(form)/connected-platform-form";
 import { Link } from "@/i18n/navigation";
-import { DOCUMENTATION_PAGE_URL, LANDING_PAGE_URL } from "@/constants";
+import { DOCUMENTATION_PAGE_URL } from "@/constants";
 import { useTranslations } from "next-intl";
-import { useParams } from "next/navigation";
 
 interface PlatformModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Page to come back to after the provider's auth flow; defaults to the current page.
+  returnUrl?: string;
 }
 
-export function PlatformModal({ isOpen, onClose }: PlatformModalProps) {
+export function PlatformModal({ isOpen, onClose, returnUrl }: PlatformModalProps) {
   const m = useTranslations("modal");
-  const params = useParams();
-  const locale = params.locale;
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{m("managePlatformSocialMedia")}</DialogTitle>
           <DialogDescription>
@@ -33,13 +32,13 @@ export function PlatformModal({ isOpen, onClose }: PlatformModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <ConnectedPlatformForm />
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6">
+          <ConnectedPlatformForm returnUrl={returnUrl} />
         </div>
         <DialogFooterWithButton
           buttonMessage={m("close")}
           onClick={onClose}
-          className="items-center"
+          className="sm:justify-between"
         >
           <Link
             className="text-sm"

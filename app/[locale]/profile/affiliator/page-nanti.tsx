@@ -37,8 +37,8 @@
 //   // Sample data for affiliators
 //   const affiliators = [
 //     {
-//       name: "Hasan Rama asu ruwet",
-//       email: "hayhasan.project@gmail.com",
+//       name: "Affiliator Demo",
+//       email: "affiliator@example.com",
 //       status: "Active",
 //       code: "HXSNX221",
 //       totalSpend: "Rp 1.200.000",
@@ -46,8 +46,8 @@
 //       paidDate: "12/12/2025"
 //     },
 //     {
-//       name: "Hasan Rama",
-//       email: "hayhasan.project@gmail.com", 
+//       name: "Affiliator Demo",
+//       email: "affiliator@example.com", 
 //       status: "Active",
 //       code: "HXSNX221",
 //       totalSpend: "Rp 1.200.000",
@@ -55,8 +55,8 @@
 //       paidDate: "12/12/2025"
 //     },
 //     {
-//       name: "Hasan Rama",
-//       email: "hayhasan.project@gmail.com",
+//       name: "Affiliator Demo",
+//       email: "affiliator@example.com",
 //       status: "Active", 
 //       code: "HXSNX221",
 //       totalSpend: "Rp 1.200.000",
@@ -64,8 +64,8 @@
 //       paidDate: "12/12/2025"
 //     },
 //     {
-//       name: "Hasan Rama",
-//       email: "hayhasan.project@gmail.com",
+//       name: "Affiliator Demo",
+//       email: "affiliator@example.com",
 //       status: "Active",
 //       code: "HXSNX221", 
 //       totalSpend: "Rp 1.200.000",
@@ -73,8 +73,8 @@
 //       paidDate: "12/12/2025"
 //     },
 //     {
-//       name: "Hasan Rama",
-//       email: "hayhasan.project@gmail.com",
+//       name: "Affiliator Demo",
+//       email: "affiliator@example.com",
 //       status: "Active",
 //       code: "HXSNX221",
 //       totalSpend: "Rp 1.200.000", 

@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { usePendingPlatformConnection } from "@/hooks/use-pending-platform-connection";
 import { ContentLibrary } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-library";
 import { TabNavigation } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/tab-navigation";
 import { ContentSchedulerBoard } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/content-scheduler-board";
-import { FailedGenerationHistory } from "@/app/[locale]/business/[businessId]/content-scheduler/(components)/failed-generation-history";
 import { WelcomeSection } from "@/components/base/welcome-section";
 import { PlatformModal } from "../knowledge-base/(components)/platform-modal";
 import { useTranslations } from "next-intl";
@@ -12,10 +12,16 @@ import { useTranslations } from "next-intl";
 function ContentSchedulerInner() {
   const { activeTab, setActiveTab } = useContentSchedulerTab();
 
-  const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(false);
+  // Back from the auth site, the modal reopens so the account can be picked.
+  const { hasPendingPlatform, clearPlatformFlags } = usePendingPlatformConnection();
+  const [isPlatformModalOpen, setIsPlatformModalOpen] = useState(hasPendingPlatform);
   const handleIfNoPlatformConnected = () => {
     setIsPlatformModalOpen(true);
   };
+
+  useEffect(() => {
+    if (hasPendingPlatform) setIsPlatformModalOpen(true);
+  }, [hasPendingPlatform]);
 
   const t = useTranslations("welcomeSection");
 
@@ -30,17 +36,12 @@ function ContentSchedulerInner() {
       case "history":
         return (
           <div className="h-full">
-            <div className="grid grid-cols-1 gap-4 sm:gap-6 h-full">
-              <FailedGenerationHistory />
-              <div className="h-full">
-                <ContentLibrary
-                  showAddtoQueue={false}
-                  showPostingNow={false}
-                  showScheduling={false}
-                  type="posted"
-                />
-              </div>
-            </div>
+            <ContentLibrary
+              showAddtoQueue={false}
+              showPostingNow={false}
+              showScheduling={false}
+              type="posted"
+            />
           </div>
         );
       default:
@@ -63,7 +64,10 @@ function ContentSchedulerInner() {
       <div className=" h-full">{renderTabContent()}</div>
       <PlatformModal
         isOpen={isPlatformModalOpen}
-        onClose={() => setIsPlatformModalOpen(false)}
+        onClose={() => {
+          setIsPlatformModalOpen(false);
+          clearPlatformFlags();
+        }}
       />
     </main>
   );

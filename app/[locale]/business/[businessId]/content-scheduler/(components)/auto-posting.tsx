@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ScheduleItemPicker } from "@/components/ui/schedule-item-picker";
-import { Calendar } from "lucide-react";
+import { Calendar, Save } from "lucide-react";
 import { useContentSchedulerAutoGetSettings } from "@/services/content/content.api";
 import { useParams } from "next/navigation";
 import { PlatformEnum } from "@/models/api/knowledge/platform.type";
@@ -58,24 +58,21 @@ export function AutoPosting({ handleIfNoPlatformConnected }: AutoPostingProps) {
               <Switch
                 checked={globalEnabled}
                 onCheckedChange={(v) => {
-                  if (lenConnectedPlatform === 0) {
+                  if (v && lenConnectedPlatform === 0) {
                     handleIfNoPlatformConnected();
+                    return;
                   }
                   setGlobalEnabled(v);
                 }}
-                onClick={() => {
-                  if (lenConnectedPlatform === 0) {
-                    handleIfNoPlatformConnected();
-                  }
-                }}
               />
               <Button onClick={onUpsert} disabled={loading || !isValueChanged}>
+                <Save className="h-4 w-4" />
                 {loading ? t("saving") : t("save")}
               </Button>
             </div>
           </div>
 
-          <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+          <div className="space-y-4 max-h-[calc(100dvh-300px)] overflow-y-auto scrollbar-hidden">
             {schedules.schedulerAutoPostings.map((schedule) => (
               <Card key={schedule.day} className="bg-background-secondary">
                 <CardContent className="p-4 sm:p-6">

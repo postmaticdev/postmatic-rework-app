@@ -20,11 +20,13 @@ import {
 } from "@/models/api/creator/design";
 import { Pagination, FilterQuery, initialPagination } from "@/models/api/base-response.type";
 import { showToast } from "@/helper/show-toast";
+import { useTranslations } from "next-intl";
 
 interface CreatorDesignContextType {
   // State
   designs: CreatorDesign[];
   isLoading: boolean;
+  isSubmitting: boolean;
   isCreateModalOpen: boolean;
   isEditModalOpen: boolean;
   editingDesign: CreatorDesign | null;
@@ -69,6 +71,7 @@ const initialFormData: CreateDesignRequest = {
 };
 
 export function CreatorDesignProvider({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("creatorDesign");
   // State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -87,6 +90,7 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
     () => designsResponse?.data?.data || [],
     [designsResponse?.data?.data]
   );
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const pagination = designsResponse?.data?.pagination || initialPagination;
   const filterQuery = designsResponse?.data?.filterQuery || {};
 
@@ -131,11 +135,11 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Nama design harus diisi";
+      newErrors.name = t("validation.nameRequired");
     }
 
     if (!formData.imageUrl.trim()) {
-      newErrors.imageUrl = "Gambar referensi harus diupload";
+      newErrors.imageUrl = t("validation.imageRequired");
     }
 
     // if (formData.price && formData.price < 0) {
@@ -143,44 +147,44 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
     // }
 
     if (!formData.templateImageCategoryIds || formData.templateImageCategoryIds.length === 0) {
-      newErrors.templateImageCategoryIds = "Kategori referensi harus dipilih";
+      newErrors.templateImageCategoryIds = t("validation.categoryRequired");
     }
 
     if (!formData.templateProductCategoryIds || formData.templateProductCategoryIds.length === 0) {
-      newErrors.templateProductCategoryIds = "Tag referensi harus dipilih";
+      newErrors.templateProductCategoryIds = t("validation.tagRequired");
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, t]);
 
   // API actions
   const handleCreateDesign = useCallback(async () => {
-    if (!validateForm()) return;
+    if (createMutation.isPending || !validateForm()) return;
 
     try {
       await createMutation.mutateAsync(formData);
-      showToast("success", "Design berhasil dibuat");
+      showToast("success", t("toast.created"));
       closeCreateModal();
     } catch {
-      showToast("error", "Gagal membuat design");
+      showToast("error", t("toast.createFailed"));
     }
-  }, [formData, validateForm, createMutation, closeCreateModal]);
+  }, [formData, validateForm, createMutation, closeCreateModal, t]);
 
   const handleUpdateDesign = useCallback(async () => {
-    if (!editingDesign || !validateForm()) return;
+    if (!editingDesign || updateMutation.isPending || !validateForm()) return;
 
     try {
       await updateMutation.mutateAsync({
         templateImageContentId: editingDesign.id,
         formData,
       });
-      showToast("success", "Design berhasil diperbarui");
+      showToast("success", t("toast.updated"));
       closeEditModal();
     } catch {
-      showToast("error", "Gagal memperbarui design");
+      showToast("error", t("toast.updateFailed"));
     }
-  }, [editingDesign, formData, validateForm, updateMutation, closeEditModal]);
+  }, [editingDesign, formData, validateForm, updateMutation, closeEditModal, t]);
 
   const handlePublishToggle = useCallback(async (designId: string, isPublished: boolean) => {
     const design = designs.find((item) => item.id === designId);
@@ -202,25 +206,26 @@ export function CreatorDesignProvider({ children }: { children: React.ReactNode 
           ),
         },
       });
-      showToast("success", `Design berhasil ${isPublished ? "dipublikasikan" : "disembunyikan"}`);
+      showToast("success", isPublished ? t("toast.published") : t("toast.unpublished"));
     } catch {
-      showToast("error", "Gagal mengubah status publikasi");
+      showToast("error", t("toast.publishToggleFailed"));
     }
-  }, [designs, updateMutation]);
+  }, [designs, updateMutation, t]);
 
   const handleDeleteDesign = useCallback(async (designId: string) => {
     try {
       await deleteMutation.mutateAsync(designId);
-      showToast("success", "Design berhasil dihapus");
+      showToast("success", t("toast.deleted"));
     } catch {
-      showToast("error", "Gagal menghapus design");
+      showToast("error", t("toast.deleteFailed"));
     }
-  }, [deleteMutation]);
+  }, [deleteMutation, t]);
 
   const contextValue: CreatorDesignContextType = {
     // State
     designs,
     isLoading,
+    isSubmitting,
     isCreateModalOpen,
     isEditModalOpen,
     editingDesign,

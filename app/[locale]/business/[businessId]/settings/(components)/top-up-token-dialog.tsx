@@ -1,26 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ReceiptText, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
+  DialogFooterWithButton,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { PaymentMethodSelect } from "@/components/forms/payment-method-select";
 import { showToast } from "@/helper/show-toast";
 import { translateApiResponseMessage } from "@/helper/api-response-message";
-import { formatIdr } from "@/helper/formatter";
+import {
+  formatIdrStable,
+} from "@/app/[locale]/business/[businessId]/pricing/checkout/(components)/product-display";
+import {
+  mergeCheckoutWithRealtimePayment,
+  normalizeRealtimePaymentStatus,
+  syncPaymentRealtimeCaches,
+  usePaymentRealtime,
+} from "@/hooks/use-payment-realtime";
+import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 import { useAppProductGetProductDetail } from "@/services/app-product.api";
 import {
@@ -35,6 +37,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { PaymentInstructionCard } from "./payment-instruction-card";
+import { OrderInvoiceCard } from "./order-invoice-card";
 
 interface TopUpTokenDialogProps {
   isOpen: boolean;
@@ -56,12 +59,6 @@ type PaymentStatusKey =
   | "refunded"
   | "denied"
   | "pending";
-
-type DetailRow = {
-  label: string;
-  value: string;
-  isStatus?: boolean;
-};
 
 const DEFAULT_TOKEN_AMOUNT = "200000";
 const MAX_TOKEN_AMOUNT = 1_000_000_000;
@@ -104,23 +101,6 @@ const getPaymentStatusKey = (status?: string): PaymentStatusKey => {
   }
 };
 
-const getPaymentStatusClassName = (status?: string) => {
-  switch (status) {
-    case "Success":
-      return "border-green-200 bg-green-50 text-green-700";
-    case "Failed":
-    case "Denied":
-      return "border-red-200 bg-red-50 text-red-700";
-    case "Canceled":
-    case "Expired":
-    case "Refunded":
-      return "border-gray-200 bg-gray-50 text-gray-700";
-    case "Pending":
-    default:
-      return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-};
-
 export function TopUpTokenDialog({
   isOpen,
   onClose,
@@ -128,6 +108,7 @@ export function TopUpTokenDialog({
 }: TopUpTokenDialogProps) {
   const { businessId } = useParams() as { businessId: string };
   const locale = useLocale();
+  const formatIdr = (amount: number) => formatIdrStable(amount, locale);
   const t = useTranslations();
   const tDialog = useTranslations("settings.topUpTokenDialog");
   const tStatus = useTranslations("checkout.paymentStatusLabel");
@@ -145,13 +126,20 @@ export function TopUpTokenDialog({
     null
   );
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [now, setNow] = useState(() => Date.now());
 
   const tokenAmount = Number(clampTokenAmount(amount) || 0);
+  // Debounce the amount used for price/product queries so typing doesn't fire a request per keystroke.
+  const [debouncedTokenAmount, setDebouncedTokenAmount] = useState(tokenAmount);
+  useDebounce(() => setDebouncedTokenAmount(tokenAmount), 500, [tokenAmount]);
+  const isTokenAmountSettling = tokenAmount !== debouncedTokenAmount;
 
+  // The dialog stays mounted on the billing tab; only load pricing while it's open.
   const productDetail = useAppProductGetProductDetail({
     rootBusinessId: businessId,
-    productId: tokenAmount ? String(tokenAmount) : "",
+    productId: isOpen && debouncedTokenAmount ? String(debouncedTokenAmount) : "",
     type: "token",
   });
 
@@ -162,6 +150,7 @@ export function TopUpTokenDialog({
         code: method.issued.code,
         name: method.issued.name,
         type: group.type,
+        image: method.issued.image,
       }))
     );
   }, [productDetail.data]);
@@ -172,7 +161,7 @@ export function TopUpTokenDialog({
 
   const priceQuery = usePaymentImageTokenPrice({
     businessId,
-    tokenAmount,
+    tokenAmount: debouncedTokenAmount,
     paymentMethod,
     referralCode: checkedPromoCode || undefined,
     enabled: isOpen && !checkoutResult,
@@ -211,11 +200,37 @@ export function TopUpTokenDialog({
     }
   }, [methodOptions, paymentMethod]);
 
+  // The countdown is the only thing that needs a ticking clock.
+  const hasPendingCountdown =
+    !!checkoutResult?.expiredAt &&
+    (!checkoutResult.status || checkoutResult.status === "Pending");
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !hasPendingCountdown) return;
+    setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [isOpen]);
+  }, [isOpen, hasPendingCountdown]);
+
+  usePaymentRealtime({
+    businessId,
+    enabled: isOpen && !!checkoutResult?.id,
+    paymentId: checkoutResult?.id,
+    onStatusChanged: (payload) => {
+      const nextStatus = normalizeRealtimePaymentStatus(payload.status);
+
+      setCheckoutResult((current) =>
+        current?.id === payload.paymentHistoryId
+          ? mergeCheckoutWithRealtimePayment(current, payload)
+          : current
+      );
+      syncPaymentRealtimeCaches(queryClient, businessId, payload);
+
+      showToast(
+        nextStatus === "Success" ? "success" : "info",
+        tStatus(getPaymentStatusKey(nextStatus))
+      );
+    },
+  });
 
   const handleClose = (open: boolean) => {
     if (!open) {
@@ -275,8 +290,14 @@ export function TopUpTokenDialog({
       return;
     }
 
-    const discountCode = promoCode.trim() || undefined;
+    if (isSubmittingRef.current) return;
 
+    // Only send a promo code that was checked and accepted, never a typed-but-unchecked one.
+    const discountCode =
+      isPromoCodeChecked && price?.referral?.valid ? checkedPromoCode : undefined;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       const res =
         selectedMethod.type === "Virtual Account"
@@ -328,6 +349,9 @@ export function TopUpTokenDialog({
         apiError.response?.data?.metaData?.message ||
         t("toast.defaultError")
       );
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -344,8 +368,19 @@ export function TopUpTokenDialog({
       );
       showToast("info", tStatus(getPaymentStatusKey(res.data.data.status)));
       queryClient.invalidateQueries({
+        queryKey: ["businessPurchaseDetail", checkoutResult.id],
+      });
+      queryClient.invalidateQueries({
         queryKey: ["businessPurchaseHistory", businessId],
       });
+      if (res.data.data.status === "Success") {
+        queryClient.invalidateQueries({
+          queryKey: ["tokenUsage", businessId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["subscribtionSubscription", businessId],
+        });
+      }
     } catch {
       showToast("error", t("toast.payment.paymentStatusCheckFailed"));
     } finally {
@@ -404,52 +439,10 @@ export function TopUpTokenDialog({
     ? tDialog("pendingDescription")
     : tDialog("processedDescription");
 
-  const detailRows: DetailRow[] = checkoutResult
-    ? [
-      {
-        label: tDialog("reference"),
-        value:
-          checkoutResult.paymentCode ||
-          checkoutResult.orderId ||
-          checkoutResult.id,
-      },
-      {
-        label: tDialog("createdAt"),
-        value: formatDateTime(checkoutResult.createdAt),
-      },
-      {
-        label: tDialog("updatedAt"),
-        value: formatDateTime(checkoutResult.updatedAt),
-      },
-      { label: tDialog("product"), value: checkoutResult.productName },
-      {
-        label: tDialog("method"),
-        value: checkoutResult.method?.toUpperCase() || "-",
-      },
-      ...checkoutResult.paymentDetails.map((detail) => ({
-        label: detail.name,
-        value: formatIdr(detail.price),
-      })),
-      {
-        label: tDialog("total"),
-        value: formatIdr(checkoutResult.totalAmount),
-      },
-      {
-        label: tDialog("paymentStatus"),
-        value: statusLabel,
-        isStatus: true,
-      },
-      {
-        label: tDialog("affiliateCode"),
-        value: checkoutResult.discountCode || "-",
-      },
-    ]
-    : [];
-
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="overflow-hidden">
-        <DialogHeader className="px-6 py-5">
+      <DialogContent className="scrollbar-hidden">
+        <DialogHeader>
           <DialogTitle >
             {checkoutResult
               ? tDialog("paymentInstruction")
@@ -457,7 +450,7 @@ export function TopUpTokenDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+        <div className="scrollbar-hidden flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:space-y-6 sm:p-6">
           {!checkoutResult ? (
             <>
               <div className="grid gap-4">
@@ -469,35 +462,38 @@ export function TopUpTokenDialog({
                     value={amount}
                     onChange={(event) => handleAmountChange(event.target.value)}
                     placeholder={defaultTokenAmountDisplay}
-                    className="h-11"
                   />
-                  {/* <p className="text-xs text-muted-foreground">
-                    Enter the token amount you want to buy. Max 1,000,000,000.
-                  </p> */}
+                  {/* Preview harga (Rp) mengikuti jumlah token yang diinput */}
+                  {tokenAmount > 0 && (
+                    <div className="flex items-center justify-between rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-sm">
+                      <span className="text-muted-foreground">
+                        {tDialog("pricePreview")}
+                      </span>
+                      <span className="font-semibold text-primary">
+                        {price && tokenAmount === debouncedTokenAmount
+                          ? tDialog("pricePreviewHint", {
+                              tokens: tokenAmount.toLocaleString(locale),
+                              price: formatIdr(price.calculation.itemPrice),
+                            })
+                          : priceQuery.isFetching || tokenAmount !== debouncedTokenAmount
+                            ? "..."
+                            : "-"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
                     {tDialog("paymentMethod")}
                   </label>
-                  <Select
+                  <PaymentMethodSelect
                     value={paymentMethod}
                     onValueChange={setPaymentMethod}
                     disabled={productDetail.isLoading}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue
-                        placeholder={tDialog("selectPaymentMethod")}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {methodOptions.map((method) => (
-                        <SelectItem key={method.code} value={method.code}>
-                          {method.name} - {method.type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={methodOptions}
+                    placeholder={tDialog("selectPaymentMethod")}
+                  />
                 </div>
               </div>
 
@@ -510,10 +506,11 @@ export function TopUpTokenDialog({
                     value={promoCode}
                     onChange={(event) => handlePromoCodeChange(event.target.value)}
                     placeholder={tDialog("enterPromoCode")}
-                    className="h-11 pr-20 uppercase"
+                    className="pr-20 uppercase"
                   />
                   <Button
                     type="button"
+                    size="sm"
                     onClick={handleCheckPromoCode}
                     disabled={
                       isCheckingPromoCode ||
@@ -522,7 +519,7 @@ export function TopUpTokenDialog({
                       !tokenAmount ||
                       !paymentMethod
                     }
-                    className="absolute right-1 top-1/2 h-9 -translate-y-1/2 px-3 text-sm"
+                    className="absolute right-1 top-1/2 h-8 -translate-y-1/2 max-md:h-9"
                   >
                     {isCheckingPromoCode
                       ? tDialog("checking")
@@ -543,41 +540,6 @@ export function TopUpTokenDialog({
                 ) : null}
               </div>
 
-              <div className="rounded-lg border bg-muted/20 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="font-semibold">
-                    {tDialog("paymentDetails")}
-                  </h3>
-                  {priceQuery.isFetching ? (
-                    <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : null}
-                </div>
-                <SummaryRow
-                  label={tDialog("token")}
-                  value={tokenAmount ? tokenAmount.toLocaleString(locale) : "-"}
-                />
-                <SummaryRow
-                  label={tDialog("subtotal")}
-                  value={formatIdr(price?.calculation.itemPrice ?? 0)}
-                />
-                <SummaryRow
-                  label={tDialog("discount")}
-                  value={formatIdr(price?.calculation.discountAmount ?? 0)}
-                />
-                <SummaryRow
-                  label={tDialog("admin")}
-                  value={formatIdr(price?.calculation.adminFeeAmount ?? 0)}
-                />
-                <SummaryRow
-                  label={tDialog("tax")}
-                  value={formatIdr(price?.calculation.taxAmount ?? 0)}
-                />
-                <SummaryRow
-                  label={tDialog("total")}
-                  value={formatIdr(price?.calculation.totalAmount ?? 0)}
-                  strong
-                />
-              </div>
             </>
           ) : (
             <>
@@ -596,47 +558,44 @@ export function TopUpTokenDialog({
                 onCopy={handleCopy}
               />
 
-              <div className="rounded-lg border bg-background p-5">
-                <div className="mb-5 flex items-center gap-3 border-b pb-4">
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-muted text-foreground">
-                    <ReceiptText className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-lg font-semibold">
-                    {tDialog("orderDetails")}
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  {detailRows.map((row) => (
-                    <DetailOrderRow
-                      key={row.label}
-                      label={row.label}
-                      value={row.value}
-                      status={row.isStatus ? checkoutResult.status : undefined}
-                    />
-                  ))}
-                </div>
-              </div>
+              <OrderInvoiceCard
+                reference={
+                  checkoutResult.paymentCode ||
+                  checkoutResult.orderId ||
+                  checkoutResult.id
+                }
+                createdAt={formatDateTime(checkoutResult.createdAt)}
+                updatedAt={formatDateTime(checkoutResult.updatedAt)}
+                productName={checkoutResult.productName}
+                productType={checkoutResult.productType}
+                method={checkoutResult.method}
+                paymentDetails={checkoutResult.paymentDetails}
+                totalAmount={checkoutResult.totalAmount}
+                affiliateCode={checkoutResult.discountCode ?? null}
+                status={{ value: checkoutResult.status, label: statusLabel }}
+              />
             </>
           )}
         </div>
 
         {!checkoutResult ? (
-          <DialogFooter className="px-6 py-4">
-            <Button
-              onClick={handleCreatePayment}
-              disabled={
-                isCreatingPayment ||
-                priceQuery.isLoading ||
-                !tokenAmount ||
-                !paymentMethod
-              }
-
-            >
-              {isCreatingPayment
+          <DialogFooterWithButton
+            buttonMessage={
+              isCreatingPayment || isSubmitting
                 ? tDialog("processing")
-                : tDialog("continue")}
-            </Button>
-          </DialogFooter>
+                : tDialog("continue")
+            }
+            onClick={handleCreatePayment}
+            disabled={
+              isCreatingPayment ||
+              isSubmitting ||
+              isTokenAmountSettling ||
+              priceQuery.isLoading ||
+              priceQuery.isError ||
+              !tokenAmount ||
+              !paymentMethod
+            }
+          />
         ) : null}
       </DialogContent>
     </Dialog>
@@ -661,51 +620,4 @@ function mergeCheckoutWithPurchaseDetail(
       ? detail.paymentDetails
       : checkout.paymentDetails,
   };
-}
-
-function SummaryRow({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={cn("text-right", strong && "font-semibold")}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function DetailOrderRow({
-  label,
-  value,
-  status,
-}: {
-  label: string;
-  value: string;
-  status?: string;
-}) {
-  return (
-    <div className="grid grid-cols-[120px_1fr] items-start gap-4 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      {status ? (
-        <span
-          className={cn(
-            "w-fit rounded-md border px-2 py-1 text-sm font-medium",
-            getPaymentStatusClassName(status)
-          )}
-        >
-          {value}
-        </span>
-      ) : (
-        <span className="break-words font-medium text-foreground">{value}</span>
-      )}
-    </div>
-  );
 }

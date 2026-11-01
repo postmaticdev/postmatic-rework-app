@@ -1,34 +1,28 @@
 "use client";
 
-import { useRouter, usePathname } from "@/i18n/navigation";
+import { usePathname, Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 
 import {
   BookOpen,
-  Send,
+  CalendarClock,
   Settings,
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { useAutoSchedulerAutosave } from "@/contexts/auto-scheduler-autosave-context";
 import { useTranslations } from "next-intl";
 import { ReportIssueModal } from "@/components/report-issue-modal";
 
 export function Sidebar() {
-  const router = useRouter();
   const pathname = usePathname();
   const { businessId } = useParams() as { businessId: string };
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const { guardedNavigate } = useAutoSchedulerAutosave();
-
-  const handleClick = (href: string) => {
-    const fullPath = `/business/${businessId}/${href}`;
-    guardedNavigate(fullPath, router.push);
-  };
 
   const t = useTranslations("sideBar");
+  // Menu aktif = segmen setelah /business/{id}, bukan pencocokan substring.
+  const activeSection = pathname.split("/").filter(Boolean)[2];
 
   const navigationItems = [
     {
@@ -39,7 +33,7 @@ export function Sidebar() {
     {
       name: t("contentScheduler"),
       href: "content-scheduler",
-      icon: Send,
+      icon: CalendarClock,
     },
     {
       name: t("settings"),
@@ -47,7 +41,7 @@ export function Sidebar() {
       icon: Settings,
     },
   ];
-  
+
   const helpItems = [
     {
       name: t("reportIssue"),
@@ -89,7 +83,7 @@ export function Sidebar() {
         {/* Main Navigation Items */}
         <div className="flex flex-col space-y-10 mt-auto ">
           {navigationItems.map((item, index) => {
-            const isActive = pathname.includes(`${item.href}`);
+            const isActive = activeSection === item.href;
             const Icon = item.icon;
             const isHovered = hoveredItem === item.href;
 
@@ -102,8 +96,10 @@ export function Sidebar() {
                   animation: "fadeInUp 0.6s ease-out forwards",
                 }}
               >
-                <button
-                  onClick={() => handleClick(item.href)}
+                <Link
+                  href={`/business/${businessId}/${item.href}`}
+                  aria-label={item.name}
+                  aria-current={isActive ? "page" : undefined}
                   onMouseEnter={() => setHoveredItem(item.href)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={cn(
@@ -119,7 +115,7 @@ export function Sidebar() {
                       isHovered && "scale-110"
                     )}
                   />
-                </button>
+                </Link>
 
                 {/* Tooltip */}
                 <div
@@ -160,6 +156,7 @@ export function Sidebar() {
               >
                 <button
                   onClick={() => setIsReportModalOpen(true)}
+                  aria-label={item.name}
                   onMouseEnter={() => setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
                   className={cn(

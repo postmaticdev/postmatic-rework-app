@@ -4,6 +4,7 @@ import * as React from "react";
 import { ChevronDown, Search, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { useTranslations } from "next-intl";
 
 interface Country {
   name: string;
@@ -24,10 +25,13 @@ export function SearchableCountrySelect({
   countries,
   value,
   onValueChange,
-  placeholder = "Pilih negara",
-  searchPlaceholder = "Cari negara...",
+  placeholder: placeholderProp,
+  searchPlaceholder: searchPlaceholderProp,
   className,
 }: SearchableCountrySelectProps) {
+  const t = useTranslations("countrySelect");
+  const placeholder = placeholderProp ?? t("placeholder");
+  const searchPlaceholder = searchPlaceholderProp ?? t("searchPlaceholder");
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [focusedIndex, setFocusedIndex] = React.useState(-1);
@@ -154,8 +158,8 @@ export function SearchableCountrySelect({
   // fokuskan search saat buka
   React.useEffect(() => {
     if (isOpen && searchInputRef.current) {
-      const t = setTimeout(() => searchInputRef.current?.focus(), 100);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => searchInputRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -193,9 +197,10 @@ export function SearchableCountrySelect({
         type="button"
         role="combobox"
         aria-expanded={isOpen}
+        aria-controls="dropdown-listbox"
         aria-haspopup="listbox"
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-base shadow-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm [&>span]:line-clamp-1",
+          "flex h-(--control-h) w-full items-center justify-between rounded-md border border-input bg-background px-3 py-1 text-base shadow-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm [&>span]:line-clamp-1",
           className
         )}
         onClick={() => setIsOpen((o) => !o)}
@@ -225,7 +230,7 @@ export function SearchableCountrySelect({
             {/* Search */}
             <div className="sticky top-0 z-10 p-1 bg-popover border-b">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={searchInputRef}
                   placeholder={searchPlaceholder}
@@ -235,7 +240,7 @@ export function SearchableCountrySelect({
                     setFocusedIndex(-1);
                   }}
                   onKeyDown={handleSearchKeyDown}
-                  className="h-9 pl-8"
+                  className="pl-8"
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
                   autoComplete="off"
@@ -251,7 +256,7 @@ export function SearchableCountrySelect({
                   <div
                     key={`${country.code}-${country.dial_code}`}
                     className={cn(
-                      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                      "relative flex w-full cursor-default select-none items-center rounded-sm py-2.5 sm:py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
                       index === focusedIndex &&
                         "bg-accent text-accent-foreground",
                       value === country.dial_code &&
@@ -273,7 +278,7 @@ export function SearchableCountrySelect({
                 ))
               ) : (
                 <div className="py-6 text-center text-sm text-muted-foreground">
-                  Tidak ada hasil
+                  {t("noResults")}
                 </div>
               )}
             </div>
@@ -287,7 +292,7 @@ export function SearchableCountrySelect({
             {/* Search */}
             <div className="sticky top-0 z-10 p-1 bg-popover border-b">
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={searchInputRef}
                   placeholder={searchPlaceholder}
@@ -297,7 +302,7 @@ export function SearchableCountrySelect({
                     setFocusedIndex(-1);
                   }}
                   onKeyDown={handleSearchKeyDown}
-                  className="h-9 pl-8"
+                  className="pl-8"
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
                   autoComplete="off"
@@ -335,7 +340,7 @@ export function SearchableCountrySelect({
                 ))
               ) : (
                 <div className="py-6 text-center text-sm text-muted-foreground">
-                  Tidak ada hasil
+                  {t("noResults")}
                 </div>
               )}
             </div>

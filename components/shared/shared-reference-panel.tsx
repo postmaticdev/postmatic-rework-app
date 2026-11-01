@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Upload, Loader2 } from "lucide-react";
-import {
-  PaginationControls,
-} from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +16,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -31,6 +29,10 @@ import { SharedTemplateCard } from "@/components/shared/shared-template-card";
 import { SharedReferenceFullviewModal } from "@/components/shared/shared-reference-fullview-modal";
 import { SearchNotFound } from "@/components/base/search-not-found";
 import { DeleteConfirmationModal } from "@/components/ui/delete-confirmation-modal";
+import {
+  REFERENCE_FILTER_RECENTLY,
+  REFERENCE_FILTER_TRENDING,
+} from "@/models/api/library/template.type";
 
 import { Pagination, FilterQuery } from "@/models/api/base-response.type";
 
@@ -71,6 +73,7 @@ interface SharedReferencePanelProps {
   onSaveUploadedReference: (payload: {
     imageUrl: string;
     name: string;
+    typeCategoryIds: number[];
   }) => Promise<void>;
   onSaveUnsave?: (template: Template) => void;
   onConfirmUnsave?: () => void;
@@ -107,6 +110,29 @@ export function SharedReferencePanel({
   const [activeTab, setActiveTab] = useState<"reference" | "saved">(
     "reference"
   );
+  
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const currentTemplates = activeTab === "reference" ? publishedTemplates : savedTemplates;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && currentTemplates.pagination?.hasNextPage && !currentTemplates.isLoading) {
+          currentTemplates.setFilterQuery({
+            ...currentTemplates.filterQuery,
+            page: (currentTemplates.filterQuery.page || 1) + 1,
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [activeTab, publishedTemplates, savedTemplates]);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -114,6 +140,7 @@ export function SharedReferencePanel({
   const [prepareUploadError, setPrepareUploadError] = useState<string | null>(null);
   const [isNameDialogOpen, setIsNameDialogOpen] = useState(false);
   const [uploadedReferenceName, setUploadedReferenceName] = useState("");
+  const [uploadedReferenceCategoryIds, setUploadedReferenceCategoryIds] = useState<string[]>([]);
 
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedTemplateForModal, setSelectedTemplateForModal] = useState<Template | null>(
@@ -129,7 +156,17 @@ export function SharedReferencePanel({
   const resetNameDialog = useCallback(() => {
     closeNameDialog();
     setUploadedReferenceName("");
+    setUploadedReferenceCategoryIds([]);
   }, [closeNameDialog]);
+
+  const toggleUploadedReferenceCategory = useCallback((categoryId: string) => {
+    setUploadedReferenceCategoryIds((current) =>
+      current.includes(categoryId)
+        ? current.filter((id) => id !== categoryId)
+        : [...current, categoryId]
+    );
+    setPrepareUploadError(null);
+  }, []);
 
   const uploadReferenceFile = useCallback(
     async (file: File) => {
@@ -162,6 +199,7 @@ export function SharedReferencePanel({
         await onSaveUploadedReference({
           imageUrl: response,
           name: trimmedName,
+          typeCategoryIds: uploadedReferenceCategoryIds.map(Number),
         });
 
         showToast("success", t("imageUploadedSuccessfully"));
@@ -184,7 +222,7 @@ export function SharedReferencePanel({
         }, 1000);
       }
     },
-    [onSaveUploadedReference, resetNameDialog, t, uploadedReferenceName]
+    [onSaveUploadedReference, resetNameDialog, t, uploadedReferenceName, uploadedReferenceCategoryIds]
   );
 
   const handleFileInput = useCallback(
@@ -211,6 +249,10 @@ export function SharedReferencePanel({
       setPrepareUploadError(t("referenceNameRequired"));
       return;
     }
+    if (uploadedReferenceCategoryIds.length === 0) {
+      setPrepareUploadError(t("referenceCategoryRequired"));
+      return;
+    }
 
     setIsPreparingUpload(true);
     setPrepareUploadError(null);
@@ -223,19 +265,21 @@ export function SharedReferencePanel({
     setTimeout(() => {
       setIsPreparingUpload(false);
     }, 300);
-  }, [t, uploadedReferenceName]);
+  }, [t, uploadedReferenceName, uploadedReferenceCategoryIds]);
 
   const onDetail = useCallback((item: Template | null) => {
     setSelectedTemplateForModal(item);
     setIsDetailDialogOpen(true);
   }, []);
 
+  // Trending is a global ranking, so it is only offered on the Reference tab.
   const renderSearchControls = (
     placeholder: string,
     templates: {
       filterQuery: Partial<FilterQuery>;
       setFilterQuery: (q: Partial<FilterQuery>) => void;
-    }
+    },
+    showTrending: boolean
   ) => (
     <div className="relative">
       <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -264,12 +308,17 @@ export function SharedReferencePanel({
         >
           <SelectTrigger
             aria-label={t("filterCategory")}
-            className="h-8 w-32 rounded-l-none border-0 border-l border-border bg-transparent px-3 text-xs text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 sm:w-40"
+            className="h-[38px] w-32 rounded-l-none sm:h-8 border-0 border-l border-border bg-transparent px-3 text-xs text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 sm:w-40"
           >
             <SelectValue placeholder={t("filterCategory")} />
           </SelectTrigger>
           <SelectContent align="end">
             <SelectItem value="all">{t("allCategories")}</SelectItem>
+            {showTrending && (
+              <SelectItem value={REFERENCE_FILTER_TRENDING}>{t("filterTrending")}</SelectItem>
+            )}
+            <SelectItem value={REFERENCE_FILTER_RECENTLY}>{t("filterRecently")}</SelectItem>
+            {categories.length > 0 && <SelectSeparator />}
             {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.name}
@@ -283,8 +332,10 @@ export function SharedReferencePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {/* Mobile: tab + search menempel di bawah header saat halaman di-scroll */}
+      <div className="shrink-0 max-lg:sticky max-lg:top-16 max-lg:z-20 max-lg:border-b max-lg:border-border max-lg:bg-card">
       {/* Tab Bar */}
-      <div className="shrink-0 p-4 sm:p-6">
+      <div className="shrink-0 p-4 pb-0 sm:p-6 sm:pb-0">
         <div className="flex justify-center">
           <div className={`flex  rounded-lg  w-full ${onAutoGenerate ? "bg-card" : "bg-background"}`}>
             <button
@@ -309,17 +360,22 @@ export function SharedReferencePanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-6">
+      {/* Sticky Search Bar */}
+      <div className="shrink-0 p-4 sm:p-6">
+        {activeTab === "reference" 
+          ? renderSearchControls(t("searchPlaceholder"), publishedTemplates, true)
+          : renderSearchControls(t("searchPlaceholderSaved"), savedTemplates, false)}
+      </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden px-4 pb-4 sm:px-6">
         {activeTab === "reference" && (
           <div className="space-y-4">
-            {/* Search Bar */}
-            {renderSearchControls(t("searchPlaceholder"), publishedTemplates)}
-
             {/* Template Grid */}
             {publishedTemplates.isLoading ? (
               <TemplateGridSkeleton />
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="columns-2 gap-4 space-y-0">
                 {publishedTemplates?.contents.map((template, index) => (
                   <SharedTemplateCard
                     item={template}
@@ -341,18 +397,15 @@ export function SharedReferencePanel({
 
         {activeTab === "saved" && (
           <div className="space-y-4">
-            {/* Search Bar */}
-            {renderSearchControls(t("searchPlaceholderSaved"), savedTemplates)}
-
             {/* Saved References Grid */}
             {savedTemplates.isLoading ? (
               <TemplateGridSkeleton />
             ) : (
-              <div className="grid grid-cols-2 gap-4">
-                {/* Upload Card */}
+              <div className="columns-2 gap-4 space-y-0">
+                {/* Upload Card — mobile: full-width row spanning both columns */}
 
                 <div
-                  className={` w-full rounded-lg overflow-hidden border-2 border-dashed transition-colors flex items-center justify-center ${
+                  className={` w-full mb-4 break-inside-avoid max-lg:[column-span:all] rounded-lg overflow-hidden border-2 border-dashed transition-colors flex items-center justify-center ${
                     isUploading
                       ? "border-blue-300 bg-background"
                       : "border-border bg-background-secondary cursor-pointer hover:border-blue-300"
@@ -375,12 +428,14 @@ export function SharedReferencePanel({
                         <p className="text-xs text-gray-500">{uploadProgress}%</p>
                       </>
                     ) : (
-                      <>
-                        <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {t("uploadImage")}
-                        </p>
-                        <p className="text-xs text-muted-foreground mb-3">{t("enterNameFirst")}</p>
+                      <div className="flex w-full flex-col items-center max-lg:flex-row max-lg:gap-3 max-lg:text-left">
+                        <Upload className="h-8 w-8 shrink-0 text-gray-400 mb-2 max-lg:mb-0 max-lg:h-6 max-lg:w-6" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-muted-foreground mb-2 max-lg:mb-0.5 max-lg:font-medium max-lg:text-foreground">
+                            {t("uploadImage")}
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-3 max-lg:mb-0">{t("enterNameFirst")}</p>
+                        </div>
                         <input
                           id="file-upload"
                           type="file"
@@ -389,7 +444,7 @@ export function SharedReferencePanel({
                           onChange={handleFileInput}
                           disabled={isUploading}
                         />
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -412,25 +467,13 @@ export function SharedReferencePanel({
         )}
       </div>
 
-      <div className="shrink-0 border-t bg-card px-4 py-3 sm:px-6">
-        <PaginationControls
-          pagination={
-            activeTab === "reference"
-              ? publishedTemplates.pagination
-              : savedTemplates.pagination
-          }
-          filterQuery={
-            activeTab === "reference"
-              ? publishedTemplates.filterQuery
-              : savedTemplates.filterQuery
-          }
-          setFilterQuery={
-            activeTab === "reference"
-              ? publishedTemplates.setFilterQuery
-              : savedTemplates.setFilterQuery
-          }
-          className="border-t-0 pt-0"
-        />
+      <div className="shrink-0">
+        <div ref={observerTarget} className="h-10 w-full flex items-center justify-center">
+          {((activeTab === "reference" && publishedTemplates.isLoading) || 
+            (activeTab === "saved" && savedTemplates.isLoading)) && (
+            <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
+          )}
+        </div>
       </div>
 
       {/* Detail Reference Dialog */}
@@ -466,7 +509,7 @@ export function SharedReferencePanel({
           setIsNameDialogOpen(true);
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>{t("saveUploadedReferenceTitle")}</DialogTitle>
             <DialogDescription>
@@ -474,7 +517,7 @@ export function SharedReferencePanel({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 p-4 sm:p-6">
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:p-6">
             <div className="space-y-2">
               <p className="text-sm font-medium">{t("referenceNameLabel")}</p>
               <Input
@@ -488,36 +531,59 @@ export function SharedReferencePanel({
                 placeholder={t("referenceNamePlaceholder")}
                 disabled={isPreparingUpload}
               />
-              {prepareUploadError && (
-                <p className="text-sm text-destructive">{prepareUploadError}</p>
-              )}
             </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t("referenceCategoryLabel")}</p>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => {
+                  const selected = uploadedReferenceCategoryIds.includes(category.id);
+                  return (
+                    <Button
+                      key={category.id}
+                      type="button"
+                      size="sm"
+                      variant={selected ? "default" : "outline"}
+                      aria-pressed={selected}
+                      onClick={() => toggleUploadedReferenceCategory(category.id)}
+                      disabled={isPreparingUpload}
+                      className={selected ? "bg-blue-500 text-white hover:bg-blue-600" : ""}
+                    >
+                      {category.name}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+            {prepareUploadError && (
+              <p className="text-sm text-destructive">{prepareUploadError}</p>
+            )}
           </div>
 
-          <DialogFooter className="px-4 pb-4 sm:px-6 sm:pb-6">
-            <div className="flex w-full justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={resetNameDialog}
-                disabled={isPreparingUpload}
-              >
-                {t("cancelSaveReference")}
-              </Button>
-              <Button
-                onClick={handleContinueToFilePicker}
-                disabled={isPreparingUpload}
-                className="bg-blue-500 text-white hover:bg-blue-600"
-              >
-                {isPreparingUpload ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("selectingImage")}
-                  </>
-                ) : (
-                  t("continueToUpload")
-                )}
-              </Button>
-            </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={resetNameDialog}
+              disabled={isPreparingUpload}
+            >
+              {t("cancelSaveReference")}
+            </Button>
+            <Button
+              onClick={handleContinueToFilePicker}
+              disabled={isPreparingUpload}
+              className="bg-blue-500 text-white hover:bg-blue-600"
+            >
+              {isPreparingUpload ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("selectingImage")}
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  {t("continueToUpload")}
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
